@@ -1,0 +1,792 @@
+{
+  "name": "AI-Agent-Head-Vendas",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfunction cleanFences(s) {\n  if (typeof s !== 'string') s = String(s ?? '');\n  let r = s.trim();\n  r = r.replace(/^\\s*```[a-z]*\\s*/i, '');\n  r = r.replace(/\\s*```$/, '');\n  return r;\n}\nfunction findBalancedEnd(s, start) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = start; i < s.length; i++) {\n    const ch = s[i];\n    if (inStr) {\n      if (esc) { esc = false; }\n      else if (ch === '\\\\') { esc = true; }\n      else if (ch === '\"') { inStr = false; }\n    } else {\n      if (ch === '\"') inStr = true;\n      else if (ch === '{') depth++;\n      else if (ch === '}') { depth--; if (depth === 0) return i; }\n    }\n  }\n  return -1;\n}\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch {}\n  const raw = cleanFences(str);\n  try { return JSON.parse(raw); } catch {}\n  const start = raw.indexOf('{');\n  const end = start >= 0 ? findBalancedEnd(raw, start) : -1;\n  if (start >= 0 && end >= 0) {\n    const jsonStr = raw.slice(start, end + 1);\n    try { return JSON.parse(jsonStr); } catch {}\n  }\n  function getNum(re) {\n    const m = raw.match(re);\n    return m ? Number(m[1]) : undefined;\n  }\n  function getStr(re) {\n    const m = raw.match(re);\n    return m ? m[1] : undefined;\n  }\n  const score_total = getNum(/\"score_total\"\\s*:\\s*(\\d+)/);\n  const probabilidade_fechamento = getNum(/\"probabilidade_fechamento\"\\s*:\\s*(\\d+)/);\n  const status = getStr(/\"status\"\\s*:\\s*\"([^\"]+)\"/);\n  const resumo_executivo = getStr(/\"resumo_executivo\"\\s*:\\s*\"([\\s\\S]*?)\"/);\n  const qScore = getNum(/\"qualificacao_bant\"[\\s\\S]*?\"score\"\\s*:\\s*(\\d+)/);\n  const dScore = getNum(/\"descoberta_spin\"[\\s\\S]*?\"score\"\\s*:\\s*(\\d+)/);\n  const cScore = getNum(/\"conducao\"[\\s\\S]*?\"score\"\\s*:\\s*(\\d+)/);\n  const fScore = getNum(/\"fechamento\"[\\s\\S]*?\"score\"\\s*:\\s*(\\d+)/);\n  if (score_total !== undefined || status !== undefined || resumo_executivo !== undefined) {\n    return {\n      analise_geral: {\n        score_total: score_total ?? 0,\n        probabilidade_fechamento: probabilidade_fechamento ?? 0,\n        status: status ?? '',\n        resumo_executivo: resumo_executivo ?? ''\n      },\n      scores_detalhados: {\n        qualificacao_bant: { score: qScore ?? 0 },\n        descoberta_spin: { score: dScore ?? 0 },\n        conducao: { score: cScore ?? 0 },\n        fechamento: { score: fScore ?? 0 }\n      }\n    };\n  }\n  return null;\n}\nfunction formatItem(analise) {\n  let tier, cor, emoji;\n  const scoreTotal = Number(analise?.analise_geral?.score_total ?? 0);\n  if (scoreTotal >= 81) { tier = 'A+ EXCELENTE'; cor = '#10b981'; emoji = '🏆'; }\n  else if (scoreTotal >= 61) { tier = 'B BOA'; cor = '#3b82f6'; emoji = '✅'; }\n  else if (scoreTotal >= 41) { tier = 'C MEDIANA'; cor = '#f59e0b'; emoji = '⚠️'; }\n  else { tier = 'D FRACA'; cor = '#ef4444'; emoji = '❌'; }\n  const resumoFormatado = `\n${emoji} CALL ${tier}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nScore Total: ${scoreTotal}/100\nProbabilidade Fechamento: ${analise?.analise_geral?.probabilidade_fechamento ?? 0}%\nStatus: ${analise?.analise_geral?.status ?? ''}\n\n${analise?.analise_geral?.resumo_executivo ?? ''}\n`;\n  const scores = `\n📊 BREAKDOWN DE SCORES:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Qualificacao (BANT): ${analise?.scores_detalhados?.qualificacao_bant?.score ?? 0}/10\n• Descoberta (SPIN): ${analise?.scores_detalhados?.descoberta_spin?.score ?? 0}/10\n• Conducao: ${analise?.scores_detalhados?.conducao?.score ?? 0}/10\n• Fechamento: ${analise?.scores_detalhados?.fechamento?.score ?? 0}/10\n`;\n  return {\n    json: {\n      ...analise,\n      metadata: {\n        tier,\n        cor,\n        emoji,\n        resumo_formatado: resumoFormatado,\n        scores_formatado: scores,\n        timestamp: new Date().toISOString()\n      }\n    }\n  };\n}\nconst results = items.map(item => {\n  const rawVal = item?.json?.output ?? item?.json?.text;\n  const outputStr = typeof rawVal === 'string' ? rawVal : String(rawVal ?? '');\n  const analise = typeof rawVal === 'object' && rawVal ? rawVal : tryParse(outputStr);\n  if (!analise) {\n    return {\n      json: {\n        metadata: {\n          erro_parse: true,\n          motivo: 'Resposta do agente incompleta ou com cercas Markdown. JSON invalido.',\n          raw_snippet: cleanFences(outputStr).slice(0, 1000),\n          timestamp: new Date().toISOString()\n        }\n      }\n    };\n  }\n  return formatItem(analise);\n});\nreturn results;\n"
+      },
+      "id": "2ce9ff1f-4d03-4d10-89b3-42905492d5b2",
+      "name": "Code - Processar Analise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2224,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $('Config GHL + Dados Supabase').item.json.location.id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2448,
+        496
+      ],
+      "id": "7e7e6ce5-d883-4bef-b635-7c6774e1f227",
+      "name": "Listar Custom Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const customFields = $input.first().json.customFields || [];\n\nfunction find(fieldKey, name) {\n  const fk = fieldKey.toLowerCase();\n  const nm = name.toLowerCase();\n  return customFields.find(f => \n    (f.fieldKey && f.fieldKey.toLowerCase() === fk) || \n    (f.fieldKey && f.fieldKey.toLowerCase().includes(fk.replace('contact.', ''))) ||\n    (f.name && f.name.toLowerCase() === nm) ||\n    (f.name && f.name.toLowerCase().includes(nm))\n  );\n}\n\nconst mapping = [\n  ['score_total_id', 'contact.contactscore_total', 'Score Total'],\n  ['probabilidade_fechamento_id', 'contact.contactprobabilidade_fechamento', 'Probabilidade de Fechamento'],\n  ['status_analise_id', 'contact.contactstatus_analise', 'Status da Análise'],\n  ['tier_call_id', 'contact.contacttier_call', 'Tier da Call'],\n  ['resumo_executivo_id', 'contact.contactresumo_executivo', 'Resumo Executivo'],\n  ['scores_formatado_id', 'contact.contactscores_formatado', 'Scores Formatado'],\n  ['qualificacao_bant_score_id', 'contact.contactqualificacao_bant_score', 'Qualificação (BANT) Score'],\n  ['descoberta_spin_score_id', 'contact.contactdescoberta_spin_score', 'Descoberta (SPIN) Score'],\n  ['conducao_score_id', 'contact.contactconducao_score', 'Condução Score'],\n  ['fechamento_score_id', 'contact.contactfechamento_score', 'Fechamento Score']\n];\n\nconst result = {};\nfor (const [outKey, fk, name] of mapping) {\n  const f = find(fk, name);\n  if (f && f.id) result[outKey] = f.id;\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        496
+      ],
+      "id": "ad3d25bb-78a0-4d68-b39a-6a1d39e04e1b",
+      "name": "Code - Encontrar IDs"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Config GHL + Dados Supabase').item.json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.score_total_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.analise_geral.score_total }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.probabilidade_fechamento_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.analise_geral.probabilidade_fechamento }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.status_analise_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.analise_geral.status }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.tier_call_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.metadata.tier }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.resumo_executivo_id }}\", \n      \"value\": {{ JSON.stringify($('Code - Processar Analise').item.json.analise_geral.resumo_executivo) }} \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.scores_formatado_id }}\", \n      \"value\": {{ JSON.stringify($('Code - Processar Analise').item.json.metadata.scores_formatado) }} \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.qualificacao_bant_score_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.scores_detalhados.qualificacao_bant.score }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.descoberta_spin_score_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.scores_detalhados.descoberta_spin.score }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.conducao_score_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.scores_detalhados.conducao.score }}\" \n    },\n    { \n      \"id\": \"{{ $('Code - Encontrar IDs').item.json.fechamento_score_id }}\", \n      \"value\": \"{{ $('Code - Processar Analise').item.json.scores_detalhados.fechamento.score }}\" \n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2896,
+        496
+      ],
+      "id": "a4204f7e-4d7a-44bf-8390-df5387b477cf",
+      "name": "Atualizar Campos GHL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE call_recordings SET status = 'analisado', processed_at = NOW() WHERE id = '{{ $('Config GHL + Dados Supabase').item.json.call_recording_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3120,
+        592
+      ],
+      "id": "4399e69b-861a-424c-8c72-540bc5a7a2ed",
+      "name": "Atualizar Status Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.texto }}",
+        "options": {
+          "systemMessage": "=Voce e um HEAD DE VENDAS B2B com 15 anos de experiencia em vendas consultivas de alto ticket.\n\nTAREFA: Analisar a transcricao de uma call de diagnostico BPOSS e dar feedback BRUTAL mas construtivo.\n\nANALISE OS SEGUINTES ASPECTOS:\n\n## 1. QUALIFICACAO (BANT)\n- **Budget:** Perguntou sobre faturamento, investimento disponivel?\n- **Authority:** Confirmou se e o tomador de decisao?\n- **Need:** Identificou DOR real ou so interesse superficial?\n- **Timeline:** Definiu urgencia, quando precisa resolver?\n\n**Score:** 0-10\n**Feedback:** O que faltou perguntar?\n\n---\n\n## 2. DESCOBERTA (SPIN Selling)\n- **Situation:** Entendeu contexto atual, numeros, processos?\n- **Problem:** Explorou DORES profundamente (nao superficialmente)?\n- **Implication:** Fez cliente SENTIR o custo de nao resolver?\n- **Need-Payoff:** Cliente verbalizou que PRECISA da solucao?\n\n**Score:** 0-10\n**Feedback:** Quais perguntas poderosas faltaram?\n\n---\n\n## 3. CONDUCAO DA CALL\n- **Rapport:** Criou conexao genuina ou foi robotico?\n- **Escuta Ativa:** Deixou cliente falar 60%+ do tempo?\n- **Controle:** Manteve foco ou desviou do roteiro?\n- **Objecoes:** Tratou objecoes ou deixou passar?\n\n**Score:** 0-10\n**Feedback:** O que melhorar na conducao?\n\n---\n\n## 4. FECHAMENTO/PROXIMOS PASSOS\n- **Call to Action:** Definiu proximo passo claro?\n- **Compromisso:** Cliente assumiu compromisso verbal?\n- **Urgencia:** Criou senso de urgencia (bonus, prazo)?\n- **Entusiasmo:** Cliente terminou ANIMADO ou morno?\n\n**Score:** 0-10\n**Feedback:** Como poderia ter fechado melhor?\n\n---\n\n## 5. RED FLAGS (DESQUALIFICAR)\n- Cliente e tire-kicker (so curioso, sem dor real)?\n- Faturamento/ticket muito baixo para BPOSS?\n- Nao tem budget ou autoridade?\n- Expectativas irrealistas?\n- So quer preco (nao valoriza consultoria)?\n\n**Recomendacao:** QUALIFICADO ou DESQUALIFICAR\n**Motivo:** Por que?\n\n---\n\n## OUTPUT ESPERADO (JSON):\n\n```json\n{\n  \"analise_geral\": {\n    \"score_total\": 0-100,\n    \"probabilidade_fechamento\": 0-100,\n    \"status\": \"QUALIFICADO|DESQUALIFICAR|NUTRIR\",\n    \"resumo_executivo\": \"2-3 frases sobre a call\"\n  },\n  \"scores_detalhados\": {\n    \"qualificacao_bant\": {\n      \"score\": 0-10,\n      \"budget\": \"sim|nao|parcial\",\n      \"authority\": \"sim|nao|parcial\",\n      \"need\": \"sim|nao|parcial\",\n      \"timeline\": \"sim|nao|parcial\",\n      \"feedback\": \"texto\"\n    },\n    \"descoberta_spin\": {\n      \"score\": 0-10,\n      \"situation\": \"bom|regular|fraco\",\n      \"problem\": \"bom|regular|fraco\",\n      \"implication\": \"bom|regular|fraco\",\n      \"need_payoff\": \"bom|regular|fraco\",\n      \"feedback\": \"texto\"\n    },\n    \"conducao\": {\n      \"score\": 0-10,\n      \"rapport\": \"bom|regular|fraco\",\n      \"escuta_ativa\": \"60%+|40-60%|<40%\",\n      \"controle\": \"bom|regular|fraco\",\n      \"objecoes\": \"bem tratadas|parcialmente|ignoradas\",\n      \"feedback\": \"texto\"\n    },\n    \"fechamento\": {\n      \"score\": 0-10,\n      \"call_to_action\": \"sim|nao\",\n      \"compromisso\": \"sim|nao\",\n      \"urgencia\": \"sim|nao\",\n      \"entusiasmo_cliente\": \"alto|medio|baixo\",\n      \"feedback\": \"texto\"\n    }\n  },\n  \"red_flags\": {\n    \"tem_red_flags\": true|false,\n    \"flags\": [\"lista de red flags\"],\n    \"recomendacao\": \"QUALIFICADO|DESQUALIFICAR|NUTRIR\",\n    \"motivo\": \"texto\"\n  },\n  \"oportunidades_perdidas\": [\n    {\n      \"minuto\": \"estimado\",\n      \"contexto\": \"o que estava sendo discutido\",\n      \"oportunidade\": \"o que poderia ter feito\",\n      \"impacto\": \"alto|medio|baixo\"\n    }\n  ],\n  \"highlights\": [\n    \"coisa boa 1\",\n    \"coisa boa 2\",\n    \"coisa boa 3\"\n  ],\n  \"plano_acao\": {\n    \"para_vendedor\": [\n      \"acao 1\",\n      \"acao 2\",\n      \"acao 3\"\n    ],\n    \"follow_up\": {\n      \"quando\": \"24h|48h|1semana\",\n      \"como\": \"whatsapp|email|call\",\n      \"mencionar\": \"texto do que mencionar\",\n      \"criar_urgencia\": \"texto de como criar urgencia\"\n    }\n  },\n  \"citacoes_importantes\": [\n    {\n      \"quem\": \"cliente|vendedor\",\n      \"texto\": \"citacao exata\",\n      \"tipo\": \"dor|objecao|compromisso|entusiasmo\"\n    }\n  ],\n  \"proximos_passos_recomendados\": [\n    \"passo 1\",\n    \"passo 2\",\n    \"passo 3\"\n  ]\n}\n```\n\n## REGRAS:\n1. Seja HONESTO e DIRETO no feedback\n2. Use exemplos da transcricao (citacoes)\n3. De feedback ACIONAVEL (nao vago)\n4. Pense como Head de Vendas, nao como cheerleader\n5. Se a call foi ruim, FALE que foi ruim\n6. Se foi boa, explique POR QUE foi boa\n7. Retorne APENAS o JSON valido, sem markdown"
+        }
+      },
+      "id": "6865e487-7080-4a5a-99f4-9307e668cc25",
+      "name": "AI Agent - Head de Vendas1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1872,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            },
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/1yr256LwbLKJZ5HzHgC7Zq25MrSOKTQEs",
+          "mode": "url"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        752,
+        688
+      ],
+      "id": "50ab3d5d-cdab-4a5f-baf5-b98be492245a",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Google Drive Trigger').item.json.id }}/export",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "mimeType",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        592
+      ],
+      "id": "6ba665e6-715d-4cc7-a5f1-919522706394",
+      "name": "Export Google Doc como Texto",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, l.api_key as location_api_key, l.association_id FROM call_recordings cr LEFT JOIN locations l ON cr.location_id = l.location_id WHERE cr.gdrive_file_id = '{{ $json.id }}' AND cr.status = 'movido' LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        976,
+        688
+      ],
+      "id": "c22b756c-e7f5-43a5-b6c0-574a6d0d4058",
+      "name": "Buscar Call no Supabase1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-call-exists",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        688
+      ],
+      "id": "da1b3a80-9bba-4088-afe4-b62c07667481",
+      "name": "Call Existe?1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        784
+      ],
+      "id": "c32e5db4-db82-45f2-9a18-df6e81997ee0",
+      "name": "Skip - Call nao encontrada1"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1944,
+        816
+      ],
+      "id": "b0eb4ba5-7b5b-4ca6-b479-e4c988722514",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "WVbQ0d3w6cnLwPtX",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ghl-location",
+              "name": "location.id",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.location_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id",
+              "name": "contactId",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "call-id",
+              "name": "call_recording_id",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "tipo-call",
+              "name": "tipo_call",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.tipo }}",
+              "type": "string"
+            },
+            {
+              "id": "gdrive-url",
+              "name": "gdrive_url",
+              "value": "={{ $('Buscar Call no Supabase1').item.json.gdrive_url }}",
+              "type": "string"
+            },
+            {
+              "id": "texto-transcricao",
+              "name": "texto",
+              "value": "={{ $('Export Google Doc como Texto').item.json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1648,
+        592
+      ],
+      "id": "b61ecbca-40a8-42ae-9bcc-cb2c2712a292",
+      "name": "Config GHL + Dados Supabase"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/objects/custom_objects.anlises_de_call/records",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"locationId\": \"{{ $items('Buscar Call no Supabase1').first().json.location_id }}\",\n  \"properties\": {\n    \"resumo_da_call\": {{ JSON.stringify(String($items('Code - Processar Analise').first().json.analise_geral?.resumo_executivo ?? 'Analise processada')) }},\n    \"data_call\": \"{{ $now.toFormat('yyyy-MM-dd') }}\",\n    \"tipo\": \"{{ $items('Config GHL + Dados Supabase').first().json.tipo_call ?? 'diagnostico' }}\",\n    \"sentimento\": \"{{ ($items('Code - Processar Analise').first().json.analise_geral?.score_total ?? 0) >= 61 ? 'positivo' : (($items('Code - Processar Analise').first().json.analise_geral?.score_total ?? 0) >= 41 ? 'neutro' : 'negativo') }}\",\n    \"pontuacao_geral\": {{ $items('Code - Processar Analise').first().json.analise_geral?.score_total ?? 0 }},\n    \"participantes\": \"{{ $items('Buscar Call no Supabase1').first().json.nome_lead ?? 'Lead' }}\",\n    \"duracao_minutos\": {{ $items('Code - Processar Analise').first().json.metadata?.duracao_estimada ?? 30 }},\n    \"proximos_passos\": {{ JSON.stringify(String($items('Code - Processar Analise').first().json.plano_acao?.follow_up?.mencionar ?? $items('Code - Processar Analise').first().json.proximos_passos_recomendados?.join(', ') ?? 'Aguardando definicao')) }},\n    \"pontos_positivos\": {{ JSON.stringify(String($items('Code - Processar Analise').first().json.highlights?.join('\\n') ?? 'Analise em processamento')) }},\n    \"pontos_atencao\": {{ JSON.stringify(String($items('Code - Processar Analise').first().json.scores_detalhados?.conducao?.feedback ?? 'Verificar pontos de atencao')) }},\n    \"objecoes_identificadas\": {{ JSON.stringify(String($items('Code - Processar Analise').first().json.red_flags?.flags?.join('\\n') ?? 'Nenhuma objecao critica identificada')) }},\n    \"link_gravacao\": \"{{ $items('Config GHL + Dados Supabase').first().json.gdrive_url }}\",\n    \"bant_score\": {{ $items('Code - Processar Analise').first().json.scores_detalhados?.qualificacao_bant?.score ?? 0 }},\n    \"spin_score\": {{ $items('Code - Processar Analise').first().json.scores_detalhados?.descoberta_spin?.score ?? 0 }},\n    \"conducao_score\": {{ $items('Code - Processar Analise').first().json.scores_detalhados?.conducao?.score ?? 0 }},\n    \"fechamento_score\": {{ $items('Code - Processar Analise').first().json.scores_detalhados?.fechamento?.score ?? 0 }},\n    \"probabilidade_fechamento\": {{ $items('Code - Processar Analise').first().json.analise_geral?.probabilidade_fechamento ?? 0 }},\n    \"status_analise\": \"{{ $items('Code - Processar Analise').first().json.analise_geral?.status ?? 'nutrir' }}\",\n    \"tier\": \"{{ $items('Code - Processar Analise').first().json.metadata?.tier ?? 'C MEDIANA' }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2448,
+        688
+      ],
+      "id": "a5e7372e-de40-4434-ac54-c44949bfdc42",
+      "name": "Salvar em Custom Object"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/associations/relations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"associationId\": \"{{ $('Buscar Call no Supabase1').first().json.association_id }}\",\n  \"firstRecordId\": \"{{ $('Buscar Call no Supabase1').first().json.contact_id }}\",\n  \"secondRecordId\": \"{{ $('Salvar em Custom Object').item.json.record.id }}\",\n  \"locationId\": \"{{ $('Buscar Call no Supabase1').first().json.location_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2896,
+        688
+      ],
+      "id": "baf937f7-6e6c-4e93-9866-b52c571aebcf",
+      "name": "Associar Call ao Contato"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-contact-id",
+              "leftValue": "={{ $('Buscar Call no Supabase1').first().json.contact_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "check-not-undefined",
+              "leftValue": "={{ $('Buscar Call no Supabase1').first().json.contact_id }}",
+              "rightValue": "undefined",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2672,
+        688
+      ],
+      "id": "contact-id-check-node",
+      "name": "Tem Contact ID?"
+    }
+  ],
+  "pinData": {
+    "Google Drive Trigger": [
+      {
+        "json": {
+          "exportLinks": {
+            "application/rtf": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=rtf",
+            "application/vnd.oasis.opendocument.text": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=odt",
+            "text/html": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=html",
+            "application/pdf": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=pdf",
+            "text/x-markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=markdown",
+            "text/markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=markdown",
+            "application/epub+zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=epub",
+            "application/zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=zip",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=docx",
+            "text/plain": "https://docs.google.com/feeds/download/documents/export/Export?id=1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s&exportFormat=txt"
+          },
+          "parents": [
+            "1yr256LwbLKJZ5HzHgC7Zq25MrSOKTQEs"
+          ],
+          "lastModifyingUser": {
+            "displayName": "Marcos Daniel",
+            "kind": "drive#user",
+            "me": true,
+            "permissionId": "17593624161997979916",
+            "emailAddress": "ceo@marcosdaniels.com",
+            "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIxThQOKn67oYJ_d9CnClrZihFO_WHmcBS38rmK-BOgakQn-Cek4A=s64"
+          },
+          "owners": [
+            {
+              "displayName": "Marcos Daniel",
+              "kind": "drive#user",
+              "me": true,
+              "permissionId": "17593624161997979916",
+              "emailAddress": "ceo@marcosdaniels.com",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIxThQOKn67oYJ_d9CnClrZihFO_WHmcBS38rmK-BOgakQn-Cek4A=s64"
+            }
+          ],
+          "permissions": [
+            {
+              "kind": "drive#permission",
+              "id": "17593624161997979916",
+              "type": "user",
+              "emailAddress": "ceo@marcosdaniels.com",
+              "role": "owner",
+              "displayName": "Marcos Daniel",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIxThQOKn67oYJ_d9CnClrZihFO_WHmcBS38rmK-BOgakQn-Cek4A=s64",
+              "deleted": false,
+              "pendingOwner": false
+            }
+          ],
+          "spaces": [
+            "drive"
+          ],
+          "capabilities": {
+            "canAcceptOwnership": false,
+            "canAddChildren": false,
+            "canAddMyDriveParent": false,
+            "canChangeCopyRequiresWriterPermission": true,
+            "canChangeItemDownloadRestriction": true,
+            "canChangeSecurityUpdateEnabled": false,
+            "canChangeViewersCanCopyContent": true,
+            "canComment": true,
+            "canCopy": true,
+            "canDelete": true,
+            "canDisableInheritedPermissions": false,
+            "canDownload": true,
+            "canEdit": true,
+            "canEnableInheritedPermissions": true,
+            "canListChildren": false,
+            "canModifyContent": true,
+            "canModifyContentRestriction": true,
+            "canModifyEditorContentRestriction": true,
+            "canModifyOwnerContentRestriction": true,
+            "canModifyLabels": false,
+            "canMoveChildrenWithinDrive": false,
+            "canMoveItemIntoTeamDrive": true,
+            "canMoveItemOutOfDrive": true,
+            "canMoveItemWithinDrive": true,
+            "canReadLabels": false,
+            "canReadRevisions": true,
+            "canRemoveChildren": false,
+            "canRemoveContentRestriction": false,
+            "canRemoveMyDriveParent": true,
+            "canRename": true,
+            "canShare": true,
+            "canTrash": true,
+            "canUntrash": true
+          },
+          "permissionIds": [
+            "17593624161997979916"
+          ],
+          "linkShareMetadata": {
+            "securityUpdateEligible": false,
+            "securityUpdateEnabled": true
+          },
+          "downloadRestrictions": {
+            "itemDownloadRestriction": {
+              "restrictedForReaders": false,
+              "restrictedForWriters": false
+            },
+            "effectiveDownloadRestrictionWithContext": {
+              "restrictedForReaders": false,
+              "restrictedForWriters": false
+            }
+          },
+          "kind": "drive#file",
+          "id": "1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s",
+          "name": "4 - Diagnostico - Meneplast e Renan Porto - (21) 96480-6709 - cd1uyzpJox6XPt4Vct8Y  - 2025/12/17 17:00 GMT-03:00 - Anotações do Gemini - 2025-12-17_17-34",
+          "mimeType": "application/vnd.google-apps.document",
+          "starred": false,
+          "trashed": false,
+          "explicitlyTrashed": false,
+          "version": "6",
+          "webViewLink": "https://docs.google.com/document/d/1HjaVzo8xaymH5CjQ6oiG2TLddHUDuVeyH46CnBljh2s/edit?usp=drivesdk",
+          "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+          "hasThumbnail": true,
+          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBMLj_0ACFJWDTjPYlfrgxfdP0cgHclkBE4MzerrL4oyVsZTiodm4ntuX8rQLiBo0zD60lJCucyYXcECXniAugBP-Ayh_q6-Lf6KrzeQX92lcB5Awj6MSwdqJsEijw=s220",
+          "thumbnailVersion": "2",
+          "viewedByMe": true,
+          "viewedByMeTime": "2025-12-17T20:34:19.137Z",
+          "createdTime": "2025-12-17T20:34:18.364Z",
+          "modifiedTime": "2025-12-17T20:34:59.899Z",
+          "modifiedByMeTime": "2025-12-17T20:34:59.899Z",
+          "modifiedByMe": true,
+          "shared": false,
+          "ownedByMe": true,
+          "viewersCanCopyContent": true,
+          "copyRequiresWriterPermission": false,
+          "writersCanShare": true,
+          "size": "1024",
+          "quotaBytesUsed": "1024",
+          "isAppAuthorized": false,
+          "inheritedPermissionsDisabled": false
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Code - Processar Analise": {
+      "main": [
+        [
+          {
+            "node": "Listar Custom Fields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Salvar em Custom Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Custom Fields": {
+      "main": [
+        [
+          {
+            "node": "Code - Encontrar IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Encontrar IDs": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Campos GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Campos GHL": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Head de Vendas1": {
+      "main": [
+        [
+          {
+            "node": "Code - Processar Analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar Call no Supabase1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Doc como Texto": {
+      "main": [
+        [
+          {
+            "node": "Config GHL + Dados Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Call no Supabase1": {
+      "main": [
+        [
+          {
+            "node": "Call Existe?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Existe?1": {
+      "main": [
+        [
+          {
+            "node": "Export Google Doc como Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Call nao encontrada1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Head de Vendas1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config GHL + Dados Supabase": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Head de Vendas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar em Custom Object": {
+      "main": [
+        [
+          {
+            "node": "Tem Contact ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Contact ID?": {
+      "main": [
+        [
+          {
+            "node": "Associar Call ao Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Status Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Associar Call ao Contato": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "WnRF9AdjFBkEW9Ma"
+  },
+  "versionId": "3c4f49ce-9732-4461-9e97-5e22119a7294",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "JiTZQcq7Tt2c5Xol",
+  "tags": []
+}

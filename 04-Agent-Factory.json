@@ -1,0 +1,556 @@
+{
+  "name": "Agent Factory",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2016,
+        1280
+      ],
+      "id": "4a8843a5-06aa-4c74-87c1-2d5d91831d63",
+      "name": "Schedule Trigger - A cada 5 min"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, l.api_key as location_api_key, l.association_id\nFROM call_recordings cr\nLEFT JOIN locations l ON cr.location_id = l.location_id\nWHERE cr.status = 'analisado' \n  AND cr.tipo = 'kickoff'\n  AND cr.analise_json IS NOT NULL\n  AND NOT EXISTS (\n    SELECT 1 FROM agent_versions av \n    WHERE av.call_recording_id = cr.id\n  )\nLIMIT 5",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1776,
+        1280
+      ],
+      "id": "b99a5831-d594-4bf1-aefd-353b0584590b",
+      "name": "Buscar Calls Pendentes de Agente",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-results",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1536,
+        1280
+      ],
+      "id": "678bc561-cf88-431f-a0d4-4d13227a5ce1",
+      "name": "Tem Calls Pendentes?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        1472
+      ],
+      "id": "10620300-a426-4f4d-a4b5-bea8a8b3f773",
+      "name": "Nenhuma Call Pendente"
+    },
+    {
+      "parameters": {
+        "jsCode": "const call = $input.first().json;\n\nlet analiseJson;\nif (typeof call.analise_json === 'string') {\n  try { analiseJson = JSON.parse(call.analise_json); } catch (e) { analiseJson = {}; }\n} else {\n  analiseJson = call.analise_json || {};\n}\n\nconst analise = analiseJson;\nconst confiancaExtracao = analise.confianca_extracao || {};\nconst businessContext = analise.business_context || {};\nconst complianceRules = analise.compliance_rules || {};\nconst personalityConfig = analise.personality_config || {};\nconst modosIdentificados = analise.modos_identificados || [];\nconst promptsPorModo = analise.prompts_por_modo || {};\nconst observacoes = analise.observacoes || {};\n\nconst nomeNegocio = businessContext.nome_negocio || businessContext.nome_clinica || call.nome_lead || 'Cliente';\nconst nomeAgente = personalityConfig.nome_agente || 'Assistente ' + nomeNegocio;\n\nfunction gerarSystemPrompt() {\n  const nomeNeg = businessContext.nome_negocio || businessContext.nome_clinica || 'Empresa';\n  const tipoNeg = businessContext.tipo_negocio || businessContext.especialidade || 'servicos';\n  const servicos = businessContext.servicos_produtos || businessContext.servicos || [];\n  const diferenciais = businessContext.diferenciais || [];\n  const publicoAlvo = businessContext.publico_alvo || 'clientes em geral';\n  const tom = personalityConfig.tom || 'profissional';\n  const caracteristicas = personalityConfig.caracteristicas || [];\n  const proibicoes = complianceRules.proibicoes || [];\n  const gatilhosEscalacao = complianceRules.gatilhos_escalacao || [];\n  \n  let prompt = '## IDENTIDADE\\n\\nVoce e o assistente virtual da ' + nomeNeg + ', especializada em ' + tipoNeg + '.\\n\\n';\n  prompt += '## SOBRE O NEGOCIO\\n\\n';\n  prompt += '- **Nome**: ' + nomeNeg + '\\n';\n  prompt += '- **Segmento**: ' + tipoNeg + '\\n';\n  if (servicos.length > 0) prompt += '- **Servicos/Produtos**: ' + servicos.join(', ') + '\\n';\n  if (diferenciais.length > 0) prompt += '- **Diferenciais**: ' + diferenciais.join(', ') + '\\n';\n  prompt += '- **Publico-alvo**: ' + publicoAlvo + '\\n\\n';\n  \n  prompt += '## PERSONALIDADE\\n\\n';\n  prompt += '- **Tom de comunicacao**: ' + tom + '\\n';\n  if (caracteristicas.length > 0) prompt += '- **Caracteristicas**: ' + caracteristicas.join(', ') + '\\n';\n  prompt += '\\n';\n  \n  prompt += '## COMPLIANCE E REGRAS\\n\\n';\n  if (proibicoes.length > 0) {\n    prompt += '### O que NAO fazer:\\n';\n    proibicoes.forEach(function(p) { prompt += '- ' + p + '\\n'; });\n    prompt += '\\n';\n  }\n  if (gatilhosEscalacao.length > 0) {\n    prompt += '### Quando escalar para humano:\\n';\n    gatilhosEscalacao.forEach(function(g) { prompt += '- ' + g + '\\n'; });\n    prompt += '\\n';\n  }\n  \n  if (modosIdentificados.length > 0) {\n    prompt += '## MODOS DE OPERACAO DISPONIVEIS\\n\\n';\n    prompt += 'Este agente opera nos seguintes modos: ' + modosIdentificados.join(', ') + '\\n\\n';\n    modosIdentificados.forEach(function(modo) {\n      if (promptsPorModo[modo]) {\n        prompt += '### Modo: ' + modo.toUpperCase() + '\\n\\n';\n        prompt += promptsPorModo[modo] + '\\n\\n';\n      }\n    });\n  }\n  \n  prompt += '## INSTRUCOES GERAIS\\n\\n';\n  prompt += '1. Sempre seja educado e prestativo\\n';\n  prompt += '2. Responda apenas sobre assuntos relacionados ao negocio\\n';\n  prompt += '3. Se nao souber algo, seja honesto e ofereca escalar para um humano\\n';\n  prompt += '4. Use as ferramentas disponiveis quando necessario\\n';\n  \n  return prompt;\n}\n\nconst systemPrompt = gerarSystemPrompt();\nconst toolsEnabled = ['busca_disponibilidade', 'agendar', 'escalar_humano'];\n\n// Preparar JSONs para PostgreSQL\nconst toolsConfigObj = {\n  tools_enabled: toolsEnabled,\n  modos_ativos: modosIdentificados,\n  modos_identificados: modosIdentificados,\n  prompts_por_modo: promptsPorModo\n};\nconst metadataObj = { origem: 'agent_factory', location_id: call.location_id, call_recording_id: call.id, arquitetura: modosIdentificados.length > 0 ? 'modular' : 'monolitica' };\n\nreturn [{\n  json: {\n    call_recording_id: call.id,\n    contact_id: call.contact_id,\n    location_id: call.location_id,\n    location_api_key: call.location_api_key,\n    association_id: call.association_id,\n    nome_lead: call.nome_lead || 'Cliente sem nome',\n    agent_name: nomeAgente,\n    version: 'v2.0-modular',\n    arquitetura: modosIdentificados.length > 0 ? 'modular' : 'monolitica',\n    business_context: businessContext,\n    compliance_rules: complianceRules,\n    personality_config: personalityConfig,\n    tools_config: toolsConfigObj,\n    modos_identificados: modosIdentificados,\n    prompts_por_modo: promptsPorModo,\n    system_prompt: systemPrompt,\n    confianca: confiancaExtracao.score || 0,\n    resumo: analise.resumo_executivo || '',\n    modos_count: modosIdentificados.length,\n    tools_enabled_str: toolsEnabled.join(', '),\n    tipo_negocio: businessContext.tipo_negocio || businessContext.especialidade || 'geral',\n    modos_str: modosIdentificados.join(', ') || 'nenhum',\n    // JSONs pre-stringificados para SQL\n    _sql_metadata: JSON.stringify(metadataObj),\n    _sql_tools_config: JSON.stringify(toolsConfigObj),\n    _sql_compliance_rules: JSON.stringify(complianceRules),\n    _sql_personality_config: JSON.stringify(personalityConfig),\n    _sql_business_config: JSON.stringify(businessContext)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1296,
+        1280
+      ],
+      "id": "7ccfab43-7baa-499f-88ea-0235edd37bde",
+      "name": "Preparar Dados do Agente"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH cliente AS (\n  INSERT INTO clients (\n    ghl_contact_id,\n    nome,\n    telefone,\n    status,\n    metadata,\n    updated_at\n  ) VALUES (\n    '{{ $json.contact_id }}',\n    '{{ $json.nome_lead.replace(/'/g, \"''\") }}',\n    NULL,\n    'cliente',\n    '{{ $json._sql_metadata.replace(/'/g, \"''\") }}'::jsonb,\n    NOW()\n  )\n  ON CONFLICT (ghl_contact_id) DO UPDATE\n  SET nome = EXCLUDED.nome,\n      status = 'cliente',\n      metadata = clients.metadata || EXCLUDED.metadata,\n      updated_at = NOW()\n  RETURNING id\n)\nINSERT INTO agent_versions (\n  client_id,\n  call_recording_id,\n  contact_id,\n  location_id,\n  version,\n  is_active,\n  agent_name,\n  system_prompt,\n  tools_config,\n  compliance_rules,\n  personality_config,\n  business_config,\n  status,\n  created_at\n) VALUES (\n  (SELECT id FROM cliente),\n  '{{ $json.call_recording_id }}'::uuid,\n  '{{ $json.contact_id }}',\n  '{{ $json.location_id }}',\n  '{{ $json.version }}',\n  false,\n  '{{ $json.agent_name.replace(/'/g, \"''\") }}',\n  '{{ $json.system_prompt.replace(/'/g, \"''\") }}',\n  '{{ $json._sql_tools_config.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json._sql_compliance_rules.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json._sql_personality_config.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json._sql_business_config.replace(/'/g, \"''\") }}'::jsonb,\n  'pending_approval',\n  NOW()\n)\nRETURNING id, agent_name, version, status;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1056,
+        1280
+      ],
+      "id": "22f38f9f-1017-4a7b-895a-205890619f90",
+      "name": "Criar Agent Version no Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/objects/custom_objects.agentes/records",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar Dados do Agente').item.json.location_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"locationId\": \"{{ $('Preparar Dados do Agente').item.json.location_id }}\",\n  \"properties\": {\n    \"versao\": \"{{ $('Preparar Dados do Agente').item.json.version }}\",\n    \"status\": \"pending_approval\",\n    \"deploy_date\": \"{{ $now.toFormat('yyyy-MM-dd') }}\",\n    \"supabase_id\": \"{{ $('Criar Agent Version no Supabase').item.json.id }}\",\n    \"prompt_summary\": {{ JSON.stringify(String($('Preparar Dados do Agente').item.json.resumo || 'Agente criado automaticamente').slice(0, 500)) }},\n    \"tools_enabled\": {{ JSON.stringify($('Preparar Dados do Agente').item.json.tools_enabled_str.split(', ')) }},\n    \"performance_score\": 0,\n    \"total_conversas\": 0,\n    \"taxa_resolucao\": 0,\n    \"satisfacao_media\": 0\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -816,
+        1280
+      ],
+      "id": "c6e50844-7e2b-4bfc-b338-b33983ec400f",
+      "name": "Criar Custom Object Agentes no GHL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE agent_versions \nSET ghl_custom_object_id = '{{ $('Criar Custom Object Agentes no GHL').item.json.record.id }}'\nWHERE id = '{{ $('Criar Agent Version no Supabase').item.json.id }}'\nRETURNING id, ghl_custom_object_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -576,
+        1280
+      ],
+      "id": "90d78927-fb81-4c6a-9671-586d55e0f0dc",
+      "name": "Atualizar GHL ID no Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentData = $('Preparar Dados do Agente').item.json;\nconst agentVersion = $('Criar Agent Version no Supabase').item.json;\nconst ghlRecord = $('Criar Custom Object Agentes no GHL').item.json;\n\nconst contactId = agentData.contact_id;\nconst isValidContact = contactId && \n                       contactId !== 'undefined' && \n                       contactId !== 'null' && \n                       contactId !== null && \n                       contactId !== undefined &&\n                       typeof contactId === 'string' &&\n                       contactId.trim().length > 0;\n\nreturn [{\n  json: {\n    agent_version_id: agentVersion.id,\n    ghl_record_id: ghlRecord.record.id,\n    agent_name: agentData.agent_name,\n    contact_id: isValidContact ? contactId : null,\n    location_id: agentData.location_id,\n    location_api_key: agentData.location_api_key,\n    association_id: agentData.association_id,\n    skip_association: !isValidContact\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        1280
+      ],
+      "id": "90ca8c94-217e-476b-b9a6-f8031cfb7f91",
+      "name": "Set Dados para Associacao"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/associations/?locationId={{ $json.location_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.location_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        1280
+      ],
+      "id": "bbbe69f8-f0a5-4416-80f5-1075f8838431",
+      "name": "Buscar Associations GHL"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Encontrar o association ID para Contact <-> Agentes\nconst dados = $('Set Dados para Associacao').item.json;\nconst associations = $input.first().json.associations || [];\n\n// VALIDAR contact_id novamente (garantia)\nconst contactId = dados.contact_id;\nconst isContactValid = contactId && \n                       contactId !== 'undefined' && \n                       contactId !== 'null' &&\n                       contactId !== null &&\n                       typeof contactId === 'string' &&\n                       contactId.trim().length > 0;\n\n// Se contact_id inválido, pular associação\nif (!isContactValid) {\n  return [{\n    json: {\n      ...dados,\n      skip_association: true,\n      erro: 'contact_id invalido: ' + String(contactId)\n    }\n  }];\n}\n\n// Buscar associacao Contact <-> Agentes\nconst agentAssoc = associations.find(a => \n  (a.firstObjectKey === 'contact' && a.secondObjectKey === 'custom_objects.agentes') ||\n  (a.secondObjectKey === 'contact' && a.firstObjectKey === 'custom_objects.agentes')\n);\n\nif (!agentAssoc) {\n  return [{\n    json: {\n      ...dados,\n      erro: 'Associacao Contact <-> Agentes nao encontrada',\n      skip_association: true\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...dados,\n    agent_association_id: agentAssoc.id,\n    skip_association: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        1280
+      ],
+      "id": "07f70c73-2a67-418c-b30b-31b47eb3df8f",
+      "name": "Encontrar Association ID"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip_association }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        1280
+      ],
+      "id": "805cd47e-0407-4f4f-a285-2e4e77eaae0b",
+      "name": "Pode Associar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/associations/relations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.location_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"associationId\": \"{{ $json.agent_association_id }}\",\n  \"firstRecordId\": \"{{ $json.contact_id }}\",\n  \"secondRecordId\": \"{{ $json.ghl_record_id }}\",\n  \"locationId\": \"{{ $json.location_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        1184
+      ],
+      "id": "00a57b4f-6ea0-4598-a278-3de1ddc2a444",
+      "name": "Associar Agente ao Contato"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        624,
+        1376
+      ],
+      "id": "3a9aa13c-5111-4d93-a52d-65afa6e5e477",
+      "name": "Skip Association"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "agent-id",
+              "name": "agent_version_id",
+              "value": "={{ $('Criar Agent Version no Supabase').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "agent-name",
+              "name": "agent_name",
+              "value": "={{ $('Preparar Dados do Agente').item.json.agent_name }}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=Agente '{{ $('Preparar Dados do Agente').item.json.agent_name }}' criado com sucesso! Status: pending_approval",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        864,
+        1280
+      ],
+      "id": "bfd486de-e9d2-4ff4-90c5-652a16c97d47",
+      "name": "Resultado Sucesso"
+    },
+    {
+      "parameters": {
+        "content": "## Agent Factory v1.0\n\n**Funcao**: Cria agentes de IA automaticamente a partir de calls de kickoff analisadas.\n\n### Fluxo:\n1. Poll a cada 5 min por calls pendentes\n2. Busca calls com status='analisado' e tipo='kickoff'\n3. Extrai agent_config do analise_json\n4. Cria registro em agent_versions (Supabase)\n5. Cria Custom Object Agentes no GHL\n6. Associa Agente ao Contato\n\n### Status do Agente:\n- `pending_approval` - Aguardando aprovacao CS\n- `active` - Ativo e em producao\n- `archived` - Desativado\n\n### Prerequisitos:\n- Call Analyzer Onboarding deve ter rodado\n- Custom Object 'Agentes' deve existir no GHL\n- Tabela agent_versions deve existir no Supabase\n- Associacao Contact <-> Agentes configurada no GHL",
+        "height": 460,
+        "width": 380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2336,
+        1072
+      ],
+      "id": "1aa2fa93-b527-4f73-a774-32b4b016c738",
+      "name": "Instrucoes"
+    },
+    {
+      "parameters": {
+        "content": "## Proximo Passo: Aprovar Agente\n\nApós criar o agente com status `pending_approval`, o CS deve:\n\n1. Revisar o system_prompt gerado\n2. Verificar compliance_rules\n3. Testar o agente\n4. Aprovar via API ou dashboard\n\nWorkflow de aprovacao:\n```sql\nUPDATE agent_versions\nSET \n  status = 'active',\n  is_active = true,\n  approved_by = 'CS Name',\n  approved_at = NOW(),\n  activated_at = NOW()\nWHERE id = '{agent_id}';\n```",
+        "height": 320,
+        "width": 340,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2336,
+        1552
+      ],
+      "id": "509aad78-8879-4d20-8549-eb229eb2ecab",
+      "name": "Aprovacao"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger - A cada 5 min": {
+      "main": [
+        [
+          {
+            "node": "Buscar Calls Pendentes de Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Calls Pendentes de Agente": {
+      "main": [
+        [
+          {
+            "node": "Tem Calls Pendentes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Calls Pendentes?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados do Agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nenhuma Call Pendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados do Agente": {
+      "main": [
+        [
+          {
+            "node": "Criar Agent Version no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Agent Version no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Criar Custom Object Agentes no GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Custom Object Agentes no GHL": {
+      "main": [
+        [
+          {
+            "node": "Atualizar GHL ID no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar GHL ID no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Set Dados para Associacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Dados para Associacao": {
+      "main": [
+        [
+          {
+            "node": "Buscar Associations GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Associations GHL": {
+      "main": [
+        [
+          {
+            "node": "Encontrar Association ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encontrar Association ID": {
+      "main": [
+        [
+          {
+            "node": "Pode Associar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pode Associar?": {
+      "main": [
+        [
+          {
+            "node": "Associar Agente ao Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Association",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Associar Agente ao Contato": {
+      "main": [
+        [
+          {
+            "node": "Resultado Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Association": {
+      "main": [
+        [
+          {
+            "node": "Resultado Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dd0ac2df-5af8-4b9a-91e7-0291b4b8a6b2",
+  "meta": {
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "EZpjk44KyqUl4Hr3",
+  "tags": []
+}

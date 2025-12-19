@@ -1,0 +1,667 @@
+{
+  "name": "Call Analyzer Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/1JS87Zs1bRSiNKjqVPTZ3GkfCvMnUj8PO",
+          "mode": "url"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "id": "trigger-onboarding",
+      "name": "Google Drive Trigger - Onboarding",
+      "notes": "Monitora pasta /7. Calls/2. Onboarding/ para arquivos de kickoff (usando ID da pasta)",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-google-doc",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.google-apps.document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        300
+      ],
+      "id": "filtrar-google-docs",
+      "name": "E Google Doc?",
+      "notes": "Filtra para processar APENAS Google Docs (ignora videos MP4, imagens, etc)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        520,
+        500
+      ],
+      "id": "skip-nao-doc",
+      "name": "Skip - Nao e Google Doc"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, l.api_key as location_api_key, l.association_id FROM call_recordings cr LEFT JOIN locations l ON cr.location_id = l.location_id WHERE cr.gdrive_file_id = '{{ $json.id }}' AND cr.status = 'movido' LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        300
+      ],
+      "id": "buscar-call-supabase",
+      "name": "Buscar Call no Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-call-exists",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        300
+      ],
+      "id": "call-existe",
+      "name": "Call Existe?"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Google Drive Trigger - Onboarding').item.json.id }}/export",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "mimeType",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "id": "export-google-doc",
+      "name": "Export Google Doc como Texto",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        400
+      ],
+      "id": "skip-call",
+      "name": "Skip - Call nao encontrada"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "location-id",
+              "name": "location_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "={{ $('Buscar Call no Supabase').item.json.location_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "association-id",
+              "name": "association_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.association_id }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id",
+              "name": "contact_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "call-id",
+              "name": "call_recording_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "nome-lead",
+              "name": "nome_lead",
+              "value": "={{ $('Buscar Call no Supabase').item.json.nome_lead }}",
+              "type": "string"
+            },
+            {
+              "id": "telefone-lead",
+              "name": "telefone_lead",
+              "value": "={{ $('Buscar Call no Supabase').item.json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "gdrive-url",
+              "name": "gdrive_url",
+              "value": "={{ $('Buscar Call no Supabase').item.json.gdrive_url }}",
+              "type": "string"
+            },
+            {
+              "id": "texto-transcricao",
+              "name": "texto",
+              "value": "={{ $('Export Google Doc como Texto').item.json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        200
+      ],
+      "id": "config-dados",
+      "name": "Config GHL + Dados Supabase"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise a transcricao de call de KICKOFF (onboarding) abaixo e extraia todas as informacoes necessarias para configurar um agente de IA para este cliente.\n\n## TRANSCRICAO:\n{{ $json.texto }}\n\n## DADOS DO CLIENTE:\n- Nome: {{ $json.nome_lead }}\n- Telefone: {{ $json.telefone_lead }}",
+        "options": {
+          "systemMessage": "Voce e um especialista em configuracao de agentes de IA para atendimento automatizado.\n\nSua tarefa e analisar a transcricao de uma call de KICKOFF (onboarding) e extrair TODAS as informacoes necessarias para configurar o agente de IA do cliente.\n\nIMPORTANTE: Este agente usara ARQUITETURA MODULAR com multiplos 'modos' de operacao. Voce deve IDENTIFICAR quais modos o cliente precisa e GERAR prompts especificos para cada modo.\n\nO CLIENTE PODE SER: clinica, consultorio, mentor, coach, consultoria, agencia, ou qualquer negocio B2B/B2C high ticket.\n\n## MODOS DISPONIVEIS:\n\n1. **first_contact** - Primeiro contato com lead frio (qualificacao inicial, criar interesse)\n2. **scheduler** - Agendar reunioes/consultas/sessoes (buscar disponibilidade, confirmar horario)\n3. **rescheduler** - Recuperar no-shows (reagendar, entender motivo da falta)\n4. **concierge** - Pos-agendamento (lembrar reuniao, manter engajamento ate o dia)\n5. **customer_success** - Pos-primeira reuniao (fechar venda, upsell, fidelizacao)\n6. **objection_handler** - Lidar com objecoes especificas do negocio\n7. **followuper** - Reativar leads frios (follow-up apos semanas/meses sem contato)\n\n## O QUE EXTRAIR:\n\n### 1. INFORMACOES DO NEGOCIO\n- Nome do negocio/marca\n- Tipo de negocio/nicho (IDENTIFICAR SETOR: saude, odontologia, juridico, imobiliario, tech, educacao, fitness, estetica, contabilidade, varejo)\n- Servicos/produtos oferecidos (lista completa)\n- Faixa de precos (se mencionado)\n- Diferenciais competitivos\n- Publico-alvo (perfil do cliente ideal)\n- Localizacao/endereco (se aplicavel) - EXTRAIR DDD DO TELEFONE!\n- Horario de funcionamento (se aplicavel)\n\n### 2. PERSONALIDADE DO ATENDIMENTO\n- Tom desejado (formal, informal, acolhedor, tecnico)\n- Nome do agente (se definido)\n- Personalizacoes especificas\n- Palavras/expressoes a usar\n- Palavras/evitar\n\n### 3. REGRAS DE COMPLIANCE\n- O que o agente NAO pode fazer\n- Limites de autonomia\n- Quando escalar para humano\n- Informacoes confidenciais\n- Restricoes regulatorias\n\n### 4. MODOS NECESSARIOS\n- Analise o negocio e identifique quais dos 7 modos acima sao necessarios\n- Para CADA modo identificado, crie um prompt especifico\n- Minimo: 2 modos (ex: first_contact + scheduler)\n- Maximo: 7 modos (todos)\n\n### 5. HIPERPERSONALIZACAO (NOVO!)\n- **Setor**: Identifique o setor exato (saude, odontologia, juridico, imobiliario, tech, educacao, fitness, estetica, contabilidade, varejo)\n- **Porte**: Micro (1-9 func), Pequena (10-49), Media (50-249), Grande (250+) - baseado em pistas da conversa\n- **DDD**: Extrair do telefone mencionado (11=SP, 21=RJ, 31=BH, etc)\n- **Cargo do decisor**: CEO, Diretor, Gerente, Coordenador, Socio, Autonomo\n- **Empresas similares**: Se mencionarem concorrentes ou referencias conhecidas\n\n## OUTPUT ESPERADO (JSON):\n\n```json\n{\n  \"business_context\": {\n    \"nome_negocio\": \"string\",\n    \"tipo_negocio\": \"string\",\n    \"setor\": \"saude|odontologia|juridico|imobiliario|tech|educacao|fitness|estetica|contabilidade|varejo|outro\",\n    \"servicos_produtos\": [\"lista\"],\n    \"faixa_precos\": {\n      \"minimo\": \"string ou null\",\n      \"maximo\": \"string ou null\"\n    },\n    \"diferenciais\": [\"lista\"],\n    \"publico_alvo\": \"string\",\n    \"localizacao\": \"string ou null\",\n    \"horario_funcionamento\": \"string ou null\"\n  },\n  \"hyperpersonalization\": {\n    \"ddd\": \"11|21|31|41|51|61|71|81|85|62|outro\",\n    \"setor\": \"saude|odontologia|juridico|imobiliario|tech|educacao|fitness|estetica|contabilidade|varejo\",\n    \"porte\": \"micro|pequena|media|grande\",\n    \"cargo_decisor\": \"ceo|diretor|gerente|coordenador|socio|autonomo\",\n    \"empresas_similares_mencionadas\": [\"lista ou vazio\"],\n    \"pistas_extraidas\": {\n      \"numero_funcionarios_estimado\": \"string ou null\",\n      \"faturamento_mencionado\": \"string ou null\",\n      \"tempo_mercado\": \"string ou null\",\n      \"estrutura_time\": \"string ou null\"\n    }\n  },\n  \"compliance_rules\": {\n    \"proibicoes\": [\"lista do que NAO pode fazer\"],\n    \"limites_autonomia\": [\"lista\"],\n    \"gatilhos_escalacao\": [\"lista de quando escalar\"],\n    \"informacoes_confidenciais\": [\"lista\"]\n  },\n  \"personality_config\": {\n    \"tom\": \"formal|informal|acolhedor|tecnico|misto\",\n    \"nome_agente\": \"string ou null\",\n    \"caracteristicas\": [\"lista de caracteristicas\"],\n    \"palavras_usar\": [\"lista\"],\n    \"palavras_evitar\": [\"lista\"]\n  },\n  \"modos_identificados\": [\"modo1\", \"modo2\", \"modo3\"],\n  \"prompts_por_modo\": {\n    \"first_contact\": \"## OBJETIVO\\n\\nQualificar leads interessados nas mentorias Hormosfe e Tricomind.\\n\\n## SOBRE O NEGOCIO\\n- Nome: Dra. Eline Lobo\\n- Oferece: Mentoria Hormosfe (seguranca cardiovascular para hormonal) e Tricomind (tratamento capilar genetico)\\n- Diferencial: Metodologia PBL, unica cardiologista com essa abordagem no Brasil\\n\\n## ESTRATEGIA DE QUALIFICACAO\\nPerguntar: Qual sua especialidade medica? Ja trabalha com hormonios? Qual seu maior desafio atualmente?\\n\\n## COMPLIANCE\\nNao dar conselhos medicos, nao mencionar precos sem autorizacao\\n\\n## PROXIMOS PASSOS\\nSe qualificado: transferir para agendamento. Se nao: agradecer e encerrar.\",\n    \"scheduler\": \"## OBJETIVO\\n\\nAgendar reuniao de apresentacao da mentoria com {{contact.first_name}}.\\n\\n## FLUXO OBRIGATORIO\\n1. Confirmar interesse na mentoria\\n2. Verificar disponibilidade do lead\\n3. Oferecer horarios disponiveis\\n4. Confirmar agendamento\\n\\n## ORIENTACOES\\nA reuniao sera online via Google Meet. Duracao aproximada: 30 minutos.\",\n    \"customer_success\": \"## OBJETIVO\\n\\nAcompanhar mentorados apos primeira sessao e garantir satisfacao.\\n\\n## ESTRATEGIA\\nPerguntar sobre principais aprendizados, duvidas pendentes, e se recomendaria a mentoria.\"\n  },\n  \"observacoes\": {\n    \"pontos_atencao\": [\"lista\"],\n    \"riscos\": [\"lista\"],\n    \"necessidades_especiais\": [\"lista\"]\n  },\n  \"resumo_executivo\": \"2-3 frases resumindo o cliente e suas necessidades\",\n  \"confianca_extracao\": {\n    \"score\": 0-100,\n    \"campos_incertos\": [\"lista de campos com pouca info\"]\n  }\n}\n```\n\n## REGRAS PARA CRIAR PROMPTS POR MODO:\n\n1. Cada prompt deve ter entre 200-500 palavras\n2. Use markdown com secoes claras (## OBJETIVO, ## ESTRATEGIA, ## FLUXO)\n3. Seja ESPECIFICO ao negocio (use nome real, servicos reais, diferenciais reais)\n4. Incorpore as compliance_rules em cada prompt onde relevante\n5. Use o tom de personalidade definido\n6. Se um modo NAO for necessario, nao o inclua em modos_identificados\n7. ADAPTE a linguagem ao tipo de negocio (clinica = pacientes, mentoria = alunos, consultoria = clientes)\n\n## REGRA CRITICA - VARIAVEIS NOS PROMPTS:\n\n**NUNCA use placeholders genericos** como [nome do negocio], [servicos], etc.\n**SEMPRE use os dados REAIS extraidos da transcricao** diretamente no texto.\n\nPara dados DINAMICOS que mudam por lead/contato, use APENAS estas variaveis GHL:\n- Nome do lead: {{contact.first_name}} ou {{contact.name}}\n- Link do calendario: (deixe em branco ou escreva 'link sera enviado')\n- Nome da clinica/empresa: USE O NOME REAL EXTRAIDO, nao use variavel\n\nExemplo ERRADO:\n\"Ola! Bem-vindo a [nome do negocio]. Agende em [calendar.link]\"\n\nExemplo CORRETO:\n\"Ola {{contact.first_name}}! Bem-vindo a Clinica Dra. Eline. Para agendar, nosso time enviara o link.\"\n\n## REGRAS PARA HIPERPERSONALIZACAO:\n\n1. **DDD**: Extraia do telefone (11=SP paulistano objetivo, 21=RJ carioca descontraido, 31=BH mineiro acolhedor, etc)\n2. **Setor**: Mapeie para usar analogias corretas (saude=diagnostico/tratamento, juridico=processo/defesa, tech=deploy/sprint)\n3. **Porte**: Use pistas como \"somos so eu e minha secretaria\" (micro), \"tenho 30 funcionarios\" (pequena), \"200 colaboradores\" (media)\n4. **Cargo**: Identifique quem esta na call (socio/dono, gerente, coordenador)\n\n## EXEMPLOS DE RACIOCINIO:\n\n**Exemplo 1 - Clinica SP:**\n\"Telefone (11), clinica de estetica com 3 funcionarias, dona operando. DDD=11, Setor=estetica, Porte=micro, Cargo=socio.\"\n\n**Exemplo 2 - Escritorio RJ:**\n\"Advocacia no Rio, 15 advogados, socio senior na call. DDD=21, Setor=juridico, Porte=pequena, Cargo=socio.\"\n\n**Exemplo 3 - Startup Tech:**\n\"SaaS em BH, 80 pessoas, CTO na call. DDD=31, Setor=tech, Porte=media, Cargo=diretor.\"\n\n## OUTPUT:\nRetorne APENAS o JSON valido, sem markdown, com TODOS os campos preenchidos incluindo hyperpersonalization."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1680,
+        200
+      ],
+      "id": "ai-agent-onboarding",
+      "name": "AI Agent - Analisar Kickoff"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1752,
+        424
+      ],
+      "id": "groq-model",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "WVbQ0d3w6cnLwPtX",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta da IA e gerar configs do agente MODULAR + HIPERPERSONALIZACAO\nconst dadosAnteriores = $('Config GHL + Dados Supabase').item.json;\nconst respostaIA = $input.first().json;\n\nfunction cleanFences(s) {\n  if (typeof s !== 'string') s = String(s ?? '');\n  let r = s.trim();\n  r = r.replace(/^\\s*```[a-z]*\\s*/i, '');\n  r = r.replace(/\\s*```$/, '');\n  return r;\n}\n\nfunction findBalancedEnd(s, start) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = start; i < s.length; i++) {\n    const ch = s[i];\n    if (inStr) {\n      if (esc) { esc = false; }\n      else if (ch === '\\\\') { esc = true; }\n      else if (ch === '\"') { inStr = false; }\n    } else {\n      if (ch === '\"') inStr = true;\n      else if (ch === '{') depth++;\n      else if (ch === '}') { depth--; if (depth === 0) return i; }\n    }\n  }\n  return -1;\n}\n\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch {}\n  const raw = cleanFences(str);\n  try { return JSON.parse(raw); } catch {}\n  const start = raw.indexOf('{');\n  const end = start >= 0 ? findBalancedEnd(raw, start) : -1;\n  if (start >= 0 && end >= 0) {\n    const jsonStr = raw.slice(start, end + 1);\n    try { return JSON.parse(jsonStr); } catch {}\n  }\n  return null;\n}\n\n// Parse da resposta (pode vir como string ou objeto)\nlet analise;\nconst rawVal = respostaIA.output ?? respostaIA.text;\nconst outputStr = typeof rawVal === 'string' ? rawVal : String(rawVal ?? '');\nanalise = typeof rawVal === 'object' && rawVal ? rawVal : tryParse(outputStr);\n\nif (!analise) {\n  return [{\n    json: {\n      ...dadosAnteriores,\n      erro_parse: true,\n      motivo: 'Resposta do agente incompleta ou com cercas Markdown. JSON invalido.',\n      raw_snippet: cleanFences(outputStr).slice(0, 1000)\n    }\n  }];\n}\n\n// Validar estrutura modular\nconst businessContext = analise.business_context || {};\nconst complianceRules = analise.compliance_rules || {};\nconst personalityConfig = analise.personality_config || {};\nconst modosIdentificados = analise.modos_identificados || [];\nconst promptsPorModo = analise.prompts_por_modo || {};\nconst hyperpersonalization = analise.hyperpersonalization || {};\n\n// Gerar tools config baseado nos modos\nconst toolsConfig = {\n  tools_enabled: ['busca_disponibilidade', 'agendar', 'escalar_humano'],\n  modos_ativos: modosIdentificados\n};\n\n// Validar que temos prompts para todos os modos identificados\nconst modosComPrompts = modosIdentificados.filter(modo => {\n  return promptsPorModo[modo] && promptsPorModo[modo].length > 50;\n});\n\nif (modosComPrompts.length !== modosIdentificados.length) {\n  const modosFaltando = modosIdentificados.filter(m => !modosComPrompts.includes(m));\n  return [{\n    json: {\n      ...dadosAnteriores,\n      erro_parse: true,\n      motivo: `Prompts faltando para modos: ${modosFaltando.join(', ')}`,\n      analise_parcial: analise\n    }\n  }];\n}\n\n// Estrutura final do agent_config (MODULAR + HIPERPERSONALIZACAO!)\nconst agentConfig = {\n  versao: 'v3.0-hyperpersonalized',\n  arquitetura: 'modular',\n  business_context: businessContext,\n  compliance_rules: complianceRules,\n  personality_config: personalityConfig,\n  tools_config: toolsConfig,\n  modos_identificados: modosIdentificados,\n  prompts_por_modo: promptsPorModo,\n  hyperpersonalization: {\n    ddd: hyperpersonalization.ddd || 'default',\n    setor: hyperpersonalization.setor || businessContext.setor || 'default',\n    porte: hyperpersonalization.porte || 'default',\n    cargo_decisor: hyperpersonalization.cargo_decisor || 'default',\n    empresas_similares: hyperpersonalization.empresas_similares_mencionadas || [],\n    pistas: hyperpersonalization.pistas_extraidas || {}\n  },\n  template_padrao_instrucoes: 'Ver documentacao - template com CONTEXTO, SAUDACAO, FERRAMENTAS, HISTORICO, HIPERPERSONALIZACAO'\n};\n\n// Preparar JSON para PostgreSQL - pre-stringificado para SQL\nconst analiseJsonStr = JSON.stringify(analise);\nconst _sql_analise = JSON.stringify(analise);\nconst _sql_hyperpersonalization = JSON.stringify(agentConfig.hyperpersonalization);\n\nreturn [{\n  json: {\n    ...dadosAnteriores,\n    analise_kickoff: analise,\n    analise_json_str: analiseJsonStr,\n    _sql_analise: _sql_analise,\n    _sql_hyperpersonalization: _sql_hyperpersonalization,\n    agent_config: agentConfig,\n    hyperpersonalization: agentConfig.hyperpersonalization,\n    metadata: {\n      confianca: analise.confianca_extracao?.score || 0,\n      campos_incertos: analise.confianca_extracao?.campos_incertos || [],\n      resumo: analise.resumo_executivo || '',\n      modos_count: modosIdentificados.length,\n      ddd: agentConfig.hyperpersonalization.ddd,\n      setor: agentConfig.hyperpersonalization.setor,\n      porte: agentConfig.hyperpersonalization.porte,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        200
+      ],
+      "id": "processar-e-gerar-config",
+      "name": "Processar e Gerar Config Agente"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE call_recordings \nSET \n  status = 'analisado',\n  processed_at = NOW(),\n  analise_json = '{{ $json._sql_analise.replace(/'/g, \"''\") }}'::jsonb\nWHERE id = '{{ $('Config GHL + Dados Supabase').item.json.call_recording_id }}'\nRETURNING id, status, processed_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2160,
+        200
+      ],
+      "id": "atualizar-status-supabase",
+      "name": "Atualizar Status Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/objects/custom_objects.anlises_de_call/records",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"locationId\": \"{{ $('Config GHL + Dados Supabase').item.json.location_id }}\",\n  \"properties\": {\n    \"resumo_da_call\": {{ JSON.stringify(String($('Processar e Gerar Config Agente').item.json.metadata?.resumo ?? 'Analise de onboarding processada')) }},\n    \"data_call\": \"{{ $now.toFormat('yyyy-MM-dd') }}\",\n    \"tipo\": \"kickoff\",\n    \"sentimento\": \"{{ ($('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0) >= 70 ? 'positivo' : (($('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0) >= 50 ? 'neutro' : 'negativo') }}\",\n    \"pontuacao_geral\": {{ $('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0 }},\n    \"participantes\": \"{{ $('Config GHL + Dados Supabase').item.json.nome_lead ?? 'Lead' }}\",\n    \"duracao_minutos\": 30,\n    \"proximos_passos\": {{ JSON.stringify(String('Revisar configuracao do agente e aprovar')) }},\n    \"pontos_positivos\": {{ JSON.stringify(String($('Processar e Gerar Config Agente').item.json.analise_kickoff?.negocio?.diferenciais?.join('\\n') ?? 'Analise em processamento')) }},\n    \"pontos_atencao\": {{ JSON.stringify(String($('Processar e Gerar Config Agente').item.json.analise_kickoff?.observacoes?.pontos_atencao?.join('\\n') ?? 'Nenhum ponto de atencao')) }},\n    \"objecoes_identificadas\": {{ JSON.stringify(String($('Processar e Gerar Config Agente').item.json.analise_kickoff?.observacoes?.riscos?.join('\\n') ?? 'Nenhum risco identificado')) }},\n    \"link_gravacao\": \"{{ $('Config GHL + Dados Supabase').item.json.gdrive_url }}\",\n    \"bant_score\": 0,\n    \"spin_score\": 0,\n    \"conducao_score\": 0,\n    \"fechamento_score\": 0,\n    \"probabilidade_fechamento\": {{ $('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0 }},\n    \"status_analise\": \"qualificado\",\n    \"tier\": \"{{ ($('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0) >= 80 ? 'A+ EXCELENTE' : (($('Processar e Gerar Config Agente').item.json.metadata?.confianca ?? 0) >= 60 ? 'B BOA' : 'C MEDIANA') }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        200
+      ],
+      "id": "salvar-custom-object",
+      "name": "Salvar em Custom Object"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/associations/relations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config GHL + Dados Supabase').item.json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"associationId\": \"{{ $('Config GHL + Dados Supabase').item.json.association_id }}\",\n  \"firstRecordId\": \"{{ $('Config GHL + Dados Supabase').item.json.contact_id }}\",\n  \"secondRecordId\": \"{{ $('Salvar em Custom Object').item.json.record.id }}\",\n  \"locationId\": \"{{ $('Config GHL + Dados Supabase').item.json.location_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2880,
+        200
+      ],
+      "id": "associar-call-contato",
+      "name": "Associar Call ao Contato"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-contact-id",
+              "leftValue": "={{ $('Config GHL + Dados Supabase').item.json.contact_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "check-not-undefined",
+              "leftValue": "={{ $('Config GHL + Dados Supabase').item.json.contact_id }}",
+              "rightValue": "undefined",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        300
+      ],
+      "id": "contact-id-check-onboarding",
+      "name": "Tem Contact ID?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        400
+      ],
+      "id": "fim-sem-associacao",
+      "name": "Fim - Sem Associacao"
+    },
+    {
+      "parameters": {
+        "content": "## Call Analyzer Onboarding v2.3\n\n**Funcao**: Analisa calls de KICKOFF, extrai informacoes do negocio e gera configuracao automatica do agente de IA.\n\n### Correcoes aplicadas:\n- [x] Usar HTTP Request export (nao Download + Extract)\n- [x] Folder trigger com URL/ID (nao nome)\n- [x] Multi-tenant via JOIN com locations\n- [x] Sintaxe $() correta (nao $items())\n- [x] association_id dinamico\n- [x] ghl_api_key da tabela locations\n- [x] **FILTRO MIMETYPE** - Ignora videos/MP4!\n- [x] **FIX POSTGRES** - JSON inline (sem queryParams)\n- [x] **FIX status_analise** - Usa 'qualificado' (valido)\n\n### Fluxo:\n1. Detecta novo arquivo em /7. Calls/2. Onboarding/\n2. **FILTRO: So processa Google Docs** (ignora MP4)\n3. Busca call no Supabase + JOIN locations\n4. Exporta texto via Google API\n5. IA analisa transcricao (Groq llama-3.3-70b)\n6. Gera system_prompt, tools_config, compliance_rules\n7. Atualiza call_recordings com analise\n8. Salva em Custom Object GHL\n9. Associa ao contato\n\n### Status: PRONTO PARA TESTE (v2.3)",
+        "height": 520,
+        "width": 380,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        100
+      ],
+      "id": "sticky-instrucoes",
+      "name": "Instrucoes"
+    },
+    {
+      "parameters": {
+        "content": "## Multi-Tenant Support\n\nEste workflow suporta multiplos clientes:\n\n1. **locations** table tem:\n   - location_id (GHL)\n   - api_key (GHL API key)\n   - association_id (para Custom Objects)\n\n2. **call_recordings** tem:\n   - location_id (FK para locations)\n\n3. Query faz JOIN para pegar:\n   - location_api_key\n   - association_id\n\nTudo dinamico, sem hardcode!",
+        "height": 300,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        580
+      ],
+      "id": "sticky-multitenant",
+      "name": "Multi-Tenant"
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger - Onboarding": {
+      "main": [
+        [
+          {
+            "node": "E Google Doc?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Google Doc?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Call no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Nao e Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Call no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Call Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Existe?": {
+      "main": [
+        [
+          {
+            "node": "Export Google Doc como Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Call nao encontrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Doc como Texto": {
+      "main": [
+        [
+          {
+            "node": "Config GHL + Dados Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config GHL + Dados Supabase": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Analisar Kickoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Analisar Kickoff",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Analisar Kickoff": {
+      "main": [
+        [
+          {
+            "node": "Processar e Gerar Config Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar e Gerar Config Agente": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Status Supabase": {
+      "main": [
+        [
+          {
+            "node": "Salvar em Custom Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar em Custom Object": {
+      "main": [
+        [
+          {
+            "node": "Tem Contact ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Contact ID?": {
+      "main": [
+        [
+          {
+            "node": "Associar Call ao Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim - Sem Associacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "WnRF9AdjFBkEW9Ma"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "pinData": {},
+  "versionId": "2.3.0",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "name": "AI Factory",
+      "createdAt": "2025-12-17T00:00:00.000Z",
+      "updatedAt": "2025-12-17T00:00:00.000Z"
+    },
+    {
+      "name": "Onboarding",
+      "createdAt": "2025-12-17T00:00:00.000Z",
+      "updatedAt": "2025-12-17T00:00:00.000Z"
+    }
+  ]
+}

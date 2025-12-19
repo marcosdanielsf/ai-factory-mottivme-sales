@@ -1,0 +1,959 @@
+{
+  "name": "AI Agent Execution - Modular",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-whatsapp-modular",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [400, 300],
+      "id": "webhook-whatsapp",
+      "name": "Webhook - WhatsApp GHL",
+      "webhookId": "ai-agent-modular"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "location-id",
+              "name": "location_id",
+              "value": "={{ $json.body.locationId || $json.body.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id",
+              "name": "contact_id",
+              "value": "={{ $json.body.contactId || $json.body.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "mensagem",
+              "name": "mensagem",
+              "value": "={{ $json.body.message || $json.body.text }}",
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "name": "telefone",
+              "value": "={{ $json.body.phone || $json.body.from }}",
+              "type": "string"
+            },
+            {
+              "id": "first-name",
+              "name": "first_name",
+              "value": "={{ $json.body.firstName || $json.body.first_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "last-name",
+              "name": "last_name",
+              "value": "={{ $json.body.lastName || $json.body.last_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{ $json.body.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "message-id",
+              "name": "message_id",
+              "value": "={{ $json.body.messageId || $json.body.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [640, 300],
+      "id": "extrair-dados-webhook",
+      "name": "Extrair Dados do Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.*, l.api_key as location_api_key, av.hyperpersonalization\nFROM agent_versions av\nLEFT JOIN locations l ON av.location_id = l.location_id\nWHERE av.location_id = '{{ $json.location_id }}'\n  AND av.is_active = true\n  AND av.status = 'active'\nORDER BY av.activated_at DESC\nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [880, 300],
+      "id": "buscar-agente-ativo",
+      "name": "Buscar Agente Ativo",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "agente-existe",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1120, 300],
+      "id": "agente-existe",
+      "name": "Agente Existe?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "id": "sem-agente",
+      "name": "Sem Agente - Retornar Erro"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair configs do agente e preparar para execução + HIPERPERSONALIZAÇÃO\nconst webhook = $('Extrair Dados do Webhook').item.json;\nconst agente = $input.first().json;\n\n// ============================================\n// DATABASES DE HIPERPERSONALIZAÇÃO (INLINE)\n// ============================================\n\nconst DDD_DATABASE = {\n  '11': { cidade: 'São Paulo', estado: 'SP', cultura: 'objetiva', expressoes: ['mano', 'firmeza'], ritmo: 'acelerado', formalidade: 'baixa' },\n  '21': { cidade: 'Rio de Janeiro', estado: 'RJ', cultura: 'descontraída', expressoes: ['cara', 'beleza', 'tranquilo'], ritmo: 'moderado', formalidade: 'baixa' },\n  '31': { cidade: 'Belo Horizonte', estado: 'MG', cultura: 'acolhedora', expressoes: ['uai', 'sô', 'trem'], ritmo: 'tranquilo', formalidade: 'média' },\n  '41': { cidade: 'Curitiba', estado: 'PR', cultura: 'formal', expressoes: ['bah', 'tchê'], ritmo: 'organizado', formalidade: 'alta' },\n  '51': { cidade: 'Porto Alegre', estado: 'RS', cultura: 'direta', expressoes: ['bah', 'tchê', 'guri'], ritmo: 'intenso', formalidade: 'média' },\n  '61': { cidade: 'Brasília', estado: 'DF', cultura: 'institucional', expressoes: ['véi'], ritmo: 'burocrático', formalidade: 'alta' },\n  '71': { cidade: 'Salvador', estado: 'BA', cultura: 'calorosa', expressoes: ['meu rei', 'oxe', 'é massa'], ritmo: 'relaxado', formalidade: 'baixa' },\n  '81': { cidade: 'Recife', estado: 'PE', cultura: 'acolhedora', expressoes: ['visse', 'oxente', 'arretado'], ritmo: 'moderado', formalidade: 'média' },\n  '85': { cidade: 'Fortaleza', estado: 'CE', cultura: 'hospitaleira', expressoes: ['macho', 'é bom demais'], ritmo: 'tranquilo', formalidade: 'baixa' },\n  'default': { cidade: 'Brasil', estado: 'BR', cultura: 'neutra', expressoes: [], ritmo: 'moderado', formalidade: 'média' }\n};\n\nconst SETOR_DATABASE = {\n  'saude': { analogias: ['diagnóstico', 'tratamento', 'prevenção'], linguagem: ['paciente', 'consulta', 'procedimento'], tom: 'consultivo e empático' },\n  'odontologia': { analogias: ['sorriso', 'saúde bucal', 'estética'], linguagem: ['paciente', 'avaliação', 'tratamento'], tom: 'acolhedor e educativo' },\n  'juridico': { analogias: ['processo', 'defesa', 'estratégia'], linguagem: ['cliente', 'caso', 'audiência'], tom: 'formal e confiável' },\n  'imobiliario': { analogias: ['investimento', 'patrimônio', 'valorização'], linguagem: ['cliente', 'imóvel', 'visita'], tom: 'consultivo e aspiracional' },\n  'tech': { analogias: ['deploy', 'sprint', 'escalar', 'automatizar'], linguagem: ['usuário', 'plataforma', 'feature'], tom: 'técnico mas acessível' },\n  'educacao': { analogias: ['aprendizado', 'evolução', 'capacitação'], linguagem: ['aluno', 'curso', 'matrícula'], tom: 'motivacional e educativo' },\n  'fitness': { analogias: ['treino', 'evolução', 'resultado', 'transformação'], linguagem: ['aluno', 'treino', 'plano'], tom: 'motivacional e energético' },\n  'estetica': { analogias: ['transformação', 'autoestima', 'cuidado'], linguagem: ['cliente', 'procedimento', 'sessão'], tom: 'acolhedor e aspiracional' },\n  'contabilidade': { analogias: ['balanço', 'compliance', 'economia tributária'], linguagem: ['cliente', 'empresa', 'planejamento'], tom: 'técnico e confiável' },\n  'varejo': { analogias: ['vendas', 'estoque', 'conversão'], linguagem: ['cliente', 'produto', 'promoção'], tom: 'amigável e promocional' },\n  'default': { analogias: ['resultado', 'solução', 'parceria'], linguagem: ['cliente', 'serviço', 'solução'], tom: 'consultivo e profissional' }\n};\n\nconst PORTE_DATABASE = {\n  'micro': { caracteristicas: ['dono faz tudo', 'decisão rápida'], abordagem: 'direta ao ponto, foco em ROI imediato', gatilhos: ['economia de tempo', 'simplicidade'] },\n  'pequena': { caracteristicas: ['estrutura básica', 'crescimento'], abordagem: 'consultiva, mostrar como escalar', gatilhos: ['crescimento', 'profissionalização'] },\n  'media': { caracteristicas: ['processos definidos', 'hierarquia'], abordagem: 'formal, apresentar business case', gatilhos: ['eficiência', 'compliance'] },\n  'grande': { caracteristicas: ['burocracia', 'múltiplos decisores'], abordagem: 'institucional, foco em case', gatilhos: ['inovação', 'diferencial competitivo'] },\n  'default': { caracteristicas: ['descobrir durante conversa'], abordagem: 'descoberta consultiva', gatilhos: ['resultado', 'solução'] }\n};\n\nconst CARGO_DATABASE = {\n  'ceo': { interesses: ['visão estratégica', 'ROI', 'crescimento'], abordagem: 'objetiva, big picture, números de impacto', decisor: true },\n  'diretor': { interesses: ['eficiência', 'metas', 'equipe'], abordagem: 'dados e métricas, impacto na área', decisor: true },\n  'gerente': { interesses: ['operação', 'equipe', 'ferramentas'], abordagem: 'prática, como facilita o dia a dia', decisor: 'influenciador' },\n  'coordenador': { interesses: ['execução', 'ferramentas', 'produtividade'], abordagem: 'operacional, demonstração prática', decisor: 'influenciador' },\n  'socio': { interesses: ['lucro', 'crescimento', 'tempo livre'], abordagem: 'consultiva, parceria de longo prazo', decisor: true },\n  'autonomo': { interesses: ['mais clientes', 'menos trabalho operacional'], abordagem: 'direta, foco em ganho pessoal', decisor: true },\n  'default': { interesses: ['descobrir durante conversa'], abordagem: 'descoberta consultiva', decisor: 'descobrir' }\n};\n\n// ============================================\n// PARSE CONFIGS DO AGENTE\n// ============================================\n\nlet toolsConfig = {};\nif (typeof agente.tools_config === 'string') {\n  try { toolsConfig = JSON.parse(agente.tools_config); } catch (e) { toolsConfig = {}; }\n} else { toolsConfig = agente.tools_config || {}; }\n\nlet businessConfig = {};\nif (typeof agente.business_config === 'string') {\n  try { businessConfig = JSON.parse(agente.business_config); } catch (e) { businessConfig = {}; }\n} else { businessConfig = agente.business_config || {}; }\n\nlet complianceRules = {};\nif (typeof agente.compliance_rules === 'string') {\n  try { complianceRules = JSON.parse(agente.compliance_rules); } catch (e) { complianceRules = {}; }\n} else { complianceRules = agente.compliance_rules || {}; }\n\nlet personalityConfig = {};\nif (typeof agente.personality_config === 'string') {\n  try { personalityConfig = JSON.parse(agente.personality_config); } catch (e) { personalityConfig = {}; }\n} else { personalityConfig = agente.personality_config || {}; }\n\nlet hyperpersonalization = {};\nif (typeof agente.hyperpersonalization === 'string') {\n  try { hyperpersonalization = JSON.parse(agente.hyperpersonalization); } catch (e) { hyperpersonalization = {}; }\n} else { hyperpersonalization = agente.hyperpersonalization || toolsConfig.hyperpersonalization || {}; }\n\n// ============================================\n// MOTOR DE HIPERPERSONALIZAÇÃO\n// ============================================\n\nfunction gerarContextoHiperpersonalizado(hp) {\n  const ddd = hp.ddd || 'default';\n  const setor = hp.setor || 'default';\n  const porte = hp.porte || 'default';\n  const cargo = hp.cargo_decisor || 'default';\n  \n  const dddInfo = DDD_DATABASE[ddd] || DDD_DATABASE['default'];\n  const setorInfo = SETOR_DATABASE[setor] || SETOR_DATABASE['default'];\n  const porteInfo = PORTE_DATABASE[porte] || PORTE_DATABASE['default'];\n  const cargoInfo = CARGO_DATABASE[cargo] || CARGO_DATABASE['default'];\n  \n  let contextoHiper = `## HIPERPERSONALIZAÇÃO ATIVA\\n\\n`;\n  \n  // Contexto Geográfico\n  if (ddd !== 'default') {\n    contextoHiper += `### Contexto Regional (${dddInfo.cidade}/${dddInfo.estado})\\n`;\n    contextoHiper += `- Cultura: ${dddInfo.cultura}\\n`;\n    contextoHiper += `- Ritmo: ${dddInfo.ritmo}\\n`;\n    contextoHiper += `- Formalidade: ${dddInfo.formalidade}\\n`;\n    if (dddInfo.expressoes.length > 0) {\n      contextoHiper += `- Expressões regionais permitidas: ${dddInfo.expressoes.join(', ')}\\n`;\n    }\n    contextoHiper += `\\n`;\n  }\n  \n  // Contexto de Negócio\n  if (setor !== 'default') {\n    contextoHiper += `### Contexto do Setor (${setor})\\n`;\n    contextoHiper += `- Use analogias: ${setorInfo.analogias.join(', ')}\\n`;\n    contextoHiper += `- Linguagem do setor: ${setorInfo.linguagem.join(', ')}\\n`;\n    contextoHiper += `- Tom recomendado: ${setorInfo.tom}\\n\\n`;\n  }\n  \n  // Contexto de Porte\n  if (porte !== 'default') {\n    contextoHiper += `### Contexto de Porte (${porte})\\n`;\n    contextoHiper += `- Características: ${porteInfo.caracteristicas.join(', ')}\\n`;\n    contextoHiper += `- Abordagem: ${porteInfo.abordagem}\\n`;\n    contextoHiper += `- Gatilhos eficazes: ${porteInfo.gatilhos.join(', ')}\\n\\n`;\n  }\n  \n  // Contexto de Cargo\n  if (cargo !== 'default') {\n    contextoHiper += `### Contexto do Decisor (${cargo})\\n`;\n    contextoHiper += `- Interesses: ${cargoInfo.interesses.join(', ')}\\n`;\n    contextoHiper += `- Abordagem: ${cargoInfo.abordagem}\\n`;\n    contextoHiper += `- É decisor: ${cargoInfo.decisor}\\n\\n`;\n  }\n  \n  return contextoHiper;\n}\n\nconst contextoHiperpersonalizado = gerarContextoHiperpersonalizado(hyperpersonalization);\n\n// ============================================\n// IDENTIFICAR CONTEXTO (MODO)\n// ============================================\n\nconst modosIdentificados = toolsConfig.modos_identificados || [];\nconst promptsPorModo = toolsConfig.prompts_por_modo || {};\n\nlet contexto = 'first_contact';\nif (modosIdentificados.length > 0) {\n  contexto = modosIdentificados[0];\n}\nif (!promptsPorModo[contexto]) {\n  const primeiroModoDisponivel = Object.keys(promptsPorModo)[0];\n  if (primeiroModoDisponivel) contexto = primeiroModoDisponivel;\n}\n\nreturn [{\n  json: {\n    ...webhook,\n    agent_id: agente.id,\n    agent_name: agente.agent_name,\n    location_api_key: agente.location_api_key,\n    business_context: businessConfig,\n    compliance_rules: complianceRules,\n    personality_config: personalityConfig,\n    hyperpersonalization: hyperpersonalization,\n    contexto_hiperpersonalizado: contextoHiperpersonalizado,\n    modos_identificados: modosIdentificados,\n    prompts_por_modo: promptsPorModo,\n    contexto: contexto,\n    is_primeira_mensagem: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 200],
+      "id": "preparar-execucao",
+      "name": "Preparar Execução + Identificar Contexto"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "first_contact",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "first_contact"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "scheduler",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "scheduler"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "rescheduler",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rescheduler"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "concierge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "concierge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "customer_success",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "customer_success"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "objection_handler",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "objection_handler"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contexto }}",
+                    "rightValue": "followuper",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "followuper"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1600, 200],
+      "id": "switch-por-contexto",
+      "name": "Switch - Rotear por Contexto"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.first_contact }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "first_contact",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 80],
+      "id": "set-first-contact",
+      "name": "Set - First Contact"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.scheduler }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "scheduler",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 160],
+      "id": "set-scheduler",
+      "name": "Set - Scheduler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.rescheduler }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "rescheduler",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 240],
+      "id": "set-rescheduler",
+      "name": "Set - Rescheduler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.concierge }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "concierge",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 320],
+      "id": "set-concierge",
+      "name": "Set - Concierge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.customer_success }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "customer_success",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 400],
+      "id": "set-customer-success",
+      "name": "Set - Customer Success"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.objection_handler }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "objection_handler",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 480],
+      "id": "set-objection-handler",
+      "name": "Set - Objection Handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "prompt_dinamico",
+              "value": "={{ $json.prompts_por_modo.followuper }}",
+              "type": "string"
+            },
+            {
+              "id": "modo-atual",
+              "name": "modo_atual",
+              "value": "followuper",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1840, 560],
+      "id": "set-followuper",
+      "name": "Set - Followuper"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensagem }}",
+        "options": {
+          "systemMessage": "=**CONTEXTO**\nDATA: {{ $now.format('FFFF') }}\nHORA_LOCAL: {{ $now.setZone('America/Sao_Paulo').toFormat('HH:mm') }}\nTEL/WHATSAPP: {{ $('Preparar Execução + Identificar Contexto').item.json.telefone }}\nEMAIL: {{ $('Preparar Execução + Identificar Contexto').item.json.email || 'não informado' }}\nNOME DO CLIENTE: {{ $('Preparar Execução + Identificar Contexto').item.json.first_name }} {{ $('Preparar Execução + Identificar Contexto').item.json.last_name }}\nCONTACT_ID: {{ $('Preparar Execução + Identificar Contexto').item.json.contact_id }}\nLOCATION_ID: {{ $('Preparar Execução + Identificar Contexto').item.json.location_id }}\nAPI_KEY: {{ $('Preparar Execução + Identificar Contexto').item.json.location_api_key }}\nMODO_ATUAL: {{ $json.modo_atual }}\n\n{{ $('Preparar Execução + Identificar Contexto').item.json.contexto_hiperpersonalizado }}\n\n## SAUDAÇÃO\n{{ $('Preparar Execução + Identificar Contexto').item.json.is_primeira_mensagem ? '- PRIMEIRA MENSAGEM: Use saudação apropriada (Bom dia/Boa tarde/Boa noite conforme HORA_LOCAL) + nome do cliente' : '- JÁ CONVERSARAM: Não use saudação, vá direto ao ponto' }}\n- HORA_LOCAL < 12 → \"Bom dia\"\n- HORA_LOCAL 12-17 → \"Boa tarde\"\n- HORA_LOCAL >= 18 → \"Boa noite\"\n\n## FERRAMENTAS DISPONÍVEIS\n- **Busca_disponibilidade**: OBRIGATÓRIO antes de oferecer horários\n- **Agendar_reuniao**: Criar agendamento (nome, tel, email, eventId, data, hora)\n- **Adicionar_tag_perdido**: Desqualificar lead\n\n## FORMATOS OBRIGATÓRIOS\n- **Telefone**: +00000000000 (sem espaços)\n- **Data**: dd/mm/yyyy\n- **Hora**: 24h (manter exato, não converter)\n- **Agendamento CRM**: ISO 8601 (Y-m-d\\TH:i:sP)\n\n## HISTÓRICO DE CONVERSAS ANTIGAS\n(Placeholder - implementar busca de histórico no GHL)\n\n---\n\n{{ $json.prompt_dinamico }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [2080, 300],
+      "id": "ai-agent-modular",
+      "name": "AI Agent - Modular"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [2152, 524],
+      "id": "groq-model",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "WVbQ0d3w6cnLwPtX",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Buscar/consultar por horários disponíveis antes de agendar. Use SEMPRE antes de oferecer horários ao lead. Parâmetros: calendar (ID do calendário), dateStartFrom e dateEndTo (timestamps em ms).",
+        "workflowId": {
+          "__rl": true,
+          "value": "pZIcRI1PGMzbQHZZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pZIcRI1PGMzbQHZZ",
+          "cachedResultName": "[ GHL ] Busca Disponibilidade"
+        },
+        "fields": {
+          "values": [
+            {
+              "name": "calendar",
+              "type": "string"
+            },
+            {
+              "name": "dateStartFrom",
+              "type": "number"
+            },
+            {
+              "name": "dateEndTo",
+              "type": "number"
+            }
+          ]
+        },
+        "specifyInputSchema": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [2000, 524],
+      "id": "tool-busca-disponibilidade",
+      "name": "Busca_disponibilidade"
+    },
+    {
+      "parameters": {
+        "description": "Agendar uma nova reunião. startTime segue o padrão ISO 8601: 2025-01-15T14:30:00-05:00. Use APÓS confirmar horário com o lead.",
+        "workflowId": {
+          "__rl": true,
+          "value": "u1UsmjNNpaEiwIsp",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/u1UsmjNNpaEiwIsp",
+          "cachedResultName": "Agendar pelo GHL - ATUALIZAR KOMMO"
+        },
+        "fields": {
+          "values": [
+            {
+              "name": "calendarId",
+              "type": "string"
+            },
+            {
+              "name": "startTime",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "type": "string"
+            },
+            {
+              "name": "firstName",
+              "type": "string"
+            },
+            {
+              "name": "lastName",
+              "type": "string"
+            }
+          ]
+        },
+        "specifyInputSchema": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [2080, 524],
+      "id": "tool-agendar-reuniao",
+      "name": "Agendar_reuniao"
+    },
+    {
+      "parameters": {
+        "description": "Marcar lead como perdido/desqualificado. Use quando o lead não tem interesse, não se qualifica, ou pede para não ser mais contatado.",
+        "workflowId": {
+          "__rl": true,
+          "value": "wsQQYmx8CLNBHoWq",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wsQQYmx8CLNBHoWq",
+          "cachedResultName": "Adicionar Tag Perdido GHL"
+        },
+        "fields": {
+          "values": [
+            {
+              "name": "contactId",
+              "type": "string"
+            },
+            {
+              "name": "motivo",
+              "type": "string"
+            }
+          ]
+        },
+        "specifyInputSchema": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [2160, 524],
+      "id": "tool-adicionar-tag-perdido",
+      "name": "Adicionar_tag_perdido"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar Execução + Identificar Contexto').item.json.location_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $('Preparar Execução + Identificar Contexto').item.json.contact_id }}\",\n  \"message\": {{ JSON.stringify($('AI Agent - Modular').item.json.output || $('AI Agent - Modular').item.json.text || 'Desculpe, não consegui processar sua mensagem.') }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2320, 300],
+      "id": "enviar-resposta-ghl",
+      "name": "Enviar Resposta GHL"
+    },
+    {
+      "parameters": {
+        "content": "## AI Agent Execution - Modular v1.0\n\n**Funcao**: Executa agentes de IA usando arquitetura modular de prompts.\n\n### Fluxo:\n1. Webhook recebe mensagem do WhatsApp (GHL)\n2. Busca agente ativo do location_id no Supabase\n3. Extrai configs: business_context, compliance_rules, personality_config\n4. Identifica contexto (qual modo usar)\n5. Switch roteia para Set correto (7 modos)\n6. AI Agent recebe: template padrão + prompt dinâmico\n7. Responde via GHL\n\n### Modos:\n- first_contact\n- scheduler\n- rescheduler\n- concierge\n- customer_success\n- objection_handler\n- followuper\n\n### Próximos Passos:\n- [ ] Implementar busca de histórico no GHL\n- [ ] Adicionar ferramentas (busca_disponibilidade, agendar, escalar)\n- [ ] Lógica sofisticada de identificação de contexto\n- [ ] Logging de conversas no Supabase",
+        "height": 520,
+        "width": 380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 100],
+      "id": "sticky-instrucoes",
+      "name": "Instrucoes"
+    }
+  ],
+  "connections": {
+    "Webhook - WhatsApp GHL": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados do Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados do Webhook": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agente Ativo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agente Ativo": {
+      "main": [
+        [
+          {
+            "node": "Agente Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Existe?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Execução + Identificar Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Agente - Retornar Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Execução + Identificar Contexto": {
+      "main": [
+        [
+          {
+            "node": "Switch - Rotear por Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Rotear por Contexto": {
+      "main": [
+        [
+          {
+            "node": "Set - First Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Scheduler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Rescheduler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Concierge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Customer Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Objection Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Followuper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - First Contact": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Scheduler": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Rescheduler": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Concierge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Customer Success": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Objection Handler": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Followuper": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca_disponibilidade": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agendar_reuniao": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adicionar_tag_perdido": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Modular",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Modular": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "name": "AI Factory",
+      "createdAt": "2025-12-18T00:00:00.000Z",
+      "updatedAt": "2025-12-18T00:00:00.000Z"
+    },
+    {
+      "name": "Execution",
+      "createdAt": "2025-12-18T00:00:00.000Z",
+      "updatedAt": "2025-12-18T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,600 @@
+{
+  "name": "AI Agent Conversacional",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-agent/webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "id": "webhook-mensagem",
+      "name": "Webhook Mensagem",
+      "webhookId": "ai-agent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair dados da mensagem recebida\nconst input = $input.first().json;\n\n// Formato GHL Conversations\nif (input.type === 'InboundMessage' || input.messageType) {\n  return [{\n    json: {\n      source: 'ghl',\n      contact_id: input.contactId,\n      location_id: input.locationId,\n      conversation_id: input.conversationId,\n      message_id: input.messageId,\n      message_text: input.body || input.message || '',\n      contact_name: input.contactName || input.firstName || 'Lead',\n      contact_phone: input.phone || input.from\n    }\n  }];\n}\n\n// Formato WhatsApp direto\nif (input.event === 'messages.upsert' || input.data?.message) {\n  const msg = input.data?.message || input.message || input;\n  return [{\n    json: {\n      source: 'whatsapp',\n      contact_id: null,\n      location_id: input.instance || input.locationId,\n      conversation_id: msg.key?.remoteJid,\n      message_id: msg.key?.id,\n      message_text: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '',\n      contact_name: msg.pushName || 'Lead',\n      contact_phone: msg.key?.remoteJid?.replace('@s.whatsapp.net', '')\n    }\n  }];\n}\n\n// Formato generico\nreturn [{\n  json: {\n    source: 'generic',\n    contact_id: input.contact_id || input.contactId,\n    location_id: input.location_id || input.locationId,\n    conversation_id: input.conversation_id || input.conversationId,\n    message_id: input.message_id,\n    message_text: input.message || input.text || input.body || '',\n    contact_name: input.name || input.contact_name || 'Lead',\n    contact_phone: input.phone\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300],
+      "id": "extrair-mensagem",
+      "name": "Extrair Dados"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-message",
+              "leftValue": "={{ $json.message_text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "message-not-empty",
+              "leftValue": "={{ $json.message_text?.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [840, 300],
+      "id": "tem-mensagem",
+      "name": "Mensagem Valida?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [840, 500],
+      "id": "skip-vazia",
+      "name": "Ignorar Vazia"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.*, l.api_key as location_api_key\nFROM agent_versions av\nLEFT JOIN locations l ON av.location_id = l.location_id\nWHERE av.location_id = '{{ $json.location_id }}'\n  AND av.is_active = true\n  AND av.status = 'active'\nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1060, 300],
+      "id": "buscar-agente",
+      "name": "Buscar Agente",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-agent",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1280, 300],
+      "id": "tem-agente",
+      "name": "Agente Existe?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "no_agent",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "Nenhum agente configurado para esta location",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1280, 500],
+      "id": "sem-agente",
+      "name": "Sem Agente"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar dados para a IA - SIMPLES\nconst mensagem = $('Extrair Dados').item.json;\nconst agente = $('Buscar Agente').item.json;\n\n// Parse JSONs se necessario\nconst parseJson = (val) => {\n  if (typeof val === 'string') {\n    try { return JSON.parse(val); } catch { return {}; }\n  }\n  return val || {};\n};\n\nconst complianceRules = parseJson(agente.compliance_rules);\nconst businessConfig = parseJson(agente.business_config);\n\n// Montar system prompt completo\nlet systemPrompt = agente.system_prompt || '';\n\n// Adicionar regras de compliance\nif (complianceRules.proibicoes?.length) {\n  systemPrompt += '\\n\\n## REGRAS IMPORTANTES (NUNCA VIOLAR)\\n';\n  complianceRules.proibicoes.forEach(p => {\n    systemPrompt += `- ${p}\\n`;\n  });\n}\n\n// Adicionar info do negocio\nif (businessConfig.servicos?.length) {\n  systemPrompt += '\\n\\n## SERVICOS\\n';\n  businessConfig.servicos.forEach(s => {\n    systemPrompt += `- ${s.nome || s}\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    // Dados da mensagem\n    contact_id: mensagem.contact_id,\n    location_id: mensagem.location_id,\n    conversation_id: mensagem.conversation_id,\n    message_text: mensagem.message_text,\n    contact_name: mensagem.contact_name,\n    source: mensagem.source,\n    \n    // Dados do agente\n    agent_version_id: agente.id,\n    agent_name: agente.agent_name,\n    system_prompt: systemPrompt,\n    location_api_key: agente.location_api_key\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300],
+      "id": "preparar-contexto",
+      "name": "Preparar Contexto"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  (SELECT json_agg(json_build_object(\n    'role', CASE WHEN is_from_lead THEN 'user' ELSE 'assistant' END,\n    'content', message_text\n  ) ORDER BY created_at DESC)\n  FROM agent_conversation_messages acm \n  JOIN agent_conversations ac ON acm.conversation_id = ac.id\n  WHERE ac.conversation_id = '{{ $json.conversation_id }}'\n    AND ac.agent_version_id = '{{ $json.agent_version_id }}'\n  LIMIT 10) as recent_messages",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1720, 300],
+      "id": "buscar-historico",
+      "name": "Buscar Historico",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar array de mensagens para OpenAI\nconst contexto = $('Preparar Contexto').item.json;\nconst historico = $input.first().json;\n\n// Historico de mensagens\nlet messages = [];\n\nif (historico?.recent_messages && Array.isArray(historico.recent_messages)) {\n  messages = historico.recent_messages.reverse();\n}\n\n// Adicionar mensagem atual\nmessages.push({\n  role: 'user',\n  content: contexto.message_text\n});\n\nreturn [{\n  json: {\n    ...contexto,\n    messages: messages,\n    mensagens_anteriores: messages.length - 1\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 300],
+      "id": "montar-messages",
+      "name": "Montar Messages"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [2160, 500],
+      "id": "openai-model",
+      "name": "OpenAI GPT-4o-mini",
+      "credentials": {
+        "openAiApi": {
+          "id": "your-openai-credential-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text }}",
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [2160, 300],
+      "id": "chamar-ia",
+      "name": "Chamar IA"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair resposta da IA\nconst contexto = $('Montar Messages').item.json;\nconst resposta = $input.first().json;\n\n// A resposta vem em 'text' ou 'response'\nconst responseText = resposta.text || resposta.response || resposta.output || '';\n\nreturn [{\n  json: {\n    ...contexto,\n    response_text: responseText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2380, 300],
+      "id": "processar-resposta",
+      "name": "Processar Resposta"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Criar ou atualizar conversa\nWITH conv AS (\n  INSERT INTO agent_conversations (\n    agent_version_id,\n    contact_id,\n    conversation_id,\n    channel,\n    status,\n    mensagens_total,\n    started_at\n  ) VALUES (\n    '{{ $json.agent_version_id }}'::uuid,\n    '{{ $json.contact_id }}',\n    '{{ $json.conversation_id }}',\n    '{{ $json.source }}',\n    'ativa',\n    {{ ($json.mensagens_anteriores || 0) + 2 }},\n    NOW()\n  )\n  ON CONFLICT (conversation_id, agent_version_id) DO UPDATE SET\n    mensagens_total = agent_conversations.mensagens_total + 2\n  RETURNING id\n)\n-- Salvar mensagens\nINSERT INTO agent_conversation_messages (conversation_id, message_text, is_from_lead, created_at)\nSELECT conv.id, '{{ $json.message_text.replace(/'/g, \"''\") }}', true, NOW() FROM conv\nUNION ALL\nSELECT conv.id, '{{ $json.response_text.replace(/'/g, \"''\") }}', false, NOW() FROM conv;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2600, 300],
+      "id": "salvar-conversa",
+      "name": "Salvar Conversa",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-ghl",
+              "leftValue": "={{ $('Extrair Dados').item.json.source }}",
+              "rightValue": "ghl",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2820, 300],
+      "id": "canal-resposta",
+      "name": "Canal?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Preparar Contexto').item.json.location_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $('Extrair Dados').item.json.contact_id }}\",\n  \"message\": {{ JSON.stringify($('Processar Resposta').item.json.response_text) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3040, 200],
+      "id": "enviar-ghl",
+      "name": "Enviar via GHL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "canal",
+              "name": "canal",
+              "value": "=outro ({{ $('Extrair Dados').item.json.source }})",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3040, 400],
+      "id": "outro-canal",
+      "name": "Outro Canal (TODO)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "agent",
+              "name": "agent_name",
+              "value": "={{ $('Preparar Contexto').item.json.agent_name }}",
+              "type": "string"
+            },
+            {
+              "id": "response",
+              "name": "response_text",
+              "value": "={{ $('Processar Resposta').item.json.response_text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3260, 300],
+      "id": "resultado-final",
+      "name": "Resultado"
+    },
+    {
+      "parameters": {
+        "content": "## AI Agent Conversacional v2.0 - SIMPLIFICADO\n\n**Fluxo:**\n1. Recebe mensagem (webhook)\n2. Busca agente ativo (Supabase)\n3. Carrega historico\n4. Chama IA com system_prompt + mensagem\n5. Salva no historico\n6. Envia resposta\n\n**SEM function calling!**\nO agente responde com texto.\nSe lead quiser agendar, o agente\nresponde com instrucoes/links.",
+        "height": 300,
+        "width": 320,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 200],
+      "id": "sticky-instrucoes",
+      "name": "Instrucoes"
+    },
+    {
+      "parameters": {
+        "content": "## IMPORTANTE\n\nConfigurar credencial OpenAI:\n1. No no 'OpenAI GPT-4o-mini'\n2. Selecionar credencial existente\n   ou criar nova com API key",
+        "height": 160,
+        "width": 260,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 520],
+      "id": "sticky-config",
+      "name": "Config"
+    }
+  ],
+  "connections": {
+    "Webhook Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Mensagem Valida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem Valida?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar Vazia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agente": {
+      "main": [
+        [
+          {
+            "node": "Agente Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Existe?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto": {
+      "main": [
+        [
+          {
+            "node": "Buscar Historico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Historico": {
+      "main": [
+        [
+          {
+            "node": "Montar Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Messages": {
+      "main": [
+        [
+          {
+            "node": "Chamar IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Chamar IA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar IA": {
+      "main": [
+        [
+          {
+            "node": "Processar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Salvar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Canal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canal?": {
+      "main": [
+        [
+          {
+            "node": "Enviar via GHL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outro Canal (TODO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar via GHL": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outro Canal (TODO)": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    {
+      "name": "AI Factory"
+    },
+    {
+      "name": "Conversacional"
+    }
+  ]
+}
