@@ -1,0 +1,24 @@
+import{_ as s,c as n,o as e,ag as t}from"./chunks/framework.dvv-DFtf.js";const m=JSON.parse('{"title":"Workflows","description":"","frontmatter":{},"headers":[],"relativePath":"workflows/index.md","filePath":"workflows/index.md"}'),o={name:"workflows/index.md"};function l(d,a,r,i,p,c){return e(),n("div",null,[...a[0]||(a[0]=[t(`<h1 id="workflows" tabindex="-1">Workflows <a class="header-anchor" href="#workflows" aria-label="Permalink to &quot;Workflows&quot;">​</a></h1><h2 id="mapa-de-workflows" tabindex="-1">Mapa de Workflows <a class="header-anchor" href="#mapa-de-workflows" aria-label="Permalink to &quot;Mapa de Workflows&quot;">​</a></h2><table tabindex="0"><thead><tr><th>#</th><th>Nome</th><th>Trigger</th><th>Funcao</th></tr></thead><tbody><tr><td>01</td><td><a href="./01-organizador-calls.html">Organizador-Calls</a></td><td>G.Drive /7.Calls/</td><td>Classifica e move arquivos</td></tr><tr><td>02</td><td><a href="./02-head-vendas.html">Head de Vendas</a></td><td>G.Drive /1.Vendas/</td><td>Analisa calls de diagnostico</td></tr><tr><td>03</td><td><a href="./03-call-analyzer.html">Call-Analyzer</a></td><td>G.Drive /2.Onboard/</td><td>Cria agente a partir de kickoff</td></tr><tr><td>05</td><td><a href="./05-execution.html">Execution</a></td><td>Webhook GHL</td><td>Executa agente em producao</td></tr><tr><td>07</td><td><a href="./07-engenheiro.html">Engenheiro</a></td><td>Webhook</td><td>Ajustes manuais em prompts</td></tr><tr><td>08</td><td><a href="./08-validator.html">Validator</a></td><td>Schedule 5min</td><td>Valida agentes automaticamente</td></tr><tr><td>09</td><td><a href="./09-qa-analyst.html">QA-Analyst</a></td><td>Schedule 1h</td><td>Monitora performance</td></tr></tbody></table><h2 id="conexoes-entre-workflows" tabindex="-1">Conexoes entre Workflows <a class="header-anchor" href="#conexoes-entre-workflows" aria-label="Permalink to &quot;Conexoes entre Workflows&quot;">​</a></h2><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>01-Organizador-Calls</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       ├──▶ 02-Head-Vendas (via pasta /1.Vendas/)</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       ├──▶ 03-Call-Analyzer (via pasta /2.Onboarding/)</span></span>
+<span class="line"><span>       │         │</span></span>
+<span class="line"><span>       │         └──▶ Cria agent_version → dispara 08-Boot-Validator</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       └──▶ 06-Call-Analyzer-Revisao (via pasta /3.Revisao/)</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>08-Boot-Validator</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       └──▶ Se aprovado, ativa agente → pode ser usado por 05-Execution</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>05-Execution</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       └──▶ Salva conversas → analisadas por 09-QA-Analyst</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>07-Engenheiro-de-Prompt</span></span>
+<span class="line"><span>       │</span></span>
+<span class="line"><span>       └──▶ Cria novas versoes → validadas por 08-Boot-Validator</span></span></code></pre></div><h2 id="camadas-do-sistema" tabindex="-1">Camadas do Sistema <a class="header-anchor" href="#camadas-do-sistema" aria-label="Permalink to &quot;Camadas do Sistema&quot;">​</a></h2><h3 id="camada-1-ingestao" tabindex="-1">Camada 1: Ingestao <a class="header-anchor" href="#camada-1-ingestao" aria-label="Permalink to &quot;Camada 1: Ingestao&quot;">​</a></h3><ul><li><strong>01-Organizador-Calls</strong>: Orquestrador inicial</li><li><strong>02-Head-Vendas</strong>: Analisa calls de vendas</li><li><strong>03-Call-Analyzer</strong>: Cria agentes de kickoff</li></ul><h3 id="camada-2-validacao" tabindex="-1">Camada 2: Validacao <a class="header-anchor" href="#camada-2-validacao" aria-label="Permalink to &quot;Camada 2: Validacao&quot;">​</a></h3><ul><li><strong>08-Boot-Validator</strong>: Valida automaticamente</li></ul><h3 id="camada-3-execucao-e-qa" tabindex="-1">Camada 3: Execucao e QA <a class="header-anchor" href="#camada-3-execucao-e-qa" aria-label="Permalink to &quot;Camada 3: Execucao e QA&quot;">​</a></h3><ul><li><strong>05-Execution-Modular</strong>: Executa em producao</li><li><strong>09-QA-Analyst</strong>: Monitora qualidade</li></ul>`,12)])])}const u=s(o,[["render",l]]);export{m as __pageData,u as default};
