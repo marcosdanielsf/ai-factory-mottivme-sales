@@ -1,32 +1,69 @@
-export type Vertical = 'clinicas' | 'financeiro' | 'servicos' | 'mentores' | 'outros';
-export type ClientStatus = 'prospect' | 'cliente' | 'churned' | 'reativado';
+// AI FACTORY SCHEMA TYPES
 
-export interface Client {
+export type ValidationStatus = 'draft' | 'validating' | 'validated' | 'failed' | 'active' | 'deprecated';
+export type TestResultStatus = 'pass' | 'fail' | 'warning';
+
+// Tabela: leads (Sales OS)
+export interface Lead {
   id: string;
-  ghl_contact_id?: string;
-  nome: string;
-  empresa: string;
-  telefone: string;
-  email: string;
-  vertical: Vertical;
-  status: ClientStatus;
-  metadata?: Record<string, any>;
   created_at: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  status: 'new' | 'contacted' | 'demo_booked' | 'closed' | 'churned';
+  tags: string[];
+  ghl_contact_id?: string;
+  scheduled_date?: string;
 }
 
+// Tabela: agent_versions (V3 Core)
 export interface AgentVersion {
   id: string;
-  client_id: string;
-  versao: string;
+  client_id?: string; // Nullable if generic template
+  version_number: string;
   system_prompt: string;
-  tools_config?: Record<string, any>;
-  compliance_rules?: Record<string, any>;
-  personality_config?: Record<string, any>;
-  is_active: boolean;
+  
+  // V3 Hyperpersonalization
+  hyperpersonalization_config?: {
+    tone: string;
+    forbidden_words: string[];
+    knowledge_base_ids: string[];
+  };
+  
+  // V4 Validation Integration
+  validation_status: ValidationStatus;
+  validation_score?: number; // 0-100
+  
   created_at: string;
-  deployed_at?: string;
+  is_active: boolean;
 }
 
+// Tabela: agenttest_runs (V4 Python Framework Results)
+export interface AgentTestRun {
+  id: string;
+  version_id: string;
+  run_at: string;
+  total_tests: number;
+  passed_tests: number;
+  failed_tests: number;
+  html_report_url?: string; // Link to the detailed Python report
+  status: 'running' | 'completed' | 'error';
+  summary?: string;
+}
+
+// Tabela: qa_analyses (V3 Monitoring - "The Analyst")
+export interface QaAnalysis {
+  id: string;
+  conversation_id: string;
+  analyzed_at: string;
+  score: number; // 0-100
+  issues_detected: string[];
+  suggested_improvements?: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+// UI Helpers (Legacy/Display)
 export interface Metric {
   title: string;
   value: string | number;
@@ -36,39 +73,40 @@ export interface Metric {
   trendDirection?: 'up' | 'down' | 'neutral';
 }
 
-export interface CallRecording {
+export interface SystemAlert {
   id: string;
-  client_id: string;
-  tipo: 'diagnostico' | 'kickoff' | 'acompanhamento' | 'suporte';
-  titulo: string;
-  status: 'pendente' | 'processando' | 'analisado' | 'erro';
-  date: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  message: string;
+  source: 'n8n_monitor' | 'python_validator';
+  timestamp: string;
+  status: 'new' | 'read' | 'archived';
+  client_name?: string;
 }
 
-export interface PromptChangeRequest {
+export interface Client {
+  id: string;
+  empresa: string;
+  vertical: string;
+  status: string;
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
+export interface Call {
+  id: string;
+  titulo: string;
+  tipo: string;
+  date: string;
+  status: string;
+}
+
+export interface ApprovalRequest {
   id: string;
   client_name: string;
   version: string;
-  type: 'revisao' | 'hotfix' | 'rollback';
+  type: string;
   requested_at: string;
   changes_summary: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-
-export interface Lead {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  scheduled_date: string;
-  status: 'scheduled' | 'completed' | 'no-show';
-}
-
-export interface KnowledgeDocument {
-  id: string;
-  title: string;
-  category: string;
-  content: string;
-  tags: string[];
-  created_at: string;
 }

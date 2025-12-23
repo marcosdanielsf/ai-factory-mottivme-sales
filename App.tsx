@@ -7,6 +7,9 @@ import { PromptEditor } from './pages/PromptEditor';
 import { Approvals } from './pages/Approvals';
 import { Leads } from './pages/Leads';
 import { KnowledgeBase } from './pages/KnowledgeBase';
+import { Notifications } from './pages/Notifications';
+import { Validation } from './pages/Validation';
+import { Logs } from './pages/Logs';
 
 const App = () => {
   return (
@@ -14,9 +17,20 @@ const App = () => {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          
+          {/* Sales OS */}
           <Route path="/leads" element={<Leads />} />
+          
+          {/* AI Factory */}
+          <Route path="/prompt-studio" element={<PromptEditor />} />
+          <Route path="/validacao" element={<Validation />} />
+          <Route path="/logs" element={<Logs />} />
           <Route path="/knowledge-base" element={<KnowledgeBase />} />
           
+          {/* Monitoring */}
+          <Route path="/notificacoes" element={<Notifications />} />
+          
+          {/* Legacy/Client Specific */}
           <Route path="/clientes" element={<Navigate to="/" />} />
           <Route path="/clientes/:id" element={<ClientDetail />} />
           <Route path="/clientes/:id/agente" element={<PromptEditor />} />
