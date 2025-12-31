@@ -184,3 +184,30 @@ export const DASHBOARD_METRICS = [
   { title: 'Sem Engajamento', value: '2.703', subtext: '0-1 mensagens do usuário', icon: AlertTriangle },
   { title: 'Aguardando Resposta', value: '45', subtext: 'Mensagens não respondidas', icon: Inbox },
 ];
+
+export const MOCK_ALERTS = [
+  {
+    id: '1',
+    severity: 'critical',
+    title: 'Queda na Taxa de Conversão',
+    timestamp: 'Há 10 min',
+    message: 'A taxa de conversão do Agente Nina (V2.1) caiu para 2% nas últimas 2 horas.',
+    client_name: 'Viver de IA'
+  },
+  {
+    id: '2',
+    severity: 'high',
+    title: 'Erro de Integração GHL',
+    timestamp: 'Há 30 min',
+    message: 'Falha ao sincronizar 5 novos leads. O token de API pode ter expirado.',
+    client_name: 'Clínica Silva'
+  },
+  {
+    id: '3',
+    severity: 'medium',
+    title: 'Limite de Tokens',
+    timestamp: 'Há 2 horas',
+    message: 'O uso de tokens atingiu 80% da cota mensal para este cliente.',
+    client_name: 'Tech Solutions'
+  }
+];

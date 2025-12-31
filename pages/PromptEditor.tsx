@@ -1,12 +1,46 @@
-import React, { useState } from 'react';
-import { MOCK_AGENT_VERSIONS } from '../constants';
-import { Save, Play, GitBranch, Plus, CheckCircle2, AlertCircle, FileCode } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useAgents, useAgentVersions } from '../src/hooks';
+import { Save, Play, GitBranch, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, Bot } from 'lucide-react';
+import { AgentVersion } from '../types';
 
 export const PromptEditor = () => {
-  const [activeVersionId, setActiveVersionId] = useState(MOCK_AGENT_VERSIONS[0].id);
-  const activeVersion = MOCK_AGENT_VERSIONS.find(v => v.id === activeVersionId) || MOCK_AGENT_VERSIONS[0];
-  const [code, setCode] = useState(activeVersion.system_prompt);
+  const { agents, loading: agentsLoading } = useAgents();
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  
+  // Set default agent when loaded
+  useEffect(() => {
+    if (agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
+
+  const { versions, loading: versionsLoading } = useAgentVersions(selectedAgentId);
+  const [activeVersionId, setActiveVersionId] = useState<string>('');
+  const [code, setCode] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+
+  // Set active version when versions load
+  useEffect(() => {
+    if (versions.length > 0) {
+      // Default to the most recent version (first in list due to sorting)
+      if (!activeVersionId || !versions.find(v => v.id === activeVersionId)) {
+        setActiveVersionId(versions[0].id);
+        setCode(versions[0].system_prompt);
+      }
+    } else {
+      setActiveVersionId('');
+      setCode('');
+    }
+  }, [versions, activeVersionId]);
+
+  // Update code when switching versions
+  const handleVersionClick = (version: AgentVersion) => {
+    setActiveVersionId(version.id);
+    setCode(version.system_prompt);
+    setIsDirty(false);
+  };
+
+  const activeVersion = versions.find(v => v.id === activeVersionId);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setCode(e.target.value);
@@ -14,17 +48,20 @@ export const PromptEditor = () => {
   };
 
   const handleSave = () => {
-    alert('Versão salva como rascunho!');
+    alert('Funcionalidade de salvar será implementada em breve (requer backend n8n/Supabase update).');
     setIsDirty(false);
   };
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'active': return 'text-accent-success';
+      case 'production': return 'text-accent-success';
       case 'failed': return 'text-accent-error';
-      default: return 'text-text-muted';
+      case 'draft': return 'text-text-muted';
+      default: return 'text-accent-warning'; // sandbox
     }
   };
+
+  const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
   return (
     <div className="flex flex-col h-[calc(100vh-52px)]">
@@ -35,14 +72,40 @@ export const PromptEditor = () => {
             <BoxIcon />
             Prompt Studio
           </h1>
+          
           <div className="h-4 w-px bg-border-default"></div>
+          
+          {/* Agent Selector */}
+          <div className="relative group">
+            <button className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-2 py-1 rounded transition-colors">
+              <Bot size={16} />
+              {selectedAgent ? selectedAgent.name : 'Selecione um Agente'}
+              <ChevronDown size={14} className="text-text-muted" />
+            </button>
+            
+            <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default rounded shadow-lg hidden group-hover:block z-50">
+              {agents.map(agent => (
+                <button
+                  key={agent.id}
+                  onClick={() => setSelectedAgentId(agent.id)}
+                  className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-bg-tertiary hover:text-text-primary first:rounded-t last:rounded-b"
+                >
+                  {agent.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-border-default"></div>
+
           <div className="flex items-center gap-2 text-sm text-text-muted">
-             <span>Editando:</span>
+             <span>Versão:</span>
              <span className="text-text-primary font-mono bg-bg-tertiary px-1.5 py-0.5 rounded border border-border-default">
-                {activeVersion.version_number}
+                {activeVersion ? activeVersion.version_number : '---'}
              </span>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors">
             <Play size={16} />
@@ -68,27 +131,33 @@ export const PromptEditor = () => {
         {/* Version List (Left Sidebar) */}
         <div className="w-64 border-r border-border-default bg-bg-secondary flex flex-col">
           <div className="p-3 border-b border-border-default flex items-center justify-between">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Versões</span>
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Histórico de Versões</span>
             <button className="p-1 hover:bg-bg-hover rounded text-text-muted hover:text-text-primary">
               <Plus size={14} />
             </button>
           </div>
+          
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {MOCK_AGENT_VERSIONS.map(v => (
+            {versionsLoading && (
+              <div className="text-center py-4 text-xs text-text-muted">Carregando versões...</div>
+            )}
+            
+            {!versionsLoading && versions.length === 0 && (
+              <div className="text-center py-4 text-xs text-text-muted">Nenhuma versão encontrada para este agente.</div>
+            )}
+
+            {versions.map(v => (
               <div 
                 key={v.id}
-                onClick={() => {
-                  setActiveVersionId(v.id);
-                  setCode(v.system_prompt);
-                }}
+                onClick={() => handleVersionClick(v)}
                 className={`
                   group flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors
                   ${activeVersionId === v.id ? 'bg-bg-hover' : 'hover:bg-bg-hover'}
                 `}
               >
-                <div className={`text-xs ${getStatusColor(v.validation_status)}`}>
-                   {v.validation_status === 'active' ? <CheckCircle2 size={14} /> : 
-                    v.validation_status === 'failed' ? <AlertCircle size={14} /> : 
+                <div className={`text-xs ${getStatusColor(v.status)}`}>
+                   {v.status === 'production' ? <CheckCircle2 size={14} /> : 
+                    v.status === 'failed' ? <AlertCircle size={14} /> : 
                     <FileCode size={14} />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -96,7 +165,7 @@ export const PromptEditor = () => {
                     {v.version_number}
                   </div>
                   <div className="text-xs text-text-muted truncate">
-                    Score: {v.validation_score || 'N/A'} • {new Date(v.created_at).toLocaleDateString()}
+                     {new Date(v.created_at).toLocaleDateString()}
                   </div>
                 </div>
               </div>
@@ -115,6 +184,7 @@ export const PromptEditor = () => {
             value={code}
             onChange={handleChange}
             spellCheck="false"
+            placeholder={!selectedAgentId ? "Selecione um agente para ver o prompt." : "Nenhum prompt carregado."}
             className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
             style={{ tabSize: 2 }}
           />
@@ -123,41 +193,53 @@ export const PromptEditor = () => {
         {/* Configuration Sidebar (Right) */}
         <div className="w-72 border-l border-border-default bg-bg-secondary flex flex-col overflow-y-auto">
           <div className="p-4 border-b border-border-default">
-            <h3 className="font-medium text-sm mb-1">Configurações de Hiperpersonalização</h3>
-            <p className="text-xs text-text-muted">Parâmetros do V3 Engine</p>
+            <h3 className="font-medium text-sm mb-1">Detalhes da Versão</h3>
+            <p className="text-xs text-text-muted">Metadados e Configurações</p>
           </div>
           
           <div className="p-4 space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Tom de Voz</label>
-              <select className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none text-text-primary">
-                <option>Amigável (Padrão)</option>
-                <option>Profissional</option>
-                <option>Empático</option>
-                <option>Urgente (Sales)</option>
-              </select>
+             <div className="space-y-2">
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Status</label>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full border capitalize
+                  ${activeVersion?.status === 'production' ? 'bg-accent-success/10 text-accent-success border-accent-success/20' : 
+                    activeVersion?.status === 'sandbox' ? 'bg-accent-warning/10 text-accent-warning border-accent-warning/20' :
+                    'bg-bg-tertiary text-text-muted border-border-default'}
+                `}>
+                  {activeVersion?.status || 'N/A'}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Palavras Proibidas</label>
-              <div className="bg-bg-tertiary border border-border-default rounded p-2 text-sm text-text-primary min-h-[80px]">
-                {activeVersion.hyperpersonalization_config?.forbidden_words.map(w => (
-                  <span key={w} className="inline-block bg-bg-primary border border-border-default px-1.5 py-0.5 rounded text-xs mr-1 mb-1">
-                    {w}
-                  </span>
-                ))}
-                <input type="text" placeholder="+ add" className="bg-transparent outline-none text-xs w-16" />
-              </div>
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Change Log</label>
+              <p className="text-sm text-text-secondary bg-bg-tertiary p-2 rounded border border-border-default min-h-[60px]">
+                {activeVersion?.change_log || 'Sem registro de alterações.'}
+              </p>
             </div>
+            
+            {activeVersion?.prompts_por_modo && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Modos Específicos</label>
+                <div className="space-y-1">
+                  {Object.keys(activeVersion.prompts_por_modo).map(key => (
+                    <div key={key} className="text-xs bg-bg-tertiary px-2 py-1 rounded flex justify-between">
+                      <span>{key}</span>
+                      <span className="text-text-muted text-[10px] uppercase">Configurado</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="mt-auto p-4 border-t border-border-default">
             <div className="bg-bg-tertiary p-3 rounded text-xs text-text-muted">
               <div className="flex items-center gap-2 mb-1 text-text-secondary font-medium">
                 <GitBranch size={12} />
-                Origem: Git Repo
+                Origem: Supabase
               </div>
-              <p>Sincronizado via n8n webhook.</p>
+              <p>ID: {activeVersion?.id}</p>
             </div>
           </div>
         </div>
