@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { MOCK_AGENT_VERSION } from '../constants';
-import { Save, Play, History, GitBranch } from 'lucide-react';
+import { MOCK_AGENT_VERSIONS } from '../constants';
+import { Save, Play, GitBranch, Plus, CheckCircle2, AlertCircle, FileCode } from 'lucide-react';
 
 export const PromptEditor = () => {
-  const { id } = useParams();
-  const [code, setCode] = useState(MOCK_AGENT_VERSION.system_prompt);
+  const [activeVersionId, setActiveVersionId] = useState(MOCK_AGENT_VERSIONS[0].id);
+  const activeVersion = MOCK_AGENT_VERSIONS.find(v => v.id === activeVersionId) || MOCK_AGENT_VERSIONS[0];
+  const [code, setCode] = useState(activeVersion.system_prompt);
   const [isDirty, setIsDirty] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -14,28 +14,39 @@ export const PromptEditor = () => {
   };
 
   const handleSave = () => {
-    alert('Prompt salvo e enviado para aprovação!');
+    alert('Versão salva como rascunho!');
     setIsDirty(false);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'active': return 'text-accent-success';
+      case 'failed': return 'text-accent-error';
+      default: return 'text-text-muted';
+    }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-52px)]">
-      {/* Editor Header */}
-      <div className="h-14 border-b border-border-default flex items-center justify-between px-6 bg-bg-secondary">
+      {/* Studio Header */}
+      <div className="h-14 border-b border-border-default flex items-center justify-between px-6 bg-bg-secondary shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="font-semibold text-text-primary">✏️ Editor de Prompt</h1>
-          <span className="text-xs px-2 py-1 bg-accent-success/10 text-accent-success rounded border border-accent-success/20">
-            {MOCK_AGENT_VERSION.versao} (Ativo)
-          </span>
+          <h1 className="font-semibold text-text-primary flex items-center gap-2">
+            <BoxIcon />
+            Prompt Studio
+          </h1>
+          <div className="h-4 w-px bg-border-default"></div>
+          <div className="flex items-center gap-2 text-sm text-text-muted">
+             <span>Editando:</span>
+             <span className="text-text-primary font-mono bg-bg-tertiary px-1.5 py-0.5 rounded border border-border-default">
+                {activeVersion.version_number}
+             </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors">
-            <History size={16} />
-            <span className="hidden sm:inline">Histórico</span>
-          </button>
-           <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors">
             <Play size={16} />
-            <span className="hidden sm:inline">Testar</span>
+            <span className="hidden sm:inline">Sandbox</span>
           </button>
           <button 
             onClick={handleSave}
@@ -54,15 +65,52 @@ export const PromptEditor = () => {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
+        {/* Version List (Left Sidebar) */}
+        <div className="w-64 border-r border-border-default bg-bg-secondary flex flex-col">
+          <div className="p-3 border-b border-border-default flex items-center justify-between">
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Versões</span>
+            <button className="p-1 hover:bg-bg-hover rounded text-text-muted hover:text-text-primary">
+              <Plus size={14} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {MOCK_AGENT_VERSIONS.map(v => (
+              <div 
+                key={v.id}
+                onClick={() => {
+                  setActiveVersionId(v.id);
+                  setCode(v.system_prompt);
+                }}
+                className={`
+                  group flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors
+                  ${activeVersionId === v.id ? 'bg-bg-hover' : 'hover:bg-bg-hover'}
+                `}
+              >
+                <div className={`text-xs ${getStatusColor(v.validation_status)}`}>
+                   {v.validation_status === 'active' ? <CheckCircle2 size={14} /> : 
+                    v.validation_status === 'failed' ? <AlertCircle size={14} /> : 
+                    <FileCode size={14} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-medium ${activeVersionId === v.id ? 'text-text-primary' : 'text-text-secondary'}`}>
+                    {v.version_number}
+                  </div>
+                  <div className="text-xs text-text-muted truncate">
+                    Score: {v.validation_score || 'N/A'} • {new Date(v.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Main Editor Area */}
         <div className="flex-1 flex flex-col relative bg-[#1e1e1e]">
-          {/* Line Numbers Simulation (Visual only for this demo) */}
           <div className="absolute left-0 top-0 bottom-0 w-10 bg-[#1e1e1e] border-r border-[#2d2d2d] flex flex-col items-end pt-4 pr-2 text-text-muted/50 font-mono text-sm select-none z-10">
-            {Array.from({ length: 20 }).map((_, i) => (
+            {Array.from({ length: 30 }).map((_, i) => (
               <div key={i} className="leading-6">{i + 1}</div>
             ))}
           </div>
-          
           <textarea
             value={code}
             onChange={handleChange}
@@ -73,39 +121,32 @@ export const PromptEditor = () => {
         </div>
 
         {/* Configuration Sidebar (Right) */}
-        <div className="w-80 border-l border-border-default bg-bg-secondary flex flex-col overflow-y-auto">
+        <div className="w-72 border-l border-border-default bg-bg-secondary flex flex-col overflow-y-auto">
           <div className="p-4 border-b border-border-default">
-            <h3 className="font-medium text-sm mb-1">Configurações</h3>
-            <p className="text-xs text-text-muted">Parâmetros adicionais do modelo</p>
+            <h3 className="font-medium text-sm mb-1">Configurações de Hiperpersonalização</h3>
+            <p className="text-xs text-text-muted">Parâmetros do V3 Engine</p>
           </div>
           
           <div className="p-4 space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Modelo</label>
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Tom de Voz</label>
               <select className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none text-text-primary">
-                <option>GPT-4o</option>
-                <option>Claude 3.5 Sonnet</option>
-                <option>Gemini 1.5 Pro</option>
+                <option>Amigável (Padrão)</option>
+                <option>Profissional</option>
+                <option>Empático</option>
+                <option>Urgente (Sales)</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Temperatura</label>
-              <div className="flex items-center gap-4">
-                <input type="range" min="0" max="1" step="0.1" className="flex-1 accent-text-primary h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer" />
-                <span className="text-sm font-mono text-text-muted">0.7</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Tools Habilitadas</label>
-              <div className="space-y-2">
-                {['calendar_api', 'crm_lookup', 'send_whatsapp'].map(tool => (
-                  <label key={tool} className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-text-primary">
-                    <input type="checkbox" defaultChecked className="rounded border-border-default bg-bg-tertiary accent-text-primary" />
-                    {tool}
-                  </label>
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Palavras Proibidas</label>
+              <div className="bg-bg-tertiary border border-border-default rounded p-2 text-sm text-text-primary min-h-[80px]">
+                {activeVersion.hyperpersonalization_config?.forbidden_words.map(w => (
+                  <span key={w} className="inline-block bg-bg-primary border border-border-default px-1.5 py-0.5 rounded text-xs mr-1 mb-1">
+                    {w}
+                  </span>
                 ))}
+                <input type="text" placeholder="+ add" className="bg-transparent outline-none text-xs w-16" />
               </div>
             </div>
           </div>
@@ -114,9 +155,9 @@ export const PromptEditor = () => {
             <div className="bg-bg-tertiary p-3 rounded text-xs text-text-muted">
               <div className="flex items-center gap-2 mb-1 text-text-secondary font-medium">
                 <GitBranch size={12} />
-                Versão Base: v2.0
+                Origem: Git Repo
               </div>
-              <p>Última alteração feita por Marcos há 2 dias.</p>
+              <p>Sincronizado via n8n webhook.</p>
             </div>
           </div>
         </div>
@@ -124,3 +165,7 @@ export const PromptEditor = () => {
     </div>
   );
 };
+
+const BoxIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+);

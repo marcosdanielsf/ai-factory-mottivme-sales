@@ -1,6 +1,7 @@
 import React from 'react';
 import { MetricCard } from '../components/MetricCard';
-import { Activity, Clock, Users, BarChart2, Database, Rocket } from 'lucide-react';
+import { Activity, Clock, Users, BarChart2, Database, Rocket, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults } from '../src/hooks';
 
 export const Dashboard = () => {
@@ -38,9 +39,18 @@ export const Dashboard = () => {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold mb-2">👋 Bom dia, Marcos</h1>
-        <p className="text-text-secondary">Visão geral da operação de agentes.</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold mb-2">🚀 Torre de Controle</h1>
+          <p className="text-text-secondary">Visão unificada: Sales OS + AI Factory.</p>
+        </div>
+        
+        <div className="flex gap-2">
+           <Link to="/validacao" className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default hover:bg-bg-tertiary rounded text-sm transition-colors">
+              <Play size={16} />
+              Rodar Testes (V4)
+           </Link>
+        </div>
       </div>
 
       {/* Detailed Metrics Grid */}
@@ -49,7 +59,7 @@ export const Dashboard = () => {
           <MetricCard 
             key={i}
             {...metric}
-            trend={i < 3 ? "+12%" : undefined} // Mock trend
+            trend={i === 2 ? "+24%" : undefined} 
             trendDirection="up"
           />
         ))}
@@ -111,11 +121,11 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Pending Actions */}
+        {/* Pipeline Status */}
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-            <Clock size={16} />
-            Pendências
+            <Activity size={16} />
+            Pipeline de Versões
           </h2>
           <div className="bg-bg-secondary border border-border-default rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-3 p-3 bg-accent-warning/10 border border-accent-warning/20 rounded-md">
