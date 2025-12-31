@@ -7,6 +7,8 @@ import { PromptEditor } from './pages/PromptEditor';
 import { Approvals } from './pages/Approvals';
 import { Leads } from './pages/Leads';
 import { KnowledgeBase } from './pages/KnowledgeBase';
+import { TeamRPG } from './pages/TeamRPG';
+import { SuperAgentRPG } from './pages/SuperAgentRPG';
 
 const App = () => {
   return (
@@ -16,6 +18,8 @@ const App = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/team-rpg" element={<TeamRPG />} />
+          <Route path="/super-agent" element={<SuperAgentRPG />} />
           
           <Route path="/clientes" element={<Navigate to="/" />} />
           <Route path="/clientes/:id" element={<ClientDetail />} />

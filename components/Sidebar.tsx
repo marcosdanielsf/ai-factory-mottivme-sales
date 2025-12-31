@@ -92,6 +92,7 @@ export const Sidebar = () => {
         <SidebarItem icon={Home} label="Dashboard" to="/" />
         <SidebarItem icon={Users} label="Leads Agendados" to="/leads" badge="85" />
         <SidebarItem icon={Database} label="Knowledge Base" to="/knowledge-base" />
+        <SidebarItem icon={Box} label="Squads RPG" to="/team-rpg" />
         
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           CLIENTES

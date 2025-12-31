@@ -1,5 +1,4 @@
-import { Client, AgentVersion, CallRecording, PromptChangeRequest, Lead, Metric } from './types';
-import { MessageSquare, CheckCircle2, AlertTriangle, Inbox, Send, Zap, Clock, Calendar } from 'lucide-react';
+import { Client } from '../types';
 
 export const MOCK_CLIENTS: Client[] = [
   {
@@ -10,9 +9,80 @@ export const MOCK_CLIENTS: Client[] = [
     telefone: '(31) 99999-9999',
     vertical: 'mentores',
     status: 'cliente',
-    created_at: '2024-10-15T10:00:00Z'
+    created_at: '2024-10-15T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rafael',
+    revenue: 150000,
+    score: 98
+  },
+  {
+    id: '2',
+    nome: 'Dr. Silva',
+    empresa: 'Clínica Silva',
+    email: 'silva@clinica.com',
+    telefone: '(11) 99999-9999',
+    vertical: 'medicos',
+    status: 'cliente',
+    created_at: '2024-11-01T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Silva',
+    revenue: 85000,
+    score: 85
+  },
+  {
+    id: '3',
+    nome: 'Dra. Ana',
+    empresa: 'Estética Ana',
+    email: 'ana@estetica.com',
+    telefone: '(21) 99999-9999',
+    vertical: 'odonto',
+    status: 'cliente',
+    created_at: '2024-11-10T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ana',
+    revenue: 120000,
+    score: 92
+  },
+  {
+    id: '4',
+    nome: 'Pedro Tech',
+    empresa: 'Tech Solutions',
+    email: 'pedro@tech.com',
+    telefone: '(41) 99999-9999',
+    vertical: 'servicos',
+    status: 'cliente',
+    created_at: '2024-11-15T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Pedro',
+    revenue: 65000,
+    score: 80
+  },
+  {
+    id: '5',
+    nome: 'Maria Fin',
+    empresa: 'Financeiro Plus',
+    email: 'maria@fin.com',
+    telefone: '(51) 99999-9999',
+    vertical: 'financeiro',
+    status: 'cliente',
+    created_at: '2024-11-20T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maria',
+    revenue: 55000,
+    score: 75
+  },
+  {
+    id: '6',
+    nome: 'João Legal',
+    empresa: 'Advocacia Legal',
+    email: 'joao@adv.com',
+    telefone: '(61) 99999-9999',
+    vertical: 'servicos',
+    status: 'cliente',
+    created_at: '2024-11-25T10:00:00Z',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Joao',
+    revenue: 45000,
+    score: 70
   }
 ];
+
+import { AgentVersion, CallRecording, PromptChangeRequest, Lead } from './types';
+import { MessageSquare, CheckCircle2, AlertTriangle, Inbox, Send, Zap, Clock, Calendar } from 'lucide-react';
 
 export const MOCK_AGENT_VERSION: AgentVersion = {
   id: 'v1',
@@ -75,11 +145,5 @@ export const DASHBOARD_METRICS = [
   { title: 'Total de Conversas', value: '4.817', subtext: 'Todas as conversas criadas', icon: MessageSquare },
   { title: 'Conversas Reais', value: '3.320', subtext: 'Com pelo menos 1 msg do usuário', icon: CheckCircle2 },
   { title: 'Sem Engajamento', value: '2.703', subtext: '0-1 mensagens do usuário', icon: AlertTriangle },
-  { title: 'Mensagens Recebidas', value: '15.512', subtext: 'Do usuário para Nina', icon: Inbox },
-  { title: 'Mensagens Enviadas', value: '31.304', subtext: 'Nina respondeu', icon: Send },
-  { title: 'Conversas Engajadas', value: '715', subtext: '+3 msgs do usuário', icon: Zap },
-  { title: 'Média por Conversa', value: '9.7', subtext: 'Mensagens/conversa', icon: MessageSquare },
-  { title: 'Total Agendamentos', value: '170', subtext: 'Call com humanos', icon: Calendar },
-  { title: 'Taxa Conversão Real', value: '5.1%', subtext: 'Agendamentos / Conversas Reais', icon: Zap },
-  { title: 'Performance', value: '4.4s', subtext: 'Tempo médio resposta Nina', icon: Clock },
+  { title: 'Aguardando Resposta', value: '45', subtext: 'Mensagens não respondidas', icon: Inbox },
 ];
