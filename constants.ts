@@ -1,4 +1,5 @@
-import { Client } from '../types';
+import { Client, AgentVersion, CallRecording, PromptChangeRequest, Lead } from './types';
+import { MessageSquare, CheckCircle2, AlertTriangle, Inbox, Send, Zap, Clock, Calendar } from 'lucide-react';
 
 export const MOCK_CLIENTS: Client[] = [
   {
@@ -81,14 +82,11 @@ export const MOCK_CLIENTS: Client[] = [
   }
 ];
 
-import { AgentVersion, CallRecording, PromptChangeRequest, Lead } from './types';
-import { MessageSquare, CheckCircle2, AlertTriangle, Inbox, Send, Zap, Clock, Calendar } from 'lucide-react';
-
 export const MOCK_AGENT_VERSION: AgentVersion = {
   id: 'v1',
-  client_id: '1',
-  versao: 'v2.1',
-  is_active: true,
+  agent_id: '1',
+  version_number: 'v2.1',
+  status: 'production',
   created_at: '2024-12-18T10:00:00Z',
   deployed_at: '2024-12-18T10:30:00Z',
   system_prompt: `# IDENTIDADE CORE
@@ -110,6 +108,39 @@ Título oficial: Assistente de IA oficial do Viver de IA
 - Confiante sem arrogância`
 };
 
+export const MOCK_AGENT_VERSIONS: AgentVersion[] = [
+  MOCK_AGENT_VERSION,
+  {
+    ...MOCK_AGENT_VERSION,
+    id: 'v2',
+    version_number: 'v2.2-beta',
+    status: 'sandbox',
+    created_at: '2024-12-20T10:00:00Z',
+    deployed_at: undefined
+  }
+];
+
+export const MOCK_TEST_RUNS = [
+  {
+    id: 'run-1',
+    version_id: 'v2.1',
+    run_at: '2024-12-18T10:30:00Z',
+    total_tests: 25,
+    passed_tests: 25,
+    failed_tests: 0,
+    summary: 'All core scenarios passed'
+  },
+  {
+    id: 'run-2',
+    version_id: 'v2.2-beta',
+    run_at: '2024-12-20T11:00:00Z',
+    total_tests: 25,
+    passed_tests: 16,
+    failed_tests: 9,
+    summary: 'Regression in objection handling'
+  }
+];
+
 export const MOCK_CALLS: CallRecording[] = [];
 
 export const MOCK_APPROVALS: PromptChangeRequest[] = [];
@@ -121,7 +152,9 @@ export const MOCK_LEADS: Lead[] = [
     email: 'iago.nextrep@gmail.com',
     phone: '5511989927482',
     scheduled_date: '19/12 às 20:00',
-    status: 'scheduled'
+    status: 'scheduled',
+    created_at: '2024-12-19T10:00:00Z',
+    updated_at: '2024-12-19T10:00:00Z'
   },
   {
     id: '2',
@@ -129,7 +162,9 @@ export const MOCK_LEADS: Lead[] = [
     email: 'robertoluiz@gmail.com',
     phone: '5587999588586',
     scheduled_date: '19/12 às 19:00',
-    status: 'scheduled'
+    status: 'scheduled',
+    created_at: '2024-12-19T10:00:00Z',
+    updated_at: '2024-12-19T10:00:00Z'
   },
   {
     id: '3',
@@ -137,7 +172,9 @@ export const MOCK_LEADS: Lead[] = [
     email: 'ariete@lockdados.com.br',
     phone: '5565984288191',
     scheduled_date: '18/12 às 19:00',
-    status: 'scheduled'
+    status: 'scheduled',
+    created_at: '2024-12-18T10:00:00Z',
+    updated_at: '2024-12-18T10:00:00Z'
   }
 ];
 

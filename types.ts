@@ -7,7 +7,7 @@ export interface Lead {
   name: string;
   phone: string;
   email: string;
-  status: 'new_lead' | 'qualified' | 'call_booked' | 'proposal' | 'won' | 'lost';
+  status: 'new_lead' | 'qualified' | 'call_booked' | 'proposal' | 'won' | 'lost' | 'scheduled'; // Added 'scheduled' for legacy compat
   work_permit?: boolean;
   location_country?: string;
   career_segment?: string;
@@ -15,6 +15,7 @@ export interface Lead {
   acquisition_channel?: string;
   created_at: string;
   updated_at: string;
+  scheduled_date?: string; // Legacy compat
 }
 
 export interface Agent {
@@ -41,6 +42,7 @@ export interface AgentVersion {
   avg_interactions_to_goal?: number;
   status: 'production' | 'sandbox' | 'archived' | 'draft';
   created_at: string;
+  deployed_at?: string; // Legacy compat
 }
 
 export interface AgentConversation {
@@ -119,4 +121,38 @@ export interface Metric {
   icon?: any;
   trend?: string;
   trendDirection?: 'up' | 'down' | 'neutral';
+}
+
+export interface Client {
+  id: string;
+  nome: string;
+  empresa: string;
+  email: string;
+  telefone: string;
+  vertical: string;
+  status: string;
+  created_at: string;
+  avatar: string;
+  revenue: number;
+  score: number;
+}
+
+export interface CallRecording {
+  id: string;
+  clientName: string;
+  date: string;
+  duration: string;
+  status: 'qualified' | 'rejected' | 'pending';
+  summary: string;
+  tags: string[];
+}
+
+export interface PromptChangeRequest {
+  id: string;
+  agentName: string;
+  requestedBy: string;
+  date: string;
+  type: 'refinement' | 'correction' | 'behavior';
+  status: 'pending' | 'approved' | 'rejected';
+  description: string;
 }
