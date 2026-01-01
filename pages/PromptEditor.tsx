@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAgents, useAgentVersions } from '../src/hooks';
-import { Save, Play, GitBranch, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, Bot } from 'lucide-react';
-import { AgentVersion } from '../types';
+import { useToast } from '../src/hooks/useToast';
+import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, Bot, Zap, Box, GitBranch, RefreshCw } from 'lucide-react';
+import { AgentVersion, Agent } from '../types';
 
 export const PromptEditor = () => {
-  const { agents, loading: agentsLoading } = useAgents();
+  const { showToast } = useToast();
+  const { agents, loading: agentsLoading, refetch: refetchAgents } = useAgents();
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isSandboxLoading, setIsSandboxLoading] = useState(false);
@@ -16,17 +18,26 @@ export const PromptEditor = () => {
     }
   }, [agents, selectedAgentId]);
 
-  const { versions, loading: versionsLoading } = useAgentVersions(selectedAgentId);
+  const { versions, loading: versionsLoading, refetch: refetchVersions } = useAgentVersions(selectedAgentId);
   const [activeVersionId, setActiveVersionId] = useState<string>('');
   const [code, setCode] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const handleRefresh = async () => {
+    showToast('Atualizando dados do editor...', 'info');
+    await Promise.all([
+      refetchAgents(),
+      refetchVersions()
+    ]);
+    showToast('Dados atualizados com sucesso', 'success');
+  };
+
   // Set active version when versions load
   useEffect(() => {
     if (versions.length > 0) {
       // Default to the most recent version (first in list due to sorting)
-      if (!activeVersionId || !versions.find(v => v.id === activeVersionId)) {
+      if (!activeVersionId || !versions.find((v: AgentVersion) => v.id === activeVersionId)) {
         setActiveVersionId(versions[0].id);
         setCode(versions[0].system_prompt);
       }
@@ -47,7 +58,7 @@ export const PromptEditor = () => {
     setIsDirty(false);
   };
 
-  const activeVersion = versions.find(v => v.id === activeVersionId);
+  const activeVersion = versions.find((v: AgentVersion) => v.id === activeVersionId);
 
   // Update config when activeVersion changes
   useEffect(() => {
@@ -64,6 +75,19 @@ export const PromptEditor = () => {
   const handleConfigChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setConfig(e.target.value);
     setIsDirty(true);
+  };
+
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    if (!selectedAgent || !activeVersionId) return;
+    
+    setIsPublishing(true);
+    // Simular publicação no Supabase
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setIsPublishing(false);
+    alert(`Versão ${activeVersion?.version_number} publicada com sucesso para produção!`);
   };
 
   const handleSave = async () => {
@@ -96,7 +120,7 @@ export const PromptEditor = () => {
     }
   };
 
-  const selectedAgent = agents.find(a => a.id === selectedAgentId);
+  const selectedAgent = agents.find((a: Agent) => a.id === selectedAgentId);
 
   return (
     <div className="flex flex-col h-[calc(100vh-52px)]">
@@ -104,10 +128,19 @@ export const PromptEditor = () => {
       <div className="h-14 border-b border-border-default flex items-center justify-between px-6 bg-bg-secondary shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="font-semibold text-text-primary flex items-center gap-2">
-            <BoxIcon />
+            <Box size={20} className="text-accent-primary" />
             Prompt Studio
           </h1>
           
+          <button 
+            onClick={handleRefresh}
+            disabled={agentsLoading || versionsLoading}
+            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-bg-tertiary rounded transition-all active:scale-95 disabled:opacity-50"
+            title="Atualizar agentes e versões"
+          >
+            <RefreshCw size={16} className={(agentsLoading || versionsLoading) ? 'animate-spin' : ''} />
+          </button>
+
           <div className="h-4 w-px bg-border-default"></div>
           
           {/* Agent Selector */}
@@ -185,7 +218,7 @@ export const PromptEditor = () => {
           </button>
           <button 
             onClick={handleSave}
-            disabled={!isDirty}
+            disabled={!isDirty || isSaving}
             className={`
               flex items-center gap-2 px-4 py-1.5 text-sm rounded transition-colors ml-2
               ${isDirty 
@@ -193,9 +226,26 @@ export const PromptEditor = () => {
                 : 'bg-bg-tertiary text-text-muted cursor-not-allowed'}
             `}
           >
-            <Save size={16} />
-            Salvar
+            <Save size={16} className={isSaving ? 'animate-spin' : ''} />
+            {isSaving ? 'Salvando...' : 'Salvar'}
           </button>
+
+          {activeVersion?.status !== 'production' && (
+            <button 
+              onClick={handlePublish}
+              disabled={isPublishing || isDirty}
+              className={`
+                flex items-center gap-2 px-4 py-1.5 text-sm rounded transition-colors ml-2
+                ${!isDirty && !isPublishing
+                  ? 'bg-accent-primary text-white hover:bg-accent-primary/90' 
+                  : 'bg-bg-tertiary text-text-muted cursor-not-allowed'}
+              `}
+              title={isDirty ? "Salve as alterações antes de publicar" : "Publicar esta versão em produção"}
+            >
+              <Zap size={16} className={isPublishing ? 'animate-pulse' : ''} />
+              {isPublishing ? 'Publicando...' : 'Publicar'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -218,7 +268,7 @@ export const PromptEditor = () => {
               <div className="text-center py-4 text-xs text-text-muted">Nenhuma versão encontrada para este agente.</div>
             )}
 
-            {versions.map(v => (
+            {versions.map((v: AgentVersion) => (
               <div 
                 key={v.id}
                 onClick={() => handleVersionClick(v)}
@@ -229,7 +279,7 @@ export const PromptEditor = () => {
               >
                 <div className={`text-xs ${getStatusColor(v.status)}`}>
                    {v.status === 'production' ? <CheckCircle2 size={14} /> : 
-                    v.status === 'failed' ? <AlertCircle size={14} /> : 
+                    v.status === 'archived' ? <AlertCircle size={14} /> : 
                     <FileCode size={14} />}
                 </div>
                 <div className="flex-1 min-w-0">

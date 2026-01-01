@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Agent, AgentVersion } from '../../types';
 
@@ -7,12 +7,10 @@ export const useAgents = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
       // Buscar de agent_versions com JOIN para pegar nome do cliente
       // Usamos uma estratégia para pegar apenas a versão mais recente de cada client_id
       const { data, error } = await supabase
@@ -74,12 +72,16 @@ export const useAgents = () => {
 
       setAgents(Array.from(uniqueAgentsMap.values()));
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Erro ao carregar agentes');
       console.error('Error fetching agents:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
 
   return { agents, loading, error, refetch: fetchAgents };
 };

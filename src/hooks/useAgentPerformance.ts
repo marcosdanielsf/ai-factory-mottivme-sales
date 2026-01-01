@@ -5,6 +5,7 @@ import { AgentPerformanceSummary } from '../../types';
 export const useAgentPerformance = () => {
   const [performance, setPerformance] = useState<AgentPerformanceSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPerformance();
@@ -12,6 +13,7 @@ export const useAgentPerformance = () => {
 
   const fetchPerformance = async () => {
     try {
+      setLoading(true);
       // Tentar usar a view vw_agent_performance_summary
       const { data, error } = await supabase
         .from('vw_agent_performance_summary')
@@ -108,12 +110,13 @@ export const useAgentPerformance = () => {
       } else {
         setPerformance(data || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching agent performance:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  return { performance, loading, refetch: fetchPerformance };
+  return { performance, loading, error, refetch: fetchPerformance };
 };

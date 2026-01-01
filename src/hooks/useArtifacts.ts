@@ -1,18 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { FactoryArtifact } from '../../types';
 
 export const useArtifacts = (agentId?: string) => {
   const [artifacts, setArtifacts] = useState<FactoryArtifact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchArtifacts();
-  }, [agentId]);
-
-  const fetchArtifacts = async () => {
+  const fetchArtifacts = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       let query = supabase
         .from('factory_artifacts')
         .select('*')
@@ -34,26 +32,37 @@ export const useArtifacts = (agentId?: string) => {
       } else {
         setArtifacts(data || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching artifacts:', err);
+      setError(err.message || 'Erro ao carregar documentos');
     } finally {
       setLoading(false);
     }
-  };
+  }, [agentId]);
+
+  useEffect(() => {
+    fetchArtifacts();
+  }, [fetchArtifacts]);
 
   const uploadArtifact = async (artifact: Omit<FactoryArtifact, 'id' | 'created_at'>) => {
     try {
+      const artifactToUpload = agentId ? { ...artifact, agent_id: agentId } : artifact;
+      console.log('Iniciando upload de artefato:', artifactToUpload);
       const { data, error } = await supabase
         .from('factory_artifacts')
-        .insert([artifact])
+        .insert([artifactToUpload])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro retornado pelo Supabase ao inserir artefato:', error);
+        throw error;
+      }
       setArtifacts(prev => [data, ...prev]);
       return { data, error: null };
     } catch (err: any) {
       console.error('Error uploading artifact:', err);
+      // Retornar o erro completo para que o chamador possa exibir detalhes
       return { data: null, error: err };
     }
   };
@@ -77,6 +86,7 @@ export const useArtifacts = (agentId?: string) => {
   return { 
     artifacts, 
     loading, 
+    error,
     refetch: fetchArtifacts,
     uploadArtifact,
     deleteArtifact

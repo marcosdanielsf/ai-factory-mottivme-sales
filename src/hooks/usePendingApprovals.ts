@@ -120,5 +120,5 @@ export const usePendingApprovals = () => {
     return { error };
   };
 
-  return { approvals, loading, approveVersion, rejectVersion, refetch: fetchApprovals };
+  return { approvals, loading, error, approveVersion, rejectVersion, refetch: fetchApprovals };
 };

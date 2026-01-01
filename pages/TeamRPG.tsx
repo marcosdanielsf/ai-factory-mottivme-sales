@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createSquadFromConfig } from '../data/squads';
 import { Member, Squad } from '../types/rpg';
 import { Client } from '../types';
 import { Avatar } from '../components/RPG/Avatar';
 import { SkillMenu } from '../components/RPG/SkillMenu';
 import { ClientRanking } from '../components/RPG/ClientRanking';
-import { Layers, Shield, Sword, ArrowLeft, Loader2 } from 'lucide-react';
+import { Layers, Shield, Sword, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { ClientService, AgentService } from '../src/services/dataService';
+import { useToast } from '../src/hooks/useToast';
 
 export const TeamRPG = () => {
+  const { showToast } = useToast();
   const [squads, setSquads] = useState<Squad[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -16,33 +18,38 @@ export const TeamRPG = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Load Data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const clientsData = await ClientService.getAll();
-        setClients(clientsData);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) showToast('Atualizando Squads...', 'info');
+    setIsLoading(true);
+    try {
+      const clientsData = await ClientService.getAll();
+      setClients(clientsData);
 
-        const loadedSquads = await Promise.all(
-          clientsData.map(async (client) => {
-            const config = await AgentService.getConfig(client.id);
-            return createSquadFromConfig(
-              client.id, 
-              client.nome, 
-              client.vertical, 
-              client.empresa, 
-              config
-            );
-          })
-        );
-        setSquads(loadedSquads);
-      } catch (error) {
-        console.error('Failed to load squads:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      const loadedSquads = await Promise.all(
+        clientsData.map(async (client) => {
+          const config = await AgentService.getConfig(client.id);
+          return createSquadFromConfig(
+            client.id, 
+            client.nome, 
+            client.vertical, 
+            client.empresa, 
+            config
+          );
+        })
+      );
+      setSquads(loadedSquads);
+      if (isRefresh) showToast('Squads atualizados com sucesso', 'success');
+    } catch (error) {
+      console.error('Failed to load squads:', error);
+      showToast('Erro ao carregar squads', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleMemberClick = (member: Member) => {
     setSelectedMember(selectedMember?.id === member.id ? null : member);
@@ -88,6 +95,16 @@ export const TeamRPG = () => {
   if (!selectedClient) {
     return (
       <div className="p-8 min-h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-bg-secondary via-bg-primary to-bg-primary">
+         <div className="flex justify-end mb-4">
+           <button 
+             onClick={() => loadData(true)}
+             disabled={isLoading}
+             className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50"
+             title="Atualizar ranking e squads"
+           >
+             <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+           </button>
+         </div>
          <ClientRanking 
             clients={clients} 
             onSelectClient={setSelectedClient} 
@@ -105,20 +122,31 @@ export const TeamRPG = () => {
       onClick={handleBackgroundClick}
     >
       {/* Header com botão de voltar */}
-      <div className="mb-8 flex items-center gap-4">
-        <button 
-          onClick={() => setSelectedClient(null)}
-          className="p-2 hover:bg-bg-secondary rounded-full transition-colors border border-transparent hover:border-border-default text-text-muted hover:text-text-primary"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <div>
-           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Sword className="text-accent-primary" />
-            Squads: {selectedClient.empresa}
-          </h1>
-          <p className="text-text-muted">Gerenciamento tático de agentes.</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setSelectedClient(null)}
+            className="p-2 hover:bg-bg-secondary rounded-full transition-colors border border-transparent hover:border-border-default text-text-muted hover:text-text-primary"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+              <Sword className="text-accent-primary" />
+              Squads: {selectedClient.empresa}
+            </h1>
+            <p className="text-text-muted">Gerenciamento tático de agentes.</p>
+          </div>
         </div>
+
+        <button 
+          onClick={() => loadData(true)}
+          disabled={isLoading}
+          className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
+          title="Atualizar squad"
+        >
+          <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
       <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500">

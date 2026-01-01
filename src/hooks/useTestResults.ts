@@ -5,6 +5,7 @@ import { AgentTestRun } from '../../types';
 export const useTestResults = () => {
   const [results, setResults] = useState<AgentTestRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchResults();
@@ -12,6 +13,7 @@ export const useTestResults = () => {
 
   const fetchResults = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('agenttest_runs')
         .select('*')
@@ -25,7 +27,7 @@ export const useTestResults = () => {
           const mockResults: AgentTestRun[] = [
             {
               id: 'test-1',
-              agent_id: '1',
+              agent_version_id: '1',
               status: 'completed',
               score_overall: 8.5,
               score_dimensions: { tone: 9, engagement: 8, compliance: 9, accuracy: 8, empathy: 8, efficiency: 9 },
@@ -35,7 +37,7 @@ export const useTestResults = () => {
             },
             {
               id: 'test-2',
-              agent_id: '1',
+              agent_version_id: '1',
               status: 'completed',
               score_overall: 7.2,
               score_dimensions: { tone: 7, engagement: 7, compliance: 8, accuracy: 7, empathy: 7, efficiency: 7 },
@@ -45,7 +47,7 @@ export const useTestResults = () => {
             },
             {
               id: 'test-3',
-              agent_id: '1',
+              agent_version_id: '1',
               status: 'completed',
               score_overall: 9.1,
               score_dimensions: { tone: 9, engagement: 9, compliance: 10, accuracy: 9, empathy: 9, efficiency: 9 },
@@ -65,7 +67,7 @@ export const useTestResults = () => {
         const mockResults: AgentTestRun[] = [
           {
             id: 'test-1',
-            agent_id: '1',
+            agent_version_id: '1',
             status: 'completed',
             score_overall: 8.5,
             score_dimensions: { tone: 9, engagement: 8, compliance: 9, accuracy: 8, empathy: 8, efficiency: 9 },
@@ -75,7 +77,7 @@ export const useTestResults = () => {
           },
           {
             id: 'test-2',
-            agent_id: '1',
+            agent_version_id: '1',
             status: 'completed',
             score_overall: 7.2,
             score_dimensions: { tone: 7, engagement: 7, compliance: 8, accuracy: 7, empathy: 7, efficiency: 7 },
@@ -85,7 +87,7 @@ export const useTestResults = () => {
           },
           {
             id: 'test-3',
-            agent_id: '1',
+            agent_version_id: '1',
             status: 'completed',
             score_overall: 9.1,
             score_dimensions: { tone: 9, engagement: 9, compliance: 10, accuracy: 9, empathy: 9, efficiency: 9 },
@@ -96,12 +98,13 @@ export const useTestResults = () => {
         ];
         setResults(mockResults);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching test results:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  return { results, loading };
+  return { testRuns: results, loading, error, refetch: fetchResults };
 };

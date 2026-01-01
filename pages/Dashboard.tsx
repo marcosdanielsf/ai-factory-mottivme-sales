@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
-import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle } from 'lucide-react';
+import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance } from '../src/hooks';
+import { useToast } from '../src/hooks/useToast';
+import { TestReportModal } from '../components/TestReportModal';
 import { 
   LineChart, 
   Line, 
@@ -23,21 +25,84 @@ import {
   Cell,
 } from 'recharts';
 
+const SectionHeader = ({ title, icon: Icon }: { title: string, icon: any }) => (
+  <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
+    <Icon size={16} />
+    {title}
+  </h2>
+);
+
+const ChartPlaceholder = ({ title, loading, error, empty, children, height = "h-[300px]" }: { title: string, loading?: boolean, error?: string | null, empty?: boolean, children: React.ReactNode, height?: string }) => (
+  <div className="space-y-4">
+    <SectionHeader title={title} icon={title.includes('Evolução') ? TrendingUp : BarChart2} />
+    <div className={`bg-bg-secondary border border-border-default rounded-lg p-6 ${height} flex flex-col relative overflow-hidden`}>
+      {loading ? (
+        <div className="absolute inset-0 bg-bg-secondary/50 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-text-muted animate-pulse">Carregando dados...</p>
+        </div>
+      ) : error ? (
+        <div className="h-full flex flex-col items-center justify-center gap-2 text-center p-4">
+          <div className="w-10 h-10 bg-accent-error/10 rounded-full flex items-center justify-center text-accent-error mb-2">
+            <AlertCircle size={20} />
+          </div>
+          <p className="text-sm font-medium text-text-primary">Erro ao carregar dados</p>
+          <p className="text-xs text-text-muted max-w-[200px]">{error}</p>
+        </div>
+      ) : empty ? (
+        <div className="h-full flex flex-col items-center justify-center gap-2 text-center p-4">
+          <div className="w-10 h-10 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-2">
+            <Inbox size={20} />
+          </div>
+          <p className="text-sm font-medium text-text-primary">Nenhum dado encontrado</p>
+          <p className="text-xs text-text-muted max-w-[200px]">Os dados aparecerão aqui assim que as primeiras operações forem realizadas.</p>
+        </div>
+      ) : null}
+      <div className={`h-full w-full ${(loading || error || empty) ? 'opacity-20 blur-[2px]' : ''}`}>
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
 export const Dashboard = () => {
+  const { showToast } = useToast();
   const { metrics } = useDashboardMetrics();
-  const { agents } = useAgents();
-  const { approvals } = usePendingApprovals();
-  const { results: testResults } = useTestResults();
-  const { performance } = useAgentPerformance();
+  const { agents, loading: agentsLoading, error: agentsError, refetch: refetchAgents } = useAgents();
+  const { approvals, loading: approvalsLoading, error: approvalsError } = usePendingApprovals();
+  const { testRuns: testResults, loading: testResultsLoading, error: testResultsError } = useTestResults();
+  const { performance, loading: performanceLoading, error: performanceError, refetch: refetchPerformance } = useAgentPerformance();
   const [isRunningTests, setIsRunningTests] = useState(false);
-  const [showTestSuccess, setShowTestSuccess] = useState(false);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    showToast('Atualizando indicadores...', 'info');
+    
+    try {
+      // O hook useDashboardMetrics não parece ter refetch exportado, 
+      // mas os outros têm. Vamos disparar os que temos.
+      await Promise.all([
+        refetchAgents?.(),
+        refetchPerformance?.()
+      ]);
+      
+      showToast('Painel atualizado com sucesso', 'success');
+    } catch (error) {
+      showToast('Erro ao atualizar alguns dados', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleRunTests = () => {
     setIsRunningTests(true);
+    showToast('Iniciando bateria de testes V4...', 'info');
+    
     setTimeout(() => {
       setIsRunningTests(false);
-      setShowTestSuccess(true);
-      setTimeout(() => setShowTestSuccess(false), 4000);
+      showToast('Bateria V4 iniciada com sucesso!', 'success');
     }, 2000);
   };
 
@@ -115,12 +180,14 @@ export const Dashboard = () => {
         </div>
         
         <div className="flex items-center gap-3">
-           {showTestSuccess && (
-             <div className="flex items-center gap-2 text-accent-success text-sm animate-in fade-in slide-in-from-right-4 bg-bg-secondary border border-accent-success/20 px-3 py-1.5 rounded-md">
-               <CheckCircle size={16} />
-               Bateria V4 iniciada!
-             </div>
-           )}
+           <button 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
+              title="Atualizar indicadores"
+            >
+              <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+           </button>
            <button 
               onClick={handleRunTests}
               disabled={isRunningTests}
@@ -147,107 +214,93 @@ export const Dashboard = () => {
       {/* Performance Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Evolution Chart */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-            <TrendingUp size={16} />
-            Evolução do Score (Média V4)
-          </h2>
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-6 h-[300px]">
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-accent-primary)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--color-accent-primary)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-default)" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    domain={[0, 10]} 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'var(--color-bg-secondary)', 
-                      borderColor: 'var(--color-border-default)',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }}
-                    itemStyle={{ color: 'var(--color-text-primary)' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="score" 
-                    stroke="var(--color-accent-primary)" 
-                    fillOpacity={1} 
-                    fill="url(#colorScore)" 
-                    strokeWidth={2}
-                    name="Score Médio"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-text-muted text-sm">
-                Aguardando dados de validação...
-              </div>
-            )}
-          </div>
-        </div>
+        <ChartPlaceholder 
+          title="Evolução do Score (Média V4)" 
+          loading={testResultsLoading} 
+          error={testResultsError}
+          empty={testResults.length === 0}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-accent-primary)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--color-accent-primary)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-default)" />
+              <XAxis 
+                dataKey="date" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
+                dy={10}
+              />
+              <YAxis 
+                domain={[0, 10]} 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'var(--color-bg-secondary)', 
+                  borderColor: 'var(--color-border-default)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+                itemStyle={{ color: 'var(--color-text-primary)' }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="score" 
+                stroke="var(--color-accent-primary)" 
+                fillOpacity={1} 
+                fill="url(#colorScore)" 
+                strokeWidth={2}
+                name="Score Médio"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartPlaceholder>
 
         {/* Conversion by Agent Chart */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-            <BarChart2 size={16} />
-            Conversão por Agente (%)
-          </h2>
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-6 h-[300px]">
-            {performance.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={performance} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--color-border-default)" />
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-                    width={100}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'var(--color-bg-tertiary)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'var(--color-bg-secondary)', 
-                      borderColor: 'var(--color-border-default)',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value: number) => [`${value}%`, 'Taxa de Conversão']}
-                  />
-                  <Bar dataKey="conversion_rate_pct" radius={[0, 4, 4, 0]}>
-                    {performance.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--color-accent-primary)' : 'var(--color-accent-success)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-text-muted text-sm">
-                Sem dados de performance disponíveis.
-              </div>
-            )}
-          </div>
-        </div>
+        <ChartPlaceholder 
+          title="Conversão por Agente (%)" 
+          loading={performanceLoading} 
+          error={performanceError}
+          empty={performance.length === 0}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={performance} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--color-border-default)" />
+              <XAxis type="number" hide />
+              <YAxis 
+                dataKey="name" 
+                type="category" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
+                width={100}
+              />
+              <Tooltip 
+                cursor={{ fill: 'var(--color-bg-tertiary)' }}
+                contentStyle={{ 
+                  backgroundColor: 'var(--color-bg-secondary)', 
+                  borderColor: 'var(--color-border-default)',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+                formatter={(value: number) => [`${value}%`, 'Taxa de Conversão']}
+              />
+              <Bar dataKey="conversion_rate_pct" radius={[0, 4, 4, 0]}>
+                {performance.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--color-accent-primary)' : 'var(--color-accent-success)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartPlaceholder>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -255,25 +308,36 @@ export const Dashboard = () => {
         <div className="lg:col-span-2 space-y-8">
           {/* Agentes Recentes */}
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-              <Activity size={16} />
-              Agentes Recentes
-            </h2>
-            <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
-              {agents.slice(0, 3).map((agent, i) => (
-                <div key={agent.id} className="flex items-center gap-4 p-4 border-b border-border-default last:border-0 hover:bg-bg-tertiary transition-colors">
-                  <span className="text-lg">🤖</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-text-primary font-medium">{agent.name}</p>
-                    <p className="text-xs text-text-muted">{agent.slug}</p>
-                  </div>
-                  <span className="text-xs text-text-muted">
-                    {new Date(agent.created_at).toLocaleDateString()}
-                  </span>
+            <SectionHeader title="Agentes Recentes" icon={Activity} />
+            <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden min-h-[150px] relative">
+              {agentsLoading ? (
+                <div className="absolute inset-0 bg-bg-secondary/50 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-2">
+                   <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                   <span className="text-xs text-text-muted">Buscando agentes...</span>
                 </div>
-              ))}
-              {agents.length === 0 && (
-                <div className="p-4 text-center text-text-muted">Nenhum agente encontrado</div>
+              ) : agentsError ? (
+                <div className="p-8 flex flex-col items-center justify-center gap-2 text-center">
+                  <AlertCircle size={20} className="text-accent-error mb-1" />
+                  <p className="text-xs text-text-muted">Erro ao carregar agentes</p>
+                </div>
+              ) : agents.length > 0 ? (
+                agents.slice(0, 3).map((agent, i) => (
+                  <div key={agent.id} className="flex items-center gap-4 p-4 border-b border-border-default last:border-0 hover:bg-bg-tertiary transition-colors">
+                    <span className="text-lg">🤖</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-text-primary font-medium">{agent.name}</p>
+                      <p className="text-xs text-text-muted">{agent.slug}</p>
+                    </div>
+                    <span className="text-xs text-text-muted">
+                      {new Date(agent.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-12 flex flex-col items-center justify-center gap-2 text-center">
+                  <Inbox size={24} className="text-text-muted mb-1" />
+                  <p className="text-xs text-text-muted italic">Nenhum agente configurado.</p>
+                </div>
               )}
             </div>
           </div>
@@ -281,103 +345,141 @@ export const Dashboard = () => {
           {/* Últimos Testes (Validation) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                <Activity size={16} />
-                Últimas Validações
-              </h2>
-              <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
-                {testResults.slice(0, 3).map((test, i) => (
-                  <div key={test.id} className="flex items-center gap-4 p-4 border-b border-border-default last:border-0 hover:bg-bg-tertiary transition-colors">
-                    <span className="text-lg">{test.status === 'completed' ? '✅' : '⚠️'}</span>
-                    <div className="flex-1">
-                      <p className="text-sm text-text-primary font-medium">Run {test.id.slice(0, 8)}</p>
-                      <p className="text-xs text-text-muted">
-                        Passou: {test.passed_tests} | Falhou: {test.failed_tests}
-                      </p>
-                    </div>
-                    <span className="text-xs text-text-muted">
-                      {new Date(test.created_at).toLocaleDateString()}
-                    </span>
+              <SectionHeader title="Últimas Validações" icon={Activity} />
+              <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden min-h-[200px] relative">
+                {testResultsLoading ? (
+                  <div className="absolute inset-0 bg-bg-secondary/50 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-text-muted">Carregando validações...</span>
                   </div>
-                ))}
-                {testResults.length === 0 && (
-                  <div className="p-4 text-center text-text-muted">Nenhuma validação encontrada</div>
+                ) : testResultsError ? (
+                  <div className="p-8 flex flex-col items-center justify-center gap-2 text-center">
+                    <AlertCircle size={20} className="text-accent-error mb-1" />
+                    <p className="text-xs text-text-muted">Erro ao carregar validações</p>
+                  </div>
+                ) : testResults.length > 0 ? (
+                  testResults.slice(0, 3).map((test, i) => (
+                    <div key={test.id} className="flex items-center gap-4 p-4 border-b border-border-default last:border-0 hover:bg-bg-tertiary transition-colors group">
+                      <span className="text-lg">{test.status === 'completed' ? '✅' : '⚠️'}</span>
+                      <div className="flex-1">
+                        <p className="text-sm text-text-primary font-medium">Run {test.id.slice(0, 8)}</p>
+                        <p className="text-xs text-text-muted">
+                          Passou: {test.passed_tests} | Falhou: {test.failed_tests}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] text-text-muted">
+                          {new Date(test.created_at).toLocaleDateString()}
+                        </span>
+                        <button 
+                          onClick={() => setSelectedReportId(test.id)}
+                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-accent-primary hover:underline transition-opacity"
+                        >
+                          <FileText size={10} />
+                          Ver HTML
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-12 flex flex-col items-center justify-center gap-2 text-center">
+                    <Inbox size={24} className="text-text-muted mb-1" />
+                    <p className="text-xs text-text-muted">Nenhuma validação encontrada</p>
+                  </div>
                 )}
               </div>
             </div>
 
             <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                <Target size={16} />
-                Radar de Dimensões (V4)
-              </h2>
-              <div className="bg-bg-secondary border border-border-default rounded-lg p-4 flex flex-col items-center">
-                {radarData.length > 0 ? (
-                  <>
-                    <div className="h-[200px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                          <PolarGrid stroke="var(--color-border-default)" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
-                          <Radar
-                            name="Score"
-                            dataKey="A"
-                            stroke="var(--color-accent-primary)"
-                            fill="var(--color-accent-primary)"
-                            fillOpacity={0.6}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
+              <ChartPlaceholder 
+                title="Radar de Dimensões (V4)" 
+                loading={testResultsLoading} 
+                error={testResultsError}
+                empty={radarData.length === 0}
+                height="h-[250px]"
+              >
+                <div className="h-[150px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                      <PolarGrid stroke="var(--color-border-default)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
+                      <Radar
+                        name="Score"
+                        dataKey="A"
+                        stroke="var(--color-accent-primary)"
+                        fill="var(--color-accent-primary)"
+                        fillOpacity={0.6}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                  {[
+                    { label: 'Tom de Voz', score: testResults[0]?.score_dimensions?.tone || 0, color: 'bg-accent-primary' },
+                    { label: 'Engajamento', score: testResults[0]?.score_dimensions?.engagement || 0, color: 'bg-accent-success' },
+                    { label: 'Script', score: testResults[0]?.score_dimensions?.compliance || 0, color: 'bg-accent-warning' },
+                    { label: 'Precisão', score: testResults[0]?.score_dimensions?.accuracy || 0, color: 'bg-accent-error' },
+                  ].map((dim, i) => (
+                    <div key={i} className="flex items-center justify-between text-[10px]">
+                      <span className="text-text-secondary">{dim.label}</span>
+                      <span className="font-bold text-text-primary">{dim.score.toFixed(1)}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 w-full mt-4">
-                      {[
-                        { label: 'Tom de Voz', score: testResults[0]?.score_dimensions?.tone || testResults[0]?.tone_score || 0, color: 'bg-accent-primary' },
-                        { label: 'Engajamento', score: testResults[0]?.score_dimensions?.engagement || testResults[0]?.engagement_score || 0, color: 'bg-accent-success' },
-                        { label: 'Script', score: testResults[0]?.score_dimensions?.compliance || testResults[0]?.completeness_score || 0, color: 'bg-accent-warning' },
-                        { label: 'Precisão', score: testResults[0]?.score_dimensions?.accuracy || testResults[0]?.conversion_score || 0, color: 'bg-accent-error' },
-                      ].map((dim, i) => (
-                        <div key={i} className="flex items-center justify-between text-[10px]">
-                          <span className="text-text-secondary">{dim.label}</span>
-                          <span className="font-bold text-text-primary">{dim.score.toFixed(1)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-text-muted text-xs">
-                    Sem dados para o radar
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              </ChartPlaceholder>
             </div>
           </div>
         </div>
 
         {/* Pipeline Status */}
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
-            <Activity size={16} />
-            Pipeline de Versões
-          </h2>
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-4 space-y-3">
-            <div className="flex items-center gap-3 p-3 bg-accent-warning/10 border border-accent-warning/20 rounded-md">
-              <div className="w-2 h-2 rounded-full bg-accent-warning"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-text-primary">{approvals.length} Aprovações</p>
-                <p className="text-xs text-text-muted">Prompts aguardando revisão</p>
+          <SectionHeader title="Pipeline de Versões" icon={Activity} />
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-4 space-y-3 min-h-[150px] relative">
+            {approvalsLoading ? (
+              <div className="absolute inset-0 bg-bg-secondary/50 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-[10px] text-text-muted">Verificando pipeline...</span>
               </div>
-            </div>
-             <div className="flex items-center gap-3 p-3 bg-bg-tertiary border border-border-default rounded-md">
-               <div className="w-2 h-2 rounded-full bg-accent-error"></div>
-               <span className="text-sm">0 Agentes com erro</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-bg-tertiary border border-border-default rounded-md">
-               <div className="w-2 h-2 rounded-full bg-accent-primary"></div>
-               <span className="text-sm">0 Calls pendentes</span>
-            </div>
+            ) : approvalsError ? (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-4">
+                <AlertCircle size={16} className="text-accent-error" />
+                <p className="text-[10px] text-text-muted">Erro no pipeline</p>
+              </div>
+            ) : (
+              <>
+                <div className={`flex items-center gap-3 p-3 border rounded-md transition-colors ${approvals.length > 0 ? 'bg-accent-warning/10 border-accent-warning/20' : 'bg-bg-tertiary border-border-default'}`}>
+                  <div className={`w-2 h-2 rounded-full ${approvals.length > 0 ? 'bg-accent-warning animate-pulse' : 'bg-text-muted'}`}></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-text-primary">{approvals.length} Aprovações</p>
+                    <p className="text-xs text-text-muted">Prompts aguardando revisão</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-bg-tertiary border border-border-default rounded-md">
+                  <div className="w-2 h-2 rounded-full bg-accent-success"></div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-text-primary">0 Agentes com erro</span>
+                    <p className="text-xs text-text-muted">Sistema operando normalmente</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-bg-tertiary border border-border-default rounded-md">
+                  <div className="w-2 h-2 rounded-full bg-accent-primary"></div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-text-primary">0 Calls pendentes</span>
+                    <p className="text-xs text-text-muted">Processamento em dia</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {selectedReportId && (
+        <TestReportModal 
+          run={testResults.find(r => r.id === selectedReportId) as any} 
+          onClose={() => setSelectedReportId(null)} 
+        />
+      )}
     </div>
   );
 };

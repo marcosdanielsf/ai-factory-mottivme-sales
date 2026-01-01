@@ -14,12 +14,14 @@ import { Validation } from './pages/Validation';
 import { Logs } from './pages/Logs';
 import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
+import { ToastProvider } from './src/hooks/useToast';
 
 const App = () => {
   return (
-    <HashRouter>
-      <Layout>
-        <Routes>
+    <ToastProvider>
+      <HashRouter>
+        <Layout>
+          <Routes>
           <Route path="/" element={<Dashboard />} />
           
           {/* Sales OS */}
@@ -47,7 +49,8 @@ const App = () => {
           <Route path="*" element={<div className="p-8 text-text-muted">Página em construção...</div>} />
         </Routes>
       </Layout>
-    </HashRouter>
+      </HashRouter>
+    </ToastProvider>
   );
 };
 

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MOCK_CLIENTS, MOCK_AGENT_VERSION, MOCK_CALLS } from '../constants';
-import { MoreHorizontal, Bot, Calendar, FileText, Video } from 'lucide-react';
+import { MoreHorizontal, Bot, Calendar, FileText, Video, RefreshCw } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
+import { useToast } from '../src/hooks/useToast';
 
 const PropertyRow = ({ label, value, isBadge = false }: any) => (
   <div className="flex items-start py-1.5 text-sm">
@@ -21,7 +22,18 @@ const PropertyRow = ({ label, value, isBadge = false }: any) => (
 
 export const ClientDetail = () => {
   const { id } = useParams();
+  const { showToast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
   const client = MOCK_CLIENTS.find(c => c.id === id) || MOCK_CLIENTS[0]; // Fallback to first for mock
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    showToast('Atualizando dados do cliente...', 'info');
+    setTimeout(() => {
+      setRefreshing(false);
+      showToast('Dados do cliente atualizados', 'success');
+    }, 1000);
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-10">
@@ -69,7 +81,7 @@ export const ClientDetail = () => {
         <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
             <div className="flex items-center gap-4 mb-6">
               <div className="text-sm text-text-muted">
-                <span className="text-text-primary font-medium">Versão {MOCK_AGENT_VERSION.versao}</span>
+                <span className="text-text-primary font-medium">Versão {MOCK_AGENT_VERSION.version_number}</span>
                 <span className="mx-2">•</span>
                 Ativo desde {new Date(MOCK_AGENT_VERSION.deployed_at || '').toLocaleDateString()}
               </div>
@@ -92,20 +104,24 @@ export const ClientDetail = () => {
           Calls Processadas
         </h2>
         <div className="border border-border-default rounded-lg overflow-hidden">
-          {MOCK_CALLS.map(call => (
+          {MOCK_CALLS.length > 0 ? MOCK_CALLS.map(call => (
             <div key={call.id} className="flex items-center gap-4 p-4 bg-bg-secondary border-b border-border-default last:border-0 hover:bg-bg-tertiary cursor-pointer transition-colors">
               <div className="w-8 h-8 rounded bg-bg-tertiary flex items-center justify-center text-accent-primary">
                 <Video size={16} />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-medium text-text-primary">{call.titulo}</div>
-                <div className="text-xs text-text-muted capitalize">{call.tipo} • {call.date}</div>
+                <div className="text-sm font-medium text-text-primary">{call.summary}</div>
+                <div className="text-xs text-text-muted capitalize">{call.duration} • {call.date}</div>
               </div>
               <div className="px-2 py-1 rounded text-xs bg-accent-success/10 text-accent-success capitalize">
                 {call.status}
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="p-8 text-center text-text-muted italic bg-bg-secondary">
+              Nenhuma call processada recentemente.
+            </div>
+          )}
         </div>
       </section>
     </div>

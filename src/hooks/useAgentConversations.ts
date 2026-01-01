@@ -20,6 +20,7 @@ export interface ConversationSummary {
 export const useAgentConversations = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchConversations();
@@ -28,6 +29,7 @@ export const useAgentConversations = () => {
   const fetchConversations = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Buscamos as conversas mais recentes
       const { data, error } = await supabase
@@ -67,12 +69,13 @@ export const useAgentConversations = () => {
       });
 
       setConversations(formatted as ConversationSummary[]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching conversations:', err);
+      setError(err.message || 'Erro ao carregar conversas');
     } finally {
       setLoading(false);
     }
   };
 
-  return { conversations, loading, refetch: fetchConversations };
+  return { conversations, loading, error, refetch: fetchConversations };
 };

@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { MOCK_ALERTS } from '../constants';
-import { Bell, AlertTriangle, CheckCircle2, Clock, Filter, Check, MoreVertical, X, Trash2 } from 'lucide-react';
+import { Bell, AlertTriangle, CheckCircle2, Clock, Filter, Check, MoreVertical, X, Trash2, Search, RefreshCw, AlertCircle } from 'lucide-react';
+import { useSystemAlerts } from '../src/hooks/useSystemAlerts';
+import { useToast } from '../src/hooks/useToast';
 
 const SeverityBadge = ({ severity }: { severity: string }) => {
   const styles = {
     critical: 'bg-accent-error/10 text-accent-error border-accent-error/20',
     high: 'bg-accent-warning/10 text-accent-warning border-accent-warning/20',
+    medium: 'bg-accent-primary/10 text-accent-primary border-accent-primary/20',
     low: 'bg-bg-tertiary text-text-muted border-border-default'
   };
   return (
@@ -16,8 +18,10 @@ const SeverityBadge = ({ severity }: { severity: string }) => {
 };
 
 export const Notifications = () => {
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'low'>('all');
+  const { showToast } = useToast();
+  const { alerts, loading, error, refetch, markAllAsRead, deleteAlert } = useSystemAlerts();
+  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
@@ -33,19 +37,63 @@ export const Notifications = () => {
   }, []);
 
   const filteredAlerts = useMemo(() => {
-    if (filter === 'all') return alerts;
-    return alerts.filter(a => a.severity === filter);
-  }, [alerts, filter]);
+    let result = alerts;
+    
+    if (filter !== 'all') {
+      result = result.filter(a => a.severity === filter);
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(a => 
+        a.title.toLowerCase().includes(term) ||
+        a.message.toLowerCase().includes(term) ||
+        a.client_name?.toLowerCase().includes(term)
+      );
+    }
+    
+    return result;
+  }, [alerts, filter, searchTerm]);
 
-  const markAllRead = () => {
+  const handleMarkAllRead = () => {
     if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
-      setAlerts([]);
+      markAllAsRead();
+      showToast('Todas as notificações foram limpas', 'info');
     }
   };
 
-  const deleteAlert = (id: string) => {
-    setAlerts(prev => prev.filter(a => a.id !== id));
+  const handleDeleteAlert = (id: string) => {
+    deleteAlert(id);
+    showToast('Notificação removida', 'info');
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 flex flex-col items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-accent-primary/20 border-t-accent-primary rounded-full animate-spin mb-4"></div>
+        <p className="text-text-secondary animate-pulse">Carregando alertas...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
+        <div className="w-16 h-16 bg-accent-error/10 rounded-full flex items-center justify-center text-accent-error mb-4">
+          <AlertCircle size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-text-primary mb-2">Erro ao carregar alertas</h2>
+        <p className="text-text-muted max-w-md mb-6">{error}</p>
+        <button 
+          onClick={() => refetch()}
+          className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default hover:border-accent-primary rounded text-sm transition-colors"
+        >
+          <RefreshCw size={16} />
+          Tentar Novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-8">
@@ -59,11 +107,34 @@ export const Notifications = () => {
           <p className="text-text-secondary text-sm mt-1">Incidentes críticos e status do sistema em tempo real.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+            <input 
+              type="text"
+              placeholder="Buscar alertas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary transition-colors"
+            />
+          </div>
+
+          <button 
+            onClick={() => {
+              refetch();
+              showToast('Alertas atualizados', 'info');
+            }}
+            disabled={loading}
+            className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
+            title="Atualizar alertas"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+
           <div className="relative" ref={filterRef}>
             <button 
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary border border-border-default rounded text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-bg-secondary border border-border-default rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary transition-colors h-[38px]"
             >
               <Filter size={14} />
               Filtrar: {filter === 'all' ? 'Todos' : filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -71,7 +142,7 @@ export const Notifications = () => {
             
             {isFilterOpen && (
               <div className="absolute top-full right-0 mt-2 w-40 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                {(['all', 'critical', 'high', 'low'] as const).map((f) => (
+                {(['all', 'critical', 'high', 'medium', 'low'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => { setFilter(f); setIsFilterOpen(false); }}
@@ -86,14 +157,27 @@ export const Notifications = () => {
             )}
           </div>
 
-          <button 
-            onClick={markAllRead}
-            disabled={alerts.length === 0}
-            className="flex items-center gap-2 px-3 py-1.5 bg-accent-primary/10 text-accent-primary border border-accent-primary/20 rounded text-xs font-medium hover:bg-accent-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Check size={14} />
-            Marcar todas como lidas
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => {
+                showToast('Atualizando notificações...', 'info');
+                refetch().then(() => showToast('Notificações atualizadas', 'success'));
+              }}
+              disabled={loading}
+              className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
+              title="Atualizar notificações"
+            >
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button 
+              onClick={handleMarkAllRead}
+              disabled={alerts.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default hover:bg-bg-tertiary text-text-primary rounded-lg text-sm font-medium transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+            >
+              <Check size={16} />
+              Marcar todas como lidas
+            </button>
+          </div>
         </div>
       </div>
 
@@ -105,6 +189,7 @@ export const Notifications = () => {
               <div className={`mt-1 p-2 rounded-full ${
                 alert.severity === 'critical' ? 'bg-accent-error/10 text-accent-error' :
                 alert.severity === 'high' ? 'bg-accent-warning/10 text-accent-warning' :
+                alert.severity === 'medium' ? 'bg-accent-primary/10 text-accent-primary' :
                 'bg-bg-hover text-text-muted'
               }`}>
                 <AlertTriangle size={18} />
@@ -129,7 +214,7 @@ export const Notifications = () => {
               </div>
 
               <button 
-                onClick={() => deleteAlert(alert.id)}
+                onClick={() => handleDeleteAlert(alert.id)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-bg-hover rounded text-text-muted hover:text-accent-error"
               >
                 <X size={16} />
@@ -139,11 +224,23 @@ export const Notifications = () => {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-text-muted space-y-4 bg-bg-secondary/50 border border-dashed border-border-default rounded-xl">
              <div className="p-4 bg-bg-tertiary rounded-full">
-               <CheckCircle2 size={40} className="text-accent-success opacity-50" />
+               {searchTerm ? <Search size={40} className="opacity-20" /> : <CheckCircle2 size={40} className="text-accent-success opacity-50" />}
              </div>
              <div className="text-center">
-               <p className="font-medium text-text-primary">Tudo limpo por aqui!</p>
-               <p className="text-sm">Nenhum alerta pendente no momento.</p>
+               <p className="font-medium text-text-primary">
+                 {searchTerm ? 'Nenhum alerta encontrado' : 'Tudo limpo por aqui!'}
+               </p>
+               <p className="text-sm">
+                 {searchTerm ? `Não encontramos alertas para "${searchTerm}"` : 'Nenhum alerta pendente no momento.'}
+               </p>
+               {searchTerm && (
+                 <button 
+                   onClick={() => setSearchTerm('')}
+                   className="mt-4 text-xs text-accent-primary hover:underline"
+                 >
+                   Limpar busca
+                 </button>
+               )}
              </div>
           </div>
         )}

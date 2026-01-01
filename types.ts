@@ -101,6 +101,7 @@ export interface Contract {
 
 export interface FactoryArtifact {
   id: string;
+  agent_id?: string;
   lead_id?: string;
   artifact_type: string; // 'persona_analysis', 'objection_map', 'tone_guide'
   title?: string;
