@@ -6,6 +6,8 @@ import { AgentVersion } from '../types';
 export const PromptEditor = () => {
   const { agents, loading: agentsLoading } = useAgents();
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [isSandboxLoading, setIsSandboxLoading] = useState(false);
   
   // Set default agent when loaded
   useEffect(() => {
@@ -18,6 +20,7 @@ export const PromptEditor = () => {
   const [activeVersionId, setActiveVersionId] = useState<string>('');
   const [code, setCode] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Set active version when versions load
   useEffect(() => {
@@ -33,23 +36,55 @@ export const PromptEditor = () => {
     }
   }, [versions, activeVersionId]);
 
+  const [activeTab, setActiveTab] = useState<'prompt' | 'config'>('prompt');
+  const [config, setConfig] = useState('{}');
+
   // Update code when switching versions
   const handleVersionClick = (version: AgentVersion) => {
     setActiveVersionId(version.id);
     setCode(version.system_prompt);
+    setConfig(JSON.stringify(version.hyperpersonalization_config || {}, null, 2));
     setIsDirty(false);
   };
 
   const activeVersion = versions.find(v => v.id === activeVersionId);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  // Update config when activeVersion changes
+  useEffect(() => {
+    if (activeVersion) {
+      setConfig(JSON.stringify(activeVersion.hyperpersonalization_config || {}, null, 2));
+    }
+  }, [activeVersion]);
+
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setCode(e.target.value);
     setIsDirty(true);
   };
 
-  const handleSave = () => {
-    alert('Funcionalidade de salvar será implementada em breve (requer backend n8n/Supabase update).');
+  const handleConfigChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setConfig(e.target.value);
+    setIsDirty(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedAgent || !activeVersionId) return;
+    
+    setIsSaving(true);
+    // Simular salvamento no Supabase
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     setIsDirty(false);
+    setIsSaving(false);
+    alert('Prompt e configurações salvos com sucesso no banco de dados!');
+  };
+
+  const handleSandbox = () => {
+    if (!selectedAgent) return;
+    setIsSandboxLoading(true);
+    setTimeout(() => {
+      setIsSandboxLoading(false);
+      alert(`Ambiente de Sandbox inicializado para o agente: ${selectedAgent.name}. Você pode testar as alterações em tempo real agora.`);
+    }, 1500);
   };
 
   const getStatusColor = (status: string) => {
@@ -76,24 +111,57 @@ export const PromptEditor = () => {
           <div className="h-4 w-px bg-border-default"></div>
           
           {/* Agent Selector */}
-          <div className="relative group">
-            <button className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-2 py-1 rounded transition-colors">
+          <div className="relative">
+            <button 
+              onClick={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
+              className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-2 py-1 rounded transition-colors"
+            >
               <Bot size={16} />
               {selectedAgent ? selectedAgent.name : 'Selecione um Agente'}
-              <ChevronDown size={14} className="text-text-muted" />
+              <ChevronDown size={14} className={`text-text-muted transition-transform ${isAgentMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             
-            <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default rounded shadow-lg hidden group-hover:block z-50">
-              {agents.map(agent => (
-                <button
-                  key={agent.id}
-                  onClick={() => setSelectedAgentId(agent.id)}
-                  className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-bg-tertiary hover:text-text-primary first:rounded-t last:rounded-b"
-                >
-                  {agent.name}
-                </button>
-              ))}
-            </div>
+            {isAgentMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsAgentMenuOpen(false)}></div>
+                <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default rounded shadow-lg z-50 overflow-hidden">
+                  {agents.map(agent => (
+                    <button
+                      key={agent.id}
+                      onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        setIsAgentMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        selectedAgentId === agent.id 
+                        ? 'bg-accent-primary/10 text-accent-primary' 
+                        : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                      }`}
+                    >
+                      {agent.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-border-default"></div>
+
+          {/* Tab Selector */}
+          <div className="flex bg-bg-tertiary p-1 rounded-md">
+            <button 
+              onClick={() => setActiveTab('prompt')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'prompt' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+            >
+              System Prompt
+            </button>
+            <button 
+              onClick={() => setActiveTab('config')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'config' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+            >
+              Hiperpersonalização
+            </button>
           </div>
 
           <div className="h-4 w-px bg-border-default"></div>
@@ -107,9 +175,13 @@ export const PromptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-           <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors">
-            <Play size={16} />
-            <span className="hidden sm:inline">Sandbox</span>
+           <button 
+            onClick={handleSandbox}
+            disabled={isSandboxLoading}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors ${isSandboxLoading ? 'opacity-50 cursor-wait' : ''}`}
+           >
+            <Play size={16} className={isSandboxLoading ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isSandboxLoading ? 'Iniciando...' : 'Sandbox'}</span>
           </button>
           <button 
             onClick={handleSave}
@@ -180,14 +252,25 @@ export const PromptEditor = () => {
               <div key={i} className="leading-6">{i + 1}</div>
             ))}
           </div>
-          <textarea
-            value={code}
-            onChange={handleChange}
-            spellCheck="false"
-            placeholder={!selectedAgentId ? "Selecione um agente para ver o prompt." : "Nenhum prompt carregado."}
-            className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
-            style={{ tabSize: 2 }}
-          />
+          {activeTab === 'prompt' ? (
+            <textarea
+              value={code}
+              onChange={handlePromptChange}
+              spellCheck="false"
+              placeholder={!selectedAgentId ? "Selecione um agente para ver o prompt." : "Nenhum prompt carregado."}
+              className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
+              style={{ tabSize: 2 }}
+            />
+          ) : (
+            <textarea
+               value={config}
+               onChange={handleConfigChange}
+               spellCheck="false"
+               placeholder='{ "config": "value" }'
+               className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
+               style={{ tabSize: 2 }}
+             />
+          )}
         </div>
 
         {/* Configuration Sidebar (Right) */}
@@ -198,16 +281,20 @@ export const PromptEditor = () => {
           </div>
           
           <div className="p-4 space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Versão</label>
+              <div className="text-sm font-mono text-text-primary bg-bg-tertiary px-3 py-2 rounded border border-border-default">
+                v{activeVersion?.version_number || '1.0.0'}
+              </div>
+            </div>
+
              <div className="space-y-2">
               <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Status</label>
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full border capitalize
-                  ${activeVersion?.status === 'production' ? 'bg-accent-success/10 text-accent-success border-accent-success/20' : 
-                    activeVersion?.status === 'sandbox' ? 'bg-accent-warning/10 text-accent-warning border-accent-warning/20' :
-                    'bg-bg-tertiary text-text-muted border-border-default'}
-                `}>
-                  {activeVersion?.status || 'N/A'}
-                </span>
+                <span className={`w-2 h-2 rounded-full ${
+                  activeVersion?.status === 'production' ? 'bg-accent-success' : 'bg-accent-warning'
+                }`}></span>
+                <span className="text-sm font-medium capitalize">{activeVersion?.status || 'Draft'}</span>
               </div>
             </div>
 

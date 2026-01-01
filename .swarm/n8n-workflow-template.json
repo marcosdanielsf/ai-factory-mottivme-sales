@@ -1,0 +1,222 @@
+{
+  "name": "AI Factory Orchestrator - Dashboard Integration",
+  "nodes": [
+    {
+      "name": "Webhook Trigger: New Version",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "webhookId": "ai-factory-new-version",
+      "parameters": {
+        "path": "ai-factory-new-version",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "Supabase: Insert Version",
+      "type": "n8n-nodes-base.supabase",
+      "position": [450, 300],
+      "parameters": {
+        "operation": "insert",
+        "tableId": "agent_versions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "agent_id",
+              "fieldValue": "={{ $json.agent_id }}"
+            },
+            {
+              "fieldName": "version_number",
+              "fieldValue": "={{ $json.version_number }}"
+            },
+            {
+              "fieldName": "system_prompt",
+              "fieldValue": "={{ $json.system_prompt }}"
+            },
+            {
+              "fieldName": "status",
+              "fieldValue": "pending_approval"
+            },
+            {
+              "fieldName": "created_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "HTTP: Trigger AI Judge",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 300],
+      "parameters": {
+        "url": "http://localhost:5000/api/agents/test-version",
+        "method": "POST",
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "version_id",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Supabase: Listen to Test Completion",
+      "type": "n8n-nodes-base.supabase",
+      "position": [250, 500],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "agenttest_runs",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "manual",
+        "matchMode": "equal",
+        "filterJson": {
+          "status": "completed"
+        }
+      },
+      "continueOnFail": false,
+      "notesInFlow": true,
+      "notes": "Pooling de 30s para detectar testes concluídos"
+    },
+    {
+      "name": "Calc: Aggregate Scores",
+      "type": "n8n-nodes-base.function",
+      "position": [450, 500],
+      "parameters": {
+        "functionCode": "// Calcular médias de scores\nconst runs = items.map(i => i.json);\nconst avgOverall = runs.reduce((sum, r) => sum + r.score_overall, 0) / runs.length;\n\nconst dimensions = ['tone', 'engagement', 'compliance', 'accuracy', 'empathy', 'efficiency'];\nconst avgDimensions = {};\n\ndimensions.forEach(dim => {\n  const scores = runs.map(r => r.score_dimensions[dim]).filter(s => s !== undefined);\n  avgDimensions[dim] = scores.reduce((sum, s) => sum + s, 0) / scores.length;\n});\n\nreturn [\n  {\n    json: {\n      avg_score_overall: avgOverall.toFixed(2),\n      avg_score_dimensions: avgDimensions,\n      total_test_runs: runs.length\n    }\n  }\n];"
+      }
+    },
+    {
+      "name": "Supabase: Update Version Metrics",
+      "type": "n8n-nodes-base.supabase",
+      "position": [650, 500],
+      "parameters": {
+        "operation": "update",
+        "tableId": "agent_versions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "avg_score_overall",
+              "fieldValue": "={{ $json.avg_score_overall }}"
+            },
+            {
+              "fieldName": "avg_score_dimensions",
+              "fieldValue": "={{ $json.avg_score_dimensions }}"
+            },
+            {
+              "fieldName": "total_test_runs",
+              "fieldValue": "={{ $json.total_test_runs }}"
+            },
+            {
+              "fieldName": "status",
+              "fieldValue": "ready_for_human_approval"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Webhook: Notify Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 500],
+      "parameters": {
+        "url": "{{ $env.DASHBOARD_WEBHOOK_URL }}/api/notifications/version-ready",
+        "method": "POST",
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "version_id",
+              "value": "={{ $json.version_id }}"
+            },
+            {
+              "name": "avg_score",
+              "value": "={{ $json.avg_score_overall }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Slack: Send Alert",
+      "type": "n8n-nodes-base.slack",
+      "position": [850, 300],
+      "parameters": {
+        "channel": "#ai-factory-approvals",
+        "text": "🎉 Nova versão pronta para aprovação!\n\n*Agente:* {{ $json.agent_name }}\n*Versão:* {{ $json.version_number }}\n*Score Médio:* {{ $json.avg_score_overall }}/10\n\n<{{ $env.DASHBOARD_URL }}/validacao|Ver no Dashboard>",
+        "attachments": [],
+        "blocksUi": {
+          "blocksValues": []
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger: New Version": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Insert Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Insert Version": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Trigger AI Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Listen to Test Completion": {
+      "main": [
+        [
+          {
+            "node": "Calc: Aggregate Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc: Aggregate Scores": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Update Version Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Update Version Metrics": {
+      "main": [
+        [
+          {
+            "node": "Webhook: Notify Dashboard",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

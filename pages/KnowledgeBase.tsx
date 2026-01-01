@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Search, FileText, Upload, Database, Save, Plus, Hash, Bot, Wrench, BrainCircuit, Workflow, Users, Calendar, PhoneCall, HelpCircle, ShieldAlert, UserCheck, ChevronDown, Check, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Upload, Database, Save, Plus, Hash, Bot, Wrench, BrainCircuit, Workflow, Users, Calendar, PhoneCall, HelpCircle, ShieldAlert, UserCheck, ChevronDown, Check, Edit2, Trash2, ExternalLink, Loader2 } from 'lucide-react';
 import { AGENT_MODES, AGENT_TOOLS, SYSTEM_PROMPT_TEMPLATE } from '../src/data/agent-config';
-import { ClientService, AgentService, AgentConfig } from '../src/services/dataService';
-import { Client } from '../types';
+import { useAgents, useArtifacts } from '../src/hooks';
+import { Agent } from '../types';
 
 type Tab = 'overview' | 'prompt' | 'documentos' | 'adicionar' | 'modes';
 
@@ -23,82 +23,72 @@ export const KnowledgeBase = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [promptCode, setPromptCode] = useState(SYSTEM_PROMPT_TEMPLATE);
   
-  // Client selection state
-  const [clients, setClients] = useState<Client[]>([]);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Agent selection state
+  const { agents, loading: loadingAgents } = useAgents();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [isAgentDropdownOpen, setIsAgentDropdownOpen] = useState(false);
   
-  // Agent Config State
-  const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
+  const selectedAgent = useMemo(() => 
+    agents.find(a => a.id === selectedAgentId) || agents[0], 
+    [agents, selectedAgentId]
+  );
+
+  // Artifacts State
+  const { artifacts, loading: loadingArtifacts, uploadArtifact, deleteArtifact } = useArtifacts(selectedAgent?.id);
+  
+  // Agent Config State (Legacy/Mock for now)
   const [selectedModeId, setSelectedModeId] = useState<string | null>(null);
   const [modePrompt, setModePrompt] = useState('');
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const clientsData = await ClientService.getAll();
-        setClients(clientsData);
-        if (clientsData.length > 0) {
-          setSelectedClient(clientsData[0]);
-          await loadAgentConfig(clientsData[0].id);
-        }
-      } catch (error) {
-        console.error('Failed to load initial data', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  const loadAgentConfig = async (clientId: string) => {
-    const config = await AgentService.getConfig(clientId);
-    setAgentConfig(config);
-    if (config && config.system_prompt) {
-       setPromptCode(config.system_prompt);
-    } else {
-       setPromptCode(SYSTEM_PROMPT_TEMPLATE);
+    if (agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
     }
-  };
+  }, [agents, selectedAgentId]);
 
-  const handleClientChange = async (client: Client) => {
-    setSelectedClient(client);
-    setIsClientDropdownOpen(false);
-    await loadAgentConfig(client.id);
+  const handleAgentChange = (agent: Agent) => {
+    setSelectedAgentId(agent.id);
+    setIsAgentDropdownOpen(false);
   };
 
   const handleModeSelect = (modeId: string) => {
     setSelectedModeId(modeId);
-    if (agentConfig && agentConfig.prompts_por_modo && agentConfig.prompts_por_modo[modeId]) {
-      setModePrompt(agentConfig.prompts_por_modo[modeId]);
-    } else {
-      setModePrompt('');
-    }
+    // Fallback logic for mode prompts
+    setModePrompt('');
     setActiveTab('modes');
   };
 
-  const handleSaveModePrompt = async () => {
-    if (!selectedClient || !selectedModeId || !agentConfig) return;
+  const [newArtifact, setNewArtifact] = useState({
+    title: '',
+    content: '',
+    artifact_type: 'knowledge_base'
+  });
 
-    const updatedPrompts = {
-      ...agentConfig.prompts_por_modo,
-      [selectedModeId]: modePrompt
-    };
+  const [isSyncing, setIsSyncing] = useState(false);
 
-    const updatedConfig = {
-      ...agentConfig,
-      prompts_por_modo: updatedPrompts
-    };
-
-    setAgentConfig(updatedConfig);
-    await AgentService.saveConfig({
-      client_id: selectedClient.id,
-      prompts_por_modo: updatedPrompts
-    });
+  const handleAddArtifact = async () => {
+    if (!selectedAgent) return;
+    setIsSyncing(true);
     
-    alert(`Prompt do modo ${selectedModeId} salvo com sucesso!`);
+    try {
+      const { error } = await uploadArtifact({
+        ...newArtifact,
+        agent_id: selectedAgent.id
+      });
+
+      if (!error) {
+        setNewArtifact({ title: '', content: '', artifact_type: 'knowledge_base' });
+        setActiveTab('documentos');
+      }
+    } finally {
+      // Simulamos um tempo de sincronização para feedback visual
+      setTimeout(() => setIsSyncing(false), 1500);
+    }
+  };
+
+  const handleSaveModePrompt = async () => {
+    // Basic implementation for now
+    alert(`Prompt do modo ${selectedModeId} salvo com sucesso! (Simulado)`);
   };
 
   return (
@@ -113,40 +103,40 @@ export const KnowledgeBase = () => {
           
           <div className="h-4 w-px bg-border-default"></div>
 
-          {/* Client Selector */}
+          {/* Agent Selector */}
           <div className="relative">
             <button 
-              onClick={() => setIsClientDropdownOpen(!isClientDropdownOpen)}
+              onClick={() => setIsAgentDropdownOpen(!isAgentDropdownOpen)}
               className="flex items-center gap-2 px-3 py-1.5 bg-bg-tertiary border border-border-default rounded text-sm hover:border-text-muted transition-colors min-w-[180px]"
             >
-              {isLoading ? (
+              {loadingAgents ? (
                 <span className="text-text-muted">Carregando...</span>
-              ) : selectedClient ? (
+              ) : selectedAgent ? (
                 <>
                   <span className="w-2 h-2 rounded-full bg-accent-success"></span>
-                  <span className="truncate max-w-[140px]">{selectedClient.empresa}</span>
+                  <span className="truncate max-w-[140px]">{selectedAgent.name}</span>
                   <ChevronDown size={14} className="ml-auto text-text-muted" />
                 </>
               ) : (
-                <span className="text-text-muted">Selecione um cliente</span>
+                <span className="text-text-muted">Selecione um agente</span>
               )}
             </button>
             
-            {isClientDropdownOpen && (
+            {isAgentDropdownOpen && (
               <div className="absolute top-full left-0 mt-1 w-64 bg-bg-secondary border border-border-default rounded-lg shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
-                 {clients.map(client => (
+                 {agents.map(agent => (
                    <button
-                     key={client.id}
-                     onClick={() => handleClientChange(client)}
+                     key={agent.id}
+                     onClick={() => handleAgentChange(agent)}
                      className="w-full text-left px-4 py-2 text-sm hover:bg-bg-tertiary flex items-center gap-2"
                    >
                      <div className="w-6 h-6 rounded bg-bg-tertiary flex items-center justify-center text-xs border border-border-default">
-                        {client.empresa.substring(0, 2).toUpperCase()}
+                        {agent.name.substring(0, 2).toUpperCase()}
                      </div>
-                     <span className={`flex-1 truncate ${selectedClient?.id === client.id ? 'text-accent-primary font-medium' : 'text-text-primary'}`}>
-                       {client.empresa}
+                     <span className={`flex-1 truncate ${selectedAgentId === agent.id ? 'text-accent-primary font-medium' : 'text-text-primary'}`}>
+                       {agent.name}
                      </span>
-                     {selectedClient?.id === client.id && <Check size={14} className="text-accent-primary" />}
+                     {selectedAgentId === agent.id && <Check size={14} className="text-accent-primary" />}
                    </button>
                  ))}
               </div>
@@ -209,8 +199,8 @@ export const KnowledgeBase = () => {
               {/* Header Info */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Estrutura do Agente: {selectedClient?.empresa}</h2>
-                  <p className="text-text-secondary">Configuração ativa do fluxo de atendimento inteligente para {selectedClient?.nome}.</p>
+                  <h2 className="text-2xl font-bold mb-2">Estrutura do Agente: {selectedAgent?.name}</h2>
+                  <p className="text-text-secondary">Configuração ativa do fluxo de atendimento inteligente para {selectedAgent?.name}.</p>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary border border-border-default rounded text-sm text-text-muted">
                   <BrainCircuit size={16} />
@@ -338,13 +328,29 @@ export const KnowledgeBase = () => {
               <div className="space-y-4">
                  <div className="space-y-1">
                     <label className="text-xs font-medium text-text-secondary">Título</label>
-                    <input type="text" className="w-full bg-bg-secondary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none" placeholder="Ex: Manual de Vendas 2024" />
+                    <input 
+                      type="text" 
+                      value={newArtifact.title}
+                      onChange={(e) => setNewArtifact(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full bg-bg-secondary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none" 
+                      placeholder="Ex: Manual de Vendas 2024" 
+                    />
                  </div>
                  <div className="space-y-1">
                     <label className="text-xs font-medium text-text-secondary">Conteúdo (Texto)</label>
-                    <textarea rows={8} className="w-full bg-bg-secondary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none resize-none" placeholder="Cole o texto aqui..." />
+                    <textarea 
+                      rows={8} 
+                      value={newArtifact.content}
+                      onChange={(e) => setNewArtifact(prev => ({ ...prev, content: e.target.value }))}
+                      className="w-full bg-bg-secondary border border-border-default rounded px-3 py-2 text-sm focus:border-text-muted outline-none resize-none" 
+                      placeholder="Cole o texto aqui..." 
+                    />
                  </div>
-                 <button className="w-full py-2 bg-bg-hover border border-border-default rounded text-sm font-medium hover:text-text-primary hover:border-text-muted transition-colors">
+                 <button 
+                  onClick={handleAddArtifact}
+                  disabled={!newArtifact.title || !newArtifact.content}
+                  className="w-full py-2 bg-text-primary text-bg-primary rounded text-sm font-medium hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                 >
                    Adicionar à Base
                  </button>
               </div>
@@ -353,10 +359,65 @@ export const KnowledgeBase = () => {
         )}
 
         {activeTab === 'documentos' && (
-           <div className="flex-1 flex flex-col items-center justify-center text-text-muted">
-              <FileText size={32} className="mb-2 opacity-20" />
-              <p className="text-sm">Nenhum documento indexado.</p>
-           </div>
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Documentos Indexados</h2>
+                <button 
+                  onClick={() => setActiveTab('adicionar')}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary border border-border-default rounded text-xs hover:bg-bg-tertiary transition-colors"
+                >
+                  <Plus size={14} />
+                  Novo Documento
+                </button>
+              </div>
+
+              {loadingArtifacts ? (
+                <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-3">
+                  <Loader2 className="animate-spin" size={24} />
+                  <span>Carregando documentos...</span>
+                </div>
+              ) : artifacts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {artifacts.map((artifact) => (
+                    <div key={artifact.id} className="bg-bg-secondary border border-border-default rounded-lg p-4 flex flex-col hover:border-text-muted/50 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <FileText size={18} className="text-accent-primary" />
+                          <h4 className="font-medium text-text-primary truncate max-w-[200px]">{artifact.title}</h4>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1.5 text-text-muted hover:text-text-primary transition-colors">
+                            <ExternalLink size={14} />
+                          </button>
+                          <button 
+                            onClick={() => deleteArtifact(artifact.id)}
+                            className="p-1.5 text-text-muted hover:text-accent-error transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-text-secondary line-clamp-3 mb-4 flex-1">
+                        {artifact.content}
+                      </p>
+                      <div className="flex items-center justify-between text-[10px] text-text-muted">
+                        <span className="bg-bg-tertiary px-2 py-0.5 rounded border border-border-default">
+                          {artifact.artifact_type}
+                        </span>
+                        <span>{new Date(artifact.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-text-muted border border-dashed border-border-default rounded-lg">
+                  <FileText size={32} className="mb-2 opacity-20" />
+                  <p className="text-sm">Nenhum documento encontrado para este agente.</p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -106,7 +106,7 @@ export const Sidebar = () => {
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           SISTEMA
         </div>
-        <SidebarItem icon={Settings} label="Configurações" to="/config" />
+        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" />
       </nav>
 
       {/* Footer */}

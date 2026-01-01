@@ -12,6 +12,8 @@ import { SuperAgentRPG } from './pages/SuperAgentRPG';
 import { Notifications } from './pages/Notifications';
 import { Validation } from './pages/Validation';
 import { Logs } from './pages/Logs';
+import { CallsRealizadas } from './pages/CallsRealizadas';
+import { Configuracoes } from './pages/Configuracoes';
 
 const App = () => {
   return (
@@ -33,12 +35,14 @@ const App = () => {
           
           {/* Monitoring */}
           <Route path="/notificacoes" element={<Notifications />} />
-          
+          <Route path="/calls" element={<CallsRealizadas />} />
+          <Route path="/configuracoes" element={<Configuracoes />} />
+
           {/* Legacy/Client Specific */}
           <Route path="/clientes" element={<Navigate to="/" />} />
           <Route path="/clientes/:id" element={<ClientDetail />} />
           <Route path="/clientes/:id/agente" element={<PromptEditor />} />
-          
+
           <Route path="/aprovacoes" element={<Approvals />} />
           <Route path="*" element={<div className="p-8 text-text-muted">Página em construção...</div>} />
         </Routes>

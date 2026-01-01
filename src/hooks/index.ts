@@ -3,3 +3,6 @@ export * from './usePendingApprovals';
 export * from './useDashboardMetrics';
 export * from './useTestResults';
 export * from './useAgentVersions';
+export * from './useAgentConversations';
+export * from './useAgentPerformance';
+export * from './useArtifacts';

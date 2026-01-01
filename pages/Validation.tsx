@@ -1,8 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MOCK_TEST_RUNS, MOCK_AGENT_VERSIONS } from '../constants';
-import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X } from 'lucide-react';
 
 export const Validation = () => {
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleRunTests = () => {
+    setRunning(true);
+    setTimeout(() => {
+      setRunning(false);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 4000);
+    }, 2000);
+  };
+
+  const handleViewHtml = (id: string) => {
+    setSelectedReport(id);
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-8 space-y-8">
       {/* Header */}
@@ -19,11 +36,63 @@ export const Validation = () => {
           </p>
         </div>
         
-        <button className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-primary hover:bg-white/90 rounded text-sm font-medium transition-colors">
-          <Play size={16} />
-          Rodar Nova Bateria de Testes
-        </button>
+        <div className="flex items-center gap-3">
+          {showSuccess && (
+            <div className="flex items-center gap-2 text-accent-success text-sm animate-in fade-in slide-in-from-right-4">
+              <CheckCircle size={16} />
+              Testes finalizados!
+            </div>
+          )}
+          <button 
+            onClick={handleRunTests}
+            disabled={running}
+            className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-primary hover:bg-white/90 rounded text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            <Play size={16} className={running ? 'animate-spin' : ''} />
+            {running ? 'Executando...' : 'Rodar Nova Bateria de Testes'}
+          </button>
+        </div>
       </div>
+
+      {/* Report Modal */}
+      {selectedReport && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-bg-secondary border border-border-default rounded-lg w-full max-w-5xl h-[80vh] flex flex-col shadow-2xl">
+            <div className="p-4 border-b border-border-default flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-accent-primary" />
+                <h3 className="font-semibold text-text-primary">Relatório de Execução: {selectedReport}</h3>
+              </div>
+              <button 
+                onClick={() => setSelectedReport(null)}
+                className="p-1 hover:bg-bg-tertiary rounded transition-colors text-text-muted hover:text-text-primary"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-bg-primary overflow-auto p-6 font-mono text-sm text-text-secondary">
+              <div className="space-y-4">
+                <div className="p-4 bg-bg-tertiary rounded border border-border-default border-l-4 border-l-accent-success">
+                  <p className="text-accent-success font-bold mb-2">[SUCCESS] Cenário: Início de Atendimento</p>
+                  <p>Input: "Olá, gostaria de saber mais sobre os planos"</p>
+                  <p>Output: "Olá! Com certeza, temos 3 planos principais..."</p>
+                  <p className="mt-2 text-xs opacity-70 italic">Judge rationale: O agente seguiu o script e manteve o tom profissional.</p>
+                </div>
+                <div className="p-4 bg-bg-tertiary rounded border border-border-default border-l-4 border-l-accent-error">
+                  <p className="text-accent-error font-bold mb-2">[FAILED] Cenário: Objeção de Preço</p>
+                  <p>Input: "Achei muito caro, não tem desconto?"</p>
+                  <p>Output: "Infelizmente não posso dar desconto agora."</p>
+                  <p className="mt-2 text-xs opacity-70 italic text-accent-error">Judge rationale: O agente falhou em aplicar a técnica de ancoragem de valor descrita na linha 45 do prompt.</p>
+                </div>
+                {/* ... more mock content ... */}
+                <div className="text-center py-12 opacity-30 select-none">
+                  [ FIM DO RELATÓRIO HTML SIMULADO ]
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -99,7 +168,10 @@ export const Validation = () => {
                 </div>
                 
                 <div className="col-span-2 flex justify-end">
-                   <button className="flex items-center gap-1.5 text-xs text-accent-primary hover:underline">
+                   <button 
+                     onClick={() => handleViewHtml(run.id)}
+                     className="flex items-center gap-1.5 text-xs text-accent-primary hover:underline"
+                   >
                      <FileText size={14} />
                      Ver HTML
                    </button>

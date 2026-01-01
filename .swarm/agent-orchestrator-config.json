@@ -1,0 +1,146 @@
+{
+  "swarm_name": "AI Factory Backend Operários",
+  "architecture": "hierarchical",
+  "coordinator": {
+    "role": "master_orchestrator",
+    "responsibilities": [
+      "Detectar novos registros em agent_versions com status='pending_approval'",
+      "Distribuir tarefas para agentes especializados",
+      "Sincronizar resultados com Dashboard via API",
+      "Monitorar health de todos os subagentes"
+    ]
+  },
+  "specialized_agents": [
+    {
+      "agent_type": "ai_judge",
+      "name": "AI Quality Judge",
+      "capabilities": [
+        "Executar testes de qualidade usando Claude Opus 4.5",
+        "Gerar scores 0-10 para tone, engagement, compliance, accuracy, empathy, efficiency",
+        "Salvar resultados em agenttest_runs com score_overall e score_dimensions",
+        "Atualizar avg_score_overall e avg_score_dimensions em agent_versions"
+      ],
+      "output_format": {
+        "score_overall": "float 0-10",
+        "score_dimensions": {
+          "tone": "float 0-10",
+          "engagement": "float 0-10",
+          "compliance": "float 0-10",
+          "accuracy": "float 0-10",
+          "empathy": "float 0-10",
+          "efficiency": "float 0-10"
+        },
+        "execution_time_ms": "integer",
+        "created_by": "string (system|user_id)"
+      },
+      "triggers": [
+        "agent_versions.status = 'pending_approval'",
+        "Manual trigger via Dashboard UI"
+      ]
+    },
+    {
+      "agent_type": "knowledge_manager",
+      "name": "Knowledge Base Manager",
+      "capabilities": [
+        "Indexar documentos salvos em factory_artifacts",
+        "Prover contexto RAG para agentes de conversa",
+        "Atualizar base de conhecimento dinamicamente",
+        "Gerenciar embeddings e semantic search"
+      ],
+      "data_sources": [
+        "factory_artifacts (tipo: persona_analysis, objection_map, tone_guide)",
+        "agent_versions.system_prompt",
+        "Documentação externa via n8n webhooks"
+      ]
+    },
+    {
+      "agent_type": "analytics_engine",
+      "name": "Analytics & Conversion Tracker",
+      "capabilities": [
+        "Calcular conversion_rate baseado em ai_factory_leads",
+        "Atualizar agent_versions.conversion_rate",
+        "Calcular avg_interactions_to_goal",
+        "Alimentar vw_dashboard_metrics automaticamente"
+      ],
+      "formulas": {
+        "conversion_rate": "(qualified_leads / total_leads) * 100",
+        "avg_interactions_to_goal": "SUM(interactions) / COUNT(goals_reached)"
+      }
+    },
+    {
+      "agent_type": "webhook_sync",
+      "name": "Dashboard Sync Agent",
+      "capabilities": [
+        "Expor endpoints REST para Dashboard consumir",
+        "Enviar notificações em tempo real via WebSockets",
+        "Atualizar status de versões automaticamente",
+        "Integrar com n8n workflows"
+      ],
+      "endpoints": [
+        "POST /api/agents/test-version",
+        "GET /api/agents/{id}/scores",
+        "PATCH /api/agents/{id}/status",
+        "GET /api/dashboard/metrics"
+      ]
+    }
+  ],
+  "data_contract": {
+    "tables": {
+      "agent_versions": {
+        "write_on": ["create", "update_status", "update_metrics"],
+        "mandatory_fields": ["agent_id", "version_number", "system_prompt", "client_id", "status"]
+      },
+      "agenttest_runs": {
+        "write_on": ["test_completion"],
+        "mandatory_fields": ["agent_version_id", "score_overall", "score_dimensions", "status"]
+      },
+      "ai_factory_conversations": {
+        "write_on": ["every_interaction"],
+        "mandatory_fields": ["lead_id", "agent_id", "role", "content", "created_at"]
+      },
+      "factory_artifacts": {
+        "write_on": ["knowledge_update"],
+        "mandatory_fields": ["artifact_type", "title", "content"]
+      }
+    }
+  },
+  "automation_workflows": [
+    {
+      "name": "Auto Test New Version",
+      "trigger": "INSERT INTO agent_versions WHERE status='pending_approval'",
+      "steps": [
+        "1. AI Judge: Executar bateria de testes",
+        "2. AI Judge: Salvar scores em agenttest_runs",
+        "3. Analytics: Calcular médias e atualizar agent_versions",
+        "4. Webhook Sync: Notificar Dashboard",
+        "5. Coordinator: Marcar como 'ready_for_human_approval'"
+      ]
+    },
+    {
+      "name": "Real-time Conversation Logging",
+      "trigger": "Agent conversa com lead via WhatsApp/Chat",
+      "steps": [
+        "1. Salvar mensagem em ai_factory_conversations",
+        "2. Knowledge Manager: Extrair insights",
+        "3. Analytics: Atualizar métricas de sentiment",
+        "4. Dashboard Sync: Enviar evento via WebSocket"
+      ]
+    }
+  ],
+  "supabase_integration": {
+    "connection_string": "ENV: SUPABASE_URL + SUPABASE_SERVICE_KEY",
+    "realtime_subscriptions": [
+      "agent_versions:status=pending_approval",
+      "agenttest_runs:*"
+    ]
+  },
+  "n8n_integration": {
+    "webhook_url": "https://cliente-a1.mentorfy.io/webhook/ai-factory-orchestrator",
+    "events": [
+      "test_completed",
+      "version_approved",
+      "knowledge_updated",
+      "metrics_calculated"
+    ]
+  }
+}

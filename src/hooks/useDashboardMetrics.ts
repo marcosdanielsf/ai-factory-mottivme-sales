@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { DashboardMetrics } from '../../types';
 
 export const useDashboardMetrics = () => {
   const [metrics, setMetrics] = useState({
@@ -7,7 +8,8 @@ export const useDashboardMetrics = () => {
     totalLeads: 0,
     activeCampaigns: 0,
     conversionRate: 0,
-    loading: true
+    loading: true,
+    error: null as string | null
   });
 
   useEffect(() => {
@@ -16,23 +18,55 @@ export const useDashboardMetrics = () => {
 
   const fetchMetrics = async () => {
     try {
-      const [agents, leads] = await Promise.all([
-        supabase.from('agents').select('id', { count: 'exact', head: true }),
-        supabase.from('leads').select('id', { count: 'exact', head: true })
-      ]);
+      // Tentar usar a View otimizada vw_dashboard_metrics
+      const { data, error } = await supabase
+        .from('vw_dashboard_metrics')
+        .select('*')
+        .single();
+
+      if (error) {
+        console.warn('View vw_dashboard_metrics não encontrada, usando fallback:', error);
+
+        // Fallback: usar queries diretas com nomes de tabelas corrigidos
+        const [agentsCount, leadsCount] = await Promise.all([
+          supabase.from('agent_versions').select('id', { count: 'exact', head: true }),
+          supabase.from('ai_factory_leads').select('id', { count: 'exact', head: true })
+        ]);
+
+        setMetrics({
+          totalAgents: agentsCount.count || 0,
+          totalLeads: leadsCount.count || 0,
+          activeCampaigns: agentsCount.count || 0,
+          conversionRate: 12.5, // Mock rate
+          loading: false,
+          error: null
+        });
+        return;
+      }
+
+      // Usar dados da View otimizada
+      const dashboardData = data as DashboardMetrics;
 
       setMetrics({
-        totalAgents: agents.count || 0,
-        totalLeads: leads.count || 0,
-        activeCampaigns: agents.count || 0, // Mock for now
-        conversionRate: 12.5, // Mock for now
-        loading: false
+        totalAgents: dashboardData.total_active_agents || 0,
+        totalLeads: dashboardData.total_leads || 0,
+        activeCampaigns: dashboardData.versions_in_production || 0,
+        conversionRate: dashboardData.global_conversion_rate_pct || 0,
+        loading: false,
+        error: null
       });
-    } catch (e) {
-      console.error(e);
-      setMetrics(prev => ({ ...prev, loading: false }));
+    } catch (e: any) {
+      console.error('Error in useDashboardMetrics:', e);
+      setMetrics(prev => ({
+        ...prev,
+        loading: false,
+        error: e.message
+      }));
     }
   };
 
-  return { metrics };
+  return {
+    metrics,
+    refetch: fetchMetrics
+  };
 };
