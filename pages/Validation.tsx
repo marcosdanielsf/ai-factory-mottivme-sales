@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_TEST_RUNS, MOCK_AGENT_VERSIONS } from '../constants';
-import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X, Loader2, AlertCircle, Inbox, RefreshCw } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X, Loader2, AlertCircle, Inbox, RefreshCw, Trash2 } from 'lucide-react';
 import { TestReportModal } from '../components/TestReportModal';
 import { useTestResults } from '../src/hooks/useTestResults';
 import { useToast } from '../src/hooks/useToast';
 
 export const Validation = () => {
-  const { testRuns, loading, error, refetch } = useTestResults();
+  const { testRuns, loading, error, refetch, deleteTestRun, deleting } = useTestResults();
   const { showToast } = useToast();
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleRunTests = () => {
     setRunning(true);
@@ -32,6 +33,16 @@ export const Validation = () => {
     if (run) {
       setSelectedReport(id);
     }
+  };
+
+  const handleDelete = async (id: string) => {
+    const success = await deleteTestRun(id);
+    if (success) {
+      showToast('Registro deletado com sucesso!', 'success');
+    } else {
+      showToast('Erro ao deletar registro', 'error');
+    }
+    setConfirmDelete(null);
   };
 
   const selectedRun = testRuns.find(r => r.id === selectedReport);
@@ -145,10 +156,52 @@ export const Validation = () => {
 
       {/* Report Modal */}
       {selectedReport && selectedRun && (
-        <TestReportModal 
-          run={selectedRun} 
-          onClose={() => setSelectedReport(null)} 
+        <TestReportModal
+          run={selectedRun}
+          onClose={() => setSelectedReport(null)}
         />
+      )}
+
+      {/* Confirm Delete Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-primary border border-border-default rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-accent-error/10 rounded-full flex items-center justify-center text-accent-error">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-text-primary">Confirmar Exclusão</h3>
+                <p className="text-sm text-text-muted">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+
+            <p className="text-text-secondary mb-6">
+              Tem certeza que deseja deletar este registro de teste? O registro será removido permanentemente do banco de dados.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDelete)}
+                disabled={deleting === confirmDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-accent-error text-white rounded text-sm font-medium hover:bg-accent-error/90 transition-colors disabled:opacity-50"
+              >
+                {deleting === confirmDelete ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                Deletar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Status Cards */}
@@ -289,13 +342,25 @@ export const Validation = () => {
                      )}
                   </div>
 
-                  <div className="col-span-2 flex justify-end">
+                  <div className="col-span-2 flex justify-end gap-3">
                      <button
                        onClick={() => handleViewHtml(run.id)}
                        className="flex items-center gap-1.5 text-xs text-accent-primary hover:text-accent-primary/80 transition-colors"
                      >
                        <FileText size={14} />
                        Ver HTML
+                     </button>
+                     <button
+                       onClick={() => setConfirmDelete(run.id)}
+                       disabled={deleting === run.id}
+                       className="flex items-center gap-1.5 text-xs text-text-muted hover:text-accent-error transition-colors disabled:opacity-50"
+                       title="Deletar registro"
+                     >
+                       {deleting === run.id ? (
+                         <Loader2 size={14} className="animate-spin" />
+                       ) : (
+                         <Trash2 size={14} />
+                       )}
                      </button>
                   </div>
                </div>

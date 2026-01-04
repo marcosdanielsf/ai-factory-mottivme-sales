@@ -40,6 +40,7 @@ export const useTestResults = () => {
   const [results, setResults] = useState<AgentTestRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchResults = useCallback(async () => {
     try {
@@ -211,11 +212,45 @@ export const useTestResults = () => {
     }
   }, []);
 
+  const deleteTestRun = useCallback(async (id: string, source?: string): Promise<boolean> => {
+    try {
+      setDeleting(id);
+
+      // Tentar deletar de agent_versions primeiro (fonte principal)
+      const { error: avError } = await supabase
+        .from('agent_versions')
+        .delete()
+        .eq('id', id);
+
+      if (avError) {
+        // Se não encontrou em agent_versions, tentar test_results
+        const { error: trError } = await supabase
+          .from('test_results')
+          .delete()
+          .eq('id', id);
+
+        if (trError) {
+          console.error('Error deleting test result:', trError);
+          return false;
+        }
+      }
+
+      // Remover do estado local imediatamente
+      setResults(prev => prev.filter(r => r.id !== id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting:', err);
+      return false;
+    } finally {
+      setDeleting(null);
+    }
+  }, []);
+
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
 
-  return { testRuns: results, loading, error, refetch: fetchResults };
+  return { testRuns: results, loading, error, refetch: fetchResults, deleteTestRun, deleting };
 };
 
 // Mock data para visualização quando não há dados reais
