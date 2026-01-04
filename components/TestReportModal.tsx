@@ -11,6 +11,21 @@ interface TestResult {
   simulated_response: string;
 }
 
+// Interface para cenário E2E
+interface E2EScenario {
+  id: string;
+  scenario_name: string;
+  status: string;
+  score: number;
+  lead_persona?: string;
+  total_turns?: number;
+  duration_seconds?: number;
+  conversation?: Array<{
+    role: string;
+    content: string;
+  }>;
+}
+
 // Interface extendida para o run com dados completos
 interface TestRunWithDetails {
   id: string;
@@ -41,6 +56,8 @@ interface TestRunWithDetails {
     tone_of_voice?: string;
     [key: string]: any;
   };
+  // Dados de testes E2E (cenários completos com conversas)
+  e2e_scenarios?: E2EScenario[];
 }
 
 interface TestReportModalProps {
@@ -83,12 +100,19 @@ export const TestReportModal = ({ run, onClose }: TestReportModalProps) => {
   };
 
   const testDetails = run.test_details || [];
-  const hasRealData = testDetails.length > 0;
+  const e2eScenarios = run.e2e_scenarios || [];
+  const hasTestDetails = testDetails.length > 0;
+  const hasE2EScenarios = e2eScenarios.length > 0;
+  const hasRealData = hasTestDetails || hasE2EScenarios;
+  const isE2ETest = hasE2EScenarios && !hasTestDetails;
+
+  // Calcular contagem total de itens para a aba
+  const totalResultsCount = hasE2EScenarios ? e2eScenarios.length : testDetails.length;
 
   const tabs = [
-    { id: 'results' as TabType, label: 'Resultados dos Testes', icon: FileText, count: testDetails.length },
+    { id: 'results' as TabType, label: isE2ETest ? 'Cenários E2E' : 'Resultados dos Testes', icon: FileText, count: totalResultsCount },
     { id: 'prompt' as TabType, label: 'Prompt do Agente', icon: Code },
-    { id: 'conversation' as TabType, label: 'Raciocínio & Conversa', icon: MessageSquare },
+    { id: 'conversation' as TabType, label: isE2ETest ? 'Conversas E2E' : 'Raciocínio & Conversa', icon: MessageSquare },
   ];
 
   return (
@@ -190,10 +214,106 @@ export const TestReportModal = ({ run, onClose }: TestReportModalProps) => {
                 )}
               </div>
 
-              {/* Test Results */}
+              {/* Test Results ou E2E Scenarios */}
               {hasRealData ? (
                 <div className="space-y-3">
-                  {testDetails.map((test, index) => (
+                  {/* Renderizar cenários E2E */}
+                  {isE2ETest && e2eScenarios.map((scenario, index) => {
+                    const passed = scenario.status === 'passed';
+                    const score = scenario.score || 0;
+                    return (
+                      <div
+                        key={scenario.id || index}
+                        className={`bg-bg-tertiary rounded border border-border-default border-l-4 ${getBorderColor(passed, score)} overflow-hidden`}
+                      >
+                        {/* Header clicável */}
+                        <button
+                          onClick={() => toggleTest(index)}
+                          className="w-full p-4 flex items-center justify-between hover:bg-bg-secondary/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {passed ? (
+                              <CheckCircle size={18} className="text-accent-success" />
+                            ) : (
+                              <XCircle size={18} className="text-accent-error" />
+                            )}
+                            <div className="text-left">
+                              <p className={`font-bold text-sm uppercase tracking-wider ${passed ? 'text-accent-success' : 'text-accent-error'}`}>
+                                {passed ? '[PASSOU]' : '[FALHOU]'} {String(index + 1).padStart(2, '0')} - {scenario.scenario_name}
+                              </p>
+                              {scenario.lead_persona && (
+                                <p className="text-xs text-text-muted mt-1">Persona: {scenario.lead_persona}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {scenario.total_turns && (
+                              <span className="text-xs text-text-muted">
+                                {scenario.total_turns} turnos
+                              </span>
+                            )}
+                            {scenario.duration_seconds && (
+                              <span className="text-xs text-text-muted">
+                                {scenario.duration_seconds}s
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-1 rounded border ${getScoreBgColor(score)} ${getScoreColor(score)}`}>
+                              Score: {score.toFixed(1)}/10
+                            </span>
+                            {expandedTests.has(index) ? (
+                              <ChevronDown size={18} className="text-text-muted" />
+                            ) : (
+                              <ChevronRight size={18} className="text-text-muted" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Conteúdo expandido - Conversa E2E */}
+                        {expandedTests.has(index) && scenario.conversation && scenario.conversation.length > 0 && (
+                          <div className="px-4 pb-4 space-y-3">
+                            <p className="text-xs text-text-muted uppercase mb-2">Conversa Completa:</p>
+                            {scenario.conversation.map((msg, msgIndex) => (
+                              <div key={msgIndex} className="flex gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  msg.role === 'user' || msg.role === 'lead'
+                                    ? 'bg-blue-500/10'
+                                    : 'bg-accent-primary/10'
+                                }`}>
+                                  {msg.role === 'user' || msg.role === 'lead' ? (
+                                    <MessageSquare size={14} className="text-blue-500" />
+                                  ) : (
+                                    <Bot size={14} className="text-accent-primary" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-xs text-text-muted mb-1">
+                                    {msg.role === 'user' || msg.role === 'lead' ? 'Lead' : 'Agente'}
+                                  </div>
+                                  <div className={`p-3 rounded-lg text-text-primary text-sm ${
+                                    msg.role === 'user' || msg.role === 'lead'
+                                      ? 'bg-bg-secondary'
+                                      : 'bg-accent-primary/5 border border-accent-primary/20'
+                                  }`}>
+                                    {msg.content}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Fallback se não tiver conversa */}
+                        {expandedTests.has(index) && (!scenario.conversation || scenario.conversation.length === 0) && (
+                          <div className="px-4 pb-4">
+                            <p className="text-sm text-text-muted italic">Detalhes da conversa não disponíveis para este cenário.</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Renderizar test_details (formato antigo) */}
+                  {hasTestDetails && testDetails.map((test, index) => (
                     <div
                       key={index}
                       className={`bg-bg-tertiary rounded border border-border-default border-l-4 ${getBorderColor(test.passed, test.score)} overflow-hidden`}
@@ -324,16 +444,95 @@ export const TestReportModal = ({ run, onClose }: TestReportModalProps) => {
             <div className="max-w-5xl mx-auto space-y-6">
               <div className="flex items-center gap-3 mb-4">
                 <MessageSquare size={20} className="text-accent-primary" />
-                <h3 className="text-lg font-semibold text-text-primary">Raciocínio e Conversa de Teste</h3>
+                <h3 className="text-lg font-semibold text-text-primary">
+                  {isE2ETest ? 'Conversas E2E Completas' : 'Raciocínio e Conversa de Teste'}
+                </h3>
               </div>
 
               {hasRealData ? (
                 <div className="space-y-4">
                   <p className="text-text-muted text-sm mb-6">
-                    Esta seção mostra o fluxo completo de cada teste, demonstrando como o agente interpretou o prompt e respondeu a cada cenário.
+                    {isE2ETest
+                      ? 'Esta seção mostra as conversas completas de cada cenário E2E, simulando interações reais entre lead e agente.'
+                      : 'Esta seção mostra o fluxo completo de cada teste, demonstrando como o agente interpretou o prompt e respondeu a cada cenário.'}
                   </p>
 
-                  {testDetails.map((test, index) => (
+                  {/* Conversas E2E */}
+                  {isE2ETest && e2eScenarios.map((scenario, index) => {
+                    const passed = scenario.status === 'passed';
+                    const score = scenario.score || 0;
+                    return (
+                      <div key={scenario.id || index} className="bg-bg-tertiary rounded-lg border border-border-default overflow-hidden">
+                        <div className={`p-3 border-b border-border-default ${passed ? 'bg-accent-success/5' : 'bg-accent-error/5'}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-text-primary">
+                                Cenário {index + 1}: {scenario.scenario_name}
+                              </span>
+                              {scenario.lead_persona && (
+                                <span className="ml-2 text-xs text-text-muted">
+                                  ({scenario.lead_persona})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {scenario.total_turns && (
+                                <span className="text-xs text-text-muted">{scenario.total_turns} turnos</span>
+                              )}
+                              {scenario.duration_seconds && (
+                                <span className="text-xs text-text-muted">{scenario.duration_seconds}s</span>
+                              )}
+                              <span className={`text-xs px-2 py-1 rounded ${getScoreBgColor(score)} ${getScoreColor(score)}`}>
+                                Score: {score.toFixed(1)}/10
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded ${passed ? 'bg-accent-success/10 text-accent-success' : 'bg-accent-error/10 text-accent-error'}`}>
+                                {passed ? 'Aprovado' : 'Reprovado'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                          {scenario.conversation && scenario.conversation.length > 0 ? (
+                            scenario.conversation.map((msg, msgIndex) => (
+                              <div key={msgIndex} className="flex gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  msg.role === 'user' || msg.role === 'lead'
+                                    ? 'bg-blue-500/10'
+                                    : 'bg-accent-primary/10'
+                                }`}>
+                                  {msg.role === 'user' || msg.role === 'lead' ? (
+                                    <MessageSquare size={14} className="text-blue-500" />
+                                  ) : (
+                                    <Bot size={14} className="text-accent-primary" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-xs text-text-muted mb-1">
+                                    {msg.role === 'user' || msg.role === 'lead' ? 'Lead' : 'Agente'}
+                                  </div>
+                                  <div className={`p-3 rounded-lg text-text-primary text-sm ${
+                                    msg.role === 'user' || msg.role === 'lead'
+                                      ? 'bg-bg-secondary'
+                                      : 'bg-accent-primary/5 border border-accent-primary/20'
+                                  }`}>
+                                    {msg.content}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-text-muted italic text-center py-4">
+                              Conversa não disponível para este cenário.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Conversas test_details (formato antigo) */}
+                  {hasTestDetails && testDetails.map((test, index) => (
                     <div key={index} className="bg-bg-tertiary rounded-lg border border-border-default overflow-hidden">
                       <div className={`p-3 border-b border-border-default ${test.passed ? 'bg-accent-success/5' : 'bg-accent-error/5'}`}>
                         <div className="flex items-center justify-between">
