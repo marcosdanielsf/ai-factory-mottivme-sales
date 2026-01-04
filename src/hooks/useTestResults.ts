@@ -292,22 +292,53 @@ export const useTestResults = () => {
     try {
       setDeleting(id);
 
-      // Tentar deletar de agent_versions primeiro (fonte principal)
-      const { error: avError } = await supabase
-        .from('agent_versions')
-        .delete()
-        .eq('id', id);
+      // Verificar se é um registro E2E (id composto com underscore e ISO date)
+      const isE2ERecord = id.includes('_') && id.includes('T') && id.includes('Z');
 
-      if (avError) {
-        // Se não encontrou em agent_versions, tentar test_results
-        const { error: trError } = await supabase
-          .from('test_results')
+      if (isE2ERecord) {
+        // Para E2E, extrair agent_version_id e deletar todos os cenários desse grupo
+        const [agentVersionId, timestamp] = id.split('_');
+        const windowStart = new Date(timestamp);
+        const windowEnd = new Date(windowStart.getTime() + 5 * 60 * 1000);
+
+        // Buscar IDs dos cenários nessa janela
+        const { data: scenariosToDelete } = await supabase
+          .from('e2e_test_results')
+          .select('id')
+          .eq('agent_version_id', agentVersionId)
+          .gte('created_at', windowStart.toISOString())
+          .lt('created_at', windowEnd.toISOString());
+
+        if (scenariosToDelete && scenariosToDelete.length > 0) {
+          const scenarioIds = scenariosToDelete.map(s => s.id);
+          const { error: e2eError } = await supabase
+            .from('e2e_test_results')
+            .delete()
+            .in('id', scenarioIds);
+
+          if (e2eError) {
+            console.error('Error deleting e2e results:', e2eError);
+            return false;
+          }
+        }
+      } else {
+        // Tentar deletar de agent_versions primeiro (fonte principal)
+        const { error: avError } = await supabase
+          .from('agent_versions')
           .delete()
           .eq('id', id);
 
-        if (trError) {
-          console.error('Error deleting test result:', trError);
-          return false;
+        if (avError) {
+          // Se não encontrou em agent_versions, tentar test_results
+          const { error: trError } = await supabase
+            .from('test_results')
+            .delete()
+            .eq('id', id);
+
+          if (trError) {
+            console.error('Error deleting test result:', trError);
+            return false;
+          }
         }
       }
 
