@@ -119,7 +119,83 @@ export const useTestResults = () => {
         allResults.push(...mappedFromAV);
       }
 
-      // 2. Buscar de test_results (estrutura anterior)
+      // 2. Buscar de e2e_test_results (nova estrutura com cenários)
+      const { data: e2eResults, error: e2eError } = await supabase
+        .from('e2e_test_results')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (!e2eError && e2eResults && e2eResults.length > 0) {
+        // Buscar info dos agentes
+        const agentIds = [...new Set(e2eResults.map(r => r.agent_version_id))];
+        const { data: agentsData } = await supabase
+          .from('agent_versions')
+          .select('id, agent_name, version')
+          .in('id', agentIds);
+
+        const agentMap = new Map(agentsData?.map(a => [a.id, a]) || []);
+
+        // Agrupar por agente + janela de 5 minutos
+        const executionGroups = new Map<string, any[]>();
+
+        for (const result of e2eResults) {
+          const timestamp = new Date(result.created_at);
+          const windowStart = new Date(Math.floor(timestamp.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000));
+          const key = `${result.agent_version_id}_${windowStart.toISOString()}`;
+
+          if (!executionGroups.has(key)) {
+            executionGroups.set(key, []);
+          }
+          executionGroups.get(key)!.push(result);
+        }
+
+        // Converter grupos em AgentTestRun
+        for (const [key, scenarios] of executionGroups) {
+          const agentId = scenarios[0].agent_version_id;
+          const agent = agentMap.get(agentId);
+          const passedScenarios = scenarios.filter(s => s.status === 'passed').length;
+          const failedScenarios = scenarios.filter(s => s.status !== 'passed').length;
+          const scores = scenarios.filter(s => s.score !== null).map(s => s.score);
+          const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+
+          allResults.push({
+            id: key,
+            agent_version_id: agent?.version || 'v4.0',
+            status: 'completed' as const,
+            score_overall: avgScore,
+            score_dimensions: {
+              tone: 0,
+              engagement: 0,
+              compliance: 0,
+              accuracy: 0,
+              empathy: 0,
+              efficiency: 0
+            },
+            passed_tests: passedScenarios,
+            failed_tests: failedScenarios,
+            total_tests: scenarios.length,
+            created_at: scenarios[0].created_at,
+            run_at: scenarios[0].created_at,
+            agent_name: agent?.agent_name || 'Unknown Agent',
+            agent_version: agent?.version,
+            summary: `E2E: ${passedScenarios}/${scenarios.length} cenários | Score: ${avgScore.toFixed(1)}/10`,
+            // Incluir cenários para expansão futura
+            e2e_scenarios: scenarios.map(s => ({
+              id: s.id,
+              scenario_name: s.scenario_name,
+              status: s.status,
+              score: s.score,
+              lead_persona: s.lead_persona,
+              total_turns: s.total_turns,
+              duration_seconds: s.duration_seconds,
+              conversation: s.conversation || []
+            }))
+          } as AgentTestRun & { e2e_scenarios?: any[] });
+        }
+      }
+
+      // 3. Buscar de test_results (estrutura anterior)
       const { data: testResultsData, error: trError } = await supabase
         .from('test_results')
         .select(`
@@ -169,7 +245,7 @@ export const useTestResults = () => {
         allResults.push(...mappedFromTR);
       }
 
-      // 3. Se não encontrou nada, tentar tabela legacy
+      // 4. Se não encontrou nada, tentar tabela legacy
       if (allResults.length === 0) {
         const { data: oldData, error: oldError } = await supabase
           .from('agenttest_runs')
@@ -187,7 +263,7 @@ export const useTestResults = () => {
         }
       }
 
-      // 4. Se ainda não tem nada, usar mock
+      // 5. Se ainda não tem nada, usar mock
       if (allResults.length === 0) {
         console.warn('Nenhum resultado de teste encontrado. Usando mock data.');
         setResults(getMockResults());
