@@ -136,12 +136,34 @@ export interface AgentTestRun {
   html_report_url?: string;
   status?: 'running' | 'completed' | 'failed';
   created_at: string;
+  run_at?: string; // Data da execução do teste
 
   // Sistema de Scores (0-10) - Novo padrão consolidado
   score_overall?: number; // Score geral (0-10)
   score_dimensions?: ScoreDimensions; // Scores por dimensão
   execution_time_ms?: number; // Tempo de execução em ms
   created_by?: string; // 'system', user_id, ou 'ci/cd'
+
+  // Campos extras para exibição
+  agent_name?: string;
+  agent_version?: string;
+  client_name?: string;
+  location_id?: string;
+  summary?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+
+  // Campos para validação
+  lead_classification?: string;
+  sales_score?: number;
+  total_tokens?: number;
+  test_details?: any[];
+  validation_status?: string;
+  system_prompt?: string;
+  business_config?: Record<string, any>;
+
+  // Campos para E2E
+  e2e_scenarios?: any[];
 
   // Deprecated: Scores antigos (mantidos para compatibilidade temporária)
   /** @deprecated Use score_dimensions.tone */
