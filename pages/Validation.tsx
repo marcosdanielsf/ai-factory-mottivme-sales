@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MOCK_TEST_RUNS, MOCK_AGENT_VERSIONS } from '../constants';
-import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X, Loader2, AlertCircle, Inbox, RefreshCw, Trash2 } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X, Loader2, AlertCircle, Inbox, RefreshCw, Trash2, Filter, Calendar, ChevronDown } from 'lucide-react';
 import { TestReportModal } from '../components/TestReportModal';
 import { useTestResults } from '../src/hooks/useTestResults';
 import { useToast } from '../src/hooks/useToast';
@@ -11,6 +11,60 @@ export const Validation = () => {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // Filtros
+  const [filterAgent, setFilterAgent] = useState<string>('');
+  const [filterVersion, setFilterVersion] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Extrair listas únicas para os dropdowns
+  const uniqueAgents = useMemo(() => {
+    const agents = testRuns.map(r => r.agent_name).filter(Boolean);
+    return [...new Set(agents)].sort();
+  }, [testRuns]);
+
+  const uniqueVersions = useMemo(() => {
+    const versions = testRuns.map(r => r.agent_version_id).filter(Boolean);
+    return [...new Set(versions)].sort();
+  }, [testRuns]);
+
+  // Aplicar filtros
+  const filteredRuns = useMemo(() => {
+    return testRuns.filter(run => {
+      // Filtro por agente
+      if (filterAgent && run.agent_name !== filterAgent) return false;
+
+      // Filtro por versão
+      if (filterVersion && run.agent_version_id !== filterVersion) return false;
+
+      // Filtro por data (de)
+      if (filterDateFrom) {
+        const runDate = new Date(run.run_at || run.created_at);
+        const fromDate = new Date(filterDateFrom);
+        if (runDate < fromDate) return false;
+      }
+
+      // Filtro por data (até)
+      if (filterDateTo) {
+        const runDate = new Date(run.run_at || run.created_at);
+        const toDate = new Date(filterDateTo + 'T23:59:59');
+        if (runDate > toDate) return false;
+      }
+
+      return true;
+    });
+  }, [testRuns, filterAgent, filterVersion, filterDateFrom, filterDateTo]);
+
+  const hasActiveFilters = filterAgent || filterVersion || filterDateFrom || filterDateTo;
+
+  const clearFilters = () => {
+    setFilterAgent('');
+    setFilterVersion('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+  };
 
   const handleRunTests = () => {
     setRunning(true);
@@ -247,16 +301,110 @@ export const Validation = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-primary">Histórico de Execuções</h2>
-          {!loading && (
-            <button 
-              onClick={handleRefresh}
-              className="p-2 text-text-muted hover:text-accent-primary transition-colors"
-              title="Atualizar lista"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded border transition-colors ${
+                hasActiveFilters
+                  ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                  : 'bg-bg-secondary border-border-default text-text-muted hover:text-text-primary hover:border-border-hover'
+              }`}
             >
-              <RefreshCw size={16} />
+              <Filter size={14} />
+              Filtros
+              {hasActiveFilters && (
+                <span className="bg-accent-primary text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {[filterAgent, filterVersion, filterDateFrom, filterDateTo].filter(Boolean).length}
+                </span>
+              )}
             </button>
-          )}
+            {!loading && (
+              <button
+                onClick={handleRefresh}
+                className="p-2 text-text-muted hover:text-accent-primary transition-colors"
+                title="Atualizar lista"
+              >
+                <RefreshCw size={16} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Barra de Filtros */}
+        {showFilters && (
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+            <div className="flex flex-wrap gap-4 items-end">
+              {/* Filtro por Agente */}
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-xs text-text-muted mb-1.5">Agente</label>
+                <select
+                  value={filterAgent}
+                  onChange={(e) => setFilterAgent(e.target.value)}
+                  className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                >
+                  <option value="">Todos os agentes</option>
+                  {uniqueAgents.map(agent => (
+                    <option key={agent} value={agent}>{agent}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por Versão */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs text-text-muted mb-1.5">Versão</label>
+                <select
+                  value={filterVersion}
+                  onChange={(e) => setFilterVersion(e.target.value)}
+                  className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                >
+                  <option value="">Todas as versões</option>
+                  {uniqueVersions.map(version => (
+                    <option key={version} value={version}>{version}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por Data De */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs text-text-muted mb-1.5">Data de</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              {/* Filtro por Data Até */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs text-text-muted mb-1.5">Data até</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="w-full bg-bg-tertiary border border-border-default rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              {/* Botão Limpar */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="px-3 py-2 text-sm text-accent-error hover:text-accent-error/80 transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+
+            {/* Resumo dos filtros ativos */}
+            {hasActiveFilters && (
+              <div className="mt-3 pt-3 border-t border-border-default text-xs text-text-muted">
+                Mostrando {filteredRuns.length} de {testRuns.length} registros
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden">
            <div className="grid grid-cols-12 gap-4 p-3 border-b border-border-default bg-bg-tertiary text-xs font-semibold text-text-muted uppercase tracking-wider">
@@ -293,8 +441,8 @@ export const Validation = () => {
                   </div>
                </div>
              ))
-           ) : testRuns.length > 0 ? (
-             testRuns.map((run: any) => (
+           ) : filteredRuns.length > 0 ? (
+             filteredRuns.map((run: any) => (
                <div key={run.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-bg-tertiary transition-colors border-b border-border-default last:border-0">
                   <div className="col-span-1">
                      {run.passed_tests === run.total_tests && run.passed_tests > 0 ? (
