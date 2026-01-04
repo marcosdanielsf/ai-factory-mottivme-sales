@@ -96,6 +96,9 @@ export const useTestResults = () => {
             validation_status: av.validation_status,
             location_id: av.location_id,
             client_name: clientName,
+            // Campos para o modal de prompt e raciocínio
+            system_prompt: av.system_prompt,
+            business_config: av.business_config,
             summary: vr.sales_analysis?.classification
               ? `Lead ${vr.sales_analysis.classification} (${vr.sales_analysis.score}/100) | Score: ${(vr.validator?.score || 0).toFixed(1)}/10`
               : `Score: ${(vr.validator?.score || av.validation_score || 0).toFixed(1)}/10`
@@ -107,6 +110,8 @@ export const useTestResults = () => {
             validation_status?: string;
             location_id?: string;
             client_name?: string;
+            system_prompt?: string;
+            business_config?: Record<string, any>;
           };
         });
 
