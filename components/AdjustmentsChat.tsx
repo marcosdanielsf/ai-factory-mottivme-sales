@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, Eye, Sparkles, Shield, AlertTriangle } from 'lucide-react';
+import { Send, Bot, User, Loader2, CheckCircle2, XCircle, Eye, Sparkles, Shield, AlertTriangle, Zap, Brain } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -8,22 +8,32 @@ interface Message {
   timestamp: Date;
   preview?: PromptPreview;
   status?: 'pending' | 'approved' | 'rejected';
+  ragContext?: number; // Quantos padrões do RAG foram usados
+  confidence?: number; // Confiança do Claude na resposta
 }
 
 interface PromptPreview {
   zone: 'guardrails' | 'hyperpersonalization' | 'few_shot' | 'tools';
+  zone_label: string;
   before: string;
   after: string;
   diff_summary: string;
+  adjustment_text: string;
+  reasoning?: string;
 }
 
 interface AdjustmentsChatProps {
   agentId: string;
   agentName: string;
+  clientName?: string;
   currentPrompt: string;
   onApplyChanges: (zone: string, newContent: string) => Promise<void>;
   onClose?: () => void;
 }
+
+// URL do webhook n8n - pode ser configurada via env
+const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES || 'https://mottivme.app.n8n.cloud/webhook/chat-ajustes';
+const N8N_WEBHOOK_SAVE_URL = import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES_SAVE || 'https://mottivme.app.n8n.cloud/webhook/chat-ajustes-save';
 
 // Zonas editáveis pelo CS
 const EDITABLE_ZONES = {
@@ -63,6 +73,7 @@ const PROTECTED_ZONES = ['operation_modes', 'prompt_structure', 'core_instructio
 export const AdjustmentsChat: React.FC<AdjustmentsChatProps> = ({
   agentId,
   agentName,
+  clientName = '',
   currentPrompt,
   onApplyChanges,
   onClose,
@@ -88,18 +99,108 @@ _"Inclua o horário de funcionamento: seg-sex 9h-18h"_`,
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<Message | null>(null);
+  const [lastAdjustmentData, setLastAdjustmentData] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const processUserRequest = async (userMessage: string): Promise<Message> => {
-    // Simular processamento do Claude para interpretar a intenção
-    // Em produção, isso chamaria o backend com Claude
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  // Função para chamar o webhook n8n com RAG
+  const processUserRequestWithRAG = async (userMessage: string): Promise<Message> => {
+    try {
+      // Preparar resumo do prompt atual (primeiros 500 chars)
+      const promptSummary = currentPrompt.substring(0, 500) + (currentPrompt.length > 500 ? '...' : '');
 
-    // Detectar zona baseado em keywords
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agentId,
+          agentName,
+          clientName,
+          userMessage,
+          currentPromptSummary: promptSummary,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro no webhook: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Salvar dados para uso posterior no save
+      setLastAdjustmentData({
+        ...data,
+        userMessage,
+      });
+
+      // Validar zona retornada
+      const zone = data.result?.zone as keyof typeof EDITABLE_ZONES;
+      const validZone = EDITABLE_ZONES[zone] ? zone : 'guardrails';
+      const zoneInfo = EDITABLE_ZONES[validZone];
+
+      const preview: PromptPreview = {
+        zone: validZone,
+        zone_label: data.result?.zone_label || zoneInfo.label,
+        before: data.preview?.before || `[Conteúdo atual da zona ${zoneInfo.label}]`,
+        after: data.result?.adjustment_text || data.preview?.after || userMessage,
+        diff_summary: data.preview?.diff_summary || `Ajuste sugerido: "${userMessage.substring(0, 50)}..."`,
+        adjustment_text: data.result?.adjustment_text || userMessage,
+        reasoning: data.result?.reasoning,
+      };
+
+      const ragContextCount = data.rag_context || 0;
+      const confidence = data.result?.confidence || 0.8;
+      const similarPatternUsed = data.result?.similar_pattern_used || false;
+
+      let contentMessage = `Entendi! Vou adicionar isso na zona **${preview.zone_label}**.
+
+**Ajuste sugerido:**
+_"${preview.adjustment_text}"_
+
+**Motivo:** ${preview.reasoning || 'Baseado na sua solicitação.'}`;
+
+      if (ragContextCount > 0) {
+        contentMessage += `
+
+🧠 _Usei ${ragContextCount} padrão(ões) similar(es) do RAG como referência._`;
+      }
+
+      if (similarPatternUsed) {
+        contentMessage += `
+✨ _Encontrei um padrão similar que foi aplicado antes!_`;
+      }
+
+      contentMessage += `
+
+Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
+
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: contentMessage,
+        timestamp: new Date(),
+        preview,
+        status: 'pending',
+        ragContext: ragContextCount,
+        confidence,
+      };
+
+    } catch (error) {
+      console.error('Erro ao processar com RAG:', error);
+
+      // Fallback: processar localmente se webhook falhar
+      return processUserRequestFallback(userMessage);
+    }
+  };
+
+  // Fallback caso o webhook não funcione
+  const processUserRequestFallback = async (userMessage: string): Promise<Message> => {
+    // Detectar zona baseado em keywords (fallback)
     let detectedZone: keyof typeof EDITABLE_ZONES = 'guardrails';
     const lowerMessage = userMessage.toLowerCase();
 
@@ -111,15 +212,21 @@ _"Inclua o horário de funcionamento: seg-sex 9h-18h"_`,
       detectedZone = 'tools';
     }
 
-    // Gerar preview simulado
+    const zoneInfo = EDITABLE_ZONES[detectedZone];
+
     const preview: PromptPreview = {
       zone: detectedZone,
-      before: `[Conteúdo atual da zona ${EDITABLE_ZONES[detectedZone].label}]`,
-      after: `[Conteúdo atualizado com: "${userMessage}"]`,
+      zone_label: zoneInfo.label,
+      before: `[Conteúdo atual da zona ${zoneInfo.label}]`,
+      after: userMessage,
       diff_summary: `Adicionado: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`,
+      adjustment_text: userMessage,
     };
 
-    const zoneInfo = EDITABLE_ZONES[detectedZone];
+    setLastAdjustmentData({
+      userMessage,
+      result: { zone: detectedZone, zone_label: zoneInfo.label, adjustment_text: userMessage },
+    });
 
     return {
       id: Date.now().toString(),
@@ -129,10 +236,13 @@ _"Inclua o horário de funcionamento: seg-sex 9h-18h"_`,
 **Resumo da alteração:**
 ${preview.diff_summary}
 
+⚠️ _Modo offline - RAG não disponível_
+
 Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
       timestamp: new Date(),
       preview,
       status: 'pending',
+      ragContext: 0,
     };
   };
 
@@ -151,7 +261,7 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
     setIsProcessing(true);
 
     try {
-      const response = await processUserRequest(input);
+      const response = await processUserRequestWithRAG(input);
       setMessages(prev => [...prev, response]);
       setPendingPreview(response);
     } catch (error) {
@@ -169,12 +279,43 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
     }
   };
 
+  // Salvar padrão no RAG após aprovar
+  const saveToRAG = async (adjustmentData: any) => {
+    try {
+      await fetch(N8N_WEBHOOK_SAVE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agentId,
+          agentName,
+          clientName,
+          userMessage: adjustmentData.userMessage,
+          zone: adjustmentData.result?.zone,
+          zone_label: adjustmentData.result?.zone_label,
+          adjustment_text: adjustmentData.result?.adjustment_text,
+        }),
+      });
+      console.log('Padrão salvo no RAG com sucesso');
+    } catch (error) {
+      console.error('Erro ao salvar no RAG:', error);
+      // Não bloqueia o fluxo se falhar
+    }
+  };
+
   const handleApprove = async () => {
     if (!pendingPreview?.preview) return;
 
     setIsProcessing(true);
     try {
-      await onApplyChanges(pendingPreview.preview.zone, pendingPreview.preview.after);
+      // Aplicar a alteração
+      await onApplyChanges(pendingPreview.preview.zone, pendingPreview.preview.adjustment_text);
+
+      // Salvar no RAG para aprendizado futuro
+      if (lastAdjustmentData) {
+        saveToRAG(lastAdjustmentData);
+      }
 
       setMessages(prev =>
         prev.map(m =>
@@ -182,17 +323,23 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
         )
       );
 
+      const zoneLabel = pendingPreview.preview.zone_label || EDITABLE_ZONES[pendingPreview.preview.zone].label;
+
       setMessages(prev => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'system',
-          content: `Alteração aplicada com sucesso na zona **${EDITABLE_ZONES[pendingPreview.preview.zone].label}**! Uma nova versão do prompt foi criada.`,
+          content: `Alteração aplicada com sucesso na zona **${zoneLabel}**!
+
+Uma nova versão do prompt foi criada.
+🧠 _Este padrão foi salvo no RAG para uso futuro._`,
           timestamp: new Date(),
         },
       ]);
 
       setPendingPreview(null);
+      setLastAdjustmentData(null);
     } catch (error) {
       setMessages(prev => [
         ...prev,
@@ -228,6 +375,7 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
     ]);
 
     setPendingPreview(null);
+    setLastAdjustmentData(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -246,7 +394,13 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
             <Bot className="text-accent-primary" size={20} />
           </div>
           <div>
-            <h3 className="font-semibold text-text-primary">Chat de Ajustes</h3>
+            <h3 className="font-semibold text-text-primary flex items-center gap-2">
+              Chat de Ajustes
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full">
+                <Brain size={10} />
+                RAG
+              </span>
+            </h3>
             <p className="text-xs text-text-muted">Agente: {agentName}</p>
           </div>
         </div>
@@ -326,13 +480,23 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
                       <span className="text-xs font-medium text-text-muted">Preview</span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded ${
-                          EDITABLE_ZONES[message.preview.zone].bgColor
-                        } ${EDITABLE_ZONES[message.preview.zone].color}`}
+                          EDITABLE_ZONES[message.preview.zone]?.bgColor || 'bg-gray-500/20'
+                        } ${EDITABLE_ZONES[message.preview.zone]?.color || 'text-gray-400'}`}
                       >
-                        {EDITABLE_ZONES[message.preview.zone].label}
+                        {message.preview.zone_label}
                       </span>
+                      {message.confidence && message.confidence > 0.7 && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
+                          {Math.round(message.confidence * 100)}% confiança
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-text-secondary">{message.preview.diff_summary}</p>
+                    {message.preview.reasoning && (
+                      <p className="text-xs text-text-muted mt-2 italic">
+                        💡 {message.preview.reasoning}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -374,7 +538,10 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
               <Loader2 size={16} className="text-text-secondary animate-spin" />
             </div>
             <div className="bg-bg-secondary border border-border-default rounded-lg px-4 py-2">
-              <span className="text-sm text-text-muted">Processando...</span>
+              <span className="text-sm text-text-muted flex items-center gap-2">
+                <Brain size={14} className="text-purple-400" />
+                Consultando RAG e processando...
+              </span>
             </div>
           </div>
         )}
