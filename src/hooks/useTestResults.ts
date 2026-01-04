@@ -2,6 +2,40 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentTestRun } from '../../types';
 
+// Interface para o validation_result JSONB
+interface ValidationResult {
+  totals?: {
+    total_tokens: number;
+    total_time_ms: number;
+  };
+  sales_analysis?: {
+    score: number;
+    classification: string;
+    bant?: Record<string, any>;
+    tokens: number;
+    time_ms: number;
+  };
+  prompt_generator?: {
+    prompt_size: number;
+    tokens: number;
+    time_ms: number;
+  };
+  validator?: {
+    score: number;
+    status: string;
+    tokens: number;
+    time_ms: number;
+    test_results?: Array<{
+      name: string;
+      input: string;
+      score: number;
+      passed: boolean;
+      feedback: string;
+      simulated_response: string;
+    }>;
+  };
+}
+
 export const useTestResults = () => {
   const [results, setResults] = useState<AgentTestRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,8 +46,67 @@ export const useTestResults = () => {
       setLoading(true);
       setError(null);
 
-      // Tentar buscar da tabela test_results (estrutura do dashboard 3000)
-      const { data, error: fetchError } = await supabase
+      const allResults: AgentTestRun[] = [];
+
+      // 1. Buscar de agent_versions com validation_result (nova estrutura)
+      const { data: agentVersions, error: avError } = await supabase
+        .from('agent_versions')
+        .select('*')
+        .not('validation_result', 'is', null)
+        .order('validated_at', { ascending: false })
+        .limit(20);
+
+      if (!avError && agentVersions && agentVersions.length > 0) {
+        const mappedFromAV = agentVersions.map((av: any) => {
+          const vr: ValidationResult = av.validation_result || {};
+          const testResults = vr.validator?.test_results || [];
+          const passedTests = testResults.filter(t => t.passed).length;
+          const failedTests = testResults.filter(t => !t.passed).length;
+
+          return {
+            id: av.id,
+            agent_version_id: av.version || 'v1.0',
+            status: 'completed' as const,
+            score_overall: vr.validator?.score || av.validation_score || 0,
+            score_dimensions: {
+              tone: 0,
+              engagement: 0,
+              compliance: 0,
+              accuracy: 0,
+              empathy: 0,
+              efficiency: 0
+            },
+            passed_tests: passedTests || (av.validation_status === 'approved' ? 1 : 0),
+            failed_tests: failedTests || (av.validation_status === 'rejected' ? 1 : 0),
+            total_tests: testResults.length || 1,
+            created_at: av.validated_at || av.created_at,
+            run_at: av.validated_at || av.created_at,
+            execution_time_ms: vr.totals?.total_time_ms,
+            agent_name: av.agent_name,
+            agent_version: av.version,
+            // Campos extras para exibição rica
+            lead_classification: vr.sales_analysis?.classification,
+            sales_score: vr.sales_analysis?.score,
+            total_tokens: vr.totals?.total_tokens,
+            test_details: testResults,
+            validation_status: av.validation_status,
+            summary: vr.sales_analysis?.classification
+              ? `Lead ${vr.sales_analysis.classification} (${vr.sales_analysis.score}/100) | Score: ${(vr.validator?.score || 0).toFixed(1)}/10`
+              : `Score: ${(vr.validator?.score || av.validation_score || 0).toFixed(1)}/10`
+          } as AgentTestRun & {
+            lead_classification?: string;
+            sales_score?: number;
+            total_tokens?: number;
+            test_details?: any[];
+            validation_status?: string;
+          };
+        });
+
+        allResults.push(...mappedFromAV);
+      }
+
+      // 2. Buscar de test_results (estrutura anterior)
+      const { data: testResultsData, error: trError } = await supabase
         .from('test_results')
         .select(`
           *,
@@ -25,48 +118,15 @@ export const useTestResults = () => {
         .order('tested_at', { ascending: false })
         .limit(20);
 
-      if (fetchError) {
-        // Se a tabela não existir, tentar a tabela antiga
-        if (fetchError.code === '42P01') {
-          const { data: oldData, error: oldError } = await supabase
-            .from('agenttest_runs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(20);
-
-          if (oldError) {
-            console.warn('Nenhuma tabela de testes encontrada. Usando mock data.');
-            setResults(getMockResults());
-            return;
-          }
-
-          if (oldData && oldData.length > 0) {
-            // Mapear formato antigo
-            const mapped = oldData.map((r: any) => ({
-              ...r,
-              run_at: r.created_at,
-              total_tests: (r.passed_tests || 0) + (r.failed_tests || 0),
-            }));
-            setResults(mapped);
-            return;
-          }
-        }
-
-        console.warn('Erro ao buscar resultados:', fetchError);
-        setResults(getMockResults());
-        return;
-      }
-
-      if (data && data.length > 0) {
-        // Mapear para o formato esperado pelo Dashboard e Validation
-        const mappedResults: AgentTestRun[] = data.map((result: any) => {
+      if (!trError && testResultsData && testResultsData.length > 0) {
+        const mappedFromTR = testResultsData.map((result: any) => {
           const passed = result.overall_score >= 8 ? 1 : 0;
           const failed = result.overall_score < 8 ? 1 : 0;
 
           return {
             id: result.id,
             agent_version_id: result.agent_versions?.version || result.agent_version_id?.slice(0, 8) || 'v1.0',
-            status: 'completed',
+            status: 'completed' as const,
             score_overall: result.overall_score || 0,
             score_dimensions: {
               tone: result.tone || 0,
@@ -89,13 +149,46 @@ export const useTestResults = () => {
             summary: result.strengths?.length > 0
               ? `Pontos fortes: ${result.strengths.slice(0, 2).join(', ')}`
               : `Score: ${(result.overall_score || 0).toFixed(1)}/10`
-          };
+          } as AgentTestRun;
         });
 
-        setResults(mappedResults);
-      } else {
-        setResults(getMockResults());
+        allResults.push(...mappedFromTR);
       }
+
+      // 3. Se não encontrou nada, tentar tabela legacy
+      if (allResults.length === 0) {
+        const { data: oldData, error: oldError } = await supabase
+          .from('agenttest_runs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (!oldError && oldData && oldData.length > 0) {
+          const mapped = oldData.map((r: any) => ({
+            ...r,
+            run_at: r.created_at,
+            total_tests: (r.passed_tests || 0) + (r.failed_tests || 0),
+          }));
+          allResults.push(...mapped);
+        }
+      }
+
+      // 4. Se ainda não tem nada, usar mock
+      if (allResults.length === 0) {
+        console.warn('Nenhum resultado de teste encontrado. Usando mock data.');
+        setResults(getMockResults());
+        return;
+      }
+
+      // Ordenar por data (mais recente primeiro) e remover duplicatas
+      const uniqueResults = allResults
+        .sort((a, b) => new Date(b.run_at || b.created_at).getTime() - new Date(a.run_at || a.created_at).getTime())
+        .filter((item, index, self) =>
+          index === self.findIndex(t => t.id === item.id)
+        );
+
+      setResults(uniqueResults);
+
     } catch (err: any) {
       console.error('Error fetching test results:', err);
       setError(err.message);
