@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  ChevronRight, 
-  ChevronDown, 
-  Settings, 
+import {
+  Home,
+  ChevronRight,
+  ChevronDown,
+  Settings,
   Box,
   Phone,
   Users,
@@ -12,8 +12,13 @@ import {
   Bell,
   TestTube2,
   MessageSquare,
-  ScrollText
+  ScrollText,
+  RefreshCw,
+  BookOpen,
+  ExternalLink,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../src/contexts/AuthContext';
 
 const SidebarItem = ({ 
   icon: Icon, 
@@ -66,6 +71,34 @@ const SidebarItem = ({
 
 export const Sidebar = () => {
   const [clientsOpen, setClientsOpen] = useState(true);
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user?.email) return 'U';
+    const email = user.email;
+    const name = user.user_metadata?.full_name || email.split('@')[0];
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Usuário';
+  };
 
   return (
     <aside className="w-[260px] h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0">
@@ -95,6 +128,7 @@ export const Sidebar = () => {
         </div>
         <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" />
         <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" />
+        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" />
         <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" />
         <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" />
         
@@ -107,18 +141,37 @@ export const Sidebar = () => {
           SISTEMA
         </div>
         <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" />
+
+        {/* Link externo para documentação */}
+        <a
+          href="http://localhost:5173"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+        >
+          <BookOpen size={16} />
+          <span>Documentação</span>
+          <ExternalLink size={12} className="ml-auto opacity-50" />
+        </a>
       </nav>
 
       {/* Footer */}
       <div className="p-4 border-t border-border-default">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs">
-            MS
+          <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary">
+            {getUserInitials()}
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-text-primary">Marcos Silva</span>
-            <span className="text-xs text-text-muted">Admin</span>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-sm font-medium text-text-primary truncate">{getDisplayName()}</span>
+            <span className="text-xs text-text-muted truncate">{user?.email || 'user@example.com'}</span>
           </div>
+          <button
+            onClick={handleLogout}
+            className="p-2 hover:bg-bg-hover rounded-md text-text-muted hover:text-accent-error transition-colors"
+            title="Sair"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
     </aside>

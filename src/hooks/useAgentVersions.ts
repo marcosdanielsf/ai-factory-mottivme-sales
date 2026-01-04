@@ -8,23 +8,30 @@ export const useAgentVersions = (agentId?: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchVersions = useCallback(async () => {
+    if (!agentId) {
+      setVersions([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+
+      // Buscar versoes - tentar por client_id primeiro, depois por id se for um ID de versao
       let query = supabase
         .from('agent_versions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (agentId) {
-        // A tabela agent_versions usa client_id em vez de agent_id
-        query = query.eq('client_id', agentId);
-      }
+      // Tentar buscar por client_id OU por id (para casos onde client_id é null)
+      // Usamos or() para cobrir ambos os casos
+      query = query.or(`client_id.eq.${agentId},id.eq.${agentId}`);
 
-      const { data, error } = await query;
+      const { data: versionsData, error: versionsError } = await query;
 
-      if (error) throw error;
+      if (versionsError) throw versionsError;
 
-      setVersions(data || []);
+      setVersions(versionsData || []);
     } catch (err: any) {
       console.error('Error fetching agent versions:', err);
       setError(err.message);

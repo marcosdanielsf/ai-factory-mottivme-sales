@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Agent, AgentVersion } from '../../types';
+import { Agent } from '../../types';
 
 export const useAgents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -11,66 +11,55 @@ export const useAgents = () => {
     try {
       setLoading(true);
       setError(null);
-      // Buscar de agent_versions com JOIN para pegar nome do cliente
-      // Usamos uma estratégia para pegar apenas a versão mais recente de cada client_id
+
+      // Buscar da tabela agent_versions e agrupar por client_id
       const { data, error } = await supabase
         .from('agent_versions')
-        .select(`
-          client_id,
-          status,
-          created_at,
-          avg_score_overall,
-          clients (
-            id,
-            nome
-          )
-        `)
-        .order('created_at', { ascending: false });
+        .select('*')
+        .order('updated_at', { ascending: false });
 
       if (error) {
-        if (error.code === '42P01') {
-          console.warn('Tabela agent_versions não encontrada. Usando mock agents.');
-          const mockAgents: Agent[] = [
-            { id: '1', name: 'SDR Vendas', slug: 'sdr-vendas', created_at: new Date().toISOString(), status: 'production', avg_score: 8.5 },
-            { id: '2', name: 'Closer Tech', slug: 'closer-tech', created_at: new Date().toISOString(), status: 'production', avg_score: 9.1 },
-            { id: '3', name: 'Suporte IA', slug: 'suporte-ia', created_at: new Date().toISOString(), status: 'draft', avg_score: 7.2 }
-          ];
-          setAgents(mockAgents);
-          return;
-        }
+        console.error('Error fetching agents:', error);
         throw error;
       }
 
       if (!data || data.length === 0) {
-        const mockAgents: Agent[] = [
-          { id: '1', name: 'SDR Vendas', slug: 'sdr-vendas', created_at: new Date().toISOString(), status: 'production', avg_score: 8.5 },
-          { id: '2', name: 'Closer Tech', slug: 'closer-tech', created_at: new Date().toISOString(), status: 'production', avg_score: 9.1 },
-          { id: '3', name: 'Suporte IA', slug: 'suporte-ia', created_at: new Date().toISOString(), status: 'draft', avg_score: 7.2 }
-        ];
-        setAgents(mockAgents);
+        setAgents([]);
         return;
       }
 
-      // Agrupar por client_id para ter apenas um "Agente" por cliente
-      const uniqueAgentsMap = new Map();
-      
-      data.forEach((version: any) => {
-        const clientId = version.clients?.id || version.client_id;
-        if (!clientId) return;
-        
-        if (!uniqueAgentsMap.has(clientId)) {
-          uniqueAgentsMap.set(clientId, {
-            id: clientId, // O ID do Agente agora é o ID do Cliente
-            name: version.clients?.nome || `Agente ${clientId.slice(0, 8)}`,
-            slug: version.clients?.nome?.toLowerCase().replace(/\s+/g, '-') || clientId,
-            created_at: version.created_at,
-            status: version.status,
-            avg_score: version.avg_score_overall || 0,
-          });
-        }
-      });
+      // Agrupar por client_id para obter agentes únicos
+      // Usar a versão mais recente de cada client_id como referência
+      const agentMap = new Map<string, any>();
 
-      setAgents(Array.from(uniqueAgentsMap.values()));
+      for (const version of data) {
+        // Usar client_id como identificador do agente
+        const agentKey = version.client_id || version.id;
+
+        if (!agentMap.has(agentKey)) {
+          agentMap.set(agentKey, version);
+        }
+        // Como já ordenamos por updated_at desc, a primeira ocorrência é a mais recente
+      }
+
+      // Mapear para o formato Agent esperado pelo Dashboard
+      const mappedAgents: Agent[] = Array.from(agentMap.values()).map((agent: any) => ({
+        id: agent.client_id || agent.id, // Usar client_id como ID do agente
+        name: agent.agent_name || agent.clients?.nome || 'Agente Sem Nome',
+        slug: agent.slug || agent.client_id || agent.id,
+        created_at: agent.created_at,
+        updated_at: agent.updated_at,
+        status: agent.status || 'draft',
+        avg_score: agent.last_test_score || agent.validation_score || 0,
+        version: agent.version_number || agent.version || '1.0.0',
+        is_active: agent.is_active || false,
+        system_prompt: agent.system_prompt,
+        hyperpersonalization: agent.hyperpersonalization,
+        total_test_runs: agent.total_test_runs || 0,
+        framework_approved: agent.framework_approved || false
+      }));
+
+      setAgents(mappedAgents);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar agentes');
       console.error('Error fetching agents:', err);

@@ -44,16 +44,23 @@ export interface AgentVersion {
   id: string;
   agent_id: string;
   version_number: string;
+  version?: string; // Fallback se o banco usar 'version'
   system_prompt: string;
   prompts_por_modo?: Record<string, string>;
-  hyperpersonalization_config?: Record<string, any>;
+  hyperpersonalization?: Record<string, any>;
   change_log?: string;
   parent_version_id?: string;
   conversion_rate?: number;
   avg_interactions_to_goal?: number;
-  status: 'production' | 'sandbox' | 'archived' | 'draft' | 'pending_approval';
+  status: 'production' | 'sandbox' | 'archived' | 'draft' | 'pending_approval' | 'active';
+  validation_status?: 'production' | 'sandbox' | 'archived' | 'draft' | 'pending_approval' | 'active';
   created_at: string;
   deployed_at?: string;
+  is_active?: boolean;
+  clients?: {
+    nome: string;
+    empresa: string;
+  };
 
   // Novo: Métricas agregadas de testes
   avg_score_overall?: number; // Média de todos os testes

@@ -33,28 +33,41 @@ export const ClientService = {
       return MOCK_CLIENTS;
     }
 
-    // Fetch Agents and map to Client structure
+    // Buscar da tabela 'clients' (conforme unified_schema.sql)
     const { data, error } = await supabase
-      .from('agents')
+      .from('clients')
       .select('*')
-      .order('name');
+      .order('nome');
 
     if (error) {
-      console.error('Error fetching agents:', error);
-      return MOCK_CLIENTS;
+      console.error('Error fetching clients:', error);
+      // Se a tabela clients não existir, tentar fallback para agents (retrocompatibilidade)
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('*');
+      
+      if (agentsError) return MOCK_CLIENTS;
+      return agentsData.map((a: any) => ({
+        id: a.id,
+        nome: a.name,
+        empresa: a.slug,
+        status: a.is_active ? 'cliente' : 'churned',
+        created_at: a.created_at,
+        vertical: 'mentores'
+      })) as Client[];
     }
 
-    // Map Agent -> Client (UI)
-    return data.map((agent: any) => ({
-      id: agent.id,
-      nome: agent.name, // "Nina"
-      empresa: agent.slug, // "viverdeia" (using slug as company name proxy)
-      email: '',
-      telefone: '',
-      vertical: 'mentores', // Default or derive
-      status: agent.is_active ? 'cliente' : 'churned',
-      created_at: agent.created_at,
-      avatar: '', 
+    // Map Client DB -> Client UI
+    return data.map((client: any) => ({
+      id: client.id,
+      nome: client.nome,
+      empresa: client.empresa,
+      email: client.email,
+      telefone: client.telefone,
+      vertical: client.vertical || 'mentores',
+      status: client.status === 'active' ? 'cliente' : 'churned',
+      created_at: client.created_at,
+      avatar: client.avatar_url || '', 
       revenue: 0,
       score: 0
     })) as Client[];
@@ -62,13 +75,13 @@ export const ClientService = {
 };
 
 export const AgentService = {
-  // Fetch latest version for an Agent
-  async getConfig(agentId: string): Promise<AgentConfig | null> {
+  // Fetch latest version for an Agent (Client)
+  async getConfig(clientId: string): Promise<AgentConfig | null> {
     if (!isSupabaseConfigured()) {
        // Mock fallback
        return {
         id: 'mock-config',
-        client_id: agentId,
+        client_id: clientId,
         system_prompt: SYSTEM_PROMPT_TEMPLATE,
         prompts_por_modo: {
           first_contact: "Você é a Nina...",
@@ -79,51 +92,43 @@ export const AgentService = {
       };
     }
 
-    // Get current version ID from Agent
-    const { data: agentData, error: agentError } = await supabase
-      .from('agents')
-      .select('current_version_id')
-      .eq('id', agentId)
-      .single();
+    // Buscar a versão ativa (is_active = true) para este cliente
+    const { data: activeVersion, error: versionError } = await supabase
+      .from('agent_versions')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('is_active', true)
+      .maybeSingle();
 
-    if (agentError || !agentData?.current_version_id) {
-       // Try to find ANY version if current is not set
-       const { data: latestVersion, error: versionError } = await supabase
+    if (versionError || !activeVersion) {
+       // Se não houver ativa, buscar a mais recente de qualquer status
+       const { data: latestVersion, error: latestError } = await supabase
         .from('agent_versions')
         .select('*')
-        .eq('agent_id', agentId)
+        .eq('client_id', clientId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
         
-       if (versionError) return null;
+       if (latestError || !latestVersion) return null;
        
        return {
          id: latestVersion.id,
-         client_id: agentId,
+         client_id: clientId,
          system_prompt: latestVersion.system_prompt,
          prompts_por_modo: latestVersion.prompts_por_modo || {},
-         tools_config: {}, // Not in new schema yet, optional
+         tools_config: {},
          created_at: latestVersion.created_at
        };
     }
 
-    // Fetch the specific version
-    const { data: versionData, error: versionError } = await supabase
-      .from('agent_versions')
-      .select('*')
-      .eq('id', agentData.current_version_id)
-      .single();
-
-    if (versionError) return null;
-
     return {
-      id: versionData.id,
-      client_id: agentId,
-      system_prompt: versionData.system_prompt,
-      prompts_por_modo: versionData.prompts_por_modo || {},
+      id: activeVersion.id,
+      client_id: clientId,
+      system_prompt: activeVersion.system_prompt,
+      prompts_por_modo: activeVersion.prompts_por_modo || {},
       tools_config: {},
-      created_at: versionData.created_at
+      created_at: activeVersion.created_at
     };
   },
 
@@ -133,12 +138,7 @@ export const AgentService = {
       return { data: config, error: null };
     }
 
-    // In new schema, saving config usually means creating a NEW version or updating draft
-    // For simplicity, we'll update the current version if it exists, or create new.
-    // NOTE: Real implementation should likely create a new DRAFT version.
-    
-    // We need the ID of the version to update. 
-    // If 'config.id' matches a version ID, update it.
+    // Na nova schema, usamos client_id
     if (config.id && config.id !== 'mock-config') {
         const { data, error } = await supabase
           .from('agent_versions')

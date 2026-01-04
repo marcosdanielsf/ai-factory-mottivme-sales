@@ -14,43 +14,160 @@ import { Validation } from './pages/Validation';
 import { Logs } from './pages/Logs';
 import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
+import { AgentDetail } from './pages/AgentDetail';
+import { ReflectionLoop } from './pages/ReflectionLoop';
+import { Login } from './pages/Login';
 import { ToastProvider } from './src/hooks/useToast';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { ProtectedRoute } from './src/components/ProtectedRoute';
 
 const App = () => {
   return (
-    <ToastProvider>
-      <HashRouter>
-        <Layout>
+    <AuthProvider>
+      <ToastProvider>
+        <HashRouter>
           <Routes>
-          <Route path="/" element={<Dashboard />} />
-          
-          {/* Sales OS */}
-          <Route path="/leads" element={<Leads />} />
-          
-          {/* AI Factory */}
-          <Route path="/prompt-studio" element={<PromptEditor />} />
-          <Route path="/validacao" element={<Validation />} />
-          <Route path="/logs" element={<Logs />} />
-          <Route path="/knowledge-base" element={<KnowledgeBase />} />
-          <Route path="/team-rpg" element={<TeamRPG />} />
-          <Route path="/super-agent" element={<SuperAgentRPG />} />
-          
-          {/* Monitoring */}
-          <Route path="/notificacoes" element={<Notifications />} />
-          <Route path="/calls" element={<CallsRealizadas />} />
-          <Route path="/configuracoes" element={<Configuracoes />} />
+            {/* Public Route */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Legacy/Client Specific */}
-          <Route path="/clientes" element={<Navigate to="/" />} />
-          <Route path="/clientes/:id" element={<ClientDetail />} />
-          <Route path="/clientes/:id/agente" element={<PromptEditor />} />
+            {/* Protected Routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="/aprovacoes" element={<Approvals />} />
-          <Route path="*" element={<div className="p-8 text-text-muted">Página em construção...</div>} />
-        </Routes>
-      </Layout>
-      </HashRouter>
-    </ToastProvider>
+            {/* Sales OS */}
+            <Route path="/leads" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Leads />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* AI Factory */}
+            <Route path="/prompt-studio" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PromptEditor />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/agents/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <AgentDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/validacao" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Validation />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/reflection-loop" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReflectionLoop />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/logs" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Logs />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/knowledge-base" element={
+              <ProtectedRoute>
+                <Layout>
+                  <KnowledgeBase />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/team-rpg" element={
+              <ProtectedRoute>
+                <Layout>
+                  <TeamRPG />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/super-agent" element={
+              <ProtectedRoute>
+                <Layout>
+                  <SuperAgentRPG />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Monitoring */}
+            <Route path="/notificacoes" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Notifications />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/calls" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CallsRealizadas />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/configuracoes" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Configuracoes />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Legacy/Client Specific */}
+            <Route path="/clientes" element={
+              <ProtectedRoute>
+                <Navigate to="/" />
+              </ProtectedRoute>
+            } />
+            <Route path="/clientes/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/clientes/:id/agente" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PromptEditor />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/aprovacoes" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Approvals />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="p-8 text-text-muted">Página em construção...</div>
+                </Layout>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </HashRouter>
+      </ToastProvider>
+    </AuthProvider>
   );
 };
 

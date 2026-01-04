@@ -1,69 +1,90 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { DashboardMetrics } from '../../types';
+
+interface DashboardMetricsState {
+  totalAgents: number;
+  totalLeads: number;
+  activeCampaigns: number;
+  conversionRate: number;
+  averageScore: number;
+  testsRun: number;
+  passRate: number;
+  loading: boolean;
+  error: string | null;
+}
 
 export const useDashboardMetrics = () => {
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<DashboardMetricsState>({
     totalAgents: 0,
     totalLeads: 0,
     activeCampaigns: 0,
     conversionRate: 0,
+    averageScore: 0,
+    testsRun: 0,
+    passRate: 0,
     loading: true,
-    error: null as string | null
+    error: null
   });
 
-  useEffect(() => {
-    fetchMetrics();
-  }, []);
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
-      // Tentar usar a View otimizada vw_dashboard_metrics
-      const { data, error } = await supabase
-        .from('vw_dashboard_metrics')
-        .select('*')
-        .single();
+      setMetrics(prev => ({ ...prev, loading: true, error: null }));
 
-      if (error) {
-        console.warn('View vw_dashboard_metrics não encontrada, usando fallback:', error);
+      // Buscar agentes diretamente da tabela agent_versions
+      const { data: agents, error: agentsError } = await supabase
+        .from('agent_versions')
+        .select('id, last_test_score, validation_score, total_test_runs, is_active');
 
-        // Fallback: usar queries diretas com nomes de tabelas corrigidos
-        const [agentsCount, leadsCount] = await Promise.all([
-          supabase.from('agent_versions').select('id', { count: 'exact', head: true }),
-          supabase.from('ai_factory_leads').select('id', { count: 'exact', head: true })
-        ]);
-
-        setMetrics({
-          totalAgents: agentsCount.count || 0,
-          totalLeads: leadsCount.count || 0,
-          activeCampaigns: agentsCount.count || 0,
-          conversionRate: 12.5, // Mock rate
-          loading: false,
-          error: null
-        });
-        return;
+      if (agentsError) {
+        console.error('Error fetching agents:', agentsError);
+        throw agentsError;
       }
 
-      // Usar dados da View otimizada
-      const dashboardData = data as DashboardMetrics;
+      const totalAgents = agents?.length || 0;
+      const activeAgents = agents?.filter(a => a.is_active).length || 0;
+
+      // Calcular score médio
+      const scores = agents
+        ?.map(a => a.last_test_score || a.validation_score)
+        .filter((s): s is number => s !== null && s > 0) || [];
+
+      const averageScore = scores.length > 0
+        ? scores.reduce((a, b) => a + b, 0) / scores.length
+        : 0;
+
+      // Total de testes
+      const testsRun = agents?.reduce((sum, a) => sum + (a.total_test_runs || 0), 0) || 0;
+
+      // Pass rate (agentes com score >= 8)
+      const passRate = scores.length > 0
+        ? Math.round((scores.filter(s => s >= 8).length / scores.length) * 100)
+        : 0;
 
       setMetrics({
-        totalAgents: dashboardData.total_active_agents || 0,
-        totalLeads: dashboardData.total_leads || 0,
-        activeCampaigns: dashboardData.versions_in_production || 0,
-        conversionRate: dashboardData.global_conversion_rate_pct || 0,
+        totalAgents,
+        totalLeads: 0, // TODO: fetch from leads table
+        activeCampaigns: activeAgents,
+        conversionRate: 0, // TODO: calculate from leads
+        averageScore,
+        testsRun,
+        passRate,
         loading: false,
         error: null
       });
+
     } catch (e: any) {
       console.error('Error in useDashboardMetrics:', e);
       setMetrics(prev => ({
         ...prev,
         loading: false,
-        error: e.message
+        error: e.message || 'Erro ao carregar métricas'
       }));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
 
   return {
     metrics,

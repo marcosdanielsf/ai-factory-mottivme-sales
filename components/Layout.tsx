@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
 import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
 import { useAgents } from '../src/hooks';
+import AISupportWidget from './AISupportWidget';
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { agents } = useAgents();
 
   // Listen for ⌘K
@@ -216,6 +218,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </div>
       )}
+
+      {/* AI Support Widget (Chat + Voice) */}
+      <AISupportWidget currentPage={location.pathname} />
     </div>
   );
 };
