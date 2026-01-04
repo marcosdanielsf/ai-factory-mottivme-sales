@@ -2,12 +2,37 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentTestRun } from '../../types';
 
-// Interface para o validation_result JSONB
+// Interface para test_result individual
+interface TestResultItem {
+  name: string;
+  input: string;
+  score: number;
+  passed: boolean;
+  feedback: string;
+  simulated_response: string;
+}
+
+// Interface para o validation_result JSONB (suporta múltiplos formatos)
 interface ValidationResult {
+  // Formato novo (pipeline com --db)
   totals?: {
     total_tokens: number;
     total_time_ms: number;
   };
+  validator?: {
+    score: number;
+    status: string;
+    tokens?: number;
+    time_ms?: number;
+    test_results?: TestResultItem[];
+  };
+  debate?: {
+    score: number;
+    verdict: string;
+    criticism?: string;
+    defense?: string;
+  };
+  // Formato antigo 1 (sales_analysis)
   sales_analysis?: {
     score: number;
     classification: string;
@@ -20,20 +45,26 @@ interface ValidationResult {
     tokens: number;
     time_ms: number;
   };
-  validator?: {
-    score: number;
-    status: string;
-    tokens: number;
-    time_ms: number;
-    test_results?: Array<{
-      name: string;
-      input: string;
-      score: number;
-      passed: boolean;
-      feedback: string;
-      simulated_response: string;
-    }>;
-  };
+  // Formato antigo 2 (direto na raiz)
+  test_results?: TestResultItem[];
+  overall_score?: number;
+  scores?: Record<string, number>;
+  strengths?: string[];
+  weaknesses?: string[];
+  recommendations?: string[];
+  // Formato antigo 3 (pipeline sem --db)
+  e2e_results?: Array<{
+    scenario_name?: string;
+    name?: string;
+    status?: string;
+    score?: number;
+    total_turns?: number;
+    conversation?: Array<{ role: string; content: string }>;
+  }>;
+  debate_score?: number;
+  debate_verdict?: string;
+  improvement_summary?: string;
+  e2e_pass_rate?: number;
 }
 
 export const useTestResults = () => {
@@ -60,7 +91,38 @@ export const useTestResults = () => {
       if (!avError && agentVersions && agentVersions.length > 0) {
         const mappedFromAV = agentVersions.map((av: any) => {
           const vr: ValidationResult = av.validation_result || {};
-          const testResults = vr.validator?.test_results || [];
+
+          // Extrair test_results de QUALQUER formato:
+          // 1. Novo formato: vr.validator.test_results
+          // 2. Formato antigo 2: vr.test_results (direto na raiz)
+          // 3. Formato antigo 3: vr.e2e_results (converter para test_results)
+          let testResults: TestResultItem[] = [];
+
+          if (vr.validator?.test_results && vr.validator.test_results.length > 0) {
+            // Formato novo (pipeline com --db após correção)
+            testResults = vr.validator.test_results;
+          } else if (vr.test_results && vr.test_results.length > 0) {
+            // Formato antigo 2 (direto na raiz)
+            testResults = vr.test_results;
+          } else if (vr.e2e_results && vr.e2e_results.length > 0) {
+            // Formato antigo 3 (pipeline sem --db) - converter e2e_results
+            testResults = vr.e2e_results.map((e2e) => {
+              const conversation = e2e.conversation || [];
+              const leadMsgs = conversation.filter(m => m.role === 'user' || m.role === 'lead');
+              const agentMsgs = conversation.filter(m => m.role === 'assistant');
+              const score = e2e.score || 0;
+
+              return {
+                name: e2e.scenario_name || e2e.name || 'Cenário E2E',
+                input: leadMsgs[0]?.content || 'Lead iniciou conversa',
+                score: score,
+                passed: e2e.status === 'passed' || score >= 7,
+                feedback: `Cenário: ${e2e.scenario_name || e2e.name} | Status: ${e2e.status || 'unknown'} | Turnos: ${e2e.total_turns || 0}`,
+                simulated_response: agentMsgs[agentMsgs.length - 1]?.content || 'Resposta do agente'
+              };
+            });
+          }
+
           const passedTests = testResults.filter(t => t.passed).length;
           const failedTests = testResults.filter(t => !t.passed).length;
 
@@ -68,31 +130,38 @@ export const useTestResults = () => {
           const businessConfig = av.business_config || {};
           const clientName = businessConfig.company_name || av.location_id || '-';
 
+          // Extrair score de qualquer formato
+          const scoreOverall = vr.validator?.score || vr.overall_score || av.validation_score || 0;
+
+          // Extrair tokens/time de qualquer formato
+          const totalTokens = vr.totals?.total_tokens || (vr as any).total_tokens || 0;
+          const executionTimeMs = vr.totals?.total_time_ms || ((vr as any).duration_seconds ? (vr as any).duration_seconds * 1000 : 0);
+
           return {
             id: av.id,
             agent_version_id: av.version || 'v1.0',
             status: 'completed' as const,
-            score_overall: vr.validator?.score || av.validation_score || 0,
+            score_overall: scoreOverall,
             score_dimensions: {
-              tone: 0,
-              engagement: 0,
-              compliance: 0,
-              accuracy: 0,
-              empathy: 0,
-              efficiency: 0
+              tone: vr.scores?.tone || 0,
+              engagement: vr.scores?.engagement || 0,
+              compliance: vr.scores?.compliance || 0,
+              accuracy: vr.scores?.accuracy || 0,
+              empathy: vr.scores?.empathy || 0,
+              efficiency: vr.scores?.efficiency || 0
             },
             passed_tests: passedTests || (av.validation_status === 'approved' ? 1 : 0),
             failed_tests: failedTests || (av.validation_status === 'rejected' ? 1 : 0),
             total_tests: testResults.length || 1,
             created_at: av.validated_at || av.created_at,
             run_at: av.validated_at || av.created_at,
-            execution_time_ms: vr.totals?.total_time_ms,
+            execution_time_ms: executionTimeMs,
             agent_name: av.agent_name,
             agent_version: av.version,
             // Campos extras para exibição rica
             lead_classification: vr.sales_analysis?.classification,
             sales_score: vr.sales_analysis?.score,
-            total_tokens: vr.totals?.total_tokens,
+            total_tokens: totalTokens,
             test_details: testResults,
             validation_status: av.validation_status,
             location_id: av.location_id,
