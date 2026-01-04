@@ -1,0 +1,234 @@
+{
+  "name": "13-Chat-Ajustes-RAG-Powered",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-ajustes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-entrada",
+      "name": "Webhook: Chat Ajustes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chat-ajustes-rag"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://agenticoskevsacademy-production.up.railway.app/webhook/rag-search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.body.userMessage + ' ' + $json.body.detectedZone, project_key: 'mottivme-geral', threshold: 0.4, limit: 5 }) }}",
+        "options": {}
+      },
+      "id": "rag-search",
+      "name": "RAG: Buscar Padrões",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "options": {
+          "maxTokensToSample": 2000,
+          "temperature": 0.3
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=Você é um especialista em ajustar prompts de agentes de IA de vendas.\n\n## CONTEXTO DO AGENTE\n- Nome: {{ $('Webhook: Chat Ajustes').item.json.body.agentName }}\n- Cliente: {{ $('Webhook: Chat Ajustes').item.json.body.clientName }}\n\n## PROMPT ATUAL (resumido)\n{{ $('Webhook: Chat Ajustes').item.json.body.currentPromptSummary }}\n\n## PEDIDO DO USUÁRIO\n\"{{ $('Webhook: Chat Ajustes').item.json.body.userMessage }}\"\n\n## PADRÕES ENCONTRADOS NO RAG (referência)\n{{ $json.results && $json.results.length > 0 ? $json.results.map(r => '- ' + r.title + ': ' + r.content.substring(0, 200)).join('\\n') : 'Nenhum padrão similar encontrado.' }}\n\n## SUA TAREFA\n1. Detecte qual ZONA do prompt deve ser alterada:\n   - guardrails: Regras de comportamento, limites, proibições\n   - hyperpersonalization: Contexto do cliente, personalização\n   - few_shot: Exemplos de conversas ideais\n   - tools: Configuração de ferramentas/funções\n\n2. Gere o texto de ajuste seguindo o padrão do agente.\n\n3. Responda APENAS em JSON válido:\n```json\n{\n  \"zone\": \"guardrails|hyperpersonalization|few_shot|tools\",\n  \"zone_label\": \"Nome amigável da zona\",\n  \"adjustment_text\": \"O texto exato a ser adicionado/modificado\",\n  \"reasoning\": \"Por que essa zona e esse formato\",\n  \"confidence\": 0.0-1.0,\n  \"similar_pattern_used\": true|false\n}\n```"
+            }
+          ]
+        }
+      },
+      "id": "claude-process",
+      "name": "Claude: Processar Ajuste",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [720, 300],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-api",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsear resposta do Claude\nconst claudeResponse = $input.first().json.response?.content || $input.first().json.text || '';\n\n// Extrair JSON da resposta\nlet parsed;\ntry {\n  // Tentar extrair JSON do texto\n  const jsonMatch = claudeResponse.match(/```json\\n?([\\s\\S]*?)\\n?```/) || \n                    claudeResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    const jsonStr = jsonMatch[1] || jsonMatch[0];\n    parsed = JSON.parse(jsonStr);\n  } else {\n    throw new Error('No JSON found');\n  }\n} catch (e) {\n  // Fallback se não conseguir parsear\n  parsed = {\n    zone: 'guardrails',\n    zone_label: 'Guardrails',\n    adjustment_text: 'Não foi possível processar o pedido. Por favor, seja mais específico.',\n    reasoning: 'Erro ao processar: ' + e.message,\n    confidence: 0.3,\n    similar_pattern_used: false\n  };\n}\n\n// Dados originais do webhook\nconst original = $('Webhook: Chat Ajustes').first().json.body;\n\nreturn {\n  success: true,\n  agent: {\n    id: original.agentId,\n    name: original.agentName,\n    client: original.clientName\n  },\n  request: original.userMessage,\n  result: {\n    zone: parsed.zone,\n    zone_label: parsed.zone_label,\n    adjustment_text: parsed.adjustment_text,\n    reasoning: parsed.reasoning,\n    confidence: parsed.confidence,\n    similar_pattern_used: parsed.similar_pattern_used\n  },\n  preview: {\n    before: `[Seção ${parsed.zone_label} atual]`,\n    after: parsed.adjustment_text,\n    diff_summary: `Adicionado na zona ${parsed.zone_label}: \"${parsed.adjustment_text.substring(0, 100)}...\"`\n  },\n  rag_context: $('RAG: Buscar Padrões').first().json.results?.length || 0,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "parse-response",
+      "name": "Parsear Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-ajustes-save",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-save",
+      "name": "Webhook: Salvar no RAG",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 540],
+      "webhookId": "chat-ajustes-save"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://agenticoskevsacademy-production.up.railway.app/webhook/rag-ingest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ category: 'adjustment_pattern', title: 'Ajuste ' + $json.body.zone_label + ': ' + $json.body.userMessage.substring(0, 50), content: 'Pedido: ' + $json.body.userMessage + '\\n\\nAjuste aplicado na zona ' + $json.body.zone + ':\\n' + $json.body.adjustment_text + '\\n\\nAgente: ' + $json.body.agentName + '\\nCliente: ' + $json.body.clientName, project_key: 'mottivme-geral', tags: [$json.body.zone, $json.body.agentName, 'chat-ajustes'] }) }}",
+        "options": {}
+      },
+      "id": "rag-ingest",
+      "name": "RAG: Salvar Padrão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 540]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Padrão salvo no RAG com sucesso', rag_response: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-save",
+      "name": "Responder Save",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 540]
+    }
+  ],
+  "connections": {
+    "Webhook: Chat Ajustes": {
+      "main": [
+        [
+          {
+            "node": "RAG: Buscar Padrões",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG: Buscar Padrões": {
+      "main": [
+        [
+          {
+            "node": "Claude: Processar Ajuste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Processar Ajuste": {
+      "main": [
+        [
+          {
+            "node": "Parsear Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Resposta": {
+      "main": [
+        [
+          {
+            "node": "Responder Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Salvar no RAG": {
+      "main": [
+        [
+          {
+            "node": "RAG: Salvar Padrão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG: Salvar Padrão": {
+      "main": [
+        [
+          {
+            "node": "Responder Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "AI-Factory",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "RAG",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-04T08:40:00.000Z",
+  "versionId": "1"
+}
