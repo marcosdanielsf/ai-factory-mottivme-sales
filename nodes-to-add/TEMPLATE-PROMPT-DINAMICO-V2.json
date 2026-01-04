@@ -1,0 +1,116 @@
+{
+  "meta": {
+    "templateName": "Prompt Dinâmico V2 - Sem Env Vars",
+    "description": "Template usando HTTP Request nativo (compatível com n8n Self-Hosted que bloqueia $env)",
+    "version": "2.0.0",
+    "author": "AI Factory V4 - MOTTIVME",
+    "createdAt": "2026-01-01",
+    "note": "Use credencial 'Header Auth' configurada com apikey do Supabase"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://SEU-PROJETO.supabase.co/rest/v1/rpc/get_active_prompt",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"p_prompt_key\": \"head-vendas-bposs\"}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-buscar-prompt-http",
+      "name": "2.0 Buscar Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURE_SUA_CREDENCIAL",
+          "name": "Supabase API Key"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Configure:\n1. URL com seu projeto Supabase\n2. Credencial Header Auth com apikey\n3. Altere prompt_key no body"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// NÓ 2.1 - RESOLVER VARIÁVEIS NO PROMPT\n// =====================================================\n// Versão compatível com n8n Self-Hosted (sem $env)\n\n// Obter dados do prompt (do HTTP Request anterior)\nconst promptResponse = $input.first()?.json || {};\n\n// O RPC retorna diretamente os campos\nconst promptContent = promptResponse.prompt_content || '';\nconst promptKey = promptResponse.prompt_key || 'unknown';\nconst version = promptResponse.version || 1;\n\n// Buscar dados de contexto do nó anterior ao HTTP\n// Ajuste o nome do nó conforme seu fluxo\nlet dadosContexto = {};\ntry {\n  // Tenta buscar de nós comuns\n  dadosContexto = $node['Export Google Doc como Texto']?.json \n    || $node['1.6 Preparar Dados']?.json\n    || $node['Preparar Dados']?.json\n    || {};\n} catch (e) {\n  dadosContexto = {};\n}\n\n// Se não encontrou, tenta do input\nif (Object.keys(dadosContexto).length === 0) {\n  // Dados podem vir como 'data' do nó anterior\n  dadosContexto = promptResponse.dados_contexto || {};\n}\n\n// Mapeamento de variáveis - ajuste conforme seus dados\nconst variaveis = {\n  // Transcrição\n  'transcricao_processada': dadosContexto.data || dadosContexto.texto || dadosContexto.texto_transcricao || '',\n  'texto': dadosContexto.data || dadosContexto.texto || '',\n  \n  // Lead\n  'nome_lead': dadosContexto.nome_lead || dadosContexto.contact_name || '',\n  'tipo_call': dadosContexto.tipo_call || 'diagnostico',\n  'nome_empresa': dadosContexto.nome_empresa || dadosContexto.empresa || '',\n  \n  // ICP\n  'icp_segmento': dadosContexto.icp?.segmento || '',\n  'tickets': JSON.stringify(dadosContexto.tickets || []),\n  'red_flags_criticos': (dadosContexto.red_flags_criticos || []).join('\\n- '),\n  'objecoes': JSON.stringify(dadosContexto.objecoes || []),\n  \n  // GHL\n  'location_id': dadosContexto.location_id || '',\n  'contact_id': dadosContexto.contact_id || '',\n  \n  // Metadata\n  'data_atual': new Date().toLocaleDateString('pt-BR'),\n  'timestamp': new Date().toISOString()\n};\n\n// Resolver variáveis no prompt\nlet promptFinal = promptContent;\nfor (const [key, value] of Object.entries(variaveis)) {\n  const regex = new RegExp(`\\\\{\\\\{\\\\s*${key}\\\\s*\\\\}\\\\}`, 'gi');\n  const valorStr = value === null || value === undefined ? '' : String(value);\n  promptFinal = promptFinal.replace(regex, valorStr);\n}\n\n// Verificar placeholders não resolvidos\nconst placeholdersRestantes = promptFinal.match(/\\{\\{[^}]+\\}\\}/g) || [];\nif (placeholdersRestantes.length > 0) {\n  console.warn('Placeholders não resolvidos:', placeholdersRestantes);\n}\n\nreturn [{\n  json: {\n    prompt_final: promptFinal,\n    prompt_metadata: {\n      prompt_key: promptKey,\n      version: version,\n      prompt_id: promptResponse.prompt_id\n    },\n    model_config: promptResponse.model_config || {},\n    variaveis_resolvidas: variaveis,\n    placeholders_nao_resolvidos: placeholdersRestantes,\n    success: promptContent.length > 0,\n    resolved_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-resolver-variaveis-v2",
+      "name": "2.1 Resolver Variáveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "notesInFlow": true,
+      "notes": "Substitui {{placeholders}} pelos valores.\nAdicione mais variáveis no mapeamento se precisar."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://SEU-PROJETO.supabase.co/rest/v1/rpc/log_prompt_execution",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_prompt_key\": \"{{ $('2.1 Resolver Variáveis').item.json.prompt_metadata.prompt_key }}\",\n  \"p_workflow_key\": \"{{ $workflow.name }}\",\n  \"p_success\": true,\n  \"p_execution_time_ms\": 5000,\n  \"p_workflow_execution_id\": \"{{ $execution.id }}\"\n}",
+        "options": {}
+      },
+      "id": "node-registrar-uso-http",
+      "name": "2.2 Registrar Uso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURE_SUA_CREDENCIAL",
+          "name": "Supabase API Key"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Opcional - registra analytics.\nColoque APÓS o AI Agent."
+    }
+  ],
+  "connections": {
+    "2.0 Buscar Prompt": {
+      "main": [
+        [
+          {
+            "node": "2.1 Resolver Variáveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "credentialSetup": {
+    "instructions": [
+      "1. No n8n, vá em Credentials > Add Credential",
+      "2. Escolha 'Header Auth'",
+      "3. Configure:",
+      "   - Name: 'Supabase API Key'",
+      "   - Header Name: 'apikey'",
+      "   - Header Value: 'sua-chave-anon-do-supabase'",
+      "4. Adicione OUTRA Header Auth para Authorization:",
+      "   - Name: 'Supabase Bearer'",
+      "   - Header Name: 'Authorization'",
+      "   - Header Value: 'Bearer sua-chave-anon-do-supabase'",
+      "",
+      "OU use Generic Credential com múltiplos headers"
+    ],
+    "alternativeWithGeneric": {
+      "type": "httpCustomAuth",
+      "headers": {
+        "apikey": "sua-chave-supabase",
+        "Authorization": "Bearer sua-chave-supabase"
+      }
+    }
+  }
+}

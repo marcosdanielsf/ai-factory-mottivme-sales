@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "templateName": "Prompt Dinâmico V3 - Via Postgres Direto",
+    "description": "Template usando nó Postgres nativo - MAIS SIMPLES, usa credencial já existente",
+    "version": "3.0.0",
+    "author": "AI Factory V4 - MOTTIVME",
+    "createdAt": "2026-01-01",
+    "note": "Usa a mesma credencial Postgres que já existe no fluxo!"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  pr.prompt_key,\n  pr.prompt_name,\n  pv.version,\n  pv.prompt_content,\n  pv.model_config,\n  pv.performance_score,\n  pr.variables_used\nFROM prompt_registry pr\nJOIN prompt_versions pv ON pv.prompt_id = pr.id AND pv.is_current = true\nWHERE pr.prompt_key = 'head-vendas-bposs'\n  AND pr.status = 'active'",
+        "options": {}
+      },
+      "id": "node-buscar-prompt-postgres",
+      "name": "2.0 Buscar Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Busca prompt do Supabase via Postgres.\nAltere 'head-vendas-bposs' para a chave desejada."
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// NÓ 2.1 - RESOLVER VARIÁVEIS NO PROMPT\n// =====================================================\n// Versão para uso com nó Postgres\n\n// Obter dados do prompt (do Postgres)\nconst promptRow = $input.first()?.json || {};\nconst promptContent = promptRow.prompt_content || '';\nconst promptKey = promptRow.prompt_key || 'unknown';\nconst version = promptRow.version || 1;\n\n// Buscar dados de contexto - ajuste o nome do nó!\nlet dadosContexto = {};\ntry {\n  // Tenta buscar do nó que tem a transcrição\n  dadosContexto = $node['Export Google Doc como Texto']?.json || {};\n  \n  // Se o texto veio como 'data', normaliza\n  if (dadosContexto.data && !dadosContexto.texto) {\n    dadosContexto.texto = dadosContexto.data;\n  }\n} catch (e) {\n  console.warn('Nó de contexto não encontrado:', e.message);\n}\n\n// Mapeamento de variáveis\nconst variaveis = {\n  // === DADOS DA TRANSCRIÇÃO ===\n  'transcricao_processada': dadosContexto.texto || dadosContexto.data || '',\n  'texto': dadosContexto.texto || dadosContexto.data || '',\n  \n  // === DADOS DO LEAD ===\n  'nome_lead': dadosContexto.nome_lead || '',\n  'tipo_call': dadosContexto.tipo_call || 'diagnostico',\n  'nome_empresa': dadosContexto.nome_empresa || '',\n  \n  // === CONTEXTO DE NEGÓCIO ===\n  'icp_segmento': '',\n  'tickets': '[]',\n  'red_flags_criticos': '',\n  'objecoes': '[]',\n  \n  // === IDs ===\n  'location_id': dadosContexto.location_id || '',\n  'contact_id': dadosContexto.contact_id || '',\n  \n  // === METADATA ===\n  'data_atual': new Date().toLocaleDateString('pt-BR'),\n  'hora_atual': new Date().toLocaleTimeString('pt-BR'),\n  'timestamp': new Date().toISOString()\n};\n\n// Resolver variáveis no prompt\nlet promptFinal = promptContent;\n\nif (!promptContent) {\n  console.error('ERRO: Prompt vazio! Verifique se o prompt existe no Supabase.');\n  promptFinal = 'ERRO: Prompt não encontrado no banco de dados.';\n} else {\n  for (const [key, value] of Object.entries(variaveis)) {\n    const regex = new RegExp(`\\\\{\\\\{\\\\s*${key}\\\\s*\\\\}\\\\}`, 'gi');\n    const valorStr = value === null || value === undefined ? '' : String(value);\n    promptFinal = promptFinal.replace(regex, valorStr);\n  }\n}\n\n// Verificar placeholders não resolvidos\nconst placeholdersRestantes = promptFinal.match(/\\{\\{[^}]+\\}\\}/g) || [];\nif (placeholdersRestantes.length > 0) {\n  console.warn('⚠️ Placeholders não resolvidos:', placeholdersRestantes);\n}\n\n// Log para debug\nconsole.log('✅ Prompt carregado:', promptKey, 'v' + version);\nconsole.log('📝 Tamanho do prompt:', promptFinal.length, 'caracteres');\n\nreturn [{\n  json: {\n    // ESTE É O CAMPO QUE O AI AGENT VAI USAR\n    prompt_final: promptFinal,\n    \n    // Metadados para referência\n    prompt_metadata: {\n      prompt_key: promptKey,\n      version: version,\n      original_length: promptContent.length,\n      final_length: promptFinal.length\n    },\n    \n    // Config do modelo (se existir)\n    model_config: promptRow.model_config || {},\n    \n    // Debug\n    variaveis_resolvidas: Object.fromEntries(\n      Object.entries(variaveis).filter(([k, v]) => v !== '' && v !== '[]')\n    ),\n    placeholders_nao_resolvidos: placeholdersRestantes,\n    \n    // Status\n    success: promptContent.length > 0 && placeholdersRestantes.length === 0,\n    resolved_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-resolver-variaveis-v3",
+      "name": "2.1 Resolver Variáveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "notesInFlow": true,
+      "notes": "Substitui {{placeholders}} pelos valores.\nAjuste os nomes dos nós de origem!"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO prompt_executions (\n  prompt_id,\n  prompt_version_id,\n  workflow_key,\n  success,\n  execution_time_ms\n) \nSELECT \n  pr.id,\n  pv.id,\n  '{{ $workflow.name }}',\n  true,\n  5000\nFROM prompt_registry pr\nJOIN prompt_versions pv ON pv.prompt_id = pr.id AND pv.is_current = true\nWHERE pr.prompt_key = '{{ $('2.1 Resolver Variáveis').item.json.prompt_metadata.prompt_key }}'\nON CONFLICT DO NOTHING\nRETURNING id",
+        "options": {}
+      },
+      "id": "node-registrar-uso-postgres",
+      "name": "2.2 Registrar Uso",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Opcional - registra analytics.\nColoque APÓS o AI Agent."
+    }
+  ],
+  "connections": {
+    "2.0 Buscar Prompt": {
+      "main": [
+        [
+          {
+            "node": "2.1 Resolver Variáveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "simpleInstructions": [
+    "1. Copie os 3 nós para seu fluxo",
+    "2. No nó '2.0 Buscar Prompt': altere 'head-vendas-bposs' para sua chave",
+    "3. No nó '2.1 Resolver Variáveis': ajuste o nome do nó de origem dos dados",
+    "4. No AI Agent: mude o System Message para:",
+    "   ={{ $('2.1 Resolver Variáveis').item.json.prompt_final }}",
+    "5. Conecte: [Seus Dados] -> [2.0] -> [2.1] -> [AI Agent] -> [2.2]"
+  ]
+}

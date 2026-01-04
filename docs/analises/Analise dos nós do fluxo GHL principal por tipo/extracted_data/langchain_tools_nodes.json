@@ -1,0 +1,547 @@
+{
+  "category": "langchain_tools",
+  "count": 8,
+  "nodes": [
+    {
+      "parameters": {
+        "toolDescription": "Adicionar tag 'perdido'. Use quando o lead se enquadrar em qualquer situação: já cadastrado, é agente, mora no Brasil, sem interesse, ou está insatisfeito. Motivo da desqualificação deve ser especificado.",
+        "method": "PUT",
+        "url": "https://services.leadconnectorhq.com/contacts/{contact_Id}",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tags\": [\"perdido\"]\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_Id",
+              "description": "ID do contato",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        5840,
+        608
+      ],
+      "id": "5300e392-d22d-4bb0-aae6-97899a3352be",
+      "name": "Adicionar_tag_perdido"
+    },
+    {
+      "parameters": {
+        "description": "Uma ferramenta de raciocínio interno para agentes de IA no n8n.\nUse-a para estruturar pensamentos, lógica e instruções ocultas que ajudam o modelo a chegar em uma resposta final.\nO conteúdo definido aqui não é mostrado ao usuário final — serve apenas como contexto privado para guiar a geração de saída."
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        5968,
+        608
+      ],
+      "id": "9975017f-a829-4351-8d6e-2db072067674",
+      "name": "Think1"
+    },
+    {
+      "parameters": {
+        "description": "Buscar/consultar por horários disponíveis antes de agendar. Exemplo: startDate=1735689600000 endDate=1736294400000. calendario pode ser consultoria financeira ou carreira. E dateEndTo e dateStartFrom é a data de inicio e fim, geralmente entre hoje e 7 dias. Garanta que vai buscar slots disponíveis à partir do ano 2025",
+        "workflowId": {
+          "__rl": true,
+          "value": "pZIcRI1PGMzbQHZZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pZIcRI1PGMzbQHZZ",
+          "cachedResultName": "[ GHL ] Busca Disponibilidade"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "calendar": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('calendar', `Buscar horários disponíveis. IMPORTANTE: O parâmetro 'calendar' deve ser o ID do calendário (ex: LvZWMISiyYnF8p7TrY7q), NÃO o nome. Consulte o CONTEXTO para obter calendarID_carreira ou calendarID_consultoria conforme work permit do lead.`, 'string') }}",
+            "API_KEY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('API_KEY', ``, 'string') }}",
+            "startDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('startDate', `exemplo: 1735689600000`, 'string') }}",
+            "endDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('endDate', `exemplo: 1736294400000`, 'string') }}",
+            "lead_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('lead_id', `exemplo: 23533559\n`, 'string') }}",
+            "usuario_responsavel": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('usuario_responsavel', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "calendar",
+              "displayName": "calendar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "API_KEY",
+              "displayName": "API_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "startDate",
+              "displayName": "startDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "endDate",
+              "displayName": "endDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "usuario_responsavel",
+              "displayName": "usuario_responsavel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6096,
+        608
+      ],
+      "id": "08955562-d895-4f09-a959-18b6c3bfef00",
+      "name": "Busca_disponibilidade"
+    },
+    {
+      "parameters": {
+        "description": "Agendar um nova reunião. startTime segue o seguinte padrão 2021-06-23T03:30:00+05:30.",
+        "workflowId": {
+          "__rl": true,
+          "value": "u1UsmjNNpaEiwIsp",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/u1UsmjNNpaEiwIsp",
+          "cachedResultName": "Agendar pelo GHL - ATUALIZAR KOMMO"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "API_KEY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('API_KEY', ``, 'string') }}",
+            "email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('email', ``, 'string') }}",
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', ``, 'string') }}",
+            "location_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('location_id', ``, 'string') }}",
+            "calendar_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('calendar_id', `Buscar horários disponíveis. IMPORTANTE: O parâmetro 'calendar' deve ser o ID do calendário (ex: LvZWMISiyYnF8p7TrY7q), NÃO o nome. Consulte o CONTEXTO para obter calendarID_carreira ou calendarID_consultoria conforme work permit do lead.`, 'string') }}",
+            "startTime": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('startTime', ``, 'string') }}",
+            "firstName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('firstName', ``, 'string') }}",
+            "lastName": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('lastName', ``, 'string') }}",
+            "lead_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('lead_id', ``, 'string') }}",
+            "Carreira_Consultoria": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Carreira_Consultoria', `Especificar o tipo do agendamento`, 'string') }}",
+            "usuario_responsavel": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('usuario_responsavel', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "API_KEY",
+              "displayName": "API_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "calendar_id",
+              "displayName": "calendar_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "startTime",
+              "displayName": "startTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "firstName",
+              "displayName": "firstName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "lastName",
+              "displayName": "lastName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "estadoValue",
+              "displayName": "estadoValue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "workPermitValue",
+              "displayName": "workPermitValue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "Carreira_Consultoria",
+              "displayName": "Carreira_Consultoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "usuario_responsavel",
+              "displayName": "usuario_responsavel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6224,
+        608
+      ],
+      "id": "8f08715b-91f8-416d-bbaa-75e2636d1a6c",
+      "name": "Agendar_reuniao"
+    },
+    {
+      "parameters": {
+        "description": "Atualizar o estado onde o lead mora (estado_onde_mora). Use esta tool quando o lead informar em qual estado dos EUA ele reside. Valores aceitos: nomes dos estados americanos (ex: Florida, California, Texas, New York, etc). Campo ID customizado no GHL.",
+        "workflowId": {
+          "__rl": true,
+          "value": "3Dd8d5AnpD4iLPwG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3Dd8d5AnpD4iLPwG",
+          "cachedResultName": "Atualizar Work Permit GHL (Otimizado)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "location_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('location_id', ``, 'string') }}",
+            "API_KEY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('API_KEY', ``, 'string') }}",
+            "contact_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contact_id', ``, 'string') }}",
+            "workPermitValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('workPermitValue', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "API_KEY",
+              "displayName": "API_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "workPermitValue",
+              "displayName": "workPermitValue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6352,
+        608
+      ],
+      "id": "3cfa78ca-068b-466b-a0c9-744c2eb3d111",
+      "name": "Atualizar Work Permit"
+    },
+    {
+      "parameters": {
+        "description": "Atualizar a profissão/ocupação do lead (contact.profissao). Use esta tool quando o lead informar qual é sua profissão ou área de atuação atual. Valores: texto livre com a profissão (ex: Engenheiro, Médico, Empresário, Corretor de Imóveis, etc). Campo ID customizado no GHL.",
+        "workflowId": {
+          "__rl": true,
+          "value": "Kq3b79P6v4rTsiaH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Kq3b79P6v4rTsiaH",
+          "cachedResultName": "Atualizar Campo Profissão GHL (Auto-Config)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "API_KEY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('API_KEY', ``, 'string') }}",
+            "location_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('location_id', ``, 'string') }}",
+            "contact_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contact_id', ``, 'string') }}",
+            "profissaoValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('profissaoValue', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "API_KEY",
+              "displayName": "API_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "profissaoValue",
+              "displayName": "profissaoValue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6480,
+        608
+      ],
+      "id": "cf78c90c-dc4a-4b70-99b2-bb600309bb6f",
+      "name": "Atualizar Profissão"
+    },
+    {
+      "parameters": {
+        "description": "Atualizar o estado onde o lead mora (estado_onde_mora). Use esta tool quando o lead informar em qual estado dos EUA ele reside. Valores aceitos: nomes dos estados americanos (ex: Florida, California, Texas, New York, etc). Campo ID customizado no GHL.",
+        "workflowId": {
+          "__rl": true,
+          "value": "wsQQYmx8CLNBHoWq",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wsQQYmx8CLNBHoWq",
+          "cachedResultName": "Atualizar Estado GHL (Otimizado)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "API_KEY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('API_KEY', ``, 'string') }}",
+            "estadoValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('estadoValue', ``, 'string') }}",
+            "contact_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contact_id', ``, 'string') }}",
+            "location_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('location_id', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "API_KEY",
+              "displayName": "API_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "estadoValue",
+              "displayName": "estadoValue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        6608,
+        608
+      ],
+      "id": "51bd7052-50e4-4537-a9b4-77d160743ea6",
+      "name": "Atualizar Estado"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "https://cliente-a1.mentorfy.io/mcp/busca_historias/sse",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        6736,
+        608
+      ],
+      "id": "339a6530-f97d-4798-a6df-fb950b33f2d9",
+      "name": "Busca historias",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    }
+  ]
+}

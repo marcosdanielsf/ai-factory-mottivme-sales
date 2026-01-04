@@ -1,5 +1,5 @@
 {
-  "name": "Monitor-Pasta-Calls (Corrigido)",
+  "name": "01-Organizador-Calls",
   "nodes": [
     {
       "parameters": {
@@ -26,10 +26,10 @@
       "type": "n8n-nodes-base.googleDriveTrigger",
       "typeVersion": 1,
       "position": [
-        1136,
-        416
+        4832,
+        384
       ],
-      "id": "8e196343-547b-41ec-a94a-e0805b35d1a4",
+      "id": "eb6636f3-3156-4843-8623-720953d60c0f",
       "name": "Google Drive - Novo Arquivo em /7. Calls/",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -49,10 +49,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        656,
-        128
+        4352,
+        272
       ],
-      "id": "6261be83-6052-4d80-84a9-06bd923ef176",
+      "id": "03900acb-5f09-4c5f-a72e-c9f355008deb",
       "name": "Instrucoes"
     },
     {
@@ -65,23 +65,23 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        624,
-        704
+        4320,
+        848
       ],
-      "id": "46af5c2c-7254-4e26-9ba8-ba79becef647",
+      "id": "8041af46-d428-4ff0-96c8-b41665130b8e",
       "name": "Fluxo"
     },
     {
       "parameters": {
-        "jsCode": "// IDs das pastas de destino\nconst pastasIds = {\n  '1. Vendas': '1yr256LwbLKJZ5HzHgC7Zq25MrSOKTQEs',\n  '2. Onboarding': '1JS87Zs1bRSiNKjqVPTZ3GkfCvMnUj8PO',\n  '3. Revisao': '1psAln8h2Il5ic6U8Nv8UhRWt6RNbnmyQ',\n  '4. Suporte': '15Q6LzE0Mujxj-Q8lqNjx8rmRjVyUx0Kw',\n  '5. Churn': '1G56zGj8N6mhdS7nZH77mtK15wGDFV8kk',\n  '6. Outros': '1Z0Zdo05XxtBhIe8mwUUkgGsld3PanHKU'\n};\n\nconst config = {\n  prefixos: {\n    'DIAGNOSTICO': { pasta: '1. Vendas', tipo: 'diagnostico' },\n    'DIAG_': { pasta: '1. Vendas', tipo: 'diagnostico' },\n    'KICKOFF': { pasta: '2. Onboarding', tipo: 'kickoff' },\n    'KICK_': { pasta: '2. Onboarding', tipo: 'kickoff' },\n    'ACOMPANHAMENTO': { pasta: '3. Revisao', tipo: 'acompanhamento' },\n    'ACOMP_': { pasta: '3. Revisao', tipo: 'acompanhamento' },\n    'REVISAO': { pasta: '3. Revisao', tipo: 'revisao' },\n    'REV_': { pasta: '3. Revisao', tipo: 'revisao' },\n    'ALINHAMENTO': { pasta: '3. Revisao', tipo: 'alinhamento' },\n    'ALINH_': { pasta: '3. Revisao', tipo: 'alinhamento' },\n    'SUPORTE': { pasta: '4. Suporte', tipo: 'suporte' },\n    'SUP_': { pasta: '4. Suporte', tipo: 'suporte' },\n    'CHURN': { pasta: '5. Churn', tipo: 'churn' },\n    'CHURN_': { pasta: '5. Churn', tipo: 'churn' }\n  },\n  fallback: { pasta: '6. Outros', tipo: 'outro' },\n  notificacaoContactId: 'Ql1qBRN8GTemuG0BlM0F'\n};\n\nconst arquivo = $input.first().json;\nconst nomeArquivo = arquivo.name || '';\n\n// Remover emojis do nome para processamento\nconst nomeClean = nomeArquivo.replace(/[\\u{1F300}-\\u{1F9FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]/gu, '').trim();\nconst nomeUpper = nomeClean.toUpperCase();\n\n// Identificar prefixo\nlet prefixoEncontrado = null;\nlet configDestino = config.fallback;\n\nfor (const [prefixo, cfg] of Object.entries(config.prefixos)) {\n  if (nomeUpper.startsWith(prefixo) || nomeUpper.includes(' ' + prefixo + ' ') || nomeUpper.includes(prefixo + ' ')) {\n    prefixoEncontrado = prefixo.replace('_', '');\n    configDestino = cfg;\n    break;\n  }\n}\n\n// Extrair partes do nome: TIPO - Nome - Telefone - LocationID\n// ou: NUMERO - TIPO - Nome - Telefone - LocationID (se ja foi renomeado)\nlet partes = nomeClean.split(' - ').map(p => p.trim());\n\n// Detectar se o primeiro elemento e apenas um numero sequencial (ex: '23', '1', '100')\n// Se for, remove para normalizar o array\nif (partes.length >= 1 && /^\\d+$/.test(partes[0])) {\n  partes = partes.slice(1); // Remove o numero sequencial\n}\n\nlet nome = '';\nlet telefone = '';\nlet telefoneFormatado = '';\nlet locationId = '';\n\nif (partes.length >= 2) nome = (partes[1] || '').trim();\nif (partes.length >= 3) {\n  telefone = partes[2] ? partes[2].replace(/[^0-9]/g, '').trim() : '';\n  // Formatar telefone para busca no GHL\n  if (telefone.length >= 10) {\n    // Detectar se é ID de grupo GHL (começa com 120363... e tem mais de 13 dígitos)\n    // ou se é um telefone brasileiro normal\n    const isGHLGroupId = telefone.startsWith('120363') || telefone.length > 13;\n    \n    if (isGHLGroupId) {\n      // IDs de grupo do GHL: apenas adicionar +\n      telefoneFormatado = '+' + telefone;\n    } else {\n      // Telefones brasileiros: adicionar +55\n      // Remove o 0 do DDD se existir (ex: 011 -> 11)\n      const telefoneLimpo = telefone.startsWith('0') ? telefone.substring(1) : telefone;\n      telefoneFormatado = '+55' + telefoneLimpo;\n    }\n  }\n}\nif (partes.length >= 4) locationId = (partes[3] || '').trim();\n\n// Nome limpo (sem emoji, para usar no rename)\nconst nomeLimpo = nomeClean;\n\nconst temNome = nome.length > 0;\nconst temTelefone = telefone.length >= 10;\nconst dadosCompletos = temNome && temTelefone;\n\n// Notificacao necessaria se tem prefixo mas dados incompletos\nconst notificacaoNecessaria = prefixoEncontrado !== null && !dadosCompletos;\n\nconst resultado = {\n  arquivo: {\n    id: arquivo.id,\n    nome: nomeArquivo,\n    nomeLimpo: nomeLimpo,\n    mimeType: arquivo.mimeType,\n    createdTime: arquivo.createdTime,\n    webViewLink: arquivo.webViewLink\n  },\n  classificacao: {\n    prefixo: prefixoEncontrado,\n    tipo: configDestino.tipo,\n    pastaDestino: configDestino.pasta,\n    pastaDestinoId: pastasIds[configDestino.pasta],\n    reconhecido: prefixoEncontrado !== null\n  },\n  dadosExtraidos: {\n    nome: nome,\n    telefone: telefone,\n    telefoneFormatado: telefoneFormatado,\n    locationId: locationId || 'cd1uyzpJox6XPt4Vct8Y',\n    temNome: temNome,\n    temTelefone: temTelefone,\n    dadosCompletos: dadosCompletos\n  },\n  notificacao: {\n    necessaria: notificacaoNecessaria,\n    contactId: config.notificacaoContactId,\n    mensagem: notificacaoNecessaria\n      ? `Arquivo com dados incompletos: ${nomeArquivo}. Falta: ${!temNome ? 'Nome' : ''} ${!temTelefone ? 'Telefone' : ''}. Movido para /${configDestino.pasta}/`\n      : null\n  }\n};\n\nreturn [{ json: resultado }];"
+        "jsCode": "// IDs das pastas de destino\nconst pastasIds = {\n  '1. Vendas': '1yr256LwbLKJZ5HzHgC7Zq25MrSOKTQEs',\n  '2. Onboarding': '1JS87Zs1bRSiNKjqVPTZ3GkfCvMnUj8PO',\n  '3. Revisao': '1psAln8h2Il5ic6U8Nv8UhRWt6RNbnmyQ',\n  '4. Suporte': '15Q6LzE0Mujxj-Q8lqNjx8rmRjVyUx0Kw',\n  '5. Churn': '1G56zGj8N6mhdS7nZH77mtK15wGDFV8kk',\n  '6. Outros': '1Z0Zdo05XxtBhIe8mwUUkgGsld3PanHKU'\n};\n\nconst config = {\n  prefixos: {\n    'DIAGNOSTICO': { pasta: '1. Vendas', tipo: 'diagnostico' },\n    'DIAG_': { pasta: '1. Vendas', tipo: 'diagnostico' },\n    'KICKOFF': { pasta: '2. Onboarding', tipo: 'kickoff' },\n    'KICK_': { pasta: '2. Onboarding', tipo: 'kickoff' },\n    'ACOMPANHAMENTO': { pasta: '3. Revisao', tipo: 'acompanhamento' },\n    'ACOMP_': { pasta: '3. Revisao', tipo: 'acompanhamento' },\n    'REVISAO': { pasta: '3. Revisao', tipo: 'revisao' },\n    'REV_': { pasta: '3. Revisao', tipo: 'revisao' },\n    'ALINHAMENTO': { pasta: '3. Revisao', tipo: 'alinhamento' },\n    'ALINH_': { pasta: '3. Revisao', tipo: 'alinhamento' },\n    'SUPORTE': { pasta: '4. Suporte', tipo: 'suporte' },\n    'SUP_': { pasta: '4. Suporte', tipo: 'suporte' },\n    'CHURN': { pasta: '5. Churn', tipo: 'churn' },\n    'CHURN_': { pasta: '5. Churn', tipo: 'churn' }\n  },\n  fallback: { pasta: '6. Outros', tipo: 'outro' },\n  notificacaoContactId: 'Ql1qBRN8GTemuG0BlM0F',\n  defaultLocationId: 'cd1uyzpJox6XPt4Vct8Y'\n};\n\nconst arquivo = $input.first().json;\nconst nomeArquivo = arquivo.name || '';\n\n// Remover emojis do nome para processamento\nconst nomeClean = nomeArquivo.replace(/[\\u{1F300}-\\u{1F9FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]/gu, '').trim();\nconst nomeUpper = nomeClean.toUpperCase();\n\n// Identificar prefixo\nlet prefixoEncontrado = null;\nlet configDestino = config.fallback;\n\nfor (const [prefixo, cfg] of Object.entries(config.prefixos)) {\n  if (nomeUpper.startsWith(prefixo) || nomeUpper.includes(' ' + prefixo + ' ') || nomeUpper.includes(prefixo + ' ')) {\n    prefixoEncontrado = prefixo.replace('_', '');\n    configDestino = cfg;\n    break;\n  }\n}\n\n// Extrair partes do nome separadas por ' - '\nlet partes = nomeClean.split(' - ').map(p => p.trim());\n\n// NOVO PARSER: Identificar campos por PADRAO ao inves de posicao fixa\n// Padroes:\n// - Telefone: comeca com + seguido de numeros OU so numeros com 10+ digitos\n// - LocationId: alfanumerico com ~20 chars (ex: cd1uyzpJox6XPt4Vct8Y)\n// - Data: formato yyyy-MM-dd ou dd-MM-yyyy\n// - Numero sequencial: apenas digitos com 1-4 chars\n// - Tipo: palavras-chave conhecidas (Diagnostico, Kickoff, etc)\n// - Nome: o resto\n\nconst isPhone = (s) => /^\\+?\\d{10,}$/.test(s.replace(/[^0-9+]/g, '')) || s.startsWith('+');\nconst isLocationId = (s) => /^[a-zA-Z0-9]{15,25}$/.test(s) && /[a-zA-Z]/.test(s) && !/^\\+/.test(s);\nconst isDate = (s) => /\\d{4}-\\d{2}-\\d{2}/.test(s) || /\\d{2}-\\d{2}-\\d{4}/.test(s);\nconst isSequentialNumber = (s) => /^\\d{1,4}$/.test(s);\nconst isTipo = (s) => Object.keys(config.prefixos).some(p => s.toUpperCase().includes(p.replace('_', '')));\nconst isCopia = (s) => s.toLowerCase().startsWith('copia de') || s.toLowerCase().startsWith('cópia de');\n\nlet nome = '';\nlet telefone = '';\nlet telefoneFormatado = '';\nlet locationId = '';\nlet partesNome = [];\n\nfor (const parte of partes) {\n  if (isSequentialNumber(parte)) continue; // Ignora numero sequencial\n  if (isCopia(parte)) continue; // Ignora 'Copia de'\n  if (isDate(parte)) continue; // Ignora datas\n  if (isTipo(parte) && !nome) continue; // Ignora tipo se ainda nao achou nome\n  \n  if (isPhone(parte) && !telefone) {\n    telefone = parte.replace(/[^0-9]/g, '');\n  } else if (isLocationId(parte) && !locationId) {\n    locationId = parte;\n  } else if (!isTipo(parte) && !isSequentialNumber(parte)) {\n    // E provavelmente parte do nome\n    partesNome.push(parte);\n  }\n}\n\n// Juntar partes do nome (pode ter sido dividido)\nnome = partesNome.join(' ').trim();\n\n// Formatar telefone para busca no GHL\nif (telefone.length >= 10) {\n  const isGHLGroupId = telefone.startsWith('120363') || telefone.length > 13;\n  if (isGHLGroupId) {\n    telefoneFormatado = '+' + telefone;\n  } else {\n    const telefoneLimpo = telefone.startsWith('0') ? telefone.substring(1) : telefone;\n    telefoneFormatado = '+55' + telefoneLimpo;\n  }\n}\n\n// Usar locationId padrao se nao encontrou\nif (!locationId) locationId = config.defaultLocationId;\n\nconst nomeLimpo = nomeClean;\nconst temNome = nome.length > 0;\nconst temTelefone = telefone.length >= 10;\nconst dadosCompletos = temNome && temTelefone;\n\nconst notificacaoNecessaria = prefixoEncontrado !== null && !dadosCompletos;\n\nconst resultado = {\n  arquivo: {\n    id: arquivo.id,\n    nome: nomeArquivo,\n    nomeLimpo: nomeLimpo,\n    mimeType: arquivo.mimeType,\n    createdTime: arquivo.createdTime,\n    webViewLink: arquivo.webViewLink\n  },\n  classificacao: {\n    prefixo: prefixoEncontrado,\n    tipo: configDestino.tipo,\n    pastaDestino: configDestino.pasta,\n    pastaDestinoId: pastasIds[configDestino.pasta],\n    reconhecido: prefixoEncontrado !== null\n  },\n  dadosExtraidos: {\n    nome: nome,\n    telefone: telefone,\n    telefoneFormatado: telefoneFormatado,\n    locationId: locationId,\n    temNome: temNome,\n    temTelefone: temTelefone,\n    dadosCompletos: dadosCompletos\n  },\n  notificacao: {\n    necessaria: notificacaoNecessaria,\n    contactId: config.notificacaoContactId,\n    mensagem: notificacaoNecessaria\n      ? `Arquivo com dados incompletos: ${nomeArquivo}. Falta: ${!temNome ? 'Nome' : ''} ${!temTelefone ? 'Telefone' : ''}. Movido para /${configDestino.pasta}/`\n      : null\n  }\n};\n\nreturn [{ json: resultado }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1696,
-        256
+        5056,
+        384
       ],
-      "id": "265dba82-88b5-4e7e-84ad-af556cd4e8b6",
+      "id": "ba5145b8-c32a-473a-95ec-5372c3f5b20f",
       "name": "Classificar Arquivo por Prefixo"
     },
     {
@@ -98,10 +98,10 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2416,
-        256
+        5728,
+        384
       ],
-      "id": "289af7da-95fc-418b-8354-4fdbe869744e",
+      "id": "5e63baf1-414e-4029-a8de-aa4a0393f6eb",
       "name": "Renomear Arquivo",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -132,10 +132,10 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2656,
-        256
+        5952,
+        384
       ],
-      "id": "7a4e256a-9f8e-4664-a18e-6c3770d3426a",
+      "id": "1ff1dc5e-c0c9-4724-a1d4-e7f9fbf56464",
       "name": "Mover para Subpasta",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -146,15 +146,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pegar dados do contato GHL (se API funcionou) ou fallback para dados extraídos do arquivo\nconst contatoGHL = $('Buscar Contato GHL').first()?.json?.contacts?.[0];\nconst dadosArquivo = $('Classificar Arquivo por Prefixo').item.json.dadosExtraidos;\nconst arquivoInfo = $('Renomear Arquivo').item.json;\nconst classificacao = $('Classificar Arquivo por Prefixo').item.json.classificacao;\n\n// Priorizar dados do GHL, mas usar fallback do arquivo se GHL falhar\nconst contactName = contatoGHL?.fullNameLowerCase || contatoGHL?.name || dadosArquivo.nome || null;\nconst contactPhone = contatoGHL?.phone || dadosArquivo.telefoneFormatado || dadosArquivo.telefone || null;\nconst contactId = contatoGHL?.id || null;\nconst locationId = dadosArquivo.locationId || 'cd1uyzpJox6XPt4Vct8Y';\nconst apiKey = 'pit-fe627027-b9cb-4ea3-aaa4-149459e66a03';\n\nreturn [{\n  json: {\n    tipo: classificacao.tipo,\n    titulo: arquivoInfo.name,\n    gdrive_file_id: $('Classificar Arquivo por Prefixo').item.json.arquivo.id,\n    gdrive_url: 'https://drive.google.com/file/d/' + $('Classificar Arquivo por Prefixo').item.json.arquivo.id + '/view',\n    contact_id: contactId,\n    location_id: locationId,\n    contact_name: contactName,\n    contact_phone: contactPhone,\n    api_key: apiKey,\n    status: 'movido'\n  }\n}];"
+        "jsCode": "// Pegar dados do contato GHL (se API funcionou) ou fallback para dados extraídos do arquivo\nconst contatoGHL = $('Buscar Contato GHL').first()?.json?.contacts?.[0];\nconst dadosArquivo = $('Classificar Arquivo por Prefixo').item.json.dadosExtraidos;\nconst arquivoInfo = $('Renomear Arquivo').item.json;\nconst classificacao = $('Classificar Arquivo por Prefixo').item.json.classificacao;\n\n// Priorizar dados do GHL, mas usar fallback do arquivo se GHL falhar\nconst contactName = contatoGHL?.fullNameLowerCase || contatoGHL?.name || dadosArquivo.nome || null;\nconst contactPhone = contatoGHL?.phone || dadosArquivo.telefoneFormatado || dadosArquivo.telefone || null;\nconst contactId = contatoGHL?.id || null;\nconst locationId = dadosArquivo.locationId || 'cd1uyzpJox6XPt4Vct8Y';\nconst apiKey = 'pit-99a302ca-7292-4872-8a9f-f4cf3dc1143f';\n\nreturn [{\n  json: {\n    tipo: classificacao.tipo,\n    titulo: arquivoInfo.name,\n    gdrive_file_id: $('Classificar Arquivo por Prefixo').item.json.arquivo.id,\n    gdrive_url: 'https://drive.google.com/file/d/' + $('Classificar Arquivo por Prefixo').item.json.arquivo.id + '/view',\n    contact_id: contactId,\n    location_id: locationId,\n    contact_name: contactName,\n    contact_phone: contactPhone,\n    api_key: apiKey,\n    status: 'movido'\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2656,
-        360
+        6176,
+        384
       ],
-      "id": "prep-dados-call-123",
+      "id": "6da2d503-97e2-4ea3-a70f-01f58b282786",
       "name": "Preparar Dados Call"
     },
     {
@@ -166,10 +166,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2896,
-        256
+        6400,
+        384
       ],
-      "id": "0fc938c6-f768-4b1e-8ed0-d565923f27a3",
+      "id": "fc2481ee-72b3-4aa2-ab98-6a1e722570ac",
       "name": "Registrar Call no Supabase",
       "credentials": {
         "postgres": {
@@ -184,7 +184,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 2
           },
           "conditions": [
             {
@@ -204,10 +205,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3136,
-        256
+        6624,
+        384
       ],
-      "id": "ddf324c0-204f-48a4-8149-82f36c7a0d83",
+      "id": "895d7f6d-7b4f-4a9c-b83a-469b2096c9d1",
       "name": "Dados Incompletos?"
     },
     {
@@ -219,7 +220,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+              "value": "Bearer pit-99a302ca-7292-4872-8a9f-f4cf3dc1143f"
             },
             {
               "name": "Version",
@@ -239,10 +240,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3376,
-        352
+        6848,
+        480
       ],
-      "id": "fcc8a946-4adb-4d16-94c4-f0a4194616a3",
+      "id": "60b747cc-8c97-4fe7-b42a-820c7e7e8087",
       "name": "Notificar CS via WhatsApp"
     },
     {
@@ -250,10 +251,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3376,
-        144
+        6848,
+        288
       ],
-      "id": "fc45fc26-6e00-47d1-ab90-db55e29fa600",
+      "id": "e09dfdaa-d5d2-4821-9960-aa9e17243652",
       "name": "Fim OK"
     },
     {
@@ -281,7 +282,7 @@
           "parameter": [
             {
               "name": "Authorization",
-              "value": "=Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+              "value": "=Bearer pit-99a302ca-7292-4872-8a9f-f4cf3dc1143f"
             },
             {
               "name": "Version",
@@ -294,10 +295,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 2,
       "position": [
-        1952,
-        288
+        5280,
+        384
       ],
-      "id": "e22a780f-edc5-48ea-8d40-e5ae0541fc66",
+      "id": "d1ba76e0-5e59-46eb-982b-d08c3d69648c",
       "retryOnFail": true,
       "waitBetweenTries": 3000,
       "notes": "Busca contato por TELEFONE se não encontrou por email"
@@ -311,10 +312,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2176,
-        256
+        5504,
+        384
       ],
-      "id": "a0d0aeb2-7240-449d-b100-ccf6f49a9747",
+      "id": "ccd3586b-e93b-4f28-8e6a-4973d57b20c1",
       "name": "Buscar Próximo Número",
       "credentials": {
         "postgres": {
@@ -329,16 +330,16 @@
       {
         "json": {
           "exportLinks": {
-            "application/rtf": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=rtf",
-            "application/vnd.oasis.opendocument.text": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=odt",
-            "text/html": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=html",
-            "application/pdf": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=pdf",
-            "text/x-markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=markdown",
-            "text/markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=markdown",
-            "application/epub+zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=epub",
-            "application/zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=zip",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=docx",
-            "text/plain": "https://docs.google.com/feeds/download/documents/export/Export?id=1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs&exportFormat=txt"
+            "application/rtf": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=rtf",
+            "application/vnd.oasis.opendocument.text": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=odt",
+            "text/html": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=html",
+            "application/pdf": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=pdf",
+            "text/x-markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=markdown",
+            "text/markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=markdown",
+            "application/epub+zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=epub",
+            "application/zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=zip",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=docx",
+            "text/plain": "https://docs.google.com/feeds/download/documents/export/Export?id=1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ&exportFormat=txt"
           },
           "parents": [
             "1WTJrbMl8HLppIHIeHT94Qsbog9XpxOx2"
@@ -442,31 +443,31 @@
             }
           },
           "kind": "drive#file",
-          "id": "1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs",
-          "name": "⏳ Alinhamento - Gabriela Rossmam - (66) 99621-7962 - cd1uyzpJox6XPt4Vct8Y",
+          "id": "1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ",
+          "name": "Cópia de 14 - Diagnostico -  Dr Luiz e Mariana Carvalho Giareta  - +120363406157741216 - cd1uyzpJox6XPt4Vct8Y - 2025-12-17_11-40 - 2025-12-19_08-04",
           "mimeType": "application/vnd.google-apps.document",
           "starred": false,
           "trashed": false,
           "explicitlyTrashed": false,
-          "version": "4",
-          "webViewLink": "https://docs.google.com/document/d/1iRhqcsaAjNhU0SkTtsrr6Sls8MDgHg7jTVBtGDqLNZs/edit?usp=drivesdk",
+          "version": "5",
+          "webViewLink": "https://docs.google.com/document/d/1CTJRRR_zFWlvFkGi6Qd73gyoXfhxayJmbYlYkN91YjQ/edit?usp=drivesdk",
           "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
           "hasThumbnail": true,
-          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPPNAiG1PmzNMVQL3v2xgtTS9wY-JVB3MW4L0XlKq4R1olIWWpTYx6jgBczhxDC2gDKHCF1Cvp7g5yloAYS7tRbpvhZFyTw_JZuiGYdikIhJ0ug9QKyihRo3MYe5g=s220",
+          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBNn-il62Ja8LLkDdnz3MiYySJu15BJEJcMIuaJ6zEDw9QKqPMhWfsLWDNxYPzecNBo-D29vEAaqsYbCQG79Bj54Ed5X94UDudliNojLyudTv1Vxtc3bXTgsDNHifg=s220",
           "thumbnailVersion": "1",
           "viewedByMe": true,
-          "viewedByMeTime": "2025-12-17T14:09:10.869Z",
-          "createdTime": "2025-12-17T14:09:08.324Z",
-          "modifiedTime": "2025-12-17T14:09:08.325Z",
-          "modifiedByMeTime": "2025-12-17T14:09:08.325Z",
+          "viewedByMeTime": "2026-01-01T20:37:25.427Z",
+          "createdTime": "2026-01-01T20:37:23.579Z",
+          "modifiedTime": "2026-01-01T20:37:23.579Z",
+          "modifiedByMeTime": "2026-01-01T20:37:23.579Z",
           "modifiedByMe": true,
           "shared": true,
           "ownedByMe": true,
           "viewersCanCopyContent": true,
           "copyRequiresWriterPermission": false,
           "writersCanShare": true,
-          "size": "33642",
-          "quotaBytesUsed": "33642",
+          "size": "42726",
+          "quotaBytesUsed": "42726",
           "isAppAuthorized": false,
           "inheritedPermissionsDisabled": false
         },
@@ -588,11 +589,18 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "6df420e9-19a3-42db-aa7d-2120de9ccd79",
+  "versionId": "25b03315-9572-4677-a188-da59ae479605",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
   },
   "id": "Gzkzaav9Yyx8kmpU",
-  "tags": []
+  "tags": [
+    {
+      "updatedAt": "2025-12-18T12:58:38.555Z",
+      "createdAt": "2025-12-18T12:58:38.555Z",
+      "id": "QPdL3PFQliP97uve",
+      "name": "ai factory - vertical"
+    }
+  ]
 }

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Exclusiva - Flavia Leal Beauty School</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #c9a227 0%, #d4af37 50%, #f4d03f 100%);
+            color: #1a1a2e;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff 0%, #c9a227 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 300;
+        }
+
+        .client-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #d4af37;
+            margin-top: 15px;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-title .icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #c9a227 0%, #d4af37 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .phase {
+            background: rgba(255,255,255,0.03);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #d4af37;
+        }
+
+        .phase:last-child {
+            margin-bottom: 0;
+        }
+
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .phase-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #d4af37;
+        }
+
+        .phase-time {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .deliverables {
+            list-style: none;
+        }
+
+        .deliverables li {
+            padding: 10px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .deliverables li:last-child {
+            border-bottom: none;
+        }
+
+        .check {
+            color: #4ade80;
+            font-size: 18px;
+            margin-top: 2px;
+        }
+
+        .highlight {
+            color: #d4af37;
+            font-weight: 500;
+        }
+
+        .note {
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+            font-style: italic;
+        }
+
+        .bonus-section {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .bonus-item {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .bonus-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .bonus-icon {
+            font-size: 30px;
+        }
+
+        .bonus-content h4 {
+            color: #d4af37;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .bonus-content p {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .investment-section {
+            text-align: center;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.05) 100%);
+            border: 2px solid rgba(212, 175, 55, 0.4);
+        }
+
+        .investment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .investment-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .investment-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .investment-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: #d4af37;
+        }
+
+        .investment-note {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+        }
+
+        .cta-section {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .cta-text {
+            font-size: 20px;
+            margin-bottom: 25px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #c9a227 0%, #d4af37 50%, #f4d03f 100%);
+            color: #1a1a2e;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(212, 175, 55, 0.4);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .footer-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .footer-text {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+        }
+
+        .simple-focus {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .simple-focus-icon {
+            font-size: 24px;
+        }
+
+        .simple-focus-text {
+            color: #4ade80;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 32px;
+            }
+
+            .investment-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="badge">Proposta Exclusiva</div>
+            <h1 class="title">Automacao Inteligente</h1>
+            <p class="subtitle">Sistema completo de atendimento, vendas e prospecao com IA</p>
+            <p class="client-name">Flavia Leal Beauty School</p>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title">
+                <span class="icon">📋</span>
+                Entregaveis por Fase
+            </h2>
+
+            <div class="phase">
+                <div class="phase-header">
+                    <span class="phase-title">Fase 1 - Fundacao</span>
+                    <span class="phase-time">15 dias</span>
+                </div>
+                <ul class="deliverables">
+                    <li>
+                        <span class="check">✓</span>
+                        <span>CRM Socialfy <span class="highlight">100% configurado</span> com funis separados por produto</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Agente IA de pre-vendas no WhatsApp - <span class="highlight">atendimento 24/7</span></span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span><span class="highlight">Pagina de compra SIMPLES</span> - o que aprende + custo + data + botao de compra</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Dashboard com metricas principais (leads, conversoes, faturamento)</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Qualificacao automatica de leads com resumo para vendedoras</span>
+                    </li>
+                </ul>
+                <div class="simple-focus">
+                    <span class="simple-focus-icon">🎯</span>
+                    <span class="simple-focus-text">Foco em SIMPLICIDADE: Cliente entra pra fechar, nao pra analisar proposta</span>
+                </div>
+            </div>
+
+            <div class="phase">
+                <div class="phase-header">
+                    <span class="phase-title">Fase 2 - Otimizacao</span>
+                    <span class="phase-time">30 dias</span>
+                </div>
+                <ul class="deliverables">
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Agente IA de <span class="highlight">follow-up automatico</span></span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span><span class="highlight">Reativacao da base de leads antigos</span> - promocoes exclusivas</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Integracao com calendario - agendamentos automaticos</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Treinamento completo da equipe (Fabi e time)</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="phase">
+                <div class="phase-header">
+                    <span class="phase-title">Fase 3 - Escala</span>
+                    <span class="phase-time">45-60 dias</span>
+                </div>
+                <ul class="deliverables">
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Sistema de prospeccao ativa: <span class="highlight">50 leads/dia</span> <span class="note">(com potencial de escalar para 200 conforme otimizamos)</span></span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Automacao de pos-venda - engajamento de alunos</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Relatorios semanais automaticos</span>
+                    </li>
+                    <li>
+                        <span class="check">✓</span>
+                        <span>Otimizacoes continuas baseadas em dados</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section bonus-section">
+            <h2 class="section-title">
+                <span class="icon">🎁</span>
+                Bonus Exclusivos
+            </h2>
+
+            <div class="bonus-item">
+                <span class="bonus-icon">🚀</span>
+                <div class="bonus-content">
+                    <h4>Acesso a Plataforma de Mentoria</h4>
+                    <p>A mesma plataforma usada pelos big players do mercado. Perfeita para quando quiserem estruturar cursos online ou o projeto de expansao para o Brasil.</p>
+                </div>
+            </div>
+
+            <div class="bonus-item">
+                <span class="bonus-icon">📊</span>
+                <div class="bonus-content">
+                    <h4>Consultoria Estrategica - 6 Fontes de Renda</h4>
+                    <p>Ajuda para estruturar as "escadas solidas" de cada produto: licenciamento, especializacao, produtos, visto I20, guia da beleza. Cada plataforma construida para amortecer quedas.</p>
+                </div>
+            </div>
+
+            <div class="bonus-item">
+                <span class="bonus-icon">🤝</span>
+                <div class="bonus-content">
+                    <h4>Conexao com Operacao de Pre-Vendas Brasil</h4>
+                    <p>Possibilidade futura de conectar com nosso socio para operacao de vendas no Brasil vendendo para os Estados Unidos.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section investment-section">
+            <h2 class="section-title" style="justify-content: center;">
+                <span class="icon">💎</span>
+                Investimento
+            </h2>
+
+            <div class="investment-grid">
+                <div class="investment-card">
+                    <div class="investment-label">Setup (Implementacao)</div>
+                    <div class="investment-value">$4,997</div>
+                    <div class="investment-note">ou 3x de $1,800</div>
+                </div>
+                <div class="investment-card">
+                    <div class="investment-label">Mensalidade</div>
+                    <div class="investment-value">$1,497</div>
+                    <div class="investment-note">manutencao + IA + suporte</div>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <p class="cta-text">Esse investimento se paga no primeiro mes<br>com 2-3 matriculas adicionais</p>
+                <a href="#" class="cta-button">Vamos Comecar</a>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-logo">MOTTIVME</div>
+            <p class="footer-text">Transformando negocios atraves de automacao inteligente</p>
+        </footer>
+    </div>
+</body>
+</html>

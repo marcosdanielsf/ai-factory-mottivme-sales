@@ -1,5 +1,5 @@
 {
-  "name": "Reflection Loop",
+  "name": "11. Reflection Loop",
   "nodes": [
     {
       "parameters": {
@@ -14,8 +14,11 @@
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [400, 300],
-      "id": "schedule-trigger",
+      "position": [
+        10928,
+        1616
+      ],
+      "id": "8da4128e-25e2-4e97-92d2-de4c12dc73d6",
       "name": "Schedule - A cada 6 horas"
     },
     {
@@ -26,8 +29,11 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [640, 300],
-      "id": "buscar-agentes-ativos",
+      "position": [
+        11168,
+        1616
+      ],
+      "id": "2da5d13a-454a-476d-b1f7-1dad6b9985f6",
       "name": "Buscar Agentes Ativos",
       "credentials": {
         "postgres": {
@@ -63,27 +69,35 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [880, 300],
-      "id": "tem-agentes",
+      "position": [
+        11408,
+        1616
+      ],
+      "id": "cf406263-0f05-404d-9703-f10d879c44be",
       "name": "Tem Agentes Ativos?"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [880, 500],
-      "id": "nenhum-agente",
+      "position": [
+        11408,
+        1824
+      ],
+      "id": "437d9cb9-58f5-452c-b458-ed5351fbf705",
       "name": "Nenhum Agente Ativo"
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [1120, 300],
-      "id": "loop-agentes",
+      "position": [
+        11648,
+        1616
+      ],
+      "id": "e6b840b8-28ba-4995-bfe0-50594e880a4e",
       "name": "Loop - Processar Agentes"
     },
     {
@@ -94,8 +108,11 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1360, 300],
-      "id": "verificar-permissao",
+      "position": [
+        11888,
+        1616
+      ],
+      "id": "28512e58-097f-46bb-8448-5bd042188e27",
       "name": "Verificar Permissao Reflection",
       "credentials": {
         "postgres": {
@@ -130,16 +147,22 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1600, 300],
-      "id": "pode-executar",
+      "position": [
+        12128,
+        1616
+      ],
+      "id": "af55e8a7-28e9-4d54-a727-218ceb3b06d0",
       "name": "Pode Executar Reflection?"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1600, 500],
-      "id": "pular-agente",
+      "position": [
+        12128,
+        1824
+      ],
+      "id": "71ac12ce-f427-42f6-891e-955225d6bc99",
       "name": "Pular Agente (Cooldown)"
     },
     {
@@ -150,8 +173,11 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1840, 300],
-      "id": "buscar-conversas-recentes",
+      "position": [
+        12368,
+        1616
+      ],
+      "id": "54fd44f1-89ac-4443-93ae-a0810575147e",
       "name": "Buscar Conversas Recentes (24h)",
       "credentials": {
         "postgres": {
@@ -187,16 +213,22 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2080, 300],
-      "id": "tem-conversas-qa",
+      "position": [
+        12608,
+        1616
+      ],
+      "id": "f188eb34-40a8-49ca-8957-cf962826a80c",
       "name": "Tem Conversas Analisadas?"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2080, 500],
-      "id": "sem-conversas-qa",
+      "position": [
+        12608,
+        1824
+      ],
+      "id": "b1a37b93-fe59-4111-8abb-bf768f58e9b4",
       "name": "Sem Conversas para Reflection"
     },
     {
@@ -205,8 +237,11 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2320, 300],
-      "id": "preparar-dados-reflection",
+      "position": [
+        12848,
+        1616
+      ],
+      "id": "5565101f-c301-41a0-a3d9-1cefe0f0be38",
       "name": "Preparar Dados para Reflection"
     },
     {
@@ -217,8 +252,11 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2560, 300],
-      "id": "buscar-mensagens-conversas",
+      "position": [
+        13088,
+        1616
+      ],
+      "id": "9ef6b5d1-0712-4cbc-8cc6-6c8a87394ea3",
       "name": "Buscar Mensagens das Conversas",
       "credentials": {
         "postgres": {
@@ -233,52 +271,38 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2800, 300],
-      "id": "consolidar-mensagens",
+      "position": [
+        13328,
+        1616
+      ],
+      "id": "d6b5ddfa-08d8-438e-96f3-bbab2da6126a",
       "name": "Consolidar Mensagens"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=## ANALISE DE REFLECTION DO AGENTE\n\n**Agente:** {{ $json.agente.nome }}\n**Cliente:** {{ $json.agente.cliente }}\n**Versao Atual:** {{ $json.agente.versao }}\n\n---\n\n## ESTATISTICAS (ULTIMAS 24H)\n\n- Total de conversas: {{ $json.estatisticas.total_conversas }}\n- Media QA Score: {{ $json.estatisticas.media_qa_score }}/10\n- Conversas agendadas: {{ $json.estatisticas.conversas_agendadas }}\n- Conversas perdidas: {{ $json.estatisticas.conversas_perdidas }}\n- Taxa de conversao: {{ $json.estatisticas.taxa_conversao }}\n\n---\n\n## DISTRIBUICAO DE MENSAGENS\n\n- Total de mensagens analisadas: {{ $json.mensagens.total }}\n- Mensagens em conversas agendadas (scheduled): {{ $json.mensagens.por_outcome.scheduled }}\n- Mensagens em conversas perdidas (lost): {{ $json.mensagens.por_outcome.lost }}\n- Mensagens em conversas aquecidas (warmed): {{ $json.mensagens.por_outcome.warmed }}\n- Mensagens em andamento (in_progress): {{ $json.mensagens.por_outcome.in_progress }}\n\n---\n\n## AMOSTRA DE CONVERSAS\n\n{{ $json.amostra_conversas }}\n\n---\n\n## SYSTEM PROMPT ATUAL (RESUMO)\n\n{{ ($json.system_prompt_atual || '').substring(0, 2000) }}\n\n---\n\nAnalise as conversas conforme os 5 criterios especificados e retorne o JSON de reflection.",
-        "options": {
-          "systemMessage": "Voce e o REFLECTION ANALYST - um especialista em analise de performance de agentes de IA SDR.\n\nSua funcao e AVALIAR o desempenho geral do agente baseado nas conversas recentes e DECIDIR se o prompt precisa de melhorias.\n\n## OS 5 CRITERIOS DE AVALIACAO (RUBRICA)\n\n### 1. COMPLETUDE (20%)\n\nO que avaliar:\n- O agente fornece todas as informacoes necessarias?\n- Responde todas as perguntas do lead?\n- Cobre todos os pontos importantes do processo de vendas?\n- Deixa informacoes faltando?\n\nCriterios:\n- 5.0: Informacao completa, nada faltando\n- 4.0: Quase completo, pequenas omissoes\n- 3.0: Informacao moderadamente completa\n- 2.0: Falta informacao importante\n- 1.0: Muito incompleto\n\n### 2. PROFUNDIDADE (25%)\n\nO que avaliar:\n- Respostas sao superficiais ou aprofundadas?\n- Explica conceitos de forma clara?\n- Adapta nivel de detalhe ao lead?\n- Usa exemplos quando apropriado?\n\nCriterios:\n- 5.0: Respostas profundas e bem elaboradas\n- 4.0: Bom nivel de detalhe\n- 3.0: Respostas adequadas mas poderiam ser melhores\n- 2.0: Respostas superficiais\n- 1.0: Muito raso, sem substancia\n\n### 3. TOM/PERSONALIDADE (15%)\n\nO que avaliar:\n- Tom consistente ao longo das conversas?\n- Personalidade alinhada com a marca?\n- Equilibrio entre profissional e amigavel?\n- Adapta comunicacao ao perfil do lead?\n\nCriterios:\n- 5.0: Tom perfeito, personalidade marcante\n- 4.0: Tom consistente, pequenas variacoes\n- 3.0: Tom adequado na maioria\n- 2.0: Tom inconsistente ou inadequado\n- 1.0: Tom completamente errado\n\n### 4. ESCOPO/RELEVANCIA (20%)\n\nO que avaliar:\n- Respostas sao relevantes as perguntas?\n- Mantem foco no objetivo (agendamento)?\n- Evita informacoes desnecessarias?\n- Sabe quando escalar?\n\nCriterios:\n- 5.0: Sempre relevante e focado\n- 4.0: Quase sempre no escopo\n- 3.0: As vezes se desvia do tema\n- 2.0: Frequentemente fora do escopo\n- 1.0: Respostas irrelevantes\n\n### 5. OPORTUNIDADES PERDIDAS (20%)\n\nO que avaliar:\n- Perdeu chances de avancar a conversa?\n- Deixou passar gatilhos de fechamento?\n- Ignorou sinais de interesse?\n- Poderia ter feito melhor em momentos chave?\n\nCriterios:\n- 5.0: Aproveitou todas as oportunidades\n- 4.0: Perdeu poucas oportunidades\n- 3.0: Algumas oportunidades perdidas\n- 2.0: Muitas oportunidades perdidas\n- 1.0: Perdeu quase todas as chances\n\n## DECISION FRAMEWORK\n\nBaseado no score medio ponderado:\n- >= 4.0: action = 'none' (prompt esta otimo)\n- 3.0 - 3.9: action = 'suggestion' (sugerir melhorias para revisao humana)\n- 2.0 - 2.9: action = 'auto_update' (aplicar melhorias automaticamente)\n- < 2.0: action = 'escalate' (escalar para humano urgente)\n\n## OUTPUT OBRIGATORIO (JSON)\n\n```json\n{\n  \"reflection_id\": \"uuid gerado\",\n  \"timestamp\": \"ISO 8601\",\n  \"agente\": {\n    \"id\": \"id do agente\",\n    \"nome\": \"nome do agente\",\n    \"cliente\": \"nome do cliente\",\n    \"versao\": \"versao atual\"\n  },\n  \"criterios\": {\n    \"completude\": {\n      \"score\": 1-5,\n      \"peso\": 0.20,\n      \"justificativa\": \"explicacao\",\n      \"exemplos\": [\"citacoes relevantes\"]\n    },\n    \"profundidade\": {\n      \"score\": 1-5,\n      \"peso\": 0.25,\n      \"justificativa\": \"explicacao\",\n      \"exemplos\": [\"citacoes relevantes\"]\n    },\n    \"tom_personalidade\": {\n      \"score\": 1-5,\n      \"peso\": 0.15,\n      \"justificativa\": \"explicacao\",\n      \"exemplos\": [\"citacoes relevantes\"]\n    },\n    \"escopo_relevancia\": {\n      \"score\": 1-5,\n      \"peso\": 0.20,\n      \"justificativa\": \"explicacao\",\n      \"exemplos\": [\"citacoes relevantes\"]\n    },\n    \"oportunidades_perdidas\": {\n      \"score\": 1-5,\n      \"peso\": 0.20,\n      \"justificativa\": \"explicacao\",\n      \"exemplos\": [\"oportunidades identificadas\"]\n    }\n  },\n  \"score_ponderado\": {\n    \"valor\": 1-5,\n    \"classificacao\": \"EXCELENTE|BOM|ADEQUADO|PRECISA_MELHORIA|CRITICO\"\n  },\n  \"action\": \"none|suggestion|auto_update|escalate\",\n  \"pontos_fortes\": [\n    \"lista do que o agente faz bem\"\n  ],\n  \"pontos_fracos\": [\n    \"lista do que precisa melhorar\"\n  ],\n  \"sugestoes_prompt\": [\n    {\n      \"tipo\": \"ADICIONAR|MODIFICAR|REMOVER|REFORCAR\",\n      \"secao\": \"qual parte do prompt\",\n      \"descricao\": \"mudanca sugerida\",\n      \"prioridade\": \"ALTA|MEDIA|BAIXA\",\n      \"impacto_esperado\": \"o que essa mudanca deve melhorar\"\n    }\n  ],\n  \"metricas_observadas\": {\n    \"taxa_conversao\": \"X%\",\n    \"media_qa_score\": \"X.X\",\n    \"total_conversas\": 0,\n    \"conversas_agendadas\": 0,\n    \"conversas_perdidas\": 0\n  },\n  \"resumo_executivo\": \"2-3 frases resumindo a analise e recomendacao\",\n  \"urgencia\": \"NENHUMA|BAIXA|MEDIA|ALTA|CRITICA\"\n}\n```\n\n## REGRAS\n\n1. Seja OBJETIVO - baseie notas em evidencias das conversas\n2. Considere o CONTEXTO - tipo de negocio, perfil do lead, etc\n3. Seja PRATICO - sugestoes devem ser acionaveis e especificas\n4. PRIORIZE - foque nas mudancas de maior impacto\n5. Retorne APENAS o JSON valido, sem markdown"
-        }
+        "text": "=## ANALISE DE REFLECTION DO AGENTE\n\n**Agente:** {{ $json.agente.nome }}\n**Cliente:** {{ $json.agente.cliente }}\n**Versao Atual:** {{ $json.agente.versao }}\n\n---\n\n## ESTATISTICAS (ULTIMAS 24H)\n\n- Total de conversas: {{ $json.estatisticas.total_conversas }}\n- Media QA Score: {{ $json.estatisticas.media_qa_score }}/10\n- Conversas agendadas: {{ $json.estatisticas.conversas_agendadas }}\n- Conversas perdidas: {{ $json.estatisticas.conversas_perdidas }}\n- Taxa de conversao: {{ $json.estatisticas.taxa_conversao }}\n\n---\n\n## DISTRIBUICAO DE MENSAGENS\n\n- Total de mensagens analisadas: {{ $json.mensagens.total }}\n- Mensagens em conversas agendadas (scheduled): {{ $json.mensagens.por_outcome.scheduled }}\n- Mensagens em conversas perdidas (lost): {{ $json.mensagens.por_outcome.lost }}\n- Mensagens em conversas aquecidas (warmed): {{ $json.mensagens.por_outcome.warmed }}\n- Mensagens em andamento (in_progress): {{ $json.mensagens.por_outcome.in_progress }}\n\n---\n\n## AMOSTRA DE CONVERSAS\n\n{{ $json.amostra_conversas }}\n\n---\n\n## SYSTEM PROMPT ATUAL (RESUMO)\n\n{{ ($json.system_prompt_atual || '').substring(0, 2000) }}\n\n---\n\nAnalise as conversas conforme os 5 criterios especificados e retorne o JSON de reflection."
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
-      "position": [3040, 300],
-      "id": "ai-reflection-analyst",
+      "position": [
+        13568,
+        1600
+      ],
+      "id": "5a9971d9-6118-40eb-86f8-750823ae8d50",
       "name": "AI - Reflection Analyst"
     },
     {
       "parameters": {
-        "model": "claude-sonnet-4-20250514",
-        "options": {
-          "temperature": 0.3,
-          "maxTokensToSample": 4000
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.2,
-      "position": [3112, 524],
-      "id": "anthropic-model",
-      "name": "Claude Sonnet",
-      "credentials": {
-        "anthropicApi": {
-          "id": "anthropic-api-key",
-          "name": "Anthropic API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Processar resposta da analise de reflection\nconst dadosReflection = $('Consolidar Mensagens').first().json;\nconst respostaIA = $input.first().json;\n\n// Funcoes de parse\nfunction cleanFences(s) {\n  if (typeof s !== 'string') s = String(s ?? '');\n  let r = s.trim();\n  r = r.replace(/^\\s*```[a-z]*\\s*/i, '');\n  r = r.replace(/\\s*```$/, '');\n  return r;\n}\n\nfunction findBalancedEnd(s, start) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = start; i < s.length; i++) {\n    const ch = s[i];\n    if (inStr) {\n      if (esc) { esc = false; }\n      else if (ch === '\\\\') { esc = true; }\n      else if (ch === '\"') { inStr = false; }\n    } else {\n      if (ch === '\"') inStr = true;\n      else if (ch === '{') depth++;\n      else if (ch === '}') { depth--; if (depth === 0) return i; }\n    }\n  }\n  return -1;\n}\n\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch {}\n  const raw = cleanFences(str);\n  try { return JSON.parse(raw); } catch {}\n  const start = raw.indexOf('{');\n  const end = start >= 0 ? findBalancedEnd(raw, start) : -1;\n  if (start >= 0 && end >= 0) {\n    const jsonStr = raw.slice(start, end + 1);\n    try { return JSON.parse(jsonStr); } catch {}\n  }\n  return null;\n}\n\n// Parse da resposta\nlet reflection;\nconst rawVal = respostaIA.text ?? respostaIA.response ?? respostaIA.output;\nconst outputStr = typeof rawVal === 'string' ? rawVal : String(rawVal ?? '');\nreflection = typeof rawVal === 'object' && rawVal ? rawVal : tryParse(outputStr);\n\nif (!reflection) {\n  return [{\n    json: {\n      agente: dadosReflection.agente,\n      erro_parse: true,\n      motivo: 'Resposta do Reflection Analyst incompleta ou JSON invalido.',\n      raw_snippet: cleanFences(outputStr).slice(0, 500)\n    }\n  }];\n}\n\n// Extrair scores dos criterios\nconst criterios = reflection.criterios || {};\nconst scoreCompletude = criterios.completude?.score || 0;\nconst scoreProfundidade = criterios.profundidade?.score || 0;\nconst scoreTom = criterios.tom_personalidade?.score || 0;\nconst scoreEscopo = criterios.escopo_relevancia?.score || 0;\nconst scoreOportunidades = criterios.oportunidades_perdidas?.score || 0;\n\n// Calcular score ponderado\nconst scorePonderado = (\n  (scoreCompletude * 0.20) +\n  (scoreProfundidade * 0.25) +\n  (scoreTom * 0.15) +\n  (scoreEscopo * 0.20) +\n  (scoreOportunidades * 0.20)\n);\n\n// Determinar action baseado no score\nlet action = 'none';\nlet classificacao = 'EXCELENTE';\n\nif (scorePonderado >= 4.0) {\n  action = 'none';\n  classificacao = 'EXCELENTE';\n} else if (scorePonderado >= 3.0) {\n  action = 'suggestion';\n  classificacao = scorePonderado >= 3.5 ? 'BOM' : 'ADEQUADO';\n} else if (scorePonderado >= 2.0) {\n  action = 'auto_update';\n  classificacao = 'PRECISA_MELHORIA';\n} else {\n  action = 'escalate';\n  classificacao = 'CRITICO';\n}\n\nreturn [{\n  json: {\n    agente: dadosReflection.agente,\n    reflection: reflection,\n    scores: {\n      completude: scoreCompletude,\n      profundidade: scoreProfundidade,\n      tom: scoreTom,\n      escopo: scoreEscopo,\n      oportunidades: scoreOportunidades,\n      ponderado: parseFloat(scorePonderado.toFixed(2))\n    },\n    classificacao: classificacao,\n    action: reflection.action || action,\n    pontos_fortes: reflection.pontos_fortes || [],\n    pontos_fracos: reflection.pontos_fracos || [],\n    sugestoes_prompt: reflection.sugestoes_prompt || [],\n    urgencia: reflection.urgencia || (action === 'escalate' ? 'CRITICA' : 'NENHUMA'),\n    resumo: reflection.resumo_executivo || 'Analise de reflection concluida',\n    metricas: dadosReflection.estatisticas\n  }\n}];"
+        "jsCode": "// Processar resposta da analise de reflection\nconst dadosReflection = $('Consolidar Mensagens').first().json;\nconst respostaIA = $input.first().json;\n\n// Funcoes de parse\nfunction cleanFences(s) {\n  if (typeof s !== 'string') s = String(s ?? '');\n  let r = s.trim();\n  r = r.replace(/^\\s*```[a-z]*\\s*/i, '');\n  r = r.replace(/\\s*```$/, '');\n  return r;\n}\n\nfunction findBalancedEnd(s, start) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = start; i < s.length; i++) {\n    const ch = s[i];\n    if (inStr) {\n      if (esc) { esc = false; }\n      else if (ch === '\\\\') { esc = true; }\n      else if (ch === '\"') { inStr = false; }\n    } else {\n      if (ch === '\"') inStr = true;\n      else if (ch === '{') depth++;\n      else if (ch === '}') { depth--; if (depth === 0) return i; }\n    }\n  }\n  return -1;\n}\n\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch {}\n  const raw = cleanFences(str);\n  try { return JSON.parse(raw); } catch {}\n  const start = raw.indexOf('{');\n  const end = start >= 0 ? findBalancedEnd(raw, start) : -1;\n  if (start >= 0 && end >= 0) {\n    const jsonStr = raw.slice(start, end + 1);\n    try { return JSON.parse(jsonStr); } catch {}\n  }\n  return null;\n}\n\n// Parse da resposta\nlet reflection;\nconst rawVal = respostaIA.text ?? respostaIA.response ?? respostaIA.output;\nconst outputStr = typeof rawVal === 'string' ? rawVal : String(rawVal ?? '');\nreflection = typeof rawVal === 'object' && rawVal ? rawVal : tryParse(outputStr);\n\nif (!reflection) {\n  return [{\n    json: {\n      agente: dadosReflection.agente,\n      erro_parse: true,\n      motivo: 'Resposta do Reflection Analyst incompleta ou JSON invalido.',\n      raw_snippet: cleanFences(outputStr).slice(0, 500),\n      scores: { completude: 0, profundidade: 0, tom: 0, escopo: 0, oportunidades: 0, ponderado: 0 },\n      action: 'escalate',\n      classificacao: 'CRITICO',\n      pontos_fortes: [],\n      pontos_fracos: ['Erro ao processar resposta da IA'],\n      sugestoes_prompt: [],\n      urgencia: 'CRITICA',\n      resumo: 'Erro ao processar analise de reflection',\n      metricas: dadosReflection.estatisticas,\n      sql_strengths: '{}',\n      sql_weaknesses: '{\"Erro ao processar resposta da IA\"}',\n      sql_score_breakdown: '{}',\n      sql_resumo: 'Erro ao processar analise de reflection'\n    }\n  }];\n}\n\n// Extrair scores dos criterios\nconst criterios = reflection.criterios || {};\nconst scoreCompletude = criterios.completude?.score || 0;\nconst scoreProfundidade = criterios.profundidade?.score || 0;\nconst scoreTom = criterios.tom_personalidade?.score || 0;\nconst scoreEscopo = criterios.escopo_relevancia?.score || 0;\nconst scoreOportunidades = criterios.oportunidades_perdidas?.score || 0;\n\n// Calcular score ponderado\nconst scorePonderado = (\n  (scoreCompletude * 0.20) +\n  (scoreProfundidade * 0.25) +\n  (scoreTom * 0.15) +\n  (scoreEscopo * 0.20) +\n  (scoreOportunidades * 0.20)\n);\n\n// Determinar action baseado no score\nlet action = 'none';\nlet classificacao = 'EXCELENTE';\n\nif (scorePonderado >= 4.0) {\n  action = 'none';\n  classificacao = 'EXCELENTE';\n} else if (scorePonderado >= 3.0) {\n  action = 'suggestion';\n  classificacao = scorePonderado >= 3.5 ? 'BOM' : 'ADEQUADO';\n} else if (scorePonderado >= 2.0) {\n  action = 'auto_update';\n  classificacao = 'PRECISA_MELHORIA';\n} else {\n  action = 'escalate';\n  classificacao = 'CRITICO';\n}\n\n// Preparar dados para SQL\nconst pontosFortes = reflection.pontos_fortes || [];\nconst pontosFracos = reflection.pontos_fracos || [];\n\nconst sqlStrengths = pontosFortes.length > 0 \n  ? '{' + pontosFortes.map(s => '\"' + String(s).replace(/\"/g, '\\\\\"').replace(/'/g, \"''\") + '\"').join(',') + '}'\n  : '{}';\n\nconst sqlWeaknesses = pontosFracos.length > 0\n  ? '{' + pontosFracos.map(s => '\"' + String(s).replace(/\"/g, '\\\\\"').replace(/'/g, \"''\") + '\"').join(',') + '}'\n  : '{}';\n\nconst sqlScoreBreakdown = JSON.stringify({\n  classificacao: classificacao,\n  urgencia: reflection.urgencia || (action === 'escalate' ? 'CRITICA' : 'NENHUMA'),\n  sugestoes: reflection.sugestoes_prompt || [],\n  metricas: dadosReflection.estatisticas || {},\n  reflection_completa: reflection || {}\n}).replace(/'/g, \"''\");\n\nconst sqlResumo = (reflection.resumo_executivo || 'Analise de reflection concluida').replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    agente: dadosReflection.agente,\n    reflection: reflection,\n    scores: {\n      completude: scoreCompletude,\n      profundidade: scoreProfundidade,\n      tom: scoreTom,\n      escopo: scoreEscopo,\n      oportunidades: scoreOportunidades,\n      ponderado: parseFloat(scorePonderado.toFixed(2))\n    },\n    classificacao: classificacao,\n    action: reflection.action || action,\n    pontos_fortes: pontosFortes,\n    pontos_fracos: pontosFracos,\n    sugestoes_prompt: reflection.sugestoes_prompt || [],\n    urgencia: reflection.urgencia || (action === 'escalate' ? 'CRITICA' : 'NENHUMA'),\n    resumo: reflection.resumo_executivo || 'Analise de reflection concluida',\n    metricas: dadosReflection.estatisticas,\n    sql_strengths: sqlStrengths,\n    sql_weaknesses: sqlWeaknesses,\n    sql_score_breakdown: sqlScoreBreakdown,\n    sql_resumo: sqlResumo\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3280, 300],
-      "id": "calcular-score-medio",
+      "position": [
+        13808,
+        1616
+      ],
+      "id": "5acc0a8c-7586-43a8-929c-ce53c8cae6bf",
       "name": "Calcular Score Medio e Action"
     },
     {
@@ -387,22 +411,26 @@
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [3520, 300],
-      "id": "decision-framework",
+      "position": [
+        14048,
+        1616
+      ],
+      "id": "ece827bd-4f9c-4637-abae-9feab5753796",
       "name": "Decision Framework"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "=INSERT INTO reflection_logs (\n  agent_version_id,\n  period_start,\n  period_end,\n  conversations_analyzed,\n  score_completeness,\n  score_depth,\n  score_tone,\n  score_scope,\n  score_missed_opportunities,\n  overall_score,\n  strengths,\n  weaknesses,\n  action_taken,\n  action_reason,\n  score_breakdown,\n  created_at\n) VALUES (\n  '{{ $json.agente.id }}',\n  NOW() - INTERVAL '30 days',\n  NOW(),\n  {{ $json.metricas.total_conversas || 0 }},\n  {{ $json.scores.completude }},\n  {{ $json.scores.profundidade }},\n  {{ $json.scores.tom }},\n  {{ $json.scores.escopo }},\n  {{ $json.scores.oportunidades }},\n  {{ $json.scores.ponderado }},\n  $1::text[],\n  $2::text[],\n  '{{ $json.action }}',\n  '{{ ($json.resumo || '').replace(/'/g, \"''\") }}',\n  $3::jsonb,\n  NOW()\n)\nRETURNING id;",
-        "options": {
-          "queryParams": "={{ [\n  '{' + ($json.pontos_fortes || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  '{' + ($json.pontos_fracos || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  JSON.stringify({classificacao: $json.classificacao, urgencia: $json.urgencia, sugestoes: $json.sugestoes_prompt || [], metricas: $json.metricas || {}, reflection_completa: $json.reflection || {}})\n] }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3760, 100],
-      "id": "salvar-reflection-none",
+      "position": [
+        14288,
+        1424
+      ],
+      "id": "30282dc9-c5a8-40a8-86d7-f8ff9dd9f7cd",
       "name": "Salvar Reflection (None)",
       "credentials": {
         "postgres": {
@@ -415,14 +443,15 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "=INSERT INTO reflection_logs (\n  agent_version_id,\n  period_start,\n  period_end,\n  conversations_analyzed,\n  score_completeness,\n  score_depth,\n  score_tone,\n  score_scope,\n  score_missed_opportunities,\n  overall_score,\n  strengths,\n  weaknesses,\n  action_taken,\n  action_reason,\n  score_breakdown,\n  created_at\n) VALUES (\n  '{{ $json.agente.id }}',\n  NOW() - INTERVAL '30 days',\n  NOW(),\n  {{ $json.metricas.total_conversas || 0 }},\n  {{ $json.scores.completude }},\n  {{ $json.scores.profundidade }},\n  {{ $json.scores.tom }},\n  {{ $json.scores.escopo }},\n  {{ $json.scores.oportunidades }},\n  {{ $json.scores.ponderado }},\n  $1::text[],\n  $2::text[],\n  '{{ $json.action }}',\n  '{{ ($json.resumo || '').replace(/'/g, \"''\") }}',\n  $3::jsonb,\n  NOW()\n)\nRETURNING id;",
-        "options": {
-          "queryParams": "={{ [\n  '{' + ($json.pontos_fortes || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  '{' + ($json.pontos_fracos || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  JSON.stringify({classificacao: $json.classificacao, urgencia: $json.urgencia, sugestoes: $json.sugestoes_prompt || [], metricas: $json.metricas || {}, reflection_completa: $json.reflection || {}})\n] }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3760, 250],
-      "id": "salvar-reflection-suggestion",
+      "position": [
+        14288,
+        1568
+      ],
+      "id": "17f5e6bb-f8af-4b18-9eae-cf0ff91de44c",
       "name": "Salvar Reflection (Suggestion)",
       "credentials": {
         "postgres": {
@@ -435,14 +464,15 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "=INSERT INTO reflection_logs (\n  agent_version_id,\n  period_start,\n  period_end,\n  conversations_analyzed,\n  score_completeness,\n  score_depth,\n  score_tone,\n  score_scope,\n  score_missed_opportunities,\n  overall_score,\n  strengths,\n  weaknesses,\n  action_taken,\n  action_reason,\n  score_breakdown,\n  created_at\n) VALUES (\n  '{{ $json.agente.id }}',\n  NOW() - INTERVAL '30 days',\n  NOW(),\n  {{ $json.metricas.total_conversas || 0 }},\n  {{ $json.scores.completude }},\n  {{ $json.scores.profundidade }},\n  {{ $json.scores.tom }},\n  {{ $json.scores.escopo }},\n  {{ $json.scores.oportunidades }},\n  {{ $json.scores.ponderado }},\n  $1::text[],\n  $2::text[],\n  '{{ $json.action }}',\n  '{{ ($json.resumo || '').replace(/'/g, \"''\") }}',\n  $3::jsonb,\n  NOW()\n)\nRETURNING id;",
-        "options": {
-          "queryParams": "={{ [\n  '{' + ($json.pontos_fortes || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  '{' + ($json.pontos_fracos || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  JSON.stringify({classificacao: $json.classificacao, urgencia: $json.urgencia, sugestoes: $json.sugestoes_prompt || [], metricas: $json.metricas || {}, reflection_completa: $json.reflection || {}})\n] }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3760, 400],
-      "id": "salvar-reflection-auto-update",
+      "position": [
+        14288,
+        1712
+      ],
+      "id": "356f8cb4-14d2-43b8-962b-9e1d394c723f",
       "name": "Salvar Reflection (Auto Update)",
       "credentials": {
         "postgres": {
@@ -454,15 +484,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO reflection_logs (\n  agent_version_id,\n  period_start,\n  period_end,\n  conversations_analyzed,\n  score_completeness,\n  score_depth,\n  score_tone,\n  score_scope,\n  score_missed_opportunities,\n  overall_score,\n  strengths,\n  weaknesses,\n  action_taken,\n  action_reason,\n  score_breakdown,\n  created_at\n) VALUES (\n  '{{ $json.agente.id }}',\n  NOW() - INTERVAL '30 days',\n  NOW(),\n  {{ $json.metricas.total_conversas || 0 }},\n  {{ $json.scores.completude }},\n  {{ $json.scores.profundidade }},\n  {{ $json.scores.tom }},\n  {{ $json.scores.escopo }},\n  {{ $json.scores.oportunidades }},\n  {{ $json.scores.ponderado }},\n  $1::text[],\n  $2::text[],\n  '{{ $json.action }}',\n  '{{ ($json.resumo || '').replace(/'/g, \"''\") }}',\n  $3::jsonb,\n  NOW()\n)\nRETURNING id;",
-        "options": {
-          "queryParams": "={{ [\n  '{' + ($json.pontos_fortes || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  '{' + ($json.pontos_fracos || []).map(s => '\"' + s.replace(/\"/g, '\\\\\"') + '\"').join(',') + '}',\n  JSON.stringify({classificacao: $json.classificacao, urgencia: $json.urgencia, sugestoes: $json.sugestoes_prompt || [], metricas: $json.metricas || {}, reflection_completa: $json.reflection || {}})\n] }}"
-        }
+        "query": "INSERT INTO reflection_logs (\n  agent_version_id,\n  period_start,\n  period_end,\n  conversations_analyzed,\n  score_completeness,\n  score_depth,\n  score_tone,\n  score_scope,\n  score_missed_opportunities,\n  overall_score,\n  strengths,\n  weaknesses,\n  action_taken,\n  action_reason,\n  score_breakdown,\n  created_at\n) VALUES (\n  '{{ $json.agente.id }}',\n  NOW() - INTERVAL '30 days',\n  NOW(),\n  {{ $json.metricas.total_conversas || 0 }},\n  {{ $json.scores.completude || 0 }},\n  {{ $json.scores.profundidade || 0 }},\n  {{ $json.scores.tom || 0 }},\n  {{ $json.scores.escopo || 0 }},\n  {{ $json.scores.oportunidades || 0 }},\n  {{ $json.scores.ponderado || 0 }},\n  '{{ $json.sql_strengths }}'::text[],\n  '{{ $json.sql_weaknesses }}'::text[],\n  '{{ $json.action }}',\n  '{{ $json.sql_resumo }}',\n  '{{ $json.sql_score_breakdown }}'::jsonb,\n  NOW()\n)\nRETURNING id;\n",
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3760, 550],
-      "id": "salvar-reflection-escalate",
+      "position": [
+        14288,
+        1872
+      ],
+      "id": "352ae3d5-1fe3-4889-bd1a-c1b4573988d9",
       "name": "Salvar Reflection (Escalate)",
       "credentials": {
         "postgres": {
@@ -475,14 +506,17 @@
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [4000, 100],
-      "id": "fim-none",
+      "position": [
+        14528,
+        1424
+      ],
+      "id": "0b62ea74-1fd4-46d4-b607-f320f4908518",
       "name": "Fim (Prompt OK)"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-improver",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-updater",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"action\": \"suggestion\",\n  \"agent_version_id\": \"{{ $('Calcular Score Medio e Action').item.json.agente.id }}\",\n  \"agent_name\": \"{{ $('Calcular Score Medio e Action').item.json.agente.nome }}\",\n  \"cliente\": \"{{ $('Calcular Score Medio e Action').item.json.agente.cliente }}\",\n  \"score_ponderado\": {{ $('Calcular Score Medio e Action').item.json.scores.ponderado }},\n  \"classificacao\": \"{{ $('Calcular Score Medio e Action').item.json.classificacao }}\",\n  \"sugestoes_prompt\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.sugestoes_prompt) }},\n  \"pontos_fracos\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.pontos_fracos) }},\n  \"resumo\": \"{{ ($('Calcular Score Medio e Action').item.json.resumo || '').replace(/\"/g, '\\\\\"') }}\",\n  \"reflection_log_id\": \"{{ $json.id }}\"\n}",
@@ -492,14 +526,17 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4000, 250],
-      "id": "trigger-prompt-improver-suggestion",
+      "position": [
+        14528,
+        1568
+      ],
+      "id": "b2c0c712-6baf-4139-b92f-c4041655f048",
       "name": "Trigger Prompt Improver (Suggestion)"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-improver",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-updater",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"action\": \"auto_update\",\n  \"agent_version_id\": \"{{ $('Calcular Score Medio e Action').item.json.agente.id }}\",\n  \"agent_name\": \"{{ $('Calcular Score Medio e Action').item.json.agente.nome }}\",\n  \"cliente\": \"{{ $('Calcular Score Medio e Action').item.json.agente.cliente }}\",\n  \"score_ponderado\": {{ $('Calcular Score Medio e Action').item.json.scores.ponderado }},\n  \"classificacao\": \"{{ $('Calcular Score Medio e Action').item.json.classificacao }}\",\n  \"sugestoes_prompt\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.sugestoes_prompt) }},\n  \"pontos_fracos\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.pontos_fracos) }},\n  \"resumo\": \"{{ ($('Calcular Score Medio e Action').item.json.resumo || '').replace(/\"/g, '\\\\\"') }}\",\n  \"reflection_log_id\": \"{{ $json.id }}\"\n}",
@@ -509,8 +546,11 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4000, 400],
-      "id": "trigger-prompt-improver-auto",
+      "position": [
+        14528,
+        1712
+      ],
+      "id": "1e35c9aa-e305-4970-96a3-b64b4c0d1a4a",
       "name": "Trigger Prompt Improver (Auto Update)"
     },
     {
@@ -541,14 +581,17 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4000, 550],
-      "id": "enviar-alerta-escalate",
+      "position": [
+        14528,
+        1872
+      ],
+      "id": "13a6e7d7-e554-4876-ba63-1a3a891291db",
       "name": "Enviar Alerta WhatsApp (Escalate)"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-improver",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.mottivme.com.br' }}/webhook/prompt-updater",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"action\": \"escalate\",\n  \"agent_version_id\": \"{{ $('Calcular Score Medio e Action').item.json.agente.id }}\",\n  \"agent_name\": \"{{ $('Calcular Score Medio e Action').item.json.agente.nome }}\",\n  \"cliente\": \"{{ $('Calcular Score Medio e Action').item.json.agente.cliente }}\",\n  \"score_ponderado\": {{ $('Calcular Score Medio e Action').item.json.scores.ponderado }},\n  \"classificacao\": \"{{ $('Calcular Score Medio e Action').item.json.classificacao }}\",\n  \"sugestoes_prompt\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.sugestoes_prompt) }},\n  \"pontos_fracos\": {{ JSON.stringify($('Calcular Score Medio e Action').item.json.pontos_fracos) }},\n  \"resumo\": \"{{ ($('Calcular Score Medio e Action').item.json.resumo || '').replace(/\"/g, '\\\\\"') }}\",\n  \"reflection_log_id\": \"{{ $('Salvar Reflection (Escalate)').item.json.id }}\"\n}",
@@ -558,8 +601,11 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [4240, 550],
-      "id": "trigger-prompt-improver-escalate",
+      "position": [
+        14768,
+        1872
+      ],
+      "id": "a9d1514c-327e-470d-b714-4da35338552a",
       "name": "Trigger Prompt Improver (Escalate)"
     },
     {
@@ -588,16 +634,22 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [4480, 300],
-      "id": "mais-agentes",
+      "position": [
+        15008,
+        1616
+      ],
+      "id": "460f7c27-78c7-4855-a53e-0e3dd4cd0070",
       "name": "Mais Agentes?"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [4720, 400],
-      "id": "fim-workflow",
+      "position": [
+        15248,
+        1712
+      ],
+      "id": "6a78e6ac-78f3-4cbf-83d4-cf3835ac837a",
       "name": "Fim do Reflection Loop"
     },
     {
@@ -609,8 +661,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [80, 80],
-      "id": "sticky-instrucoes",
+      "position": [
+        10608,
+        1392
+      ],
+      "id": "36734994-e89a-41c0-8347-db437ef06a34",
       "name": "Instrucoes"
     },
     {
@@ -622,8 +677,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [80, 760],
-      "id": "sticky-sql",
+      "position": [
+        10608,
+        2080
+      ],
+      "id": "946374fb-460c-4548-9c75-ff2336ddcfa3",
       "name": "SQL Migration"
     },
     {
@@ -635,8 +693,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [500, 760],
-      "id": "sticky-acoes",
+      "position": [
+        11040,
+        2080
+      ],
+      "id": "516d6eee-41af-4fb9-847a-f8356fe7a5ae",
       "name": "Acoes"
     },
     {
@@ -648,12 +709,81 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [840, 760],
-      "id": "sticky-integracao",
+      "position": [
+        11376,
+        2080
+      ],
+      "id": "43649802-6a36-42e1-8300-dcbdcafe169f",
       "name": "Integracao"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        13504,
+        1952
+      ],
+      "id": "d8de7e53-01b5-4ec2-b3ee-5e0230f30ff1",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "nNkFTZpNoiBCbO1I",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        13504,
+        1808
+      ],
+      "id": "6c60f449-34c5-4f13-8be7-767789a87c98",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "WVbQ0d3w6cnLwPtX",
+          "name": "Groq account"
+        }
+      }
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Schedule - A cada 6 horas": [
+      {
+        "json": {
+          "timestamp": "2025-12-27T23:28:38.462-03:00",
+          "Readable date": "December 27th 2025, 11:28:38 pm",
+          "Readable time": "11:28:38 pm",
+          "Day of week": "Saturday",
+          "Year": "2025",
+          "Month": "December",
+          "Day of month": "27",
+          "Hour": "23",
+          "Minute": "28",
+          "Second": "38",
+          "Timezone": "America/Sao_Paulo (UTC-03:00)"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Schedule - A cada 6 horas": {
       "main": [
@@ -697,6 +827,7 @@
     },
     "Loop - Processar Agentes": {
       "main": [
+        [],
         [
           {
             "node": "Verificar Permissao Reflection",
@@ -819,17 +950,6 @@
         ]
       ]
     },
-    "Claude Sonnet": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI - Reflection Analyst",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "AI - Reflection Analyst": {
       "main": [
         [
@@ -928,17 +1048,6 @@
         ]
       ]
     },
-    "Enviar Alerta WhatsApp (Escalate)": {
-      "main": [
-        [
-          {
-            "node": "Trigger Prompt Improver (Escalate)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Fim (Prompt OK)": {
       "main": [
         [
@@ -966,6 +1075,17 @@
         [
           {
             "node": "Mais Agentes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Alerta WhatsApp (Escalate)": {
+      "main": [
+        [
+          {
+            "node": "Trigger Prompt Improver (Escalate)",
             "type": "main",
             "index": 0
           }
@@ -1000,32 +1120,33 @@
           }
         ]
       ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI - Reflection Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1.0.0",
+  "versionId": "47d7987d-cfe7-471a-a57f-b57e5664418d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
   },
-  "tags": [
-    {
-      "name": "AI Factory",
-      "createdAt": "2025-12-19T00:00:00.000Z",
-      "updatedAt": "2025-12-19T00:00:00.000Z"
-    },
-    {
-      "name": "Reflection",
-      "createdAt": "2025-12-27T00:00:00.000Z",
-      "updatedAt": "2025-12-27T00:00:00.000Z"
-    },
-    {
-      "name": "Self-Improvement",
-      "createdAt": "2025-12-27T00:00:00.000Z",
-      "updatedAt": "2025-12-27T00:00:00.000Z"
-    }
-  ]
+  "id": "VAXa5XhCtKzBWl75",
+  "tags": []
 }

@@ -1,0 +1,154 @@
+{
+  "category": "ai_llm",
+  "count": 7,
+  "nodes": [
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        5712,
+        608
+      ],
+      "id": "272f0f06-a636-4735-ba4c-89fc89970bcb",
+      "name": "Gemini2",
+      "notesInFlow": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4ut0CD80SN7lbITM",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2608,
+        832
+      ],
+      "id": "5d2f835b-0299-47c3-a49a-663963ba883f",
+      "name": "Transcrever audio",
+      "credentials": {
+        "openAiApi": {
+          "id": "WEENPovt22LUaeRp",
+          "name": "OpenAi - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-5-20250929",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-5-20250929"
+        },
+        "text": "O que há nessa imagem?",
+        "imageUrls": "={{ $json.photo_audio }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        592
+      ],
+      "id": "cfd76a6c-b2d4-4fa4-854f-da6647f6a627",
+      "name": "Analyze image",
+      "credentials": {
+        "anthropicApi": {
+          "id": "nNkFTZpNoiBCbO1I",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        8672,
+        688
+      ],
+      "id": "e999e99e-dc8b-4bec-b211-16bd02f666ae",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4ut0CD80SN7lbITM",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensagem do usuário a ser formatada: {{ $('Tipo de mensagem1').first().json.output }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Por favor, gere a saída no seguinte formato JSON:\n{\n  \"messages\": [\n    \"splitedMessage\",\n    \"splitedMessage\",\n    \"splitedMessage\"\n  ]\n}\n\nVocê é especialista em formatação de mensagem para WhatsApp e instagram, trabalhando somente na formatação e não alterando o conteúdo da menssagem. Responda apenas com o texto final, não comente nada e não fale 'sua mensagem formatada', apenas o texto final. Não comente e nem fale por conta própria, apenas pegue a mensagem do usuário e formate.\n\nRecomendado: ideal entre 1-2 mensagens e no max 3.\n\n- Substitua ** por *\n- Remova #\n- remova \\n e quebra de linhas\n- Substitua aspas duplas por aspas simples \" > '\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        8624,
+        320
+      ],
+      "id": "961328dd-7797-409c-98c7-49149ab2d880",
+      "name": "Parser  Chain",
+      "executeOnce": true,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"messages\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"messages\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        8704,
+        512
+      ],
+      "id": "b55d7359-2aa9-4c05-abdf-4ee2adc7aa11",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $input.item.json.mensagem || $('Extrair Dados do Webhook').item.json.mensagem }}",
+        "options": {
+          "systemMessage": "=**CONTEXTO**\nDATA: {{ $now.format('FFFF') }}\nHORA_LOCAL: {{ $now.setZone($('Info').first().json.time_zone_do_agente || 'America/Sao_Paulo').toFormat('HH:mm') }}\nTEL/WHATSAPP: {{ $('Info').first().json.telefone }}\nEMAIL: {{ $('Info').first().json.email || 'não informado' }}\nNOME DO CLIENTE: {{ $('Info').first().json.full_name || $('Info').first().json.first_name + ' ' + $('Info').first().json.last_name }}\nCONTACT_ID: {{ $('Info').first().json.lead_id }}\nLOCATION_ID: {{ $('Info').first().json.location_id }}\nAPI_KEY: {{ $('Info').first().json.api_key }}\nAGENTE_IA: {{ $('Info').first().json.agente_ia }}\nOBJETIVO_LEAD: {{ $('Info').first().json.objetivo_do_lead }}\nETIQUETAS: {{ $('Info').first().json.etiquetas }}\nSOURCE: {{ $('Info').first().json.source }}\nTIMEZONE_LEAD: {{ $('Info').first().json.timezone_do_lead }}\n\n{{ $json.contexto_hiperpersonalizado || '' }}\n\n## SAUDAÇÃO\n{{ $('Info').first().json.is_primeira_mensagem ? '- PRIMEIRA MENSAGEM: Use saudação apropriada + nome do cliente' : '- JÁ CONVERSARAM: Não use saudação, vá direto ao ponto' }}\n\n## HISTÓRIA DO USUÁRIO (AGENTE)\n{{ $('Info').first().json.historia_do_usuario }}\n\n## FERRAMENTAS DISPONÍVEIS\n- **Busca_disponibilidade**: OBRIGATÓRIO antes de oferecer horários\n- **Agendar_reuniao**: Criar agendamento (nome, tel, email, eventId, data, hora)\n- **Adicionar_tag_perdido**: Desqualificar lead\n\n## FORMATOS OBRIGATÓRIOS\n- **Telefone**: +00000000000 (sem espaços)\n- **Data**: MM/dd/yyyy (padrão americano)\n- **Hora**: formato 12h com AM/PM\n- **Agendamento CRM**: ISO 8601 (Y-m-d\\TH:i:sP)\n\n## CALENDÁRIOS\n- Carreira: {{ $('Info').first().json.calendarID_carreira }}\n- Consultoria Financeira: {{ $('Info').first().json.calendarID_consultoria_financeira }}\n\n## LINK ZOOM\n{{ $('Info').first().json.link_do_zoom }}\n\n---\n\n## HISTÓRICO DE CONVERSAS ANTIGAS\n{{ $('Set mensagens').first().json.mensagens_antigas }}\n\n---\n\n\n\n## ⛔ REGRA INVIOLÁVEL\nPROIBIDO mencionar dia/hora sem ANTES chamar Busca_disponibilidade. Sem exceção.\n\n{{ $json.contexto_hiperpersonalizado }}\n\n{{ $json.prompt_dinamico }}\n\n## ⚠️ LEMBRETE CRÍTICO\nVocê NÃO PODE sugerir horários sem ter chamado Busca_disponibilidade ANTES. Horários \"inventados\" causam frustração no cliente e prejudicam a operação."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        6144,
+        384
+      ],
+      "id": "0366bcbe-bd9c-4cc1-b70f-32e78cd12ab7",
+      "name": "AI Agent - Modular"
+    }
+  ]
+}

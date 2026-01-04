@@ -1,0 +1,347 @@
+{
+  "category": "utilities",
+  "count": 10,
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "90c79f43-5deb-465b-b318-a7a9bf1eb88a",
+      "name": "Loop Over Items3",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        9952,
+        320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5a9b5a7e-894f-40c8-91a6-86d744c1d530",
+      "name": "no.op",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        10848,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "a_lead_response",
+              "value": "={{ $('Parser  Chain').item.json.output.messages.join(\"\") }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        10352,
+        32
+      ],
+      "id": "71e5e6c0-cb86-48de-b14c-3e875584b9ab",
+      "name": "Execution Data1"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        832
+      ],
+      "id": "da710893-fa14-41bf-b74d-691b61a18645",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {
+          "fileName": "={{ $json.fileName }}",
+          "mimeType": "={{ $json.mimeType }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2384,
+        832
+      ],
+      "id": "209bea72-3b8d-4a57-ad5b-3f318b7ab87e",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "a_lead_id",
+              "value": "={{ $('Info').item.json.lead_id }}"
+            },
+            {
+              "key": "a_lead_name",
+              "value": "={{ $('Info').item.json.full_name }}"
+            },
+            {
+              "key": "location_name",
+              "value": "={{ $('Info').first().json.location_name }}"
+            },
+            {
+              "key": "telefone",
+              "value": "={{ $('Info').item.json.telefone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        3872,
+        384
+      ],
+      "id": "cb90f49f-deca-4845-a187-22df16c6b7d7",
+      "name": "Execution Data"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.messages",
+        "options": {
+          "destinationFieldName": "output"
+        }
+      },
+      "id": "7347c31a-e682-4c36-b47a-5eff12eddad2",
+      "name": "Segmentos1",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        9728,
+        320
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "agente_ia",
+              "value": "={{ $('Info').first().json.agente_ia }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        9504,
+        320
+      ],
+      "id": "091ed666-f666-46f4-aa9e-0c566e6ee808",
+      "name": "Execution Data2"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "GWKl5KuXAdeu4BLr",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/GWKl5KuXAdeu4BLr",
+          "cachedResultName": "[TOOL] Registrar Custo IA"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "location_id": "={{ $('Info').first().json.location_id }}",
+            "location_name": "={{ $('Info').first().json.location_name }}",
+            "contact_id": "={{ $('Info').first().json.lead_id }}",
+            "contact_name": "={{ $('Info').first().json.first_name }}",
+            "canal": "={{ $('Info').first().json.source }}",
+            "tipo_acao": "Agendar",
+            "total_tokens": "={{ $('Calcular Custo LLM').first().json.custo_pro.tokens_input + $('Calcular Custo LLM').first().json.custo_pro.tokens_output + $('Calcular Custo LLM').first().json.custo_flash.tokens_input + $('Calcular Custo LLM').first().json.custo_flash.tokens_output }}",
+            "output_tokens": "={{ $('Calcular Custo LLM').first().json.custo_pro.tokens_output + $('Calcular Custo LLM').first().json.custo_flash.tokens_output }}",
+            "model": "gemini-2.5-pro+flash",
+            "input_tokens": "={{ $('Calcular Custo LLM').first().json.custo_pro.tokens_input + $('Calcular Custo LLM').first().json.custo_flash.tokens_input }}",
+            "workflowId": "={{ $workflow.id }}",
+            "executionId": "={{ $execution.id }}",
+            "date": "={{ $now.format('FFFF') }}  "
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "model",
+              "displayName": "model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "input_tokens",
+              "displayName": "input_tokens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "output_tokens",
+              "displayName": "output_tokens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "total_tokens",
+              "displayName": "total_tokens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "workflowId",
+              "displayName": "workflowId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "executionId",
+              "displayName": "executionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "location_id",
+              "displayName": "location_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "location_name",
+              "displayName": "location_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contact_name",
+              "displayName": "contact_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "tipo_acao",
+              "displayName": "tipo_acao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        10576,
+        32
+      ],
+      "id": "3124778a-2ba5-4aaf-a038-c8da82371a9d",
+      "name": "Call Track AI Cost",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "contact_id",
+              "value": "={{ $json.body.contact_id }}"
+            },
+            {
+              "key": "location_name",
+              "value": "={{ $json.body.location.name }}"
+            },
+            {
+              "key": "agente_ia",
+              "value": "={{ $json.agente_ia }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        400
+      ],
+      "id": "8e3e4049-8662-4f80-b877-3682c8ed9a9e",
+      "name": "Execution Data5"
+    }
+  ]
+}

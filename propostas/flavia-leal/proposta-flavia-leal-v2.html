@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta - Flavia Leal Beauty School</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page { margin: 0; size: A4; }
+        @media print { body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 50px;
+            page-break-after: always;
+        }
+
+        .page:last-child { page-break-after: avoid; }
+
+        /* HEADER */
+        .header {
+            text-align: center;
+            padding: 60px 0;
+        }
+
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #c9a227, #f4d03f);
+            color: #0f0f1a;
+            padding: 10px 30px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+        }
+
+        .header-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 52px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            line-height: 1.1;
+        }
+
+        .header-title span {
+            background: linear-gradient(135deg, #fff 0%, #d4af37 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            font-size: 20px;
+            color: rgba(255,255,255,0.6);
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .client-badge {
+            margin-top: 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 15px 30px;
+            border-radius: 60px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .client-badge-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #d4af37, #f4d03f);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .client-badge-text {
+            text-align: left;
+        }
+
+        .client-badge-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .client-badge-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            color: #d4af37;
+        }
+
+        /* QUOTE SECTION */
+        .quote-section {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.02));
+            border-left: 4px solid #d4af37;
+            padding: 40px;
+            margin: 50px 0;
+            border-radius: 0 20px 20px 0;
+        }
+
+        .quote-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-style: italic;
+            color: rgba(255,255,255,0.9);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .quote-author {
+            font-size: 14px;
+            color: #d4af37;
+        }
+
+        /* BENEFIT CARDS */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin: 50px 0;
+        }
+
+        .benefit-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            border-radius: 20px;
+            padding: 35px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s;
+        }
+
+        .benefit-card:hover { transform: translateY(-5px); }
+
+        .benefit-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+        }
+
+        .benefit-number {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: #d4af37;
+            margin-bottom: 5px;
+        }
+
+        .benefit-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 15px;
+        }
+
+        .benefit-description {
+            font-size: 15px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.5;
+        }
+
+        /* FLOW DIAGRAM */
+        .flow-section {
+            padding: 60px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        .section-subtitle {
+            font-size: 16px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* VISUAL FLOW */
+        .visual-flow {
+            background: rgba(255,255,255,0.03);
+            border-radius: 30px;
+            padding: 50px;
+            margin: 40px 0;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .flow-row:last-child { margin-bottom: 0; }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .flow-step-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 36px;
+        }
+
+        .flow-step-circle.lead { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .flow-step-circle.ia { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .flow-step-circle.qualify { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .flow-step-circle.sale { background: linear-gradient(135deg, #10b981, #059669); }
+        .flow-step-circle.money { background: linear-gradient(135deg, #d4af37, #b8860b); }
+
+        .flow-step-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .flow-step-desc {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .flow-arrow {
+            font-size: 30px;
+            color: rgba(255,255,255,0.3);
+            padding: 0 10px;
+        }
+
+        .flow-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .flow-badge.auto {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .flow-badge.human {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        /* TRANSFORMATION */
+        .transformation {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 30px;
+            align-items: center;
+            margin: 60px 0;
+        }
+
+        .transform-box {
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .transform-box.before {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .transform-box.after {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.02));
+        }
+
+        .transform-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .transform-box.before .transform-title { color: #ef4444; }
+        .transform-box.after .transform-title { color: #10b981; }
+
+        .transform-list {
+            list-style: none;
+        }
+
+        .transform-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .transform-list li:last-child { border-bottom: none; }
+
+        .transform-icon { font-size: 18px; }
+        .transform-box.before .transform-icon { color: #ef4444; }
+        .transform-box.after .transform-icon { color: #10b981; }
+
+        .transform-arrow {
+            font-size: 60px;
+            color: #d4af37;
+        }
+
+        /* TIMELINE VISUAL */
+        .timeline-visual {
+            position: relative;
+            padding: 40px 0;
+        }
+
+        .timeline-line {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #d4af37, #10b981, #3b82f6);
+            border-radius: 3px;
+        }
+
+        .timeline-items {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+
+        .timeline-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .timeline-dot {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #0f0f1a;
+            border: 4px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 24px;
+        }
+
+        .timeline-item:nth-child(2) .timeline-dot { border-color: #10b981; }
+        .timeline-item:nth-child(3) .timeline-dot { border-color: #3b82f6; }
+
+        .timeline-date {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #d4af37;
+            margin-bottom: 5px;
+        }
+
+        .timeline-item:nth-child(2) .timeline-date { color: #10b981; }
+        .timeline-item:nth-child(3) .timeline-date { color: #3b82f6; }
+
+        .timeline-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 15px;
+        }
+
+        .timeline-content {
+            background: rgba(255,255,255,0.03);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .timeline-content-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #d4af37;
+        }
+
+        .timeline-item:nth-child(2) .timeline-content-title { color: #10b981; }
+        .timeline-item:nth-child(3) .timeline-content-title { color: #3b82f6; }
+
+        .timeline-content-text {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.5;
+        }
+
+        /* INVESTMENT */
+        .investment-section {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05));
+            border-radius: 30px;
+            padding: 60px;
+            text-align: center;
+            margin: 60px 0;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .investment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 40px 0;
+        }
+
+        .investment-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+        }
+
+        .investment-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .investment-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 56px;
+            font-weight: 700;
+            color: #d4af37;
+        }
+
+        .investment-note {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 10px;
+        }
+
+        /* SPECIAL CONDITION */
+        .special-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+        }
+
+        .special-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+
+        .special-steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .special-step {
+            text-align: center;
+        }
+
+        .special-step-number {
+            width: 50px;
+            height: 50px;
+            background: #10b981;
+            color: #0f0f1a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 auto 15px;
+        }
+
+        .special-step-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .special-step-desc {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* ROI */
+        .roi-highlight {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.1));
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            display: inline-block;
+        }
+
+        .roi-text {
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .roi-text strong {
+            color: #10b981;
+            font-size: 22px;
+        }
+
+        /* FOOTER */
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 40px;
+        }
+
+        .footer-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .footer-text {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .footer-validity {
+            margin-top: 20px;
+            display: inline-block;
+            background: rgba(255,255,255,0.05);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .footer-validity strong {
+            color: #d4af37;
+        }
+
+        /* CTA */
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #c9a227, #f4d03f);
+            color: #0f0f1a;
+            padding: 20px 60px;
+            border-radius: 60px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 30px;
+            box-shadow: 0 20px 60px rgba(212, 175, 55, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .benefits-grid { grid-template-columns: 1fr; }
+            .transformation { grid-template-columns: 1fr; }
+            .timeline-items { flex-direction: column; gap: 30px; }
+            .investment-grid { grid-template-columns: 1fr; }
+            .special-steps { grid-template-columns: 1fr; }
+            .header-title { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PAGE 1: INTRO -->
+<div class="page">
+    <div class="header">
+        <div class="header-badge">Proposta Exclusiva</div>
+        <h1 class="header-title">
+            <span>Mais Matriculas.</span><br>
+            <span>Menos Trabalho Manual.</span>
+        </h1>
+        <p class="header-subtitle">
+            Um sistema que trabalha 24 horas por dia para voce fechar mais vendas enquanto sua equipe foca no que realmente importa.
+        </p>
+        <div class="client-badge">
+            <div class="client-badge-icon">👑</div>
+            <div class="client-badge-text">
+                <div class="client-badge-label">Preparado para</div>
+                <div class="client-badge-name">Flavia Leal Beauty School</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quote-section">
+        <div class="quote-text">
+            "Eu gosto de ser feliz todo dia. Se eu trabalhar com gente que eu tenho que ficar medindo o que eu to falando, eu nao quero. A vida e muito curta."
+        </div>
+        <div class="quote-author">— Flavia Leal</div>
+    </div>
+
+    <div class="benefits-grid">
+        <div class="benefit-card">
+            <div class="benefit-icon">💰</div>
+            <div class="benefit-number">2-3</div>
+            <div class="benefit-label">Matriculas extras/mes</div>
+            <div class="benefit-description">Pagam o investimento inteiro. O resto e lucro.</div>
+        </div>
+        <div class="benefit-card">
+            <div class="benefit-icon">⏰</div>
+            <div class="benefit-number">24/7</div>
+            <div class="benefit-label">Atendimento automatico</div>
+            <div class="benefit-description">Ate as 2h da manha, quando seus leads estao mais ativos.</div>
+        </div>
+        <div class="benefit-card">
+            <div class="benefit-icon">🎯</div>
+            <div class="benefit-number">0</div>
+            <div class="benefit-label">Leads perdidos</div>
+            <div class="benefit-description">Ninguem fica sem resposta. Ninguem e esquecido.</div>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE 2: TRANSFORMATION -->
+<div class="page">
+    <div class="section-header">
+        <div class="section-tag">Transformacao</div>
+        <h2 class="section-title">De onde voce esta para onde voce quer chegar</h2>
+        <p class="section-subtitle">A diferenca entre perder vendas e ter um sistema que funciona sozinho</p>
+    </div>
+
+    <div class="transformation">
+        <div class="transform-box before">
+            <div class="transform-title">❌ Hoje</div>
+            <ul class="transform-list">
+                <li><span class="transform-icon">😤</span> Leads chegam e ninguem responde a tempo</li>
+                <li><span class="transform-icon">😤</span> Atendimento via WhatsApp pessoal das secretarias</li>
+                <li><span class="transform-icon">😤</span> Funil de vendas "imaginario" sem metricas</li>
+                <li><span class="transform-icon">😤</span> Pessoa tem que ir na escola so pra assinar contrato</li>
+                <li><span class="transform-icon">😤</span> Nao sabe quanto investe, quantos leads, nada</li>
+                <li><span class="transform-icon">😤</span> Vendas perdidas por mau atendimento</li>
+            </ul>
+        </div>
+
+        <div class="transform-arrow">→</div>
+
+        <div class="transform-box after">
+            <div class="transform-title">✅ Com o Sistema</div>
+            <ul class="transform-list">
+                <li><span class="transform-icon">🚀</span> Resposta em segundos, 24 horas por dia</li>
+                <li><span class="transform-icon">🚀</span> Tudo centralizado no CRM profissional</li>
+                <li><span class="transform-icon">🚀</span> Dashboard com todas as metricas em tempo real</li>
+                <li><span class="transform-icon">🚀</span> Contrato digital + pagamento online</li>
+                <li><span class="transform-icon">🚀</span> Visibilidade total de cada centavo investido</li>
+                <li><span class="transform-icon">🚀</span> Fabi recebe lead QUENTE pronto pra fechar</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE 3: FLOW -->
+<div class="page">
+    <div class="section-header">
+        <div class="section-tag">Como Funciona</div>
+        <h2 class="section-title">O Caminho do Lead ate a Matricula</h2>
+        <p class="section-subtitle">Simples, automatico e eficiente</p>
+    </div>
+
+    <div class="visual-flow">
+        <div class="flow-row">
+            <div class="flow-step">
+                <div class="flow-step-circle lead">📱</div>
+                <div class="flow-step-title">Lead Chega</div>
+                <div class="flow-step-desc">Instagram, Facebook, Google</div>
+                <div class="flow-badge auto">AUTOMATICO</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-step-circle ia">🤖</div>
+                <div class="flow-step-title">IA Responde</div>
+                <div class="flow-step-desc">Em segundos, 24/7</div>
+                <div class="flow-badge auto">AUTOMATICO</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-step-circle qualify">✨</div>
+                <div class="flow-step-title">Qualifica</div>
+                <div class="flow-step-desc">Interesse, urgencia, curso</div>
+                <div class="flow-badge auto">AUTOMATICO</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-step-circle sale">👩‍💼</div>
+                <div class="flow-step-title">Fabi Fecha</div>
+                <div class="flow-step-desc">Recebe resumo completo</div>
+                <div class="flow-badge human">HUMANO</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-step-circle money">💰</div>
+                <div class="flow-step-title">Matricula!</div>
+                <div class="flow-step-desc">Contrato + Pagamento</div>
+                <div class="flow-badge auto">AUTOMATICO</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quote-section" style="margin-top: 40px;">
+        <div class="quote-text" style="font-size: 20px;">
+            "A pessoa quer saber o que vai aprender, quanto custa e quando comeca. Se tiver um botao de compra, a venda pode ser feita imediatamente. Ela entra pra fechar, nao pra analisar."
+        </div>
+        <div class="quote-author">— Flavia Leal</div>
+    </div>
+</div>
+
+<!-- PAGE 4: TIMELINE -->
+<div class="page">
+    <div class="section-header">
+        <div class="section-tag">Cronograma</div>
+        <h2 class="section-title">Seu Sistema Rodando em 60 Dias</h2>
+        <p class="section-subtitle">Implementacao em fases para resultados rapidos</p>
+    </div>
+
+    <div class="timeline-visual">
+        <div class="timeline-line"></div>
+        <div class="timeline-items">
+            <div class="timeline-item">
+                <div class="timeline-dot">🚀</div>
+                <div class="timeline-date">15 dias</div>
+                <div class="timeline-label">Fase 1</div>
+                <div class="timeline-content">
+                    <div class="timeline-content-title">Atendimento 24/7 Funcionando</div>
+                    <div class="timeline-content-text">
+                        CRM configurado, IA atendendo no WhatsApp, paginas de compra simples, dashboard de metricas. Voce ja comeca a ver resultados.
+                    </div>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot">🔄</div>
+                <div class="timeline-date">30 dias</div>
+                <div class="timeline-label">Fase 2</div>
+                <div class="timeline-content">
+                    <div class="timeline-content-title">Follow-up + Reativacao</div>
+                    <div class="timeline-content-text">
+                        Nenhum lead esquecido. Reativacao da base antiga. Agendamentos automaticos. Time treinado.
+                    </div>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot">📈</div>
+                <div class="timeline-date">60 dias</div>
+                <div class="timeline-label">Fase 3</div>
+                <div class="timeline-content">
+                    <div class="timeline-content-title">Escala Total</div>
+                    <div class="timeline-content-text">
+                        Prospeccao ativa (50+ leads/dia), pos-venda automatizado, relatorios semanais. Sistema completo rodando.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE 5: INVESTMENT -->
+<div class="page">
+    <div class="investment-section">
+        <div class="section-tag">Investimento</div>
+        <h2 class="section-title" style="margin-top: 15px;">Comece Pagando Apenas a Mensalidade</h2>
+
+        <div class="investment-grid">
+            <div class="investment-card">
+                <div class="investment-label">Para Comecar</div>
+                <div class="investment-value">$1,497</div>
+                <div class="investment-note">mensalidade (manutencao + IA + suporte)</div>
+            </div>
+            <div class="investment-card">
+                <div class="investment-label">Apos Entrega Completa</div>
+                <div class="investment-value">$4,997</div>
+                <div class="investment-note">implementacao (pago so no FINAL)</div>
+            </div>
+        </div>
+
+        <div class="special-box">
+            <div class="special-title">🎯 Condicao Especial: Risco Zero</div>
+            <p style="font-size: 16px; color: rgba(255,255,255,0.8);">
+                Voce so paga a implementacao DEPOIS que o sistema estiver funcionando.
+            </p>
+            <div class="special-steps">
+                <div class="special-step">
+                    <div class="special-step-number">1</div>
+                    <div class="special-step-title">INICIO</div>
+                    <div class="special-step-desc">Paga apenas a 1a mensalidade</div>
+                </div>
+                <div class="special-step">
+                    <div class="special-step-number">2</div>
+                    <div class="special-step-title">IMPLEMENTACAO</div>
+                    <div class="special-step-desc">60 dias de trabalho intenso</div>
+                </div>
+                <div class="special-step">
+                    <div class="special-step-number">3</div>
+                    <div class="special-step-title">RESULTADO</div>
+                    <div class="special-step-desc">Sistema rodando? Ai paga o setup</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="roi-highlight">
+            <div class="roi-text">
+                Esse investimento se paga com <strong>2-3 matriculas extras</strong> no primeiro mes.
+            </div>
+        </div>
+
+        <a href="#" class="cta-button">Vamos Comecar</a>
+    </div>
+
+    <div class="footer">
+        <div class="footer-logo">MOTTIVME</div>
+        <div class="footer-text">Transformando negocios atraves de automacao inteligente</div>
+        <div class="footer-validity">
+            Proposta valida ate <strong>10 de Janeiro de 2026</strong>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

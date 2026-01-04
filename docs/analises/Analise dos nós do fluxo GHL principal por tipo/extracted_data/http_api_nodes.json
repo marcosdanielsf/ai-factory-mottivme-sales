@@ -1,0 +1,552 @@
+{
+  "category": "http_api",
+  "count": 17,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "factor-ai",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        400
+      ],
+      "id": "8b088c6c-3506-4bb1-98e1-8549cf75152a",
+      "name": "Mensagem recebida",
+      "webhookId": "7799e079-0add-4f93-8527-157d2b344711"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"IG\",\n  \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"{{ $('Parser  Chain').item.json.output.messages }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10400,
+        416
+      ],
+      "id": "94639e3c-e072-4d2e-8242-33a1e58e5e4c",
+      "name": "Instagram",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"{{ $('Parser  Chain').item.json.output.messages }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10400,
+        224
+      ],
+      "id": "54980c5b-b84c-4c5b-91ab-72b32682a074",
+      "name": "Whatsapp",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.photo_audio }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "chatwootApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1712,
+        832
+      ],
+      "id": "3ab2663c-e9ba-4a33-82ab-237143e965e9",
+      "name": "Download áudio",
+      "retryOnFail": true,
+      "credentials": {
+        "chatwootApi": {
+          "id": "UmVE5jAScA8a8vNB",
+          "name": "ChatWoot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.lead_id }}",
+        "options": {},
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "781bfd6b-aba2-4c1a-8c78-70d3534dc2cc",
+      "executeOnce": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "notes": "Busca contato por EMAIL"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $json.location.id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"Etapa do Funil\",\n  \"fieldKey\": \"contact.etapa_funil\",\n  \"dataType\": \"SINGLE_OPTIONS\",\n  \"placeholder\": \"Selecione a etapa\",\n  \"position\": 100,\n  \"options\": [\n    \"Novo Lead\",\n    \"Primeiro Contato\",\n    \"Em Follow-Up\",\n    \"Qualificado\",\n    \"Agendamento Marcado\",\n    \"Reagendado\",\n    \"No-Show\",\n    \"Reunião Realizada\",\n    \"Proposta Enviada\",\n    \"Follow-Up Proposta\",\n    \"Contrato Enviado\",\n    \"Aguardando Pagamento\",\n    \"Cliente Ativo\",\n    \"Perdido\"\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -608,
+        -272
+      ],
+      "id": "c95162d2-5fd9-4fb2-bf20-00545dfbe518",
+      "name": "GHL - Criar Campo Etapa do Funil",
+      "alwaysOutputData": true,
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"IG\",\n \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"Memória resetada.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3184,
+        -432
+      ],
+      "id": "7f184ebf-86ae-4cc2-a23b-7162cec06661",
+      "name": "Instagram2",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"Memória resetada.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3184,
+        -624
+      ],
+      "id": "d00a6a26-7103-4ad3-a829-7a80ef73c910",
+      "name": "Whatsapp2",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "options": {},
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Update Contact (Outbound)2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        3408,
+        -528
+      ],
+      "id": "9650f9b9-a652-4b3e-b4c7-55ee0efe9981"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/conversations/search?contactId={{ $('Info').first().json.lead_id }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1232,
+        -528
+      ],
+      "id": "6d921c02-f8f3-45fa-83dc-018c8cad1fba",
+      "name": "1. Buscar Conversa do Contato",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Edit Fields').item.json.contactId }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "tags",
+              "value": "=reset"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Update Contact (Outbound)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        -528
+      ],
+      "id": "cc88b517-55a9-4445-8f03-4d894e55c35c"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $json.ativar_ia_id }}\",\n      \"value\": \"sim\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2128,
+        -528
+      ],
+      "id": "909e65a3-4dbe-440a-976c-c983a17ad755",
+      "name": "ativar_ia2",
+      "notes": "Atualiza o campo customizado work_permit no contato"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $('Info').first().json.location_id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1312,
+        -1152
+      ],
+      "id": "e1f52353-ebd5-4ba8-8b91-9db2bbd32b14",
+      "name": "1️⃣ Listar campos customizados"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.especialista_motive_id }}\",\n      \"value\": \"sdrcarreira\"\n    },\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.objetivo_lead_id }}\",\n      \"value\": \"carreira\"\n    },\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.ativar_ia_id }}\",\n      \"value\": \"sim\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2192,
+        -1344
+      ],
+      "id": "9d7bc33a-d829-4a61-bb48-73a74c8feedc",
+      "name": "5️⃣ Atualizar → Carreira"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.especialista_motive_id }}\",\n      \"value\": \"sdrconsultoria\"\n    },\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.objetivo_lead_id }}\",\n      \"value\": \"consultoria\"\n    },\n    {\n      \"id\": \"{{ $('3️⃣ Detectar Objetivo').first().json.ativar_ia_id }}\",\n      \"value\": \"sim\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2192,
+        -1152
+      ],
+      "id": "30fa385d-0d5e-4cbb-80cf-5eba3cd244e4",
+      "name": "5️⃣ Atualizar → Consultoria"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"Olá! Para continuar, preciso saber seu objetivo. Por favor, responda:\\n\\n/teste carreira - para oportunidades de emprego\\n/teste consultoria - para serviços de consultoria\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        -1056
+      ],
+      "id": "75cf217d-647f-4c11-886f-05b0ff3c4209",
+      "name": "5️⃣ Perguntar Objetivo (SMS)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Info').first().json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"IG\",\n \"contactId\": \"{{ $('Info').first().json.lead_id }}\",\n  \"message\": \"Olá! Para continuar, preciso saber seu objetivo. Por favor, responda:\\n\\n/teste carreira - para oportunidades de emprego\\n/teste consultoria - para serviços de consultoria\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        -864
+      ],
+      "id": "0d5d114d-5cd6-4881-ac4c-183ea94a17a5",
+      "name": "Instagram4",
+      "retryOnFail": true
+    }
+  ]
+}

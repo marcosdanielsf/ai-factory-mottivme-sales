@@ -1,0 +1,116 @@
+{
+  "name": "Self-Improving Integration Nodes",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH agent AS (\n  SELECT id\n  FROM agent_versions\n  WHERE location_id = '{{ $('Info').first().json.location_id }}'\n    AND is_active = true\n  LIMIT 1\n)\nINSERT INTO agent_conversations (\n  agent_version_id,\n  contact_id,\n  conversation_id,\n  channel,\n  status,\n  outcome,\n  mensagens_total,\n  started_at\n)\nSELECT\n  agent.id,\n  '{{ $('Info').first().json.lead_id }}',\n  '{{ $('Info').first().json.lead_id }}',\n  '{{ $('Info').first().json.source }}',\n  'active',\n  'in_progress',\n  1,\n  NOW()\nFROM agent\nON CONFLICT (contact_id) DO UPDATE SET\n  mensagens_total = agent_conversations.mensagens_total + 1\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1824, -400],
+      "id": "c1a2b3c4-d5e6-f7a8-b9c0-123456789001",
+      "name": "SI - Upsert Conversation",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Self-Improving: Cria/atualiza conversa"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_conversation_messages (\n  conversation_id,\n  message_text,\n  message_type,\n  is_from_lead,\n  sender_name,\n  original_source,\n  created_at\n)\nSELECT\n  ac.id,\n  '{{ $json.mensagem }}',\n  '{{ $('Info').first().json.tipo_mensagem_original }}',\n  true,\n  '{{ $('Info').first().json.full_name }}',\n  'crm_historico',\n  NOW()\nFROM agent_conversations ac\nWHERE ac.contact_id = '{{ $('Info').first().json.lead_id }}'\nLIMIT 1\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2024, -224],
+      "id": "c1a2b3c4-d5e6-f7a8-b9c0-123456789002",
+      "name": "SI - Insert Lead Message",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Self-Improving: Mensagem do lead"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_conversation_messages (\n  conversation_id,\n  message_text,\n  message_type,\n  is_from_lead,\n  sender_name,\n  original_source,\n  created_at\n)\nSELECT\n  ac.id,\n  $1,\n  'text',\n  false,\n  'AI Agent',\n  'n8n_historico',\n  NOW()\nFROM agent_conversations ac\nWHERE ac.contact_id = '{{ $('Info').first().json.lead_id }}'\nLIMIT 1\nRETURNING *;",
+        "queryValues": "={{ [$('Parser  Chain').first().json.output.messages.join('')] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2224, -224],
+      "id": "c1a2b3c4-d5e6-f7a8-b9c0-123456789003",
+      "name": "SI - Insert AI Message",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Self-Improving: Resposta da IA"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE agent_conversations\nSET\n  outcome = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Agendamento Marcado', 'Reagendado') THEN 'scheduled'\n    WHEN '{{ $json.etapa_funil }}' IN ('Perdido', 'No-Show') THEN 'lost'\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Reuniao Realizada', 'Proposta Enviada') THEN 'converted'\n    WHEN '{{ $json.etapa_funil }}' IN ('Qualificado', 'Em Follow-Up') THEN 'warmed'\n    ELSE 'in_progress'\n  END,\n  status = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Perdido') THEN 'completed'\n    ELSE 'in_progress'\n  END,\n  ended_at = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Perdido') THEN NOW()\n    ELSE ended_at\n  END,\n  updated_at = NOW()\nWHERE contact_id = '{{ $('Info').first().json.lead_id }}'\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2424, -400],
+      "id": "c1a2b3c4-d5e6-f7a8-b9c0-123456789004",
+      "name": "SI - Update Outcome",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Self-Improving: Atualiza outcome"
+    },
+    {
+      "parameters": {
+        "content": "## Self-Improving AI Integration\n\n**Como usar estes nos:**\n\n1. **SI - Upsert Conversation**\n   - Conectar APOS o no 'Info'\n   - Executar em PARALELO com o fluxo principal\n\n2. **SI - Insert Lead Message**\n   - Conectar APOS 'historico_mensagens_leads'\n   - Executar em PARALELO\n\n3. **SI - Insert AI Message**\n   - Conectar APOS 'Memoria IA'\n   - Executar em PARALELO\n\n4. **SI - Update Outcome** (Opcional)\n   - Conectar quando etapa do funil muda\n\n**IMPORTANTE:**\n- Os nos usam 'onError: continueRegularOutput' para nao quebrar o fluxo principal\n- Prefixo 'SI' = Self-Improving",
+        "height": 480,
+        "width": 400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1400, -500],
+      "id": "c1a2b3c4-d5e6-f7a8-b9c0-123456789005",
+      "name": "Instrucoes de Integracao"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "self-improving-integration-v1"
+}
