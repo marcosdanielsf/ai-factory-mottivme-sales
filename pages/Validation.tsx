@@ -207,9 +207,10 @@ export const Validation = () => {
         
         <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden">
            <div className="grid grid-cols-12 gap-4 p-3 border-b border-border-default bg-bg-tertiary text-xs font-semibold text-text-muted uppercase tracking-wider">
-              <div className="col-span-2">Status</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-2">Agente / Cliente</div>
               <div className="col-span-2">Versão</div>
-              <div className="col-span-3">Data/Hora</div>
+              <div className="col-span-2">Data/Hora</div>
               <div className="col-span-3">Resultados</div>
               <div className="col-span-2 text-right">Relatório</div>
            </div>
@@ -217,15 +218,18 @@ export const Validation = () => {
            {loading ? (
              [...Array(5)].map((_, i) => (
                <div key={i} className="grid grid-cols-12 gap-4 p-4 items-center border-b border-border-default last:border-0 animate-pulse">
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="col-span-1 flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full bg-bg-tertiary"></div>
-                    <div className="h-4 bg-bg-tertiary rounded w-16"></div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="h-4 bg-bg-tertiary rounded w-20 mb-1"></div>
+                    <div className="h-3 bg-bg-tertiary rounded w-24"></div>
                   </div>
                   <div className="col-span-2">
                     <div className="h-6 bg-bg-tertiary rounded w-16"></div>
                   </div>
-                  <div className="col-span-3">
-                    <div className="h-4 bg-bg-tertiary rounded w-32"></div>
+                  <div className="col-span-2">
+                    <div className="h-4 bg-bg-tertiary rounded w-24"></div>
                   </div>
                   <div className="col-span-3">
                     <div className="h-4 bg-bg-tertiary rounded w-24 mb-1"></div>
@@ -237,30 +241,43 @@ export const Validation = () => {
                </div>
              ))
            ) : testRuns.length > 0 ? (
-             testRuns.map(run => (
+             testRuns.map((run: any) => (
                <div key={run.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-bg-tertiary transition-colors border-b border-border-default last:border-0">
-                  <div className="col-span-2">
-                     {run.passed_tests === run.total_tests ? (
-                       <div className="flex items-center gap-2 text-accent-success">
+                  <div className="col-span-1">
+                     {run.passed_tests === run.total_tests && run.passed_tests > 0 ? (
+                       <div className="flex items-center gap-1 text-accent-success">
                          <CheckCircle size={16} />
-                         <span className="text-sm font-medium">Passou</span>
                        </div>
                      ) : (
-                       <div className="flex items-center gap-2 text-accent-error">
+                       <div className="flex items-center gap-1 text-accent-error">
                          <XCircle size={16} />
-                         <span className="text-sm font-medium">Falhou</span>
                        </div>
                      )}
                   </div>
-                  
+
+                  <div className="col-span-2">
+                    <div className="text-sm font-medium text-text-primary">
+                      {run.agent_name || '-'}
+                    </div>
+                    <div className="text-xs text-text-muted truncate">
+                      {run.client_name || run.location_id || '-'}
+                    </div>
+                  </div>
+
                   <div className="col-span-2">
                     <span className="font-mono text-sm bg-bg-tertiary px-2 py-1 rounded border border-border-default">{run.agent_version_id}</span>
                   </div>
-                  
-                  <div className="col-span-3 text-sm text-text-secondary">
-                     {new Date(run.run_at).toLocaleString()}
+
+                  <div className="col-span-2 text-sm text-text-secondary">
+                     {new Date(run.run_at || run.created_at).toLocaleString('pt-BR', {
+                       day: '2-digit',
+                       month: '2-digit',
+                       year: 'numeric',
+                       hour: '2-digit',
+                       minute: '2-digit'
+                     })}
                   </div>
-                  
+
                   <div className="col-span-3">
                      <div className="flex items-center gap-2 text-sm">
                         <span className="text-accent-success font-medium">{run.passed_tests} Pass</span>
@@ -271,9 +288,9 @@ export const Validation = () => {
                        <p className="text-xs text-text-muted mt-1 truncate">{run.summary}</p>
                      )}
                   </div>
-                  
+
                   <div className="col-span-2 flex justify-end">
-                     <button 
+                     <button
                        onClick={() => handleViewHtml(run.id)}
                        className="flex items-center gap-1.5 text-xs text-accent-primary hover:text-accent-primary/80 transition-colors"
                      >

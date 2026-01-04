@@ -63,6 +63,10 @@ export const useTestResults = () => {
           const passedTests = testResults.filter(t => t.passed).length;
           const failedTests = testResults.filter(t => !t.passed).length;
 
+          // Extrair nome do cliente do business_config ou location_id
+          const businessConfig = av.business_config || {};
+          const clientName = businessConfig.company_name || av.location_id || '-';
+
           return {
             id: av.id,
             agent_version_id: av.version || 'v1.0',
@@ -90,6 +94,8 @@ export const useTestResults = () => {
             total_tokens: vr.totals?.total_tokens,
             test_details: testResults,
             validation_status: av.validation_status,
+            location_id: av.location_id,
+            client_name: clientName,
             summary: vr.sales_analysis?.classification
               ? `Lead ${vr.sales_analysis.classification} (${vr.sales_analysis.score}/100) | Score: ${(vr.validator?.score || 0).toFixed(1)}/10`
               : `Score: ${(vr.validator?.score || av.validation_score || 0).toFixed(1)}/10`
@@ -99,6 +105,8 @@ export const useTestResults = () => {
             total_tokens?: number;
             test_details?: any[];
             validation_status?: string;
+            location_id?: string;
+            client_name?: string;
           };
         });
 
