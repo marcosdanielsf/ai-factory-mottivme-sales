@@ -1,83 +1,70 @@
-import React, { useState, useMemo } from 'react';
-import { Search, RotateCw, MessageSquare, Calendar, X, Send, Download, ChevronLeft, ChevronRight, User, AlertCircle, RefreshCw } from 'lucide-react';
-import { MOCK_LEADS } from '../constants';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, MessageSquare, Calendar, X, Send, Download, ChevronLeft, ChevronRight, User, RefreshCw, Building2, Instagram, Phone, Mail, ExternalLink, AlertCircle } from 'lucide-react';
 import { Lead } from '../types';
 import { useToast } from '../src/hooks/useToast';
+import { useLeads, useLeadConversations, LeadFilter } from '../src/hooks/useLeads';
+
+// Tipo estendido de Lead com campos extras do Supabase
+interface ExtendedLead extends Lead {
+  instagram_handle?: string;
+  company?: string;
+  icp_score?: number;
+  avatar_url?: string;
+}
 
 export const Leads = () => {
   const { showToast } = useToast();
-  const [filter, setFilter] = useState('Todos');
+  const [filter, setFilter] = useState<LeadFilter>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedChat, setSelectedChat] = useState<Lead | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedChat, setSelectedChat] = useState<ExtendedLead | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const itemsPerPage = 8;
 
-  const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      showToast('Lista de leads atualizada', 'info');
-    }, 1000);
+  // Debounce da busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Hook com dados reais do Supabase
+  const { leads, totalCount, loading, error, refetch } = useLeads({
+    filter,
+    searchTerm: debouncedSearch,
+    page: currentPage,
+    pageSize: itemsPerPage,
+  });
+
+  // Hook para conversas do lead selecionado
+  const { messages: chatMessages, loading: loadingChat } = useLeadConversations(
+    selectedChat?.id || null
+  );
+
+  const handleRefresh = async () => {
+    await refetch();
+    showToast('Lista de leads atualizada', 'info');
   };
 
-  const allLeads = useMemo(() => {
-    const leads = [...MOCK_LEADS] as Lead[];
-    // Gerar leads extras para totalizar 87
-    for (let i = 5; i <= 87; i++) {
-      const statusOptions: Lead['status'][] = ['scheduled', 'new_lead', 'qualified', 'call_booked'];
-      const status = statusOptions[i % statusOptions.length];
-      
-      leads.push({
-        id: i.toString(),
-        name: `Lead Cliente ${i}`,
-        email: `cliente${i}@mottiv.me`,
-        phone: `55119${Math.floor(Math.random() * 90000000 + 10000000)}`,
-        scheduled_date: `${(i % 28) + 1}/01 às ${10 + (i % 8)}:00`,
-        status: status,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    }
-    return leads;
-  }, []);
-
-  const filteredLeads = useMemo(() => {
-    let filtered = allLeads;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(l => 
-        l.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        l.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.phone.includes(searchTerm)
-      );
-    }
-
-    if (filter === 'Hoje') {
-      const todayStr = '01/01'; // Mock de hoje baseado na data do sistema 2026-01-01
-      filtered = filtered.filter(l => l.scheduled_date?.startsWith(todayStr));
-    } else if (filter === 'Amanhã') {
-      const tomorrowStr = '02/01';
-      filtered = filtered.filter(l => l.scheduled_date?.startsWith(tomorrowStr));
-    } else if (filter === 'Agendados') {
-      filtered = filtered.filter(l => l.status === 'scheduled');
-    }
-
-    return filtered;
-  }, [allLeads, searchTerm, filter]);
-
-  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
-  const currentLeads = useMemo(() => {
-    return filteredLeads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  }, [filteredLeads, currentPage, itemsPerPage]);
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handleExport = () => {
     try {
-      // Simular exportação CSV
-      const headers = ['ID', 'Nome', 'Email', 'Telefone', 'Status', 'Data Agendamento'];
-      const rows = filteredLeads.map(l => [l.id, l.name, l.email, l.phone, l.status, l.scheduled_date || '']);
+      const headers = ['ID', 'Nome', 'Email', 'Telefone', 'Status', 'Data Agendamento', 'Instagram', 'Empresa'];
+      const rows = leads.map((l: ExtendedLead) => [
+        l.id,
+        l.name,
+        l.email,
+        l.phone,
+        l.status,
+        l.scheduled_date || '',
+        l.instagram_handle || '',
+        l.company || ''
+      ]);
       const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -86,9 +73,9 @@ export const Leads = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      showToast('Exportação concluída com sucesso', 'success');
-    } catch (error) {
+
+      showToast('Exportacao concluida com sucesso', 'success');
+    } catch (err) {
       showToast('Erro ao exportar leads', 'error');
     }
   };
@@ -105,59 +92,94 @@ export const Leads = () => {
     }
   };
 
+  const handleFilterChange = (newFilter: LeadFilter) => {
+    setFilter(newFilter);
+    setCurrentPage(1);
+  };
+
+  // Status badge helper
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      'scheduled': { bg: 'bg-accent-success/10', text: 'text-accent-success', label: 'Agendado' },
+      'new_lead': { bg: 'bg-accent-primary/10', text: 'text-accent-primary', label: 'Novo' },
+      'qualified': { bg: 'bg-accent-warning/10', text: 'text-accent-warning', label: 'Qualificado' },
+      'call_booked': { bg: 'bg-blue-500/10', text: 'text-blue-500', label: 'Call Agendada' },
+      'won': { bg: 'bg-green-500/10', text: 'text-green-500', label: 'Ganho' },
+      'lost': { bg: 'bg-red-500/10', text: 'text-red-500', label: 'Perdido' },
+    };
+    const badge = badges[status] || badges['new_lead'];
+    return (
+      <span className={`text-[9px] px-2 py-0.5 rounded-full ${badge.bg} ${badge.text} border border-current/20 font-bold uppercase tracking-wider`}>
+        {badge.label}
+      </span>
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-default pb-6">
         <div>
-           <div className="flex items-center gap-3 mb-1">
-              <Calendar size={28} className="text-accent-primary" />
-              <h1 className="text-3xl font-semibold">Leads Agendados</h1>
-           </div>
+          <div className="flex items-center gap-3 mb-1">
+            <Calendar size={28} className="text-accent-primary" />
+            <h1 className="text-3xl font-semibold">Leads Agendados</h1>
+          </div>
           <p className="text-text-secondary">Gerencie os agendamentos realizados pelos agentes.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
-           <div className="hidden md:flex flex-col items-end mr-2">
-             <span className="text-xs text-text-muted uppercase tracking-wider font-medium">Total de Leads</span>
-             <span className="text-sm font-bold text-text-primary">{allLeads.length}</span>
-           </div>
-           <button 
-             onClick={handleExport}
-             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg border border-border-default transition-all active:scale-95"
-           >
-              <Download size={16} />
-              Exportar
-           </button>
-           <button 
-             onClick={handleRefresh}
-             disabled={loading}
-             className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
-             title="Atualizar lista de leads"
-           >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-           </button>
+          <div className="hidden md:flex flex-col items-end mr-2">
+            <span className="text-xs text-text-muted uppercase tracking-wider font-medium">Total de Leads</span>
+            <span className="text-sm font-bold text-text-primary">{loading ? '...' : totalCount}</span>
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={loading || leads.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded-lg border border-border-default transition-all active:scale-95 disabled:opacity-50"
+          >
+            <Download size={16} />
+            Exportar
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
+            title="Atualizar lista de leads"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="text-red-500" size={20} />
+          <div>
+            <p className="text-red-500 font-medium">Erro ao carregar leads</p>
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+          <button onClick={handleRefresh} className="ml-auto text-red-500 hover:underline text-sm">
+            Tentar novamente
+          </button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="bg-bg-secondary border border-border-default rounded-xl p-4 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted opacity-50" size={18} />
-            <input 
-              type="text" 
-              placeholder="Filtrar por nome, email ou telefone..." 
+            <input
+              type="text"
+              placeholder="Filtrar por nome, email ou telefone..."
               value={searchTerm}
               disabled={loading}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-bg-primary border border-border-default rounded-lg pl-10 pr-10 py-2.5 text-sm text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all shadow-sm disabled:opacity-50"
             />
             {searchTerm && (
-              <button 
+              <button
                 onClick={() => setSearchTerm('')}
                 className="absolute inset-y-0 right-3 flex items-center text-text-muted hover:text-text-primary transition-colors"
               >
@@ -167,30 +189,29 @@ export const Leads = () => {
           </div>
 
           <div className="flex bg-bg-tertiary/50 rounded-lg border border-border-default p-1 w-full md:w-auto">
-             {['Todos', 'Hoje', 'Amanhã', 'Agendados'].map((f) => (
-               <button 
-                 key={f} 
-                 disabled={loading}
-                 onClick={() => {
-                   setFilter(f);
-                   setCurrentPage(1);
-                 }}
-                 className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                   filter === f ? 'bg-bg-secondary text-accent-primary shadow-sm border border-border-default' : 'text-text-muted hover:text-text-primary'
-                 } disabled:opacity-50`}
-               >
-                 {f}
-               </button>
-             ))}
+            {(['Todos', 'Hoje', 'Amanha', 'Agendados'] as const).map((f) => (
+              <button
+                key={f}
+                disabled={loading}
+                onClick={() => handleFilterChange(f === 'Amanha' ? 'Amanhã' : f as LeadFilter)}
+                className={`flex-1 md:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  (filter === f || (filter === 'Amanhã' && f === 'Amanha'))
+                    ? 'bg-bg-secondary text-accent-primary shadow-sm border border-border-default'
+                    : 'text-text-muted hover:text-text-primary'
+                } disabled:opacity-50`}
+              >
+                {f === 'Amanha' ? 'Amanhã' : f}
+              </button>
+            ))}
           </div>
         </div>
 
         {(searchTerm || filter !== 'Todos') && (
           <div className="flex items-center justify-between text-xs border-t border-border-default pt-4">
             <p className="text-text-muted">
-              Encontrados <span className="text-text-primary font-semibold">{filteredLeads.length}</span> leads
+              Encontrados <span className="text-text-primary font-semibold">{totalCount}</span> leads
             </p>
-            <button 
+            <button
               onClick={clearFilters}
               disabled={loading}
               className="text-accent-primary hover:underline font-medium flex items-center gap-1 disabled:opacity-50"
@@ -209,41 +230,86 @@ export const Leads = () => {
             {/* Lead Info Sidebar */}
             <div className="w-80 border-r border-border-default flex flex-col bg-bg-primary hidden md:flex">
               <div className="p-6 text-center border-b border-border-default">
-                <div className="w-20 h-20 rounded-2xl bg-bg-tertiary flex items-center justify-center text-2xl font-bold border border-border-default mx-auto mb-4 text-accent-primary">
-                  {selectedChat.name.substring(0, 2).toUpperCase()}
-                </div>
+                {selectedChat.avatar_url ? (
+                  <img
+                    src={selectedChat.avatar_url}
+                    alt={selectedChat.name}
+                    className="w-20 h-20 rounded-2xl border border-border-default mx-auto mb-4 object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-bg-tertiary flex items-center justify-center text-2xl font-bold border border-border-default mx-auto mb-4 text-accent-primary">
+                    {selectedChat.name.substring(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <h3 className="font-bold text-lg text-text-primary">{selectedChat.name}</h3>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                  selectedChat.status === 'scheduled' ? 'bg-accent-success/10 text-accent-success border border-accent-success/20' : 
-                  'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
-                }`}>
-                  {selectedChat.status}
-                </span>
+                {getStatusBadge(selectedChat.status)}
               </div>
-              
+
               <div className="p-6 space-y-6 flex-1 overflow-y-auto">
                 <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Informações de Contato</h4>
+                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Informacoes de Contato</h4>
                   <div className="space-y-3">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-text-muted">E-mail</span>
-                      <span className="text-sm text-text-primary break-all">{selectedChat.email}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-text-muted">Telefone</span>
-                      <span className="text-sm text-text-primary">{selectedChat.phone}</span>
-                    </div>
+                    {selectedChat.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-text-muted" />
+                        <span className="text-sm text-text-primary break-all">{selectedChat.email}</span>
+                      </div>
+                    )}
+                    {selectedChat.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone size={14} className="text-text-muted" />
+                        <span className="text-sm text-text-primary">{selectedChat.phone}</span>
+                      </div>
+                    )}
+                    {selectedChat.instagram_handle && (
+                      <div className="flex items-center gap-2">
+                        <Instagram size={14} className="text-text-muted" />
+                        <a
+                          href={`https://instagram.com/${selectedChat.instagram_handle.replace('@', '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-accent-primary hover:underline flex items-center gap-1"
+                        >
+                          {selectedChat.instagram_handle}
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    )}
+                    {selectedChat.company && (
+                      <div className="flex items-center gap-2">
+                        <Building2 size={14} className="text-text-muted" />
+                        <span className="text-sm text-text-primary">{selectedChat.company}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {selectedChat.icp_score !== undefined && (
+                  <div className="space-y-4 pt-4 border-t border-border-default">
+                    <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">ICP Score</h4>
+                    <div className="bg-bg-secondary border border-border-default rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold text-text-primary">{selectedChat.icp_score}</span>
+                        <span className="text-xs text-text-muted">/100</span>
+                      </div>
+                      <div className="w-full bg-bg-tertiary rounded-full h-2">
+                        <div
+                          className="bg-accent-primary h-2 rounded-full transition-all"
+                          style={{ width: `${selectedChat.icp_score}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-4 pt-4 border-t border-border-default">
                   <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Agendamento</h4>
                   <div className="bg-bg-secondary border border-border-default rounded-lg p-3">
                     <div className="flex items-center gap-2 text-accent-primary mb-1">
                       <Calendar size={14} />
-                      <span className="text-sm font-bold">{selectedChat.scheduled_date || 'Não agendado'}</span>
+                      <span className="text-sm font-bold">{selectedChat.scheduled_date || 'Nao agendado'}</span>
                     </div>
-                    <p className="text-[10px] text-text-muted">Fuso horário: America/Sao_Paulo</p>
+                    <p className="text-[10px] text-text-muted">Fuso horario: America/Sao_Paulo</p>
                   </div>
                 </div>
               </div>
@@ -264,50 +330,55 @@ export const Leads = () => {
                 <div className="hidden md:block">
                   <span className="text-xs font-medium text-text-muted">Conversa com Lead</span>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedChat(null)}
                   className="p-2 hover:bg-bg-tertiary rounded-full transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                 <div className="flex justify-start">
-                    <div className="bg-bg-tertiary border border-border-default rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm shadow-sm">
-                      <p className="text-[10px] font-bold text-accent-primary mb-1 uppercase tracking-wider">AI Agent</p>
-                      Olá! Como posso ajudar você hoje? Notei seu interesse no plano Pro.
+                {loadingChat ? (
+                  <div className="flex items-center justify-center h-full">
+                    <RefreshCw className="animate-spin text-text-muted" size={24} />
+                  </div>
+                ) : chatMessages.length > 0 ? (
+                  chatMessages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`${
+                        msg.role === 'user'
+                          ? 'bg-accent-primary text-white rounded-2xl rounded-tr-none'
+                          : 'bg-bg-tertiary border border-border-default rounded-2xl rounded-tl-none'
+                      } p-4 max-w-[80%] text-sm shadow-sm`}>
+                        {msg.role !== 'user' && (
+                          <p className="text-[10px] font-bold text-accent-primary mb-1 uppercase tracking-wider">AI Agent</p>
+                        )}
+                        {msg.content}
+                      </div>
                     </div>
-                 </div>
-                 <div className="flex justify-end">
-                    <div className="bg-accent-primary text-white rounded-2xl rounded-tr-none p-4 max-w-[80%] text-sm shadow-md shadow-accent-primary/10">
-                      Gostaria de agendar uma reunião para falar sobre o plano Pro e como ele se integra ao meu sistema atual.
+                  ))
+                ) : (
+                  // Mensagens placeholder quando não há histórico
+                  <>
+                    <div className="flex justify-start">
+                      <div className="bg-bg-tertiary border border-border-default rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm shadow-sm">
+                        <p className="text-[10px] font-bold text-accent-primary mb-1 uppercase tracking-wider">AI Agent</p>
+                        Ola! Como posso ajudar voce hoje?
+                      </div>
                     </div>
-                 </div>
-                 <div className="flex justify-start">
-                    <div className="bg-bg-tertiary border border-border-default rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm shadow-sm">
-                      <p className="text-[10px] font-bold text-accent-primary mb-1 uppercase tracking-wider">AI Agent</p>
-                      Com certeza! Tenho disponibilidade amanhã às 10h ou 14h para uma demonstração técnica. Qual horário funciona melhor para você?
+                    <div className="text-center text-text-muted text-xs py-4">
+                      Nenhum historico de conversa encontrado
                     </div>
-                 </div>
-                 <div className="flex justify-end">
-                    <div className="bg-accent-primary text-white rounded-2xl rounded-tr-none p-4 max-w-[80%] text-sm shadow-md shadow-accent-primary/10">
-                      Amanhã às 10h seria perfeito.
-                    </div>
-                 </div>
-                 <div className="flex justify-start">
-                    <div className="bg-bg-tertiary border border-border-default rounded-2xl rounded-tl-none p-4 max-w-[80%] text-sm shadow-sm">
-                      <p className="text-[10px] font-bold text-accent-primary mb-1 uppercase tracking-wider">AI Agent</p>
-                      Ótimo! Acabei de agendar sua reunião para amanhã às 10h. Você receberá um link do Google Meet no seu e-mail em instantes.
-                    </div>
-                 </div>
+                  </>
+                )}
               </div>
 
               <div className="p-6 border-t border-border-default bg-bg-primary/50">
                 <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="Intervir na conversa..." 
+                  <input
+                    type="text"
+                    placeholder="Intervir na conversa..."
                     className="w-full bg-bg-secondary border border-border-default rounded-xl px-4 py-3 pr-14 text-sm focus:border-accent-primary outline-none transition-all shadow-inner"
                   />
                   <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors shadow-sm">
@@ -316,7 +387,7 @@ export const Leads = () => {
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-4">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent-warning animate-pulse"></div>
-                  <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest">Modo de intervenção manual ativo</p>
+                  <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest">Modo de intervencao manual ativo</p>
                 </div>
               </div>
             </div>
@@ -330,9 +401,9 @@ export const Leads = () => {
           <div className="col-span-4">Lead</div>
           <div className="col-span-3">Contato</div>
           <div className="col-span-3">Agendamento</div>
-          <div className="col-span-2 text-right">Ações</div>
+          <div className="col-span-2 text-right">Acoes</div>
         </div>
-        
+
         <div className="divide-y divide-border-default">
           {loading ? (
             [...Array(itemsPerPage)].map((_, i) => (
@@ -356,57 +427,65 @@ export const Leads = () => {
                 </div>
               </div>
             ))
-          ) : currentLeads.length > 0 ? (
-            currentLeads.map((lead: Lead) => (
+          ) : leads.length > 0 ? (
+            leads.map((lead: ExtendedLead) => (
               <div key={lead.id} className="grid grid-cols-12 gap-4 p-5 items-center hover:bg-bg-hover transition-all group">
-                 <div className="col-span-4 flex items-center gap-4">
+                <div className="col-span-4 flex items-center gap-4">
+                  {lead.avatar_url ? (
+                    <img
+                      src={lead.avatar_url}
+                      alt={lead.name}
+                      className="w-10 h-10 rounded-xl border border-border-default object-cover group-hover:border-accent-primary/30 transition-colors"
+                    />
+                  ) : (
                     <div className="w-10 h-10 rounded-xl bg-bg-primary border border-border-default flex items-center justify-center text-xs font-bold text-text-secondary group-hover:border-accent-primary/30 transition-colors">
                       {lead.name.substring(0, 2).toUpperCase()}
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-text-primary group-hover:text-accent-primary transition-colors">{lead.name}</div>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        {lead.status === 'scheduled' && (
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-success/10 text-accent-success border border-accent-success/20 font-bold uppercase tracking-wider">Agendado</span>
-                        )}
-                        {lead.status === 'new_lead' && (
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase tracking-wider">Novo</span>
-                        )}
-                        {lead.status === 'qualified' && (
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-warning/10 text-accent-warning border border-accent-warning/20 font-bold uppercase tracking-wider">Qualificado</span>
-                        )}
-                        <span className="text-[9px] text-text-muted font-medium">
-                          {lead.status === 'won' ? 'Cliente Ativo' : 'Via Formulário'}
+                  )}
+                  <div>
+                    <div className="text-sm font-bold text-text-primary group-hover:text-accent-primary transition-colors">{lead.name}</div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      {getStatusBadge(lead.status)}
+                      {lead.instagram_handle && (
+                        <span className="text-[9px] text-text-muted font-medium flex items-center gap-1">
+                          <Instagram size={10} />
+                          {lead.instagram_handle}
                         </span>
-                      </div>
+                      )}
+                      {!lead.instagram_handle && lead.acquisition_channel && (
+                        <span className="text-[9px] text-text-muted font-medium">
+                          Via {lead.acquisition_channel}
+                        </span>
+                      )}
                     </div>
-                 </div>
-                 
-                 <div className="col-span-3 space-y-1">
-                    <div className="text-xs text-text-secondary truncate font-medium">{lead.email}</div>
-                    <div className="text-xs text-text-muted">{lead.phone}</div>
-                 </div>
-                 
-                 <div className="col-span-3">
-                    {lead.scheduled_date ? (
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bg-primary border border-border-default text-text-primary text-xs font-bold shadow-sm group-hover:border-accent-primary/20 transition-colors">
-                        <Calendar size={14} className="text-accent-primary" />
-                        {lead.scheduled_date}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-text-muted italic ml-2">Aguardando...</span>
-                    )}
-                 </div>
-                 
-                 <div className="col-span-2 flex justify-end">
-                    <button 
-                      onClick={() => setSelectedChat(lead)}
-                      className="text-xs font-bold flex items-center gap-2 bg-bg-tertiary hover:bg-accent-primary hover:text-white text-text-primary transition-all px-4 py-2 rounded-lg border border-border-default hover:border-accent-primary shadow-sm"
-                    >
-                       <MessageSquare size={14} />
-                       Abrir Chat
-                    </button>
-                 </div>
+                  </div>
+                </div>
+
+                <div className="col-span-3 space-y-1">
+                  <div className="text-xs text-text-secondary truncate font-medium">{lead.email || '-'}</div>
+                  <div className="text-xs text-text-muted">{lead.phone || '-'}</div>
+                </div>
+
+                <div className="col-span-3">
+                  {lead.scheduled_date ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bg-primary border border-border-default text-text-primary text-xs font-bold shadow-sm group-hover:border-accent-primary/20 transition-colors">
+                      <Calendar size={14} className="text-accent-primary" />
+                      {lead.scheduled_date}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-text-muted italic ml-2">Aguardando...</span>
+                  )}
+                </div>
+
+                <div className="col-span-2 flex justify-end">
+                  <button
+                    onClick={() => setSelectedChat(lead)}
+                    className="text-xs font-bold flex items-center gap-2 bg-bg-tertiary hover:bg-accent-primary hover:text-white text-text-primary transition-all px-4 py-2 rounded-lg border border-border-default hover:border-accent-primary shadow-sm"
+                  >
+                    <MessageSquare size={14} />
+                    Abrir Chat
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -422,12 +501,12 @@ export const Leads = () => {
                 {searchTerm || filter !== 'Todos' ? 'Nenhum lead encontrado' : 'Nenhum lead agendado'}
               </h3>
               <p className="text-sm text-text-muted max-w-xs">
-                {searchTerm || filter !== 'Todos' 
-                  ? `Não encontramos resultados para sua busca atual. Tente ajustar os filtros.` 
+                {searchTerm || filter !== 'Todos'
+                  ? `Nao encontramos resultados para sua busca atual. Tente ajustar os filtros.`
                   : 'Aguardando os primeiros agendamentos realizados pelos agentes.'}
               </p>
               {(searchTerm || filter !== 'Todos') && (
-                <button 
+                <button
                   onClick={clearFilters}
                   className="mt-6 text-accent-primary hover:underline text-sm font-medium flex items-center gap-2"
                 >
@@ -439,37 +518,37 @@ export const Leads = () => {
           )}
         </div>
       </div>
-      
+
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <div className="text-xs text-text-muted">
-          Mostrando <span className="text-text-primary font-semibold">{loading ? '...' : currentLeads.length}</span> de <span className="text-text-primary font-semibold">{loading ? '...' : filteredLeads.length}</span> leads
+          Mostrando <span className="text-text-primary font-semibold">{loading ? '...' : leads.length}</span> de <span className="text-text-primary font-semibold">{loading ? '...' : totalCount}</span> leads
         </div>
-        
-        <div className="flex gap-2 items-center">
-           <button 
-             onClick={() => handlePageChange(currentPage - 1)}
-             disabled={currentPage === 1 || loading}
-             className={`p-2 rounded-lg border border-border-default bg-bg-secondary text-text-primary transition-all shadow-sm ${currentPage === 1 || loading ? 'opacity-30 cursor-not-allowed' : 'hover:bg-bg-hover hover:border-accent-primary/30 active:scale-95'}`}
-             title="Anterior"
-           >
-             <ChevronLeft size={18} />
-           </button>
-           
-           <div className="flex items-center gap-1 px-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm font-bold text-text-primary shadow-sm min-w-[80px] justify-center">
-             <span>{currentPage}</span>
-             <span className="text-text-muted font-normal">/</span>
-             <span className="text-text-muted font-normal">{totalPages || 1}</span>
-           </div>
 
-           <button 
-             onClick={() => handlePageChange(currentPage + 1)}
-             disabled={currentPage === totalPages || totalPages === 0 || loading}
-             className={`p-2 rounded-lg border border-border-default bg-bg-secondary text-text-primary transition-all shadow-sm ${currentPage === totalPages || totalPages === 0 || loading ? 'opacity-30 cursor-not-allowed' : 'hover:bg-bg-hover hover:border-accent-primary/30 active:scale-95'}`}
-             title="Próximo"
-           >
-             <ChevronRight size={18} />
-           </button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+            className={`p-2 rounded-lg border border-border-default bg-bg-secondary text-text-primary transition-all shadow-sm ${currentPage === 1 || loading ? 'opacity-30 cursor-not-allowed' : 'hover:bg-bg-hover hover:border-accent-primary/30 active:scale-95'}`}
+            title="Anterior"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex items-center gap-1 px-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm font-bold text-text-primary shadow-sm min-w-[80px] justify-center">
+            <span>{currentPage}</span>
+            <span className="text-text-muted font-normal">/</span>
+            <span className="text-text-muted font-normal">{totalPages || 1}</span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || totalPages === 0 || loading}
+            className={`p-2 rounded-lg border border-border-default bg-bg-secondary text-text-primary transition-all shadow-sm ${currentPage === totalPages || totalPages === 0 || loading ? 'opacity-30 cursor-not-allowed' : 'hover:bg-bg-hover hover:border-accent-primary/30 active:scale-95'}`}
+            title="Proximo"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
       </div>
     </div>
