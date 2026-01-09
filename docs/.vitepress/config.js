@@ -17,6 +17,7 @@ export default defineConfig({
       { text: 'Arquitetura', link: '/arquitetura/' },
       { text: 'Workflows', link: '/workflows/' },
       { text: 'Guias', link: '/guias/' },
+      { text: 'Integracoes', link: '/integracoes/asaas-n8n' },
       { text: 'Planos', link: '/planos/' }
     ],
 
@@ -74,6 +75,13 @@ export default defineConfig({
           items: [
             { text: 'Resumo Executivo', link: '/relatorios/resumo' },
             { text: 'Status Agentes', link: '/relatorios/status' }
+          ]
+        },
+        {
+          text: 'Integracoes',
+          collapsed: false,
+          items: [
+            { text: 'Asaas + n8n', link: '/integracoes/asaas-n8n' }
           ]
         }
       ]
