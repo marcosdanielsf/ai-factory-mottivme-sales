@@ -52,10 +52,11 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Self-Improving',
+          text: 'Guias',
           collapsed: false,
           items: [
-            { text: 'Como Funciona', link: '/guias/self-improving' },
+            { text: 'Engenharia de Prompts Modulares', link: '/guias/engenharia-prompts-modulares' },
+            { text: 'Self-Improving', link: '/guias/self-improving' },
             { text: 'Teste E2E', link: '/guias/teste-e2e' },
             { text: 'Roadmap Features', link: '/planos/roadmap' }
           ]
