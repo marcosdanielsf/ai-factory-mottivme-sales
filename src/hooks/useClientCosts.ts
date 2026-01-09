@@ -37,7 +37,8 @@ export interface ClientCostDetail {
 }
 
 interface UseClientCostsOptions {
-  dateRange?: 'today' | '7d' | '30d' | 'all';
+  dateRange?: 'today' | '7d' | '30d' | 'all' | 'month';
+  month?: string; // Formato: 'YYYY-MM' (ex: '2026-01')
 }
 
 interface UseClientCostsReturn {
@@ -49,26 +50,35 @@ interface UseClientCostsReturn {
   refetch: () => Promise<void>;
 }
 
-// Helper para calcular data de inicio
-const getStartDate = (range: string): Date | null => {
+// Helper para calcular data de inicio e fim
+const getDateRange = (range: string, month?: string): { start: Date | null; end: Date | null } => {
   const now = new Date();
+
   switch (range) {
     case 'today':
       now.setHours(0, 0, 0, 0);
-      return now;
+      return { start: now, end: null };
     case '7d':
       now.setDate(now.getDate() - 7);
-      return now;
+      return { start: now, end: null };
     case '30d':
       now.setDate(now.getDate() - 30);
-      return now;
+      return { start: now, end: null };
+    case 'month':
+      if (month) {
+        const [year, monthNum] = month.split('-').map(Number);
+        const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+        const end = new Date(year, monthNum, 0, 23, 59, 59, 999); // Último dia do mês
+        return { start, end };
+      }
+      return { start: null, end: null };
     default:
-      return null;
+      return { start: null, end: null };
   }
 };
 
 export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCostsReturn => {
-  const { dateRange = '30d' } = options;
+  const { dateRange = '30d', month } = options;
 
   const [clients, setClients] = useState<ClientCostSummary[]>([]);
   const [totalCost, setTotalCost] = useState(0);
@@ -93,9 +103,12 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
         .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia, created_at');
 
       // Aplicar filtro de data
-      const startDate = getStartDate(dateRange);
-      if (startDate) {
-        query = query.gte('created_at', startDate.toISOString());
+      const { start, end } = getDateRange(dateRange, month);
+      if (start) {
+        query = query.gte('created_at', start.toISOString());
+      }
+      if (end) {
+        query = query.lte('created_at', end.toISOString());
       }
 
       const { data, error: queryError } = await query;
@@ -173,7 +186,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, month]);
 
   useEffect(() => {
     fetchCosts();
@@ -185,7 +198,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
 // Hook para custos detalhados de um cliente especifico
 // Agora recebe location_name ao invés de location_id
 export const useClientCostDetails = (locationName: string | null, options: UseClientCostsOptions = {}) => {
-  const { dateRange = '30d' } = options;
+  const { dateRange = '30d', month } = options;
 
   const [costs, setCosts] = useState<ClientCostDetail[]>([]);
   const [dailyCosts, setDailyCosts] = useState<DailyCost[]>([]);
@@ -212,9 +225,13 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
           .order('created_at', { ascending: false })
           .limit(100);
 
-        const startDate = getStartDate(dateRange);
-        if (startDate) {
-          query = query.gte('created_at', startDate.toISOString());
+        // Aplicar filtro de data
+        const { start, end } = getDateRange(dateRange, month);
+        if (start) {
+          query = query.gte('created_at', start.toISOString());
+        }
+        if (end) {
+          query = query.lte('created_at', end.toISOString());
         }
 
         const { data, error: queryError } = await query;
@@ -260,7 +277,7 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
     };
 
     fetchDetails();
-  }, [locationName, dateRange]);
+  }, [locationName, dateRange, month]);
 
   return { costs, dailyCosts, loading, error };
 };

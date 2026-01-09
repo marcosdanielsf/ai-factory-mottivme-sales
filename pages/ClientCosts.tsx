@@ -22,19 +22,41 @@ import {
   ClientCostSummary
 } from '../src/hooks/useClientCosts';
 
-type DateRange = 'today' | '7d' | '30d' | 'all';
+type DateRange = 'today' | '7d' | '30d' | 'all' | 'month';
+
+// Gerar lista de meses disponíveis (últimos 12 meses)
+const getAvailableMonths = () => {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  }
+  return months;
+};
 
 export const ClientCosts = () => {
   const { showToast } = useToast();
   const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
 
+  const availableMonths = getAvailableMonths();
+
   // Hooks de dados
-  const { clients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({ dateRange });
+  const { clients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
+    dateRange,
+    month: dateRange === 'month' ? selectedMonth : undefined
+  });
   const { summary, loading: loadingSummary } = useGlobalCostSummary();
   const { costs: clientDetails, dailyCosts, loading: loadingDetails } = useClientCostDetails(
     selectedClient?.location_name || null,
-    { dateRange }
+    { dateRange, month: dateRange === 'month' ? selectedMonth : undefined }
   );
 
   const handleRefresh = async () => {
@@ -87,13 +109,14 @@ export const ClientCosts = () => {
           <p className="text-text-secondary">Monitore o consumo de IA e custos por cliente.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Date Range Selector */}
           <div className="flex bg-bg-tertiary/50 rounded-lg border border-border-default p-1">
             {[
               { value: 'today', label: 'Hoje' },
               { value: '7d', label: '7 dias' },
               { value: '30d', label: '30 dias' },
+              { value: 'month', label: 'Mês' },
               { value: 'all', label: 'Todos' },
             ].map((option) => (
               <button
@@ -110,6 +133,22 @@ export const ClientCosts = () => {
               </button>
             ))}
           </div>
+
+          {/* Month Selector - só aparece quando dateRange é 'month' */}
+          {dateRange === 'month' && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-bg-secondary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50"
+            >
+              {availableMonths.map((month) => (
+                <option key={month.value} value={month.value}>
+                  {month.label}
+                </option>
+              ))}
+            </select>
+          )}
 
           <button
             onClick={handleRefresh}
@@ -150,7 +189,12 @@ export const ClientCosts = () => {
             {loading ? '...' : formatUSD(totalCost)}
           </div>
           <p className="text-xs text-text-muted mt-1">
-            Periodo: {dateRange === 'all' ? 'Todo historico' : dateRange === 'today' ? 'Hoje' : `Ultimos ${dateRange}`}
+            Periodo: {
+              dateRange === 'all' ? 'Todo historico' :
+              dateRange === 'today' ? 'Hoje' :
+              dateRange === 'month' ? availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth :
+              `Ultimos ${dateRange}`
+            }
           </p>
         </div>
 
