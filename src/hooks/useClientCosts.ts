@@ -76,7 +76,10 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
   const [error, setError] = useState<string | null>(null);
 
   const fetchCosts = useCallback(async () => {
+    console.log('[useClientCosts] isSupabaseConfigured:', isSupabaseConfigured());
+
     if (!isSupabaseConfigured()) {
+      console.error('[useClientCosts] Supabase NOT configured!');
       setError('Supabase nao configurado');
       setLoading(false);
       return;
@@ -85,6 +88,8 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     try {
       setLoading(true);
       setError(null);
+
+      console.log('[useClientCosts] Fetching costs for dateRange:', dateRange);
 
       // Query base
       let query = supabase
@@ -99,8 +104,10 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
 
       const { data, error: queryError } = await query;
 
+      console.log('[useClientCosts] Query result - data length:', data?.length, 'error:', queryError);
+
       if (queryError) {
-        console.error('Error fetching costs:', queryError);
+        console.error('[useClientCosts] Error fetching costs:', queryError);
         throw queryError;
       }
 
@@ -153,12 +160,13 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       const total = result.reduce((acc, c) => acc + c.total_cost_usd, 0);
       const requests = result.reduce((acc, c) => acc + c.total_requests, 0);
 
+      console.log('[useClientCosts] Processed:', result.length, 'clients, total:', total, 'requests:', requests);
       setClients(result);
       setTotalCost(total);
       setTotalRequests(requests);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar custos');
-      console.error('Error fetching costs:', err);
+      console.error('[useClientCosts] Error fetching costs:', err);
     } finally {
       setLoading(false);
     }
