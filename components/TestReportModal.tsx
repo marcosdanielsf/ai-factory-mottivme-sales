@@ -26,6 +26,15 @@ interface E2EScenario {
   }>;
 }
 
+// Interface para dados do debate
+interface DebateData {
+  score: number;
+  verdict: string;
+  criticism?: string;
+  defense?: string;
+  improvement_summary?: string;
+}
+
 // Interface extendida para o run com dados completos
 interface TestRunWithDetails {
   id: string;
@@ -58,6 +67,8 @@ interface TestRunWithDetails {
   };
   // Dados de testes E2E (cenários completos com conversas)
   e2e_scenarios?: E2EScenario[];
+  // Dados do debate (quando E2E não rodou)
+  debate?: DebateData;
 }
 
 interface TestReportModalProps {
@@ -103,16 +114,18 @@ export const TestReportModal = ({ run, onClose }: TestReportModalProps) => {
   const e2eScenarios = run.e2e_scenarios || [];
   const hasTestDetails = testDetails.length > 0;
   const hasE2EScenarios = e2eScenarios.length > 0;
-  const hasRealData = hasTestDetails || hasE2EScenarios;
+  const hasDebate = !!run.debate?.verdict;
+  const hasRealData = hasTestDetails || hasE2EScenarios || hasDebate;
   const isE2ETest = hasE2EScenarios && !hasTestDetails;
+  const isDebateOnly = hasDebate && !hasTestDetails && !hasE2EScenarios;
 
   // Calcular contagem total de itens para a aba
-  const totalResultsCount = hasE2EScenarios ? e2eScenarios.length : testDetails.length;
+  const totalResultsCount = hasE2EScenarios ? e2eScenarios.length : (hasTestDetails ? testDetails.length : (hasDebate ? 1 : 0));
 
   const tabs = [
-    { id: 'results' as TabType, label: isE2ETest ? 'Cenários E2E' : 'Resultados dos Testes', icon: FileText, count: totalResultsCount },
+    { id: 'results' as TabType, label: isDebateOnly ? 'Veredito do Debate' : (isE2ETest ? 'Cenários E2E' : 'Resultados dos Testes'), icon: FileText, count: totalResultsCount },
     { id: 'prompt' as TabType, label: 'Prompt do Agente', icon: Code },
-    { id: 'conversation' as TabType, label: isE2ETest ? 'Conversas E2E' : 'Raciocínio & Conversa', icon: MessageSquare },
+    { id: 'conversation' as TabType, label: isDebateOnly ? 'Análise Completa' : (isE2ETest ? 'Conversas E2E' : 'Raciocínio & Conversa'), icon: MessageSquare },
   ];
 
   return (

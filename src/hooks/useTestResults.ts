@@ -169,9 +169,17 @@ export const useTestResults = () => {
             // Campos para o modal de prompt e raciocínio
             system_prompt: av.system_prompt,
             business_config: av.business_config,
+            // Dados do debate (quando E2E não rodou)
+            debate: vr.debate || (vr.debate_score !== undefined ? {
+              score: vr.debate_score,
+              verdict: vr.debate_verdict || '',
+              improvement_summary: vr.improvement_summary || ''
+            } : undefined),
             summary: vr.sales_analysis?.classification
-              ? `Lead ${vr.sales_analysis.classification} (${vr.sales_analysis.score}/100) | Score: ${(vr.validator?.score || 0).toFixed(1)}/10`
-              : `Score: ${(vr.validator?.score || av.validation_score || 0).toFixed(1)}/10`
+              ? `Lead ${vr.sales_analysis.classification} (${vr.sales_analysis.score}/100) | Score: ${scoreOverall.toFixed(1)}/10`
+              : (vr.debate_score !== undefined
+                ? `Debate: ${vr.debate_score}/100 | ${vr.e2e_pass_rate !== undefined ? `E2E: ${vr.e2e_pass_rate}%` : 'Sem E2E'}`
+                : `Score: ${scoreOverall.toFixed(1)}/10`)
           } as AgentTestRun & {
             lead_classification?: string;
             sales_score?: number;
@@ -182,6 +190,13 @@ export const useTestResults = () => {
             client_name?: string;
             system_prompt?: string;
             business_config?: Record<string, any>;
+            debate?: {
+              score: number;
+              verdict: string;
+              criticism?: string;
+              defense?: string;
+              improvement_summary?: string;
+            };
           };
         });
 

@@ -16,6 +16,7 @@ import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
 import { AgentDetail } from './pages/AgentDetail';
 import { ReflectionLoop } from './pages/ReflectionLoop';
+import { ClientCosts } from './pages/ClientCosts';
 import { Login } from './pages/Login';
 import { ToastProvider } from './src/hooks/useToast';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -118,6 +119,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <CallsRealizadas />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/custos" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientCosts />
                 </Layout>
               </ProtectedRoute>
             } />
