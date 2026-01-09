@@ -33,7 +33,7 @@ export const ClientCosts = () => {
   const { clients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({ dateRange });
   const { summary, loading: loadingSummary } = useGlobalCostSummary();
   const { costs: clientDetails, dailyCosts, loading: loadingDetails } = useClientCostDetails(
-    selectedClient?.location_id || null,
+    selectedClient?.location_name || null,
     { dateRange }
   );
 
@@ -84,7 +84,7 @@ export const ClientCosts = () => {
             <DollarSign size={28} className="text-accent-primary" />
             <h1 className="text-3xl font-semibold">Custos por Cliente</h1>
           </div>
-          <p className="text-text-secondary">Monitore o consumo de IA e custos por location_id (cliente).</p>
+          <p className="text-text-secondary">Monitore o consumo de IA e custos por cliente.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -239,7 +239,11 @@ export const ClientCosts = () => {
             <div className="p-6 border-b border-border-default flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-text-primary">{selectedClient.location_name}</h2>
-                <p className="text-xs text-text-muted font-mono mt-1">{selectedClient.location_id}</p>
+                <p className="text-xs text-text-muted font-mono mt-1">
+                  {selectedClient.location_ids?.length > 1
+                    ? `${selectedClient.location_ids.length} location IDs`
+                    : selectedClient.location_id}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedClient(null)}
@@ -373,7 +377,7 @@ export const ClientCosts = () => {
           ) : clients.length > 0 ? (
             clients.map((client) => (
               <div
-                key={client.location_id}
+                key={client.location_name}
                 onClick={() => setSelectedClient(client)}
                 className="p-5 hover:bg-bg-hover transition-all cursor-pointer group"
               >

@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Tipos para custos de cliente
 export interface ClientCostSummary {
-  location_id: string;
+  location_id: string; // Pode conter múltiplos IDs separados por vírgula
   location_name: string;
   total_cost_usd: number;
   total_tokens_input: number;
@@ -12,6 +12,7 @@ export interface ClientCostSummary {
   models_used: string[];
   avg_cost_per_request: number;
   last_activity?: string;
+  location_ids: string[]; // Lista de todos os location_ids associados
 }
 
 export interface DailyCost {
@@ -104,9 +105,9 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
         throw queryError;
       }
 
-      // Agrupar por location_id
+      // Agrupar por location_name (não por location_id, pois alguns clientes têm múltiplos IDs ou NULL)
       const clientCosts: Record<string, {
-        location_id: string;
+        location_ids: Set<string>;
         location_name: string;
         total_cost_usd: number;
         total_tokens_input: number;
@@ -117,11 +118,14 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       }> = {};
 
       (data || []).forEach((row: any) => {
+        // Usar location_name como chave de agrupamento
+        const clientName = row.location_name || 'Desconhecido';
         const lid = row.location_id || 'unknown';
-        if (!clientCosts[lid]) {
-          clientCosts[lid] = {
-            location_id: lid,
-            location_name: row.location_name || 'Desconhecido',
+
+        if (!clientCosts[clientName]) {
+          clientCosts[clientName] = {
+            location_ids: new Set(),
+            location_name: clientName,
             total_cost_usd: 0,
             total_tokens_input: 0,
             total_tokens_output: 0,
@@ -130,23 +134,30 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
             last_activity: row.created_at,
           };
         }
-        clientCosts[lid].total_cost_usd += row.custo_usd || 0;
-        clientCosts[lid].total_tokens_input += row.tokens_input || 0;
-        clientCosts[lid].total_tokens_output += row.tokens_output || 0;
-        clientCosts[lid].total_requests += 1;
-        if (row.modelo_ia) clientCosts[lid].models_used.add(row.modelo_ia);
-        if (row.created_at > clientCosts[lid].last_activity) {
-          clientCosts[lid].last_activity = row.created_at;
+        // Adicionar location_id à lista (pode ter múltiplos por cliente)
+        clientCosts[clientName].location_ids.add(lid);
+        clientCosts[clientName].total_cost_usd += row.custo_usd || 0;
+        clientCosts[clientName].total_tokens_input += row.tokens_input || 0;
+        clientCosts[clientName].total_tokens_output += row.tokens_output || 0;
+        clientCosts[clientName].total_requests += 1;
+        if (row.modelo_ia) clientCosts[clientName].models_used.add(row.modelo_ia);
+        if (row.created_at > clientCosts[clientName].last_activity) {
+          clientCosts[clientName].last_activity = row.created_at;
         }
       });
 
       // Converter para array e calcular medias
       const result: ClientCostSummary[] = Object.values(clientCosts)
-        .map(c => ({
-          ...c,
-          models_used: Array.from(c.models_used),
-          avg_cost_per_request: c.total_requests > 0 ? c.total_cost_usd / c.total_requests : 0,
-        }))
+        .map(c => {
+          const locationIdsArray = Array.from(c.location_ids);
+          return {
+            ...c,
+            location_id: locationIdsArray[0] || 'unknown', // Usar o primeiro como principal
+            location_ids: locationIdsArray,
+            models_used: Array.from(c.models_used),
+            avg_cost_per_request: c.total_requests > 0 ? c.total_cost_usd / c.total_requests : 0,
+          };
+        })
         .sort((a, b) => b.total_cost_usd - a.total_cost_usd);
 
       // Calcular totais
@@ -172,7 +183,8 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
 };
 
 // Hook para custos detalhados de um cliente especifico
-export const useClientCostDetails = (locationId: string | null, options: UseClientCostsOptions = {}) => {
+// Agora recebe location_name ao invés de location_id
+export const useClientCostDetails = (locationName: string | null, options: UseClientCostsOptions = {}) => {
   const { dateRange = '30d' } = options;
 
   const [costs, setCosts] = useState<ClientCostDetail[]>([]);
@@ -181,7 +193,7 @@ export const useClientCostDetails = (locationId: string | null, options: UseClie
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!locationId || !isSupabaseConfigured()) {
+    if (!locationName || !isSupabaseConfigured()) {
       setCosts([]);
       setDailyCosts([]);
       return;
@@ -192,10 +204,11 @@ export const useClientCostDetails = (locationId: string | null, options: UseClie
         setLoading(true);
         setError(null);
 
+        // Buscar por location_name ao invés de location_id
         let query = supabase
           .from('llm_costs')
           .select('*')
-          .eq('location_id', locationId)
+          .eq('location_name', locationName)
           .order('created_at', { ascending: false })
           .limit(100);
 
@@ -247,7 +260,7 @@ export const useClientCostDetails = (locationId: string | null, options: UseClie
     };
 
     fetchDetails();
-  }, [locationId, dateRange]);
+  }, [locationName, dateRange]);
 
   return { costs, dailyCosts, loading, error };
 };
@@ -278,11 +291,12 @@ export const useGlobalCostSummary = () => {
 
         const { data, error: queryError } = await supabase
           .from('llm_costs')
-          .select('location_id, custo_usd, tokens_input, tokens_output, modelo_ia');
+          .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia');
 
         if (queryError) throw queryError;
 
-        const uniqueClients = new Set((data || []).map((r: any) => r.location_id));
+        // Contar clientes únicos por location_name (não location_id)
+        const uniqueClients = new Set((data || []).map((r: any) => r.location_name || 'Desconhecido'));
         const totalCost = (data || []).reduce((acc: number, r: any) => acc + (r.custo_usd || 0), 0);
         const totalTokens = (data || []).reduce((acc: number, r: any) => acc + (r.tokens_input || 0) + (r.tokens_output || 0), 0);
 
