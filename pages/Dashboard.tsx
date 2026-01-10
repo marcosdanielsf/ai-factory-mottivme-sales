@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
-import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw } from 'lucide-react';
+import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw, MessageSquare, Calendar, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance } from '../src/hooks';
+import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics } from '../src/hooks';
 import { useToast } from '../src/hooks/useToast';
 import { TestReportModal } from '../components/TestReportModal';
 import { 
@@ -72,6 +72,8 @@ export const Dashboard = () => {
   const { approvals, loading: approvalsLoading, error: approvalsError } = usePendingApprovals();
   const { testRuns: testResults, loading: testResultsLoading, error: testResultsError } = useTestResults();
   const { performance, loading: performanceLoading, error: performanceError, refetch: refetchPerformance } = useAgentPerformance();
+  const [selectedPeriod, setSelectedPeriod] = useState<'hoje' | '7d' | '30d' | '90d'>('30d');
+  const { funnel, alerts, engagement, loading: funnelLoading, error: funnelError, refetch: refetchFunnel } = useFunnelMetrics(selectedPeriod);
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,11 +83,11 @@ export const Dashboard = () => {
     showToast('Atualizando indicadores...', 'info');
     
     try {
-      // O hook useDashboardMetrics não parece ter refetch exportado, 
-      // mas os outros têm. Vamos disparar os que temos.
+      // Atualizar todos os dados
       await Promise.all([
         refetchAgents?.(),
-        refetchPerformance?.()
+        refetchPerformance?.(),
+        refetchFunnel?.()
       ]);
       
       showToast('Painel atualizado com sucesso', 'success');
@@ -180,7 +182,18 @@ export const Dashboard = () => {
         </div>
         
         <div className="flex items-center gap-3">
-           <button 
+           {/* Filtro de Período */}
+           <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value as any)}
+              className="px-3 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary cursor-pointer"
+            >
+              <option value="hoje">📅 Hoje</option>
+              <option value="7d">📅 7 dias</option>
+              <option value="30d">📅 30 dias</option>
+              <option value="90d">📅 90 dias</option>
+           </select>
+           <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
@@ -188,7 +201,7 @@ export const Dashboard = () => {
             >
               <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
            </button>
-           <button 
+           <button
               onClick={handleRunTests}
               disabled={isRunningTests}
               className={`flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default hover:bg-bg-tertiary rounded text-sm transition-colors ${isRunningTests ? 'opacity-50 cursor-wait' : ''}`}
@@ -202,13 +215,178 @@ export const Dashboard = () => {
       {/* Detailed Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {dashboardMetrics.map((metric, i) => (
-          <MetricCard 
+          <MetricCard
             key={i}
             {...metric}
-            trend={i === 2 ? "+24%" : undefined} 
+            trend={i === 2 ? "+24%" : undefined}
             trendDirection="up"
           />
         ))}
+      </div>
+
+      {/* Alertas Urgentes */}
+      {(alerts.leadsSemResposta24h > 0 || alerts.followupsFalhados > 0 || alerts.leadsEsfriando > 0 || alerts.noShows > 0) && (
+        <div className={`p-4 rounded-xl border-l-4 ${
+          alerts.leadsSemResposta24h > 5 || alerts.followupsFalhados > 0
+            ? 'bg-accent-error/5 border-accent-error'
+            : 'bg-accent-warning/5 border-accent-warning'
+        }`}>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Zap size={18} className={alerts.leadsSemResposta24h > 5 ? 'text-accent-error' : 'text-accent-warning'} />
+              <span className="font-semibold text-text-primary">AÇÕES URGENTES</span>
+            </div>
+
+            <div className="flex-1 flex items-center gap-6 flex-wrap">
+              {alerts.leadsSemResposta24h > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${alerts.leadsSemResposta24h > 5 ? 'bg-accent-error animate-pulse' : 'bg-accent-warning'}`} />
+                  <span className="text-sm text-text-secondary">
+                    {alerts.leadsSemResposta24h} leads sem resposta {'>'}24h
+                  </span>
+                </div>
+              )}
+              {alerts.followupsFalhados > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-accent-error animate-pulse" />
+                  <span className="text-sm text-text-secondary">
+                    {alerts.followupsFalhados} follow-ups falhados
+                  </span>
+                </div>
+              )}
+              {alerts.leadsEsfriando > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-accent-warning" />
+                  <span className="text-sm text-text-secondary">
+                    {alerts.leadsEsfriando} leads esfriando
+                  </span>
+                </div>
+              )}
+              {alerts.noShows > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-accent-warning" />
+                  <span className="text-sm text-text-secondary">
+                    {alerts.noShows} no-shows
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Funil de Conversão + Métricas de Engajamento */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Funil */}
+        <div className="space-y-4">
+          <SectionHeader title="Funil de Conversão" icon={Target} />
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-6 min-h-[300px] relative">
+            {funnelLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : funnelError ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2">
+                <AlertCircle size={24} className="text-accent-error" />
+                <p className="text-sm text-text-muted">Erro ao carregar funil</p>
+              </div>
+            ) : funnel.length === 0 || funnel.every(f => f.count === 0) ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2">
+                <Inbox size={24} className="text-text-muted" />
+                <p className="text-sm text-text-muted">Nenhum dado no período</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {funnel.map((stage, i) => {
+                  const maxCount = Math.max(...funnel.map(f => f.count), 1);
+                  const width = (stage.count / maxCount) * 100;
+                  const prevCount = i > 0 ? funnel[i - 1].count : stage.count;
+                  const conversionRate = prevCount > 0 ? ((stage.count / prevCount) * 100).toFixed(1) : '0';
+
+                  return (
+                    <div key={stage.stage}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${stage.color}20` }}>
+                          {i === 0 && <Users size={16} style={{ color: stage.color }} />}
+                          {i === 1 && <MessageSquare size={16} style={{ color: stage.color }} />}
+                          {i === 2 && <Calendar size={16} style={{ color: stage.color }} />}
+                          {i === 3 && <UserCheck size={16} style={{ color: stage.color }} />}
+                          {i === 4 && <CheckCircle size={16} style={{ color: stage.color }} />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm text-text-secondary">{stage.stage}</span>
+                            <span className="text-lg font-bold text-text-primary">{stage.count}</span>
+                          </div>
+                          <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${width}%`, backgroundColor: stage.color }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {i > 0 && i < funnel.length && (
+                        <div className="flex items-center gap-3 ml-11 my-1">
+                          <div className="h-4 border-l border-dashed border-border-default" />
+                          <span className="text-xs text-text-muted">↓ {conversionRate}% converteram</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Taxa geral */}
+                <div className="mt-4 pt-4 border-t border-border-default flex items-center justify-between">
+                  <span className="text-sm text-text-muted">Conversão geral</span>
+                  <span className="text-xl font-bold text-accent-success">
+                    {funnel[0]?.count > 0
+                      ? ((funnel[funnel.length - 1]?.count / funnel[0]?.count) * 100).toFixed(1)
+                      : '0.0'}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Métricas de Engajamento */}
+        <div className="space-y-4">
+          <SectionHeader title="Métricas de Follow-up" icon={Activity} />
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Follow-ups/Lead</div>
+                <div className="text-2xl font-bold text-text-primary">{engagement.followupsPerLead}</div>
+              </div>
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Tentativa que Converte</div>
+                <div className="text-2xl font-bold text-text-primary">{engagement.tentativaQueConverte}</div>
+              </div>
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Taxa de Resposta</div>
+                <div className="flex items-end gap-2">
+                  <span className="text-2xl font-bold text-text-primary">{engagement.taxaResposta}%</span>
+                  {engagement.taxaResposta > 30 && <TrendingUp size={16} className="text-accent-success mb-1" />}
+                </div>
+              </div>
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Tempo até Resposta</div>
+                <div className="text-2xl font-bold text-text-primary">{engagement.tempoAteResposta}</div>
+              </div>
+            </div>
+
+            {/* Insight */}
+            <div className="mt-4 p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Zap size={14} className="text-accent-primary mt-0.5" />
+                <p className="text-xs text-text-secondary">
+                  <strong className="text-text-primary">Insight:</strong> Leads que respondem no 2º follow-up têm 3x mais chance de agendar.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Performance Charts Grid */}

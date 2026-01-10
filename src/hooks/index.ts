@@ -8,3 +8,4 @@ export * from './useAgentPerformance';
 export * from './useArtifacts';
 export * from './useLeads';
 export * from './useClientCosts';
+export * from './useFunnelMetrics';
