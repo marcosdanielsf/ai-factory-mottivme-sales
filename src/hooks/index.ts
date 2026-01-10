@@ -9,3 +9,4 @@ export * from './useArtifacts';
 export * from './useLeads';
 export * from './useClientCosts';
 export * from './useFunnelMetrics';
+export * from './useClientPerformance';

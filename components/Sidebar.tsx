@@ -17,7 +17,8 @@ import {
   BookOpen,
   ExternalLink,
   LogOut,
-  DollarSign
+  DollarSign,
+  Trophy
 } from 'lucide-react';
 import { useAuth } from '../src/contexts/AuthContext';
 
@@ -141,6 +142,7 @@ export const Sidebar = () => {
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           SISTEMA
         </div>
+        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" />
         <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" />
         <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" />
 
