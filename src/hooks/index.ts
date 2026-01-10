@@ -10,3 +10,4 @@ export * from './useLeads';
 export * from './useClientCosts';
 export * from './useFunnelMetrics';
 export * from './useClientPerformance';
+export * from './useAllAgentVersions';

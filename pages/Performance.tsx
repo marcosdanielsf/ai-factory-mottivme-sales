@@ -16,9 +16,14 @@ import {
   Minus,
   Bot,
   Building2,
-  Zap
+  Zap,
+  Layers,
+  ToggleLeft,
+  ToggleRight,
+  Clock,
+  Hash
 } from 'lucide-react';
-import { useClientPerformance } from '../src/hooks';
+import { useClientPerformance, useAllAgentVersions } from '../src/hooks';
 import { useToast } from '../src/hooks/useToast';
 
 // ============================================================================
@@ -113,6 +118,54 @@ const AlertBadge = ({ type }: { type: string }) => {
   );
 };
 
+// Toggle Switch Component
+const ToggleSwitch = ({
+  isOn,
+  onToggle,
+  disabled = false,
+  loading = false
+}: {
+  isOn: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) => {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled || loading}
+      className={`
+        relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+        ${isOn ? 'bg-emerald-500' : 'bg-bg-tertiary'}
+        ${disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}
+      `}
+    >
+      <span
+        className={`
+          inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+          ${isOn ? 'translate-x-6' : 'translate-x-1'}
+          ${loading ? 'animate-pulse' : ''}
+        `}
+      />
+    </button>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const configs: Record<string, { label: string; color: string }> = {
+    active: { label: 'Ativo', color: 'bg-emerald-500/20 text-emerald-400' },
+    draft: { label: 'Rascunho', color: 'bg-amber-500/20 text-amber-400' },
+    published: { label: 'Publicado', color: 'bg-blue-500/20 text-blue-400' },
+    archived: { label: 'Arquivado', color: 'bg-gray-500/20 text-gray-400' }
+  };
+  const config = configs[status] || { label: status, color: 'bg-gray-500/20 text-gray-400' };
+  return (
+    <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
@@ -129,20 +182,60 @@ export const Performance = () => {
     refetch
   } = useClientPerformance();
 
+  const {
+    versionsByLocation,
+    loading: versionsLoading,
+    updating: versionUpdating,
+    toggleActive,
+    refetch: refetchVersions
+  } = useAllAgentVersions();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'leads' | 'conversao' | 'resposta'>('leads');
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     showToast('Atualizando dados...', 'info');
     try {
-      await refetch();
+      await Promise.all([refetch(), refetchVersions()]);
       showToast('Dados atualizados', 'success');
     } catch (err) {
       showToast('Erro ao atualizar', 'error');
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleToggleVersion = async (versionId: string, currentValue: boolean) => {
+    const result = await toggleActive(versionId, !currentValue);
+    if (result.success) {
+      showToast(`Versão ${!currentValue ? 'ativada' : 'desativada'}`, 'success');
+    } else {
+      showToast(`Erro: ${result.error}`, 'error');
+    }
+  };
+
+  const toggleLocationExpanded = (locationId: string) => {
+    setExpandedLocations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(locationId)) {
+        newSet.delete(locationId);
+      } else {
+        newSet.add(locationId);
+      }
+      return newSet;
+    });
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Ordenar clientes
@@ -394,6 +487,132 @@ export const Performance = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Seção de Versões por Cliente */}
+      <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-border-default flex items-center justify-between">
+          <h3 className="font-semibold text-text-primary flex items-center gap-2">
+            <Layers size={20} className="text-purple-400" />
+            Versões de Agentes por Cliente
+          </h3>
+          <span className="text-xs text-text-muted">
+            {versionsByLocation.reduce((acc, loc) => acc + loc.versions.length, 0)} versões em {versionsByLocation.length} clientes
+          </span>
+        </div>
+
+        {versionsLoading ? (
+          <div className="p-8 text-center">
+            <RefreshCw className="animate-spin mx-auto text-text-muted mb-2" size={24} />
+            <p className="text-sm text-text-muted">Carregando versões...</p>
+          </div>
+        ) : versionsByLocation.length === 0 ? (
+          <div className="p-8 text-center">
+            <Layers className="mx-auto text-text-muted mb-2" size={24} />
+            <p className="text-sm text-text-muted">Nenhuma versão encontrada</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border-default">
+            {versionsByLocation.map((location) => (
+              <div key={location.locationId}>
+                {/* Header do Cliente */}
+                <button
+                  onClick={() => toggleLocationExpanded(location.locationId)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-bg-tertiary/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-bg-tertiary flex items-center justify-center">
+                      <Bot size={20} className="text-text-muted" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-text-primary">{location.agentName}</p>
+                      <p className="text-xs text-text-muted">{location.locationId}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-text-muted">{location.versions.length} versões</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                        {location.versions.filter(v => v.isActive).length} ativas
+                      </span>
+                    </div>
+                    {expandedLocations.has(location.locationId) ? (
+                      <ChevronUp size={20} className="text-text-muted" />
+                    ) : (
+                      <ChevronDown size={20} className="text-text-muted" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Lista de Versões Expandida */}
+                {expandedLocations.has(location.locationId) && (
+                  <div className="bg-bg-tertiary/20 border-t border-border-default">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-bg-tertiary/50">
+                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Versão</th>
+                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Status</th>
+                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Testes</th>
+                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Score</th>
+                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Atualizado</th>
+                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Ativo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default/50">
+                        {location.versions.map((version) => (
+                          <tr key={version.id} className="hover:bg-bg-tertiary/40 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Hash size={14} className="text-text-muted" />
+                                <span className="font-mono text-sm text-text-primary">{version.version}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <StatusBadge status={version.status} />
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="text-sm text-text-primary">{version.totalTestRuns}</span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {version.lastTestScore !== null ? (
+                                <span className={`text-sm font-medium ${
+                                  version.lastTestScore >= 7 ? 'text-emerald-400' :
+                                  version.lastTestScore >= 4 ? 'text-amber-400' : 'text-red-400'
+                                }`}>
+                                  {version.lastTestScore.toFixed(1)}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-text-muted">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                                <Clock size={12} />
+                                {formatDate(version.updatedAt)}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <ToggleSwitch
+                                  isOn={version.isActive}
+                                  onToggle={() => handleToggleVersion(version.id, version.isActive)}
+                                  loading={versionUpdating === version.id}
+                                />
+                                <span className={`text-xs ${version.isActive ? 'text-emerald-400' : 'text-text-muted'}`}>
+                                  {version.isActive ? 'ON' : 'OFF'}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
