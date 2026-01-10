@@ -218,13 +218,12 @@ export const Performance = () => {
           <div className="space-y-2">
             {alerts.slice(0, 5).map((alert) => (
               <div
-                key={alert.clientId}
+                key={alert.locationId}
                 className="flex items-center justify-between bg-bg-secondary/50 rounded-lg px-4 py-2"
               >
                 <div className="flex items-center gap-3">
                   <Bot size={16} className="text-text-muted" />
-                  <span className="text-sm text-text-primary">{alert.clienteNome}</span>
-                  <span className="text-xs text-text-muted">({alert.agentName})</span>
+                  <span className="text-sm text-text-primary">{alert.agentName}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {alert.alertaBaixaResposta && <AlertBadge type="baixa_resposta" />}
@@ -248,7 +247,7 @@ export const Performance = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {ranking.slice(0, 3).map((client, index) => (
               <div
-                key={client.clientId}
+                key={client.locationId}
                 className={`relative overflow-hidden rounded-lg p-4 border ${
                   index === 0 ? 'bg-amber-500/5 border-amber-500/30' :
                   index === 1 ? 'bg-slate-400/5 border-slate-400/30' :
@@ -263,8 +262,8 @@ export const Performance = () => {
                     <Bot size={20} className="text-text-muted" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-text-primary truncate">{client.clienteNome || client.agentName}</p>
-                    <p className="text-xs text-text-muted truncate">{client.agentName}</p>
+                    <p className="font-semibold text-text-primary truncate">{client.agentName}</p>
+                    <p className="text-xs text-text-muted truncate">{client.locationId}</p>
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -338,17 +337,17 @@ export const Performance = () => {
               </thead>
               <tbody className="divide-y divide-border-default">
                 {sortedClients.map((client, index) => (
-                  <tr key={client.clientId} className="hover:bg-bg-tertiary/30 transition-colors">
+                  <tr key={client.locationId} className="hover:bg-bg-tertiary/30 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-bg-tertiary text-xs font-mono text-text-muted">
                           {index + 1}
                         </div>
                         <div>
-                          <p className="font-medium text-text-primary">{client.clienteNome || client.agentName}</p>
+                          <p className="font-medium text-text-primary">{client.agentName}</p>
                           <p className="text-xs text-text-muted flex items-center gap-1">
                             <Bot size={12} />
-                            {client.agentName}
+                            {client.locationId}
                           </p>
                         </div>
                       </div>

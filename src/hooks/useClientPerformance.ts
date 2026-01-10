@@ -10,12 +10,10 @@ import { supabase } from '../lib/supabase';
 // ============================================================================
 
 export interface ClientPerformance {
-  clientId: string;
+  locationId: string;
   agentName: string;
-  clienteNome: string;
-  clienteEmpresa: string;
   agentStatus: string;
-  versionNumber: string;
+  version: string;
   isActive: boolean;
   // Métricas de Follow-up
   totalLeads: number;
@@ -31,16 +29,14 @@ export interface ClientPerformance {
   custoTotalUsd: number;
   totalChamadasIa: number;
   // Métricas de Testes
-  totalTestes: number;
-  scoreMedio: number;
-  ultimoTeste: string | null;
+  totalTestRuns: number;
+  lastTestScore: number | null;
+  avgScoreOverall: number;
 }
 
 export interface ClientRanking {
-  clientId: string;
+  locationId: string;
   agentName: string;
-  clienteNome: string;
-  clienteEmpresa: string;
   totalLeads: number;
   leadsResponderam: number;
   leadsFecharam: number;
@@ -54,9 +50,8 @@ export interface ClientRanking {
 }
 
 export interface ClientAlert {
-  clientId: string;
+  locationId: string;
   agentName: string;
-  clienteNome: string;
   alertaBaixaResposta: boolean;
   alertaBaixaConversao: boolean;
   alertaCustoSemResultado: boolean;
@@ -105,12 +100,10 @@ export const useClientPerformance = () => {
 
       // Processar performance
       const clients: ClientPerformance[] = (performanceResult.data || []).map((row: any) => ({
-        clientId: row.client_id,
+        locationId: row.location_id,
         agentName: row.agent_name || 'Sem nome',
-        clienteNome: row.cliente_nome || row.agent_name || 'Cliente',
-        clienteEmpresa: row.cliente_empresa || '',
         agentStatus: row.agent_status || 'draft',
-        versionNumber: row.version_number || '1.0.0',
+        version: row.version || '1.0.0',
         isActive: row.is_active || false,
         totalLeads: row.total_leads || 0,
         leadsResponderam: row.leads_responderam || 0,
@@ -123,17 +116,15 @@ export const useClientPerformance = () => {
         totalTokens: row.total_tokens || 0,
         custoTotalUsd: row.custo_total_usd || 0,
         totalChamadasIa: row.total_chamadas_ia || 0,
-        totalTestes: row.total_testes || 0,
-        scoreMedio: row.score_medio || 0,
-        ultimoTeste: row.ultimo_teste || null
+        totalTestRuns: row.total_test_runs || 0,
+        lastTestScore: row.last_test_score || null,
+        avgScoreOverall: row.avg_score_overall || 0
       }));
 
       // Processar ranking
       const ranking: ClientRanking[] = (rankingResult.data || []).map((row: any) => ({
-        clientId: row.client_id,
+        locationId: row.location_id,
         agentName: row.agent_name || 'Sem nome',
-        clienteNome: row.cliente_nome || row.agent_name || 'Cliente',
-        clienteEmpresa: row.cliente_empresa || '',
         totalLeads: row.total_leads || 0,
         leadsResponderam: row.leads_responderam || 0,
         leadsFecharam: row.leads_fecharam || 0,
@@ -148,9 +139,8 @@ export const useClientPerformance = () => {
 
       // Processar alertas
       const alerts: ClientAlert[] = (alertsResult.data || []).map((row: any) => ({
-        clientId: row.client_id,
+        locationId: row.location_id,
         agentName: row.agent_name || 'Sem nome',
-        clienteNome: row.cliente_nome || 'Cliente',
         alertaBaixaResposta: row.alerta_baixa_resposta || false,
         alertaBaixaConversao: row.alerta_baixa_conversao || false,
         alertaCustoSemResultado: row.alerta_custo_sem_resultado || false,
