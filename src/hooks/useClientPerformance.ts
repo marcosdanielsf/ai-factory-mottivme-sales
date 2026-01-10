@@ -3,10 +3,9 @@ import { supabase } from '../lib/supabase';
 
 // ============================================================================
 // HOOK: useClientPerformance
-// Consome as views SQL para performance por cliente:
-// - dashboard_performance_cliente
-// - dashboard_ranking_clientes
-// - dashboard_alertas_cliente
+// Consome dados de performance por cliente com filtro de período
+// - Leads: da view dashboard_performance_cliente
+// - Custos: diretamente da llm_costs (com filtro de data)
 // ============================================================================
 
 export interface ClientPerformance {
@@ -24,7 +23,7 @@ export interface ClientPerformance {
   taxaResposta: number;
   taxaAgendamento: number;
   taxaConversaoGeral: number;
-  // Métricas de Custo
+  // Métricas de Custo (filtrado por período)
   totalTokens: number;
   custoTotalUsd: number;
   totalChamadasIa: number;
@@ -67,7 +66,42 @@ interface ClientPerformanceState {
   error: string | null;
 }
 
-export const useClientPerformance = () => {
+export type DateRangeType = '7d' | '30d' | 'month' | 'all';
+
+interface UseClientPerformanceOptions {
+  dateRange?: DateRangeType;
+  month?: string; // Formato: 'YYYY-MM'
+}
+
+// Helper para calcular range de datas
+const getDateRange = (range: DateRangeType, month?: string): { start: Date | null; end: Date | null } => {
+  const now = new Date();
+
+  switch (range) {
+    case '7d':
+      const start7d = new Date(now);
+      start7d.setDate(start7d.getDate() - 7);
+      return { start: start7d, end: null };
+    case '30d':
+      const start30d = new Date(now);
+      start30d.setDate(start30d.getDate() - 30);
+      return { start: start30d, end: null };
+    case 'month':
+      if (month) {
+        const [year, monthNum] = month.split('-').map(Number);
+        const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+        const end = new Date(year, monthNum, 0, 23, 59, 59, 999);
+        return { start, end };
+      }
+      return { start: null, end: null };
+    default:
+      return { start: null, end: null };
+  }
+};
+
+export const useClientPerformance = (options: UseClientPerformanceOptions = {}) => {
+  const { dateRange = '30d', month } = options;
+
   const [state, setState] = useState<ClientPerformanceState>({
     clients: [],
     ranking: [],
@@ -80,62 +114,93 @@ export const useClientPerformance = () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Buscar dados em paralelo
-      const [performanceResult, rankingResult, alertsResult] = await Promise.all([
-        // 1. Performance por cliente
-        supabase
-          .from('dashboard_performance_cliente')
-          .select('*'),
-
-        // 2. Ranking de clientes
-        supabase
-          .from('dashboard_ranking_clientes')
-          .select('*'),
-
-        // 3. Alertas por cliente
-        supabase
-          .from('dashboard_alertas_cliente')
-          .select('*')
+      // 1. Buscar dados da view de performance (leads, taxas, etc)
+      const [performanceResult, alertsResult] = await Promise.all([
+        supabase.from('dashboard_performance_cliente').select('*'),
+        supabase.from('dashboard_alertas_cliente').select('*')
       ]);
 
-      // Processar performance
-      const clients: ClientPerformance[] = (performanceResult.data || []).map((row: any) => ({
-        locationId: row.location_id,
-        agentName: row.agent_name || 'Sem nome',
-        agentStatus: row.agent_status || 'draft',
-        version: row.version || '1.0.0',
-        isActive: row.is_active || false,
-        totalLeads: row.total_leads || 0,
-        leadsResponderam: row.leads_responderam || 0,
-        leadsAgendaram: row.leads_agendaram || 0,
-        leadsCompareceram: row.leads_compareceram || 0,
-        leadsFecharam: row.leads_fecharam || 0,
-        taxaResposta: row.taxa_resposta || 0,
-        taxaAgendamento: row.taxa_agendamento || 0,
-        taxaConversaoGeral: row.taxa_conversao_geral || 0,
-        totalTokens: row.total_tokens || 0,
-        custoTotalUsd: row.custo_total_usd || 0,
-        totalChamadasIa: row.total_chamadas_ia || 0,
-        totalTestRuns: row.total_test_runs || 0,
-        lastTestScore: row.last_test_score || null,
-        avgScoreOverall: row.avg_score_overall || 0
-      }));
+      // 2. Buscar custos diretamente da llm_costs com filtro de data
+      let costsQuery = supabase
+        .from('llm_costs')
+        .select('location_id, custo_usd, tokens_input, tokens_output');
 
-      // Processar ranking
-      const ranking: ClientRanking[] = (rankingResult.data || []).map((row: any) => ({
-        locationId: row.location_id,
-        agentName: row.agent_name || 'Sem nome',
-        totalLeads: row.total_leads || 0,
-        leadsResponderam: row.leads_responderam || 0,
-        leadsFecharam: row.leads_fecharam || 0,
-        taxaResposta: row.taxa_resposta || 0,
-        taxaConversaoGeral: row.taxa_conversao_geral || 0,
-        custoTotalUsd: row.custo_total_usd || 0,
-        scoreMedio: row.score_medio || 0,
-        rankConversao: row.rank_conversao || 0,
-        rankVolume: row.rank_volume || 0,
-        rankResposta: row.rank_resposta || 0
-      }));
+      const { start, end } = getDateRange(dateRange, month);
+      if (start) {
+        costsQuery = costsQuery.gte('created_at', start.toISOString());
+      }
+      if (end) {
+        costsQuery = costsQuery.lte('created_at', end.toISOString());
+      }
+
+      const costsResult = await costsQuery;
+
+      // Agregar custos por location_id
+      const costsByLocation: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
+      (costsResult.data || []).forEach((row: any) => {
+        const lid = row.location_id || 'unknown';
+        if (!costsByLocation[lid]) {
+          costsByLocation[lid] = { custo: 0, tokens: 0, chamadas: 0 };
+        }
+        costsByLocation[lid].custo += row.custo_usd || 0;
+        costsByLocation[lid].tokens += (row.tokens_input || 0) + (row.tokens_output || 0);
+        costsByLocation[lid].chamadas += 1;
+      });
+
+      // Processar performance combinando dados da view + custos filtrados
+      const clients: ClientPerformance[] = (performanceResult.data || []).map((row: any) => {
+        const locationCosts = costsByLocation[row.location_id] || { custo: 0, tokens: 0, chamadas: 0 };
+        return {
+          locationId: row.location_id,
+          agentName: row.agent_name || 'Sem nome',
+          agentStatus: row.agent_status || 'draft',
+          version: row.version || '1.0.0',
+          isActive: row.is_active || false,
+          totalLeads: row.total_leads || 0,
+          leadsResponderam: row.leads_responderam || 0,
+          leadsAgendaram: row.leads_agendaram || 0,
+          leadsCompareceram: row.leads_compareceram || 0,
+          leadsFecharam: row.leads_fecharam || 0,
+          taxaResposta: row.taxa_resposta || 0,
+          taxaAgendamento: row.taxa_agendamento || 0,
+          taxaConversaoGeral: row.taxa_conversao_geral || 0,
+          // Custos do período selecionado
+          totalTokens: locationCosts.tokens,
+          custoTotalUsd: locationCosts.custo,
+          totalChamadasIa: locationCosts.chamadas,
+          // Testes
+          totalTestRuns: row.total_test_runs || 0,
+          lastTestScore: row.last_test_score || null,
+          avgScoreOverall: row.avg_score_overall || 0
+        };
+      });
+
+      // Processar ranking (recalcular com custos do período)
+      const ranking: ClientRanking[] = clients
+        .filter(c => c.totalLeads > 0)
+        .sort((a, b) => b.taxaConversaoGeral - a.taxaConversaoGeral)
+        .map((c, idx) => ({
+          locationId: c.locationId,
+          agentName: c.agentName,
+          totalLeads: c.totalLeads,
+          leadsResponderam: c.leadsResponderam,
+          leadsFecharam: c.leadsFecharam,
+          taxaResposta: c.taxaResposta,
+          taxaConversaoGeral: c.taxaConversaoGeral,
+          custoTotalUsd: c.custoTotalUsd,
+          scoreMedio: c.avgScoreOverall,
+          rankConversao: idx + 1,
+          rankVolume: 0,
+          rankResposta: 0
+        }));
+
+      // Recalcular ranks
+      const byVolume = [...ranking].sort((a, b) => b.totalLeads - a.totalLeads);
+      const byResposta = [...ranking].sort((a, b) => b.taxaResposta - a.taxaResposta);
+      ranking.forEach(r => {
+        r.rankVolume = byVolume.findIndex(x => x.locationId === r.locationId) + 1;
+        r.rankResposta = byResposta.findIndex(x => x.locationId === r.locationId) + 1;
+      });
 
       // Processar alertas
       const alerts: ClientAlert[] = (alertsResult.data || []).map((row: any) => ({
@@ -164,7 +229,7 @@ export const useClientPerformance = () => {
         error: error.message || 'Erro ao carregar dados'
       }));
     }
-  }, []);
+  }, [dateRange, month]);
 
   useEffect(() => {
     fetchData();

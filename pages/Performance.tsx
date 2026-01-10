@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
   Users,
@@ -21,10 +21,26 @@ import {
   ToggleLeft,
   ToggleRight,
   Clock,
-  Hash
+  Hash,
+  Filter
 } from 'lucide-react';
-import { useClientPerformance, useAllAgentVersions } from '../src/hooks';
+import { useClientPerformance, useAllAgentVersions, DateRangeType } from '../src/hooks';
 import { useToast } from '../src/hooks/useToast';
+
+// Gerar lista de meses disponíveis
+const generateMonthOptions = () => {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  }
+  return months;
+};
+
+const MONTH_OPTIONS = generateMonthOptions();
 
 // ============================================================================
 // COMPONENTES AUXILIARES
@@ -172,6 +188,12 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export const Performance = () => {
   const { showToast } = useToast();
+
+  // Filtros de período
+  const [dateRange, setDateRange] = useState<DateRangeType>('30d');
+  const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_OPTIONS[0].value);
+
+  // Hook com filtro aplicado
   const {
     clients,
     ranking,
@@ -180,7 +202,10 @@ export const Performance = () => {
     loading,
     error,
     refetch
-  } = useClientPerformance();
+  } = useClientPerformance({
+    dateRange,
+    month: dateRange === 'month' ? selectedMonth : undefined
+  });
 
   const {
     versionsByLocation,
@@ -193,6 +218,18 @@ export const Performance = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'leads' | 'conversao' | 'resposta'>('leads');
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+
+  // Label do período selecionado
+  const periodLabel = useMemo(() => {
+    if (dateRange === '7d') return 'Últimos 7 dias';
+    if (dateRange === '30d') return 'Últimos 30 dias';
+    if (dateRange === 'all') return 'Todo histórico';
+    if (dateRange === 'month') {
+      const monthOpt = MONTH_OPTIONS.find(m => m.value === selectedMonth);
+      return monthOpt?.label || selectedMonth;
+    }
+    return '';
+  }, [dateRange, selectedMonth]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -249,7 +286,7 @@ export const Performance = () => {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
             <Trophy className="text-amber-400" size={28} />
@@ -259,14 +296,72 @@ export const Performance = () => {
             Métricas de desempenho dos agentes por cliente
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-accent-primary/10 text-accent-primary rounded-lg hover:bg-accent-primary/20 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
+
+        {/* Filtros de Período */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-bg-secondary border border-border-default rounded-lg p-1">
+            <button
+              onClick={() => setDateRange('7d')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                dateRange === '7d' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              7 dias
+            </button>
+            <button
+              onClick={() => setDateRange('30d')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                dateRange === '30d' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              30 dias
+            </button>
+            <button
+              onClick={() => setDateRange('month')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                dateRange === 'month' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Mês
+            </button>
+            <button
+              onClick={() => setDateRange('all')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                dateRange === 'all' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Tudo
+            </button>
+          </div>
+
+          {/* Seletor de Mês (aparece quando dateRange === 'month') */}
+          {dateRange === 'month' && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary"
+            >
+              {MONTH_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-accent-primary/10 text-accent-primary rounded-lg hover:bg-accent-primary/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Badge do período */}
+      <div className="flex items-center gap-2">
+        <Calendar size={14} className="text-text-muted" />
+        <span className="text-sm text-text-muted">Período: <span className="text-text-primary font-medium">{periodLabel}</span></span>
       </div>
 
       {/* Cards de Totais */}
