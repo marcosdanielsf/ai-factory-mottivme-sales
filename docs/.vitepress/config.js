@@ -17,6 +17,7 @@ export default defineConfig({
       { text: 'Arquitetura', link: '/arquitetura/' },
       { text: 'Workflows', link: '/workflows/' },
       { text: 'Guias', link: '/guias/' },
+      { text: 'Processos', link: '/processos/' },
       { text: 'Integracoes', link: '/integracoes/asaas-n8n' },
       { text: 'Planos', link: '/planos/' }
     ],
@@ -76,6 +77,14 @@ export default defineConfig({
           items: [
             { text: 'Resumo Executivo', link: '/relatorios/resumo' },
             { text: 'Status Agentes', link: '/relatorios/status' }
+          ]
+        },
+        {
+          text: 'Processos',
+          collapsed: false,
+          items: [
+            { text: 'Backup Supabase Automatico', link: '/processos/backup-supabase-automatico' },
+            { text: 'Catalogo', link: '/processos/' }
           ]
         },
         {
