@@ -233,9 +233,13 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
 
       // 3. Buscar custos REAIS da tabela llm_costs, agrupados por location_name
       // O location_name em llm_costs corresponde ao cliente (similar ao lead_usuario_responsavel)
-      const { data: costsData } = await supabase
+      // IMPORTANTE: Supabase retorna max 1000 registros por padrão, precisamos de mais
+      const { data: costsData, count: totalCustos } = await supabase
         .from('llm_costs')
-        .select('location_name, custo_usd, tokens_input, tokens_output');
+        .select('location_name, custo_usd, tokens_input, tokens_output', { count: 'exact' })
+        .limit(50000); // Aumentar limite para pegar todos os registros
+
+      console.log(`Custos carregados: ${costsData?.length || 0} de ${totalCustos || '?'} registros`);
 
       // Agregar custos por location_name (nome do cliente)
       const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
