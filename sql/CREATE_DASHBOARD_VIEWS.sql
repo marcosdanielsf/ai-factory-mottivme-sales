@@ -1,9 +1,11 @@
 -- ===================================================================
 -- CRIAR VIEWS DO DASHBOARD - EXECUTE NO SUPABASE SQL EDITOR
 -- Fonte de dados: app_dash_principal (42.087 registros GHL)
+-- Atualizado: 2026-01-17 - Corrigido lógica do funil
 -- ===================================================================
 
 -- 1. View de performance agregada por vendedor/responsável
+DROP VIEW IF EXISTS dashboard_ranking_clientes CASCADE;
 DROP VIEW IF EXISTS dashboard_performance_ghl CASCADE;
 
 CREATE OR REPLACE VIEW dashboard_performance_ghl AS
@@ -11,9 +13,13 @@ SELECT
     lead_usuario_responsavel as agent_name,
     lead_usuario_responsavel as location_id,
     COUNT(*) as total_leads,
+    -- Responderam: todos que não são new_lead
     COUNT(*) FILTER (WHERE LOWER(status::TEXT) NOT IN ('new_lead', 'new', 'novo')) as leads_responderam,
-    COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('booked', 'scheduled', 'agendado')) as leads_agendaram,
-    COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('completed', 'qualifying', 'attended', 'compareceu')) as leads_compareceram,
+    -- Agendaram: booked + completed + won (quem compareceu/fechou teve que agendar)
+    COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('booked', 'scheduled', 'agendado', 'completed', 'attended', 'compareceu', 'won', 'fechado', 'converted')) as leads_agendaram,
+    -- Compareceram: completed + won (quem fechou teve que comparecer)
+    COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('completed', 'attended', 'compareceu', 'won', 'fechado', 'converted')) as leads_compareceram,
+    -- Fecharam
     COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('won', 'fechado', 'converted')) as leads_fecharam,
     COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('no_show', 'nao_compareceu')) as leads_no_show,
     COUNT(*) FILTER (WHERE LOWER(status::TEXT) IN ('lost', 'perdido')) as leads_lost,
@@ -35,8 +41,6 @@ WHERE lead_usuario_responsavel IS NOT NULL
 GROUP BY lead_usuario_responsavel;
 
 -- 2. View de ranking de clientes (usada por Control Tower e Performance)
-DROP VIEW IF EXISTS dashboard_ranking_clientes CASCADE;
-
 CREATE OR REPLACE VIEW dashboard_ranking_clientes AS
 SELECT
     location_id,
@@ -66,7 +70,10 @@ SELECT
     COUNT(*) as total_clientes,
     SUM(total_leads) as total_leads,
     SUM(leads_responderam) as total_responderam,
+    SUM(leads_agendaram) as total_agendaram,
+    SUM(leads_compareceram) as total_compareceram,
     SUM(leads_fecharam) as total_fecharam
 FROM dashboard_ranking_clientes;
 
-SELECT * FROM dashboard_ranking_clientes ORDER BY total_leads DESC LIMIT 10;
+-- Resultado esperado do funil:
+-- total: 39353 → responderam: 14389 → agendaram: 1819 → compareceram: 970 → fecharam: 114
