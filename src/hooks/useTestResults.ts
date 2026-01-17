@@ -280,7 +280,11 @@ export const useTestResults = () => {
       }
 
       // 3. Buscar de test_results (estrutura anterior)
-      const { data: testResultsData, error: trError } = await supabase
+      // Primeiro tenta com JOIN - se der erro 400 (FK não existe), faz fallback sem JOIN
+      let testResultsData: any[] | null = null;
+      let trError: any = null;
+
+      const joinResult = await supabase
         .from('test_results')
         .select(`
           *,
@@ -291,6 +295,22 @@ export const useTestResults = () => {
         `)
         .order('tested_at', { ascending: false })
         .limit(20);
+
+      if (joinResult.error?.code === 'PGRST200' || joinResult.error?.message?.includes('400') || joinResult.error?.message?.includes('relationship')) {
+        // Fallback: buscar sem JOIN quando FK não existe
+        console.warn('test_results JOIN failed, using fallback without agent_versions:', joinResult.error?.message);
+        const fallbackResult = await supabase
+          .from('test_results')
+          .select('*')
+          .order('tested_at', { ascending: false })
+          .limit(20);
+
+        testResultsData = fallbackResult.data;
+        trError = fallbackResult.error;
+      } else {
+        testResultsData = joinResult.data;
+        trError = joinResult.error;
+      }
 
       if (!trError && testResultsData && testResultsData.length > 0) {
         const mappedFromTR = testResultsData.map((result: any) => {

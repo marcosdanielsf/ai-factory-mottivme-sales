@@ -60,11 +60,48 @@ export const useDashboardMetrics = () => {
         ? Math.round((scores.filter(s => s >= 8).length / scores.length) * 100)
         : 0;
 
+      // Buscar total de leads e conversão da view dashboard_ranking_clientes
+      // Esta view já tem os totais agregados por cliente (fonte: app_dash_principal)
+      let totalLeads = 0;
+      let convertedLeads = 0;
+      let conversionRate = 0;
+
+      const { data: rankingData, error: rankingError } = await supabase
+        .from('dashboard_ranking_clientes')
+        .select('total_leads, leads_fecharam, taxa_conversao_geral');
+
+      if (!rankingError && rankingData && rankingData.length > 0) {
+        // Somar totais de todos os clientes
+        totalLeads = rankingData.reduce((sum, row) => sum + (row.total_leads || 0), 0);
+        convertedLeads = rankingData.reduce((sum, row) => sum + (row.leads_fecharam || 0), 0);
+        conversionRate = totalLeads > 0
+          ? parseFloat(((convertedLeads / totalLeads) * 100).toFixed(1))
+          : 0;
+        console.log('Dashboard metrics from ranking:', { totalLeads, convertedLeads, conversionRate });
+      } else {
+        // Fallback: usar socialfy_leads
+        console.warn('dashboard_ranking_clientes não disponível, usando socialfy_leads');
+        const { count: leadsCount } = await supabase
+          .from('socialfy_leads')
+          .select('*', { count: 'exact', head: true });
+
+        const { count: converted } = await supabase
+          .from('socialfy_leads')
+          .select('*', { count: 'exact', head: true })
+          .in('status', ['call_booked', 'scheduled', 'proposal', 'won', 'closed']);
+
+        totalLeads = leadsCount || 0;
+        convertedLeads = converted || 0;
+        conversionRate = (totalLeads && convertedLeads)
+          ? parseFloat(((convertedLeads / totalLeads) * 100).toFixed(1))
+          : 0;
+      }
+
       setMetrics({
         totalAgents,
-        totalLeads: 0, // TODO: fetch from leads table
+        totalLeads: totalLeads || 0,
         activeCampaigns: activeAgents,
-        conversionRate: 0, // TODO: calculate from leads
+        conversionRate,
         averageScore,
         testsRun,
         passRate,

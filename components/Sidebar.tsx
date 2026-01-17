@@ -117,12 +117,12 @@ export const Sidebar = () => {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
         <SidebarItem icon={Home} label="Control Tower" to="/" />
-        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" badge="2" />
+        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" />
         
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           SALES OS
         </div>
-        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" badge="87" />
+        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" />
         <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" />
 
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
@@ -148,7 +148,7 @@ export const Sidebar = () => {
 
         {/* Link externo para documentação */}
         <a
-          href="http://localhost:5173"
+          href="https://docs-jet-delta.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"

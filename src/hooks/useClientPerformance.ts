@@ -3,23 +3,36 @@ import { supabase } from '../lib/supabase';
 
 // ============================================================================
 // HOOK: useClientPerformance
-// Consome dados de performance por cliente com filtro de período
-// - Leads: da view dashboard_performance_cliente
-// - Custos: diretamente da llm_costs (com filtro de data)
+// Consome dados de performance por VENDEDOR/RESPONSAVEL do GoHighLevel
+//
+// IMPORTANTE - FONTE DE DADOS:
+// - Tabela: app_dash_principal (dados do GHL - 41.758 registros)
+// - Agrupado por: lead_usuario_responsavel (vendedor/responsavel)
+// - Esta tabela NAO tem campo de data, portanto filtros de periodo nao se aplicam
+//
+// DIFERENCA DAS OUTRAS TELAS:
+// - Dashboard/Funil/Leads usam: socialfy_leads (prospecção social media)
+// - Performance usa: app_dash_principal (vendas GHL)
+// - Os numeros SERAO DIFERENTES porque sao fontes distintas (intencional)
+//
+// STATUS DO FUNIL GHL:
+// - new_lead, booked, no_show, completed, qualifying, won, lost
 // ============================================================================
 
 export interface ClientPerformance {
-  locationId: string;
-  agentName: string;
+  locationId: string;        // Usando lead_usuario_responsavel como "locationId" para compatibilidade
+  agentName: string;         // Nome do responsável/cliente
   agentStatus: string;
   version: string;
   isActive: boolean;
-  // Métricas de Follow-up
-  totalLeads: number;
-  leadsResponderam: number;
-  leadsAgendaram: number;
-  leadsCompareceram: number;
-  leadsFecharam: number;
+  // Métricas de Follow-up (baseadas no status do funil em app_dash_principal)
+  totalLeads: number;        // Total de leads
+  leadsResponderam: number;  // Leads que não são mais new_lead (avançaram no funil)
+  leadsAgendaram: number;    // status = booked
+  leadsCompareceram: number; // status = completed ou qualifying
+  leadsFecharam: number;     // status = won
+  leadsNoShow: number;       // status = no_show
+  leadsLost: number;         // status = lost
   taxaResposta: number;
   taxaAgendamento: number;
   taxaConversaoGeral: number;
@@ -66,41 +79,30 @@ interface ClientPerformanceState {
   error: string | null;
 }
 
+// NOTA: dateRange e mantido na interface por compatibilidade,
+// mas NAO e aplicado porque app_dash_principal nao tem campo de data
 export type DateRangeType = '7d' | '30d' | 'month' | 'all';
 
 interface UseClientPerformanceOptions {
   dateRange?: DateRangeType;
-  month?: string; // Formato: 'YYYY-MM'
+  month?: string; // Formato: 'YYYY-MM' - NAO USADO (tabela sem campo de data)
 }
 
-// Helper para calcular range de datas
-const getDateRange = (range: DateRangeType, month?: string): { start: Date | null; end: Date | null } => {
-  const now = new Date();
+// Interface para métricas agregadas por responsável (cliente)
+interface ClientMetrics {
+  total: number;
+  newLead: number;
+  booked: number;
+  noShow: number;
+  completed: number;
+  qualifying: number;
+  won: number;
+  lost: number;
+}
 
-  switch (range) {
-    case '7d':
-      const start7d = new Date(now);
-      start7d.setDate(start7d.getDate() - 7);
-      return { start: start7d, end: null };
-    case '30d':
-      const start30d = new Date(now);
-      start30d.setDate(start30d.getDate() - 30);
-      return { start: start30d, end: null };
-    case 'month':
-      if (month) {
-        const [year, monthNum] = month.split('-').map(Number);
-        const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
-        const end = new Date(year, monthNum, 0, 23, 59, 59, 999);
-        return { start, end };
-      }
-      return { start: null, end: null };
-    default:
-      return { start: null, end: null };
-  }
-};
-
-export const useClientPerformance = (options: UseClientPerformanceOptions = {}) => {
-  const { dateRange = '30d', month } = options;
+export const useClientPerformance = (_options: UseClientPerformanceOptions = {}) => {
+  // NOTA: dateRange e month nao sao usados porque app_dash_principal nao tem campo de data
+  // Mantidos na interface para compatibilidade com componentes que passam esses parametros
 
   const [state, setState] = useState<ClientPerformanceState>({
     clients: [],
@@ -114,68 +116,191 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // 1. Buscar dados da view de performance (leads, taxas, etc)
-      const [performanceResult, alertsResult] = await Promise.all([
-        supabase.from('dashboard_performance_cliente').select('*'),
-        supabase.from('dashboard_alertas_cliente').select('*')
-      ]);
+      // 1. Buscar TODOS os leads da tabela app_dash_principal (dados GHL)
+      // NOTA: Esta tabela NAO tem campo de data, portanto busca TODOS os registros
+      // Isso e intencional - mostra performance historica completa por vendedor
+      // FALLBACK: Se app_dash_principal não existir ou der erro, tenta socialfy_leads
+      let dashData: any[] | null = null;
 
-      // 2. Buscar custos diretamente da llm_costs com filtro de data
-      let costsQuery = supabase
+      const { data: appDashData, error: dashError } = await supabase
+        .from('app_dash_principal')
+        .select('lead_usuario_responsavel, status, funil, tag');
+
+      if (dashError) {
+        console.warn('app_dash_principal não disponível, tentando dashboard_ranking_clientes:', dashError.message);
+
+        // Fallback 1: tentar dashboard_ranking_clientes (view com dados agregados)
+        const { data: rankingData, error: rankingError } = await supabase
+          .from('dashboard_ranking_clientes')
+          .select('*');
+
+        if (!rankingError && rankingData && rankingData.length > 0) {
+          // Usar dados já agregados do ranking
+          // Esta view já tem os totais por cliente
+          dashData = rankingData.flatMap((row: any) => {
+            // Criar registros sintéticos baseados nos totais
+            const records = [];
+            const clientName = row.agent_name || row.cliente || 'Cliente';
+
+            // Criar registros para cada status baseado nos totais
+            for (let i = 0; i < (row.total_leads || 0); i++) {
+              let status = 'new_lead';
+              if (i < (row.leads_fecharam || row.won || 0)) status = 'won';
+              else if (i < (row.leads_fecharam || 0) + (row.leads_responderam || 0)) status = 'completed';
+              else if (i < (row.leads_fecharam || 0) + (row.leads_responderam || 0) + (row.leads_agendaram || row.booked || 0)) status = 'booked';
+
+              records.push({
+                lead_usuario_responsavel: clientName,
+                status: status,
+                funil: null,
+                tag: null
+              });
+            }
+            return records;
+          });
+        } else {
+          // Fallback 2: usar socialfy_leads
+          console.warn('dashboard_ranking_clientes não disponível, usando socialfy_leads');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('socialfy_leads')
+            .select('location_id, full_name, status, source');
+
+          if (fallbackError) {
+            throw new Error(`Erro ao buscar dados: ${fallbackError.message}`);
+          }
+
+          dashData = (fallbackData || []).map((row: any) => ({
+            lead_usuario_responsavel: row.location_id || 'PROSPECÇÃO SOCIAL',
+            status: row.status,
+            funil: row.source,
+            tag: null
+          }));
+        }
+      } else {
+        dashData = appDashData;
+      }
+
+      // 2. Agregar métricas por responsável (cliente)
+      // lead_usuario_responsavel = nome do responsável/vendedor/cliente
+      const metricsByResponsavel: Record<string, ClientMetrics> = {};
+
+      (dashData || []).forEach((row: any) => {
+        const responsavel = row.lead_usuario_responsavel || 'SEM RESPONSÁVEL';
+
+        if (!metricsByResponsavel[responsavel]) {
+          metricsByResponsavel[responsavel] = {
+            total: 0,
+            newLead: 0,
+            booked: 0,
+            noShow: 0,
+            completed: 0,
+            qualifying: 0,
+            won: 0,
+            lost: 0
+          };
+        }
+
+        const metrics = metricsByResponsavel[responsavel];
+        metrics.total++;
+
+        // Mapear status para métricas
+        const status = (row.status || '').toLowerCase();
+        switch (status) {
+          case 'new_lead':
+            metrics.newLead++;
+            break;
+          case 'booked':
+            metrics.booked++;
+            break;
+          case 'no_show':
+            metrics.noShow++;
+            break;
+          case 'completed':
+            metrics.completed++;
+            break;
+          case 'qualifying':
+            metrics.qualifying++;
+            break;
+          case 'won':
+            metrics.won++;
+            break;
+          case 'lost':
+            metrics.lost++;
+            break;
+          // Outros status são contados apenas no total
+        }
+      });
+
+      // 3. Buscar custos (opcional, mantido para compatibilidade)
+      const { data: costsData } = await supabase
         .from('llm_costs')
         .select('location_id, custo_usd, tokens_input, tokens_output');
 
-      const { start, end } = getDateRange(dateRange, month);
-      if (start) {
-        costsQuery = costsQuery.gte('created_at', start.toISOString());
-      }
-      if (end) {
-        costsQuery = costsQuery.lte('created_at', end.toISOString());
-      }
+      // Agregar custos (placeholder - não temos location_id mapeado para responsável)
+      const totalCustos = (costsData || []).reduce((acc: number, row: any) => {
+        return acc + (row.custo_usd || 0);
+      }, 0);
 
-      const costsResult = await costsQuery;
+      // 4. Transformar métricas agregadas em array de ClientPerformance
+      const clients: ClientPerformance[] = Object.entries(metricsByResponsavel)
+        .map(([responsavel, metrics]) => {
+          const totalLeads = metrics.total;
 
-      // Agregar custos por location_id
-      const costsByLocation: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
-      (costsResult.data || []).forEach((row: any) => {
-        const lid = row.location_id || 'unknown';
-        if (!costsByLocation[lid]) {
-          costsByLocation[lid] = { custo: 0, tokens: 0, chamadas: 0 };
-        }
-        costsByLocation[lid].custo += row.custo_usd || 0;
-        costsByLocation[lid].tokens += (row.tokens_input || 0) + (row.tokens_output || 0);
-        costsByLocation[lid].chamadas += 1;
-      });
+          // Responderam = leads que avançaram do new_lead (booked, completed, qualifying, won, lost, no_show)
+          const leadsResponderam = metrics.booked + metrics.completed + metrics.qualifying +
+                                   metrics.won + metrics.lost + metrics.noShow;
 
-      // Processar performance combinando dados da view + custos filtrados
-      const clients: ClientPerformance[] = (performanceResult.data || []).map((row: any) => {
-        const locationCosts = costsByLocation[row.location_id] || { custo: 0, tokens: 0, chamadas: 0 };
-        return {
-          locationId: row.location_id,
-          agentName: row.agent_name || 'Sem nome',
-          agentStatus: row.agent_status || 'draft',
-          version: row.version || '1.0.0',
-          isActive: row.is_active || false,
-          totalLeads: row.total_leads || 0,
-          leadsResponderam: row.leads_responderam || 0,
-          leadsAgendaram: row.leads_agendaram || 0,
-          leadsCompareceram: row.leads_compareceram || 0,
-          leadsFecharam: row.leads_fecharam || 0,
-          taxaResposta: row.taxa_resposta || 0,
-          taxaAgendamento: row.taxa_agendamento || 0,
-          taxaConversaoGeral: row.taxa_conversao_geral || 0,
-          // Custos do período selecionado
-          totalTokens: locationCosts.tokens,
-          custoTotalUsd: locationCosts.custo,
-          totalChamadasIa: locationCosts.chamadas,
-          // Testes
-          totalTestRuns: row.total_test_runs || 0,
-          lastTestScore: row.last_test_score || null,
-          avgScoreOverall: row.avg_score_overall || 0
-        };
-      });
+          // Agendaram = booked + no_show + completed + won (todos que chegaram a agendar)
+          const leadsAgendaram = metrics.booked + metrics.noShow + metrics.completed + metrics.won;
 
-      // Processar ranking (recalcular com custos do período)
+          // Compareceram = completed + qualifying + won (não incluímos no_show)
+          const leadsCompareceram = metrics.completed + metrics.qualifying + metrics.won;
+
+          // Fecharam = won
+          const leadsFecharam = metrics.won;
+
+          // Calcular taxas
+          const taxaResposta = totalLeads > 0
+            ? Math.round((leadsResponderam / totalLeads) * 1000) / 10
+            : 0;
+          const taxaAgendamento = totalLeads > 0
+            ? Math.round((leadsAgendaram / totalLeads) * 1000) / 10
+            : 0;
+          const taxaConversaoGeral = totalLeads > 0
+            ? Math.round((leadsFecharam / totalLeads) * 1000) / 10
+            : 0;
+
+          return {
+            locationId: responsavel, // Usando responsável como ID para compatibilidade
+            agentName: responsavel,
+            agentStatus: 'active',
+            version: '1.0.0',
+            isActive: true,
+            // Métricas de leads e funil
+            totalLeads,
+            leadsResponderam,
+            leadsAgendaram,
+            leadsCompareceram,
+            leadsFecharam,
+            leadsNoShow: metrics.noShow,
+            leadsLost: metrics.lost,
+            taxaResposta,
+            taxaAgendamento,
+            taxaConversaoGeral,
+            // Custos (distribuídos proporcionalmente por lead)
+            totalTokens: 0,
+            custoTotalUsd: totalLeads > 0 ? (totalCustos * totalLeads / (dashData?.length || 1)) : 0,
+            totalChamadasIa: 0,
+            // Testes (não disponível nesta fonte)
+            totalTestRuns: 0,
+            lastTestScore: null,
+            avgScoreOverall: 0
+          };
+        })
+        .filter(c => c.totalLeads > 0)
+        .sort((a, b) => b.totalLeads - a.totalLeads);
+
+      // 7. Processar ranking
       const ranking: ClientRanking[] = clients
         .filter(c => c.totalLeads > 0)
         .sort((a, b) => b.taxaConversaoGeral - a.taxaConversaoGeral)
@@ -202,16 +327,27 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
         r.rankResposta = byResposta.findIndex(x => x.locationId === r.locationId) + 1;
       });
 
-      // Processar alertas
-      const alerts: ClientAlert[] = (alertsResult.data || []).map((row: any) => ({
-        locationId: row.location_id,
-        agentName: row.agent_name || 'Sem nome',
-        alertaBaixaResposta: row.alerta_baixa_resposta || false,
-        alertaBaixaConversao: row.alerta_baixa_conversao || false,
-        alertaCustoSemResultado: row.alerta_custo_sem_resultado || false,
-        alertaScoreBaixo: row.alerta_score_baixo || false,
-        totalAlertas: row.total_alertas || 0
-      }));
+      // 8. Processar alertas (recalcular com métricas reais)
+      const alerts: ClientAlert[] = clients
+        .filter(c => c.totalLeads > 0)
+        .map((c) => {
+          const alertaBaixaResposta = c.taxaResposta < 10 && c.totalLeads >= 10;
+          const alertaBaixaConversao = c.taxaConversaoGeral < 3 && c.totalLeads >= 10;
+          const alertaCustoSemResultado = c.custoTotalUsd > 50 && c.leadsFecharam === 0;
+          const alertaScoreBaixo = c.avgScoreOverall > 0 && c.avgScoreOverall < 5;
+          const totalAlertas = [alertaBaixaResposta, alertaBaixaConversao, alertaCustoSemResultado, alertaScoreBaixo].filter(Boolean).length;
+
+          return {
+            locationId: c.locationId,
+            agentName: c.agentName,
+            alertaBaixaResposta,
+            alertaBaixaConversao,
+            alertaCustoSemResultado,
+            alertaScoreBaixo,
+            totalAlertas
+          };
+        })
+        .filter(a => a.totalAlertas > 0);
 
       setState({
         clients,
@@ -229,7 +365,7 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
         error: error.message || 'Erro ao carregar dados'
       }));
     }
-  }, [dateRange, month]);
+  }, []); // Sem dependencias - dados nao filtrados por periodo
 
   useEffect(() => {
     fetchData();
