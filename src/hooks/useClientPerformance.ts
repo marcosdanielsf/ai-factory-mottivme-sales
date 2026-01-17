@@ -231,15 +231,58 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         }
       });
 
-      // 3. Buscar custos (opcional, mantido para compatibilidade)
+      // 3. Buscar custos REAIS da tabela llm_costs, agrupados por location_name
+      // O location_name em llm_costs corresponde ao cliente (similar ao lead_usuario_responsavel)
       const { data: costsData } = await supabase
         .from('llm_costs')
-        .select('location_id, custo_usd, tokens_input, tokens_output');
+        .select('location_name, custo_usd, tokens_input, tokens_output');
 
-      // Agregar custos (placeholder - não temos location_id mapeado para responsável)
-      const totalCustos = (costsData || []).reduce((acc: number, row: any) => {
-        return acc + (row.custo_usd || 0);
-      }, 0);
+      // Agregar custos por location_name (nome do cliente)
+      const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
+      (costsData || []).forEach((row: any) => {
+        const clientName = (row.location_name || '').toLowerCase().trim();
+        if (!clientName) return;
+
+        if (!custosPorCliente[clientName]) {
+          custosPorCliente[clientName] = { custo: 0, tokens: 0, chamadas: 0 };
+        }
+        custosPorCliente[clientName].custo += row.custo_usd || 0;
+        custosPorCliente[clientName].tokens += (row.tokens_input || 0) + (row.tokens_output || 0);
+        custosPorCliente[clientName].chamadas += 1;
+      });
+
+      // Helper para encontrar custo por nome (match flexível)
+      const findCustoByName = (name: string): { custo: number; tokens: number; chamadas: number } => {
+        const normalizedName = name.toLowerCase().trim();
+
+        // Match exato
+        if (custosPorCliente[normalizedName]) {
+          return custosPorCliente[normalizedName];
+        }
+
+        // Match parcial (nome contém ou é contido)
+        for (const [clientName, data] of Object.entries(custosPorCliente)) {
+          if (normalizedName.includes(clientName) || clientName.includes(normalizedName)) {
+            return data;
+          }
+        }
+
+        // Match por primeira palavra
+        const firstName = normalizedName.split(' ')[0];
+        for (const [clientName, data] of Object.entries(custosPorCliente)) {
+          if (clientName.startsWith(firstName) || firstName.startsWith(clientName.split(' ')[0])) {
+            return data;
+          }
+        }
+
+        return { custo: 0, tokens: 0, chamadas: 0 };
+      };
+
+      // Log para debug - clientes com custos encontrados
+      const clientesComCustos = Object.keys(custosPorCliente);
+      if (clientesComCustos.length > 0) {
+        console.log('Custos encontrados para clientes:', clientesComCustos);
+      }
 
       // 4. Transformar métricas agregadas em array de ClientPerformance
       const clients: ClientPerformance[] = Object.entries(metricsByResponsavel)
@@ -270,6 +313,9 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
             ? Math.round((leadsFecharam / totalLeads) * 1000) / 10
             : 0;
 
+          // Buscar custos REAIS para este cliente (match por nome)
+          const custosCliente = findCustoByName(responsavel);
+
           return {
             locationId: responsavel, // Usando responsável como ID para compatibilidade
             agentName: responsavel,
@@ -287,10 +333,10 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
             taxaResposta,
             taxaAgendamento,
             taxaConversaoGeral,
-            // Custos (distribuídos proporcionalmente por lead)
-            totalTokens: 0,
-            custoTotalUsd: totalLeads > 0 ? (totalCustos * totalLeads / (dashData?.length || 1)) : 0,
-            totalChamadasIa: 0,
+            // Custos REAIS da tabela llm_costs (match por nome do cliente)
+            totalTokens: custosCliente.tokens,
+            custoTotalUsd: custosCliente.custo,
+            totalChamadasIa: custosCliente.chamadas,
             // Testes (não disponível nesta fonte)
             totalTestRuns: 0,
             lastTestScore: null,

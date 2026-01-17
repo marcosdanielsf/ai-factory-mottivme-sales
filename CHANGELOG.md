@@ -1,5 +1,30 @@
 # CHANGELOG - MOTTIV.ME AI Factory Dashboard
 
+## [1.3.1] - 2026-01-16
+
+### Custos Reais por Cliente
+
+#### PROBLEMA: Custos distribuídos proporcionalmente (impreciso)
+- `useClientPerformance.ts` distribuía custos proporcionalmente por número de leads
+- Não refletia o custo REAL de cada cliente na tabela `llm_costs`
+
+#### SOLUÇÃO: Match por nome entre llm_costs e clientes
+- **Arquivo:** `src/hooks/useClientPerformance.ts`
+- Busca custos da tabela `llm_costs` agrupados por `location_name`
+- Faz match flexível entre nome do cliente e `lead_usuario_responsavel`
+- Estratégias de match: exato → parcial → primeira palavra
+
+#### CAMPOS ATUALIZADOS:
+- `custoTotalUsd` → Custo REAL do cliente (não mais proporcional)
+- `totalTokens` → Total de tokens consumidos pelo cliente
+- `totalChamadasIa` → Número de chamadas de IA do cliente
+
+#### RESULTADO:
+- Página Performance agora mostra custos REAIS por cliente
+- Integração com hook `useClientCosts` existente (mesmo padrão)
+
+---
+
 ## [1.3.0] - 2026-01-16
 
 ### Alinhamento Total de Fontes de Dados
