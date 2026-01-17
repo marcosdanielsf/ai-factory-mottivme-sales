@@ -18,7 +18,8 @@ import {
   ExternalLink,
   LogOut,
   DollarSign,
-  Trophy
+  Trophy,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../src/contexts/AuthContext';
 
@@ -123,6 +124,7 @@ export const Sidebar = () => {
           SALES OS
         </div>
         <SidebarItem icon={Users} label="Funil de Leads" to="/leads" />
+        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" />
         <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" />
 
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
