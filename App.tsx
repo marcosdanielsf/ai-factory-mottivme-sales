@@ -6,7 +6,6 @@ import { ClientDetail } from './pages/ClientDetail';
 import { PromptEditor } from './pages/PromptEditor';
 import { Approvals } from './pages/Approvals';
 import { Leads } from './pages/Leads';
-import { NewFollowers } from './pages/NewFollowers';
 import { KnowledgeBase } from './pages/KnowledgeBase';
 import { TeamRPG } from './pages/TeamRPG';
 import { SuperAgentRPG } from './pages/SuperAgentRPG';
@@ -47,13 +46,6 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Leads />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/new-followers" element={
-              <ProtectedRoute>
-                <Layout>
-                  <NewFollowers />
                 </Layout>
               </ProtectedRoute>
             } />
