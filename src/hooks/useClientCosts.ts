@@ -97,81 +97,122 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       setLoading(true);
       setError(null);
 
-      // Query base
-      let query = supabase
-        .from('llm_costs')
-        .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia, created_at');
-
-      // Aplicar filtro de data
+      // Verificar se precisa filtrar por data
       const { start, end } = getDateRange(dateRange, month);
-      if (start) {
-        query = query.gte('created_at', start.toISOString());
-      }
-      if (end) {
-        query = query.lte('created_at', end.toISOString());
-      }
+      const needsDateFilter = start !== null || end !== null;
 
-      const { data, error: queryError } = await query;
+      let result: ClientCostSummary[] = [];
 
-      if (queryError) {
-        console.error('Error fetching costs:', queryError);
-        throw queryError;
-      }
+      if (!needsDateFilter) {
+        // Usar view agregada quando não há filtro de data (resolve limite de 1000 registros)
+        const { data: viewData, error: viewError } = await supabase
+          .from('vw_client_costs_summary')
+          .select('*');
 
-      // Agrupar por location_name (não por location_id, pois alguns clientes têm múltiplos IDs ou NULL)
-      const clientCosts: Record<string, {
-        location_ids: Set<string>;
-        location_name: string;
-        total_cost_usd: number;
-        total_tokens_input: number;
-        total_tokens_output: number;
-        total_requests: number;
-        models_used: Set<string>;
-        last_activity: string;
-      }> = {};
-
-      (data || []).forEach((row: any) => {
-        // Usar location_name como chave de agrupamento
-        const clientName = row.location_name || 'Desconhecido';
-        const lid = row.location_id || 'unknown';
-
-        if (!clientCosts[clientName]) {
-          clientCosts[clientName] = {
-            location_ids: new Set(),
-            location_name: clientName,
-            total_cost_usd: 0,
-            total_tokens_input: 0,
-            total_tokens_output: 0,
-            total_requests: 0,
-            models_used: new Set(),
-            last_activity: row.created_at,
-          };
+        if (viewError) {
+          console.warn('[useClientCosts] View não disponível, usando fallback:', viewError.message);
+          // Fallback para query direta se view não existir
+          throw viewError;
         }
-        // Adicionar location_id à lista (pode ter múltiplos por cliente)
-        clientCosts[clientName].location_ids.add(lid);
-        clientCosts[clientName].total_cost_usd += row.custo_usd || 0;
-        clientCosts[clientName].total_tokens_input += row.tokens_input || 0;
-        clientCosts[clientName].total_tokens_output += row.tokens_output || 0;
-        clientCosts[clientName].total_requests += 1;
-        if (row.modelo_ia) clientCosts[clientName].models_used.add(row.modelo_ia);
-        if (row.created_at > clientCosts[clientName].last_activity) {
-          clientCosts[clientName].last_activity = row.created_at;
-        }
-      });
 
-      // Converter para array e calcular medias
-      const result: ClientCostSummary[] = Object.values(clientCosts)
-        .map(c => {
-          const locationIdsArray = Array.from(c.location_ids);
-          return {
-            ...c,
-            location_id: locationIdsArray[0] || 'unknown', // Usar o primeiro como principal
-            location_ids: locationIdsArray,
-            models_used: Array.from(c.models_used),
-            avg_cost_per_request: c.total_requests > 0 ? c.total_cost_usd / c.total_requests : 0,
-          };
-        })
-        .sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+        result = (viewData || []).map((row: any) => ({
+          location_id: row.location_id || 'unknown',
+          location_name: row.location_name,
+          total_cost_usd: row.total_cost_usd || 0,
+          total_tokens_input: row.total_tokens_input || 0,
+          total_tokens_output: row.total_tokens_output || 0,
+          total_requests: row.total_requests || 0,
+          models_used: row.models_used || [],
+          avg_cost_per_request: row.avg_cost_per_request || 0,
+          last_activity: row.last_activity,
+          location_ids: row.location_ids || [row.location_id || 'unknown'],
+        }));
+      } else {
+        // Com filtro de data, precisa fazer query direta com agregação no frontend
+        // Usar paginação para buscar todos os registros
+        let allData: any[] = [];
+        let offset = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = supabase
+            .from('llm_costs')
+            .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia, created_at')
+            .range(offset, offset + pageSize - 1);
+
+          if (start) {
+            query = query.gte('created_at', start.toISOString());
+          }
+          if (end) {
+            query = query.lte('created_at', end.toISOString());
+          }
+
+          const { data, error: queryError } = await query;
+
+          if (queryError) throw queryError;
+
+          if (data && data.length > 0) {
+            allData = allData.concat(data);
+            offset += pageSize;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        // Agrupar por location_name
+        const clientCosts: Record<string, {
+          location_ids: Set<string>;
+          location_name: string;
+          total_cost_usd: number;
+          total_tokens_input: number;
+          total_tokens_output: number;
+          total_requests: number;
+          models_used: Set<string>;
+          last_activity: string;
+        }> = {};
+
+        allData.forEach((row: any) => {
+          const clientName = row.location_name || 'Desconhecido';
+          const lid = row.location_id || 'unknown';
+
+          if (!clientCosts[clientName]) {
+            clientCosts[clientName] = {
+              location_ids: new Set(),
+              location_name: clientName,
+              total_cost_usd: 0,
+              total_tokens_input: 0,
+              total_tokens_output: 0,
+              total_requests: 0,
+              models_used: new Set(),
+              last_activity: row.created_at,
+            };
+          }
+          clientCosts[clientName].location_ids.add(lid);
+          clientCosts[clientName].total_cost_usd += row.custo_usd || 0;
+          clientCosts[clientName].total_tokens_input += row.tokens_input || 0;
+          clientCosts[clientName].total_tokens_output += row.tokens_output || 0;
+          clientCosts[clientName].total_requests += 1;
+          if (row.modelo_ia) clientCosts[clientName].models_used.add(row.modelo_ia);
+          if (row.created_at > clientCosts[clientName].last_activity) {
+            clientCosts[clientName].last_activity = row.created_at;
+          }
+        });
+
+        result = Object.values(clientCosts)
+          .map(c => {
+            const locationIdsArray = Array.from(c.location_ids);
+            return {
+              ...c,
+              location_id: locationIdsArray[0] || 'unknown',
+              location_ids: locationIdsArray,
+              models_used: Array.from(c.models_used),
+              avg_cost_per_request: c.total_requests > 0 ? c.total_cost_usd / c.total_requests : 0,
+            };
+          })
+          .sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+      }
 
       // Calcular totais
       const total = result.reduce((acc, c) => acc + c.total_cost_usd, 0);
@@ -218,12 +259,13 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
         setError(null);
 
         // Buscar por location_name ao invés de location_id
+        // Aumentado limite para 500 (detalhes do cliente podem ter muitos registros)
         let query = supabase
           .from('llm_costs')
           .select('*')
           .eq('location_name', locationName)
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(500);
 
         // Aplicar filtro de data
         const { start, end } = getDateRange(dateRange, month);
@@ -283,6 +325,7 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
 };
 
 // Hook para custos globais (resumo geral)
+// Usa view vw_global_cost_summary para evitar limite de 1000 registros
 export const useGlobalCostSummary = () => {
   const [summary, setSummary] = useState({
     total_cost_usd: 0,
@@ -306,32 +349,46 @@ export const useGlobalCostSummary = () => {
       try {
         setLoading(true);
 
-        const { data, error: queryError } = await supabase
-          .from('llm_costs')
-          .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia');
+        // Tentar usar view agregada primeiro
+        const { data: viewData, error: viewError } = await supabase
+          .from('vw_global_cost_summary')
+          .select('*')
+          .single();
 
-        if (queryError) throw queryError;
+        if (!viewError && viewData) {
+          setSummary({
+            total_cost_usd: viewData.total_cost_usd || 0,
+            total_tokens: viewData.total_tokens || 0,
+            total_requests: viewData.total_requests || 0,
+            total_clients: viewData.total_clients || 0,
+            avg_cost_per_client: viewData.avg_cost_per_client || 0,
+            top_model: viewData.top_model || 'N/A',
+          });
+          return;
+        }
 
-        // Contar clientes únicos por location_name (não location_id)
-        const uniqueClients = new Set((data || []).map((r: any) => r.location_name || 'Desconhecido'));
-        const totalCost = (data || []).reduce((acc: number, r: any) => acc + (r.custo_usd || 0), 0);
-        const totalTokens = (data || []).reduce((acc: number, r: any) => acc + (r.tokens_input || 0) + (r.tokens_output || 0), 0);
+        // Fallback: usar view de clientes para calcular
+        console.warn('[useGlobalCostSummary] View não disponível, usando fallback');
+        const { data: clientsData, error: clientsError } = await supabase
+          .from('vw_client_costs_summary')
+          .select('*');
 
-        // Contar modelos
-        const modelCount: Record<string, number> = {};
-        (data || []).forEach((r: any) => {
-          if (r.modelo_ia) {
-            modelCount[r.modelo_ia] = (modelCount[r.modelo_ia] || 0) + 1;
-          }
-        });
-        const topModel = Object.entries(modelCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+        if (clientsError) throw clientsError;
+
+        const totalCost = (clientsData || []).reduce((acc: number, r: any) => acc + (r.total_cost_usd || 0), 0);
+        const totalTokens = (clientsData || []).reduce((acc: number, r: any) => acc + (r.total_tokens_input || 0) + (r.total_tokens_output || 0), 0);
+        const totalRequests = (clientsData || []).reduce((acc: number, r: any) => acc + (r.total_requests || 0), 0);
+        const totalClients = clientsData?.length || 0;
+
+        // Pegar modelo mais usado do primeiro cliente (ordenado por custo)
+        const topModel = clientsData?.[0]?.models_used?.[0] || 'N/A';
 
         setSummary({
           total_cost_usd: totalCost,
           total_tokens: totalTokens,
-          total_requests: data?.length || 0,
-          total_clients: uniqueClients.size,
-          avg_cost_per_client: uniqueClients.size > 0 ? totalCost / uniqueClients.size : 0,
+          total_requests: totalRequests,
+          total_clients: totalClients,
+          avg_cost_per_client: totalClients > 0 ? totalCost / totalClients : 0,
           top_model: topModel,
         });
       } catch (err: any) {
