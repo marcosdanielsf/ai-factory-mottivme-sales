@@ -131,16 +131,33 @@ export const useFunnelMetrics = (period: Period = '30d') => {
 
         console.log('Usando dashboard_ranking_clientes:', { totalLeads, responderam, agendaram, compareceram, fecharam });
       } else {
-        // Fallback: usar socialfy_leads
+        // Fallback: usar socialfy_leads com paginação para evitar limite de 1000
         console.warn('dashboard_ranking_clientes não disponível, usando socialfy_leads');
 
-        const { data: socialfyData, error: socialfyError } = await supabase
-          .from('socialfy_leads')
-          .select('*')
-          .gte('created_at', startDate.toISOString());
+        let allSocialfyData: any[] = [];
+        let offset = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (socialfyError) throw socialfyError;
-        leadsData = socialfyData || [];
+        while (hasMore) {
+          const { data: socialfyData, error: socialfyError } = await supabase
+            .from('socialfy_leads')
+            .select('*')
+            .gte('created_at', startDate.toISOString())
+            .range(offset, offset + pageSize - 1);
+
+          if (socialfyError) throw socialfyError;
+
+          if (socialfyData && socialfyData.length > 0) {
+            allSocialfyData = allSocialfyData.concat(socialfyData);
+            offset += pageSize;
+            hasMore = socialfyData.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        leadsData = allSocialfyData;
       }
 
       // 2. Buscar conversas para verificar respostas reais (apenas se usando socialfy_leads)

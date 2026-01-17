@@ -227,11 +227,13 @@ export const useLeadConversations = (leadId: string | null) => {
         setError(null);
 
         // Buscar mensagens da tabela agent_conversation_messages
+        // Limite de 500 mensagens por conversa para evitar problemas de performance
         const { data, error: queryError } = await supabase
           .from('agent_conversation_messages')
           .select('*')
           .eq('conversation_id', leadId)
-          .order('created_at', { ascending: true });
+          .order('created_at', { ascending: true })
+          .limit(500);
 
         if (queryError) throw queryError;
 
