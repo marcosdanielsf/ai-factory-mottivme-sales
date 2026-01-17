@@ -32,6 +32,8 @@ export const useAgentConversations = () => {
       setError(null);
       
       // Buscamos as conversas mais recentes
+      // Limite aumentado de 50 para 500 para exibir mais conversas
+      // Para datasets maiores, considerar paginação
       const { data, error } = await supabase
         .from('ai_factory_conversations')
         .select(`
@@ -46,7 +48,7 @@ export const useAgentConversations = () => {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(500);
 
       if (error) throw error;
 
