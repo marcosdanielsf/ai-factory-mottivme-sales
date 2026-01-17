@@ -238,31 +238,30 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         }
       });
 
-      // 3. Buscar custos REAIS da tabela llm_costs, agrupados por location_name
-      // O location_name em llm_costs corresponde ao cliente (similar ao lead_usuario_responsavel)
-      // IMPORTANTE: Supabase retorna max 1000 registros por padrão, precisamos de mais
-      const { data: costsData, count: totalCustos } = await supabase
-        .from('llm_costs')
-        .select('location_name, custo_usd, tokens_input, tokens_output', { count: 'exact' })
-        .limit(50000); // Aumentar limite para pegar todos os registros
+      // 3. Buscar custos AGREGADOS da view vw_custos_por_cliente
+      // A view já faz a agregação no banco, evitando o limite de 1000 registros
+      const { data: custsAggData, error: custsError } = await supabase
+        .from('vw_custos_por_cliente')
+        .select('cliente_nome, total_chamadas, total_tokens, custo_total_usd');
 
-      console.log(`[DEBUG] Custos carregados: ${costsData?.length || 0} de ${totalCustos || '?'} registros`);
+      if (custsError) {
+        console.warn('[DEBUG] View vw_custos_por_cliente não existe, usando fallback:', custsError.message);
+      }
 
-      // Agregar custos por location_name (nome do cliente)
+      // Mapear custos agregados da view para o formato esperado
       const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
-      (costsData || []).forEach((row: any) => {
-        const clientName = (row.location_name || '').toLowerCase().trim();
+      (custsAggData || []).forEach((row: any) => {
+        const clientName = (row.cliente_nome || '').toLowerCase().trim();
         if (!clientName) return;
 
-        if (!custosPorCliente[clientName]) {
-          custosPorCliente[clientName] = { custo: 0, tokens: 0, chamadas: 0 };
-        }
-        custosPorCliente[clientName].custo += row.custo_usd || 0;
-        custosPorCliente[clientName].tokens += (row.tokens_input || 0) + (row.tokens_output || 0);
-        custosPorCliente[clientName].chamadas += 1;
+        custosPorCliente[clientName] = {
+          custo: row.custo_total_usd || 0,
+          tokens: row.total_tokens || 0,
+          chamadas: row.total_chamadas || 0
+        };
       });
 
-      console.log('[DEBUG] Custos agregados por cliente:', custosPorCliente);
+      console.log('[DEBUG] Custos agregados por cliente (view):', custosPorCliente);
 
       // Mapeamento manual: llm_costs.location_name → app_dash.lead_usuario_responsavel
       // Necessário porque os nomes são diferentes entre as duas fontes
