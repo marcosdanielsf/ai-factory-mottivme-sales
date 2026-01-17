@@ -251,24 +251,54 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         custosPorCliente[clientName].chamadas += 1;
       });
 
-      // Helper para encontrar custo por nome (match flexível)
-      const findCustoByName = (name: string): { custo: number; tokens: number; chamadas: number } => {
-        const normalizedName = name.toLowerCase().trim();
+      // Mapeamento manual: llm_costs.location_name → app_dash.lead_usuario_responsavel
+      // Necessário porque os nomes são diferentes entre as duas fontes
+      const mapeamentoClienteVendedor: Record<string, string[]> = {
+        'legacy agency': ['milton'],
+        'mottivme sales': ['marcos daniel', 'suporte mottivme', 'marcos'],
+        'lappe finances': ['fernanda lappe'],
+        'dr. luiz augusto': ['luiz augusto'],
+        'dr. luiz': ['luiz augusto'],
+        'dr luiz': ['luiz augusto'],
+        'dr thauan': ['thauan'],
+        'dr. thauan': ['thauan'],
+        'dra. gabriela rossmam': ['gabriela rossmam', 'dra gabriella rossmam'],
+        'dra gabriela rossmam': ['gabriela rossmam', 'dra gabriella rossmam'],
+        'eline lôbo': ['eline lôbo', 'eline lobo'],
+        'marina couto': ['marina couto'],
+        'fernanda lappe': ['fernanda lappe'],
+        'gustavo couto': ['gustavo couto'],
+        'andré rosa': ['andre rosa', 'andré rosa'],
+        'andre rosa': ['andre rosa', 'andré rosa'],
+      };
 
-        // Match exato
-        if (custosPorCliente[normalizedName]) {
-          return custosPorCliente[normalizedName];
+      // Helper para encontrar custo por nome (com mapeamento)
+      const findCustoByName = (vendedorName: string): { custo: number; tokens: number; chamadas: number } => {
+        const normalizedVendedor = vendedorName.toLowerCase().trim();
+
+        // 1. Verificar mapeamento reverso: vendedor → cliente
+        for (const [clienteName, vendedores] of Object.entries(mapeamentoClienteVendedor)) {
+          if (vendedores.some(v => v === normalizedVendedor || normalizedVendedor.includes(v) || v.includes(normalizedVendedor))) {
+            if (custosPorCliente[clienteName]) {
+              return custosPorCliente[clienteName];
+            }
+          }
         }
 
-        // Match parcial (nome contém ou é contido)
+        // 2. Match exato
+        if (custosPorCliente[normalizedVendedor]) {
+          return custosPorCliente[normalizedVendedor];
+        }
+
+        // 3. Match parcial (nome contém ou é contido)
         for (const [clientName, data] of Object.entries(custosPorCliente)) {
-          if (normalizedName.includes(clientName) || clientName.includes(normalizedName)) {
+          if (normalizedVendedor.includes(clientName) || clientName.includes(normalizedVendedor)) {
             return data;
           }
         }
 
-        // Match por primeira palavra
-        const firstName = normalizedName.split(' ')[0];
+        // 4. Match por primeira palavra
+        const firstName = normalizedVendedor.split(' ')[0];
         for (const [clientName, data] of Object.entries(custosPorCliente)) {
           if (clientName.startsWith(firstName) || firstName.startsWith(clientName.split(' ')[0])) {
             return data;
