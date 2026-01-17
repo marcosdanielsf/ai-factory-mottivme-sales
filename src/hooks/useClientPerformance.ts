@@ -126,6 +126,13 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         .from('app_dash_principal')
         .select('lead_usuario_responsavel, status, funil, tag');
 
+      console.log('[DEBUG] app_dash_principal:', {
+        success: !dashError,
+        count: appDashData?.length || 0,
+        error: dashError?.message || null,
+        errorCode: dashError?.code || null
+      });
+
       if (dashError) {
         console.warn('app_dash_principal não disponível, tentando dashboard_ranking_clientes:', dashError.message);
 
@@ -239,7 +246,7 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         .select('location_name, custo_usd, tokens_input, tokens_output', { count: 'exact' })
         .limit(50000); // Aumentar limite para pegar todos os registros
 
-      console.log(`Custos carregados: ${costsData?.length || 0} de ${totalCustos || '?'} registros`);
+      console.log(`[DEBUG] Custos carregados: ${costsData?.length || 0} de ${totalCustos || '?'} registros`);
 
       // Agregar custos por location_name (nome do cliente)
       const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
@@ -254,6 +261,8 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         custosPorCliente[clientName].tokens += (row.tokens_input || 0) + (row.tokens_output || 0);
         custosPorCliente[clientName].chamadas += 1;
       });
+
+      console.log('[DEBUG] Custos agregados por cliente:', custosPorCliente);
 
       // Mapeamento manual: llm_costs.location_name → app_dash.lead_usuario_responsavel
       // Necessário porque os nomes são diferentes entre as duas fontes
