@@ -1,0 +1,76 @@
+{
+  "name": "[TOOL] Buscar Cliente/Fornecedor",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "execute-workflow-trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  id, \n  nome, \n  tipo,\n  documento, \n  telefone, \n  email,\n  endereco,\n  ativo,\n  created_at\nFROM clientes_fornecedores\nWHERE ativo = true\n{{ $json.nome ? \"AND LOWER(nome) LIKE LOWER('%\" + $json.nome + \"%')\" : '' }}\n{{ $json.documento ? \"AND documento LIKE '%\" + $json.documento.replace(/[^0-9]/g, '') + \"%'\" : '' }}\n{{ $json.telefone ? \"AND telefone LIKE '%\" + $json.telefone.replace(/[^0-9]/g, '') + \"%'\" : '' }}\nORDER BY nome\nLIMIT 10",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 300],
+      "id": "postgres-buscar-cliente",
+      "name": "Buscar Cliente/Fornecedor",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta\nconst items = $input.all();\n\nif (items.length === 0 || (items.length === 1 && Object.keys(items[0].json).length === 0)) {\n  return {\n    json: {\n      encontrado: false,\n      message: 'Nenhum cliente ou fornecedor encontrado com os critérios informados',\n      clientes: []\n    }\n  };\n}\n\nconst clientes = items.map(item => {\n  const c = item.json;\n  return {\n    id: c.id,\n    nome: c.nome,\n    tipo: c.tipo === 'pessoa_fisica' ? 'PF' : 'PJ',\n    documento: c.documento || 'Não informado',\n    telefone: c.telefone || 'Não informado',\n    email: c.email || 'Não informado',\n    endereco: c.endereco || 'Não informado'\n  };\n});\n\nreturn {\n  json: {\n    encontrado: true,\n    quantidade: clientes.length,\n    clientes\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "format-response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar Cliente/Fornecedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente/Fornecedor": {
+      "main": [
+        [
+          {
+            "node": "Formatar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-buscar-cliente",
+  "tags": []
+}

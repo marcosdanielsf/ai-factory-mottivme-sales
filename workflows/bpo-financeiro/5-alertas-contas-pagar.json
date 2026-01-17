@@ -1,0 +1,339 @@
+{
+  "name": "5. Alertas de Contas a Pagar",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "id": "schedule-trigger",
+      "name": "Todo dia às 8h"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ghl-location",
+              "name": "location_id",
+              "value": "cd1uyzpJox6XPt4Vct8Y",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "admin-contact",
+              "name": "admin_contact_id",
+              "value": "={{ $env.ADMIN_CONTACT_ID || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "admin-phone",
+              "name": "admin_telefone",
+              "value": "={{ $env.ADMIN_TELEFONE || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 400],
+      "id": "config-ghl",
+      "name": "Config GHL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar despesas vencendo em 3 dias\nSELECT \n  m.id,\n  m.descricao,\n  m.valor_previsto as valor,\n  m.data_vencimento,\n  c.nome as fornecedor_nome,\n  cat.nome as categoria,\n  m.observacao,\n  3 as dias_para_vencer,\n  'lembrete' as tipo_alerta\nFROM movimentacoes_financeiras m\nLEFT JOIN clientes_fornecedores c ON m.cliente_fornecedor_id = c.id\nLEFT JOIN categorias_financeiras cat ON m.categoria_id = cat.id\nWHERE \n  m.tipo = 'despesa'\n  AND m.quitado = false\n  AND m.data_vencimento = CURRENT_DATE + INTERVAL '3 days'\nORDER BY m.valor_previsto DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 280],
+      "id": "query-3-dias",
+      "name": "Vencendo em 3 dias",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar despesas vencendo hoje\nSELECT \n  m.id,\n  m.descricao,\n  m.valor_previsto as valor,\n  m.data_vencimento,\n  c.nome as fornecedor_nome,\n  cat.nome as categoria,\n  m.observacao,\n  0 as dias_para_vencer,\n  'urgente' as tipo_alerta\nFROM movimentacoes_financeiras m\nLEFT JOIN clientes_fornecedores c ON m.cliente_fornecedor_id = c.id\nLEFT JOIN categorias_financeiras cat ON m.categoria_id = cat.id\nWHERE \n  m.tipo = 'despesa'\n  AND m.quitado = false\n  AND m.data_vencimento = CURRENT_DATE\nORDER BY m.valor_previsto DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 400],
+      "id": "query-hoje",
+      "name": "Vencendo HOJE",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar despesas vencidas (atrasadas)\nSELECT \n  m.id,\n  m.descricao,\n  m.valor_previsto as valor,\n  m.data_vencimento,\n  c.nome as fornecedor_nome,\n  cat.nome as categoria,\n  m.observacao,\n  CURRENT_DATE - m.data_vencimento as dias_atraso,\n  'atrasado' as tipo_alerta\nFROM movimentacoes_financeiras m\nLEFT JOIN clientes_fornecedores c ON m.cliente_fornecedor_id = c.id\nLEFT JOIN categorias_financeiras cat ON m.categoria_id = cat.id\nWHERE \n  m.tipo = 'despesa'\n  AND m.quitado = false\n  AND m.data_vencimento < CURRENT_DATE\nORDER BY m.data_vencimento ASC\nLIMIT 10;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 520],
+      "id": "query-atrasados",
+      "name": "ATRASADOS",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar todos os alertas em uma mensagem\nconst config = $('Config GHL').item.json;\n\n// Pegar resultados de cada query\nconst em3dias = $('Vencendo em 3 dias').all().filter(i => i.json.id);\nconst hoje = $('Vencendo HOJE').all().filter(i => i.json.id);\nconst atrasados = $('ATRASADOS').all().filter(i => i.json.id);\n\n// Se não há nada, retorna skip\nif (em3dias.length === 0 && hoje.length === 0 && atrasados.length === 0) {\n  return { json: { skip: true } };\n}\n\n// Função para formatar valor\nconst formatarValor = (valor) => new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(valor || 0);\n\n// Função para formatar data\nconst formatarData = (dataStr) => {\n  if (!dataStr) return '-';\n  const data = new Date(dataStr + 'T00:00:00');\n  return data.toLocaleDateString('pt-BR');\n};\n\n// Calcular totais\nconst totalAtrasado = atrasados.reduce((sum, i) => sum + (i.json.valor || 0), 0);\nconst totalHoje = hoje.reduce((sum, i) => sum + (i.json.valor || 0), 0);\nconst total3dias = em3dias.reduce((sum, i) => sum + (i.json.valor || 0), 0);\nconst totalGeral = totalAtrasado + totalHoje + total3dias;\n\n// Montar mensagem\nlet mensagem = `*ALERTA DE CONTAS A PAGAR*\\n`;\nmensagem += `${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}\\n\\n`;\n\n// Atrasados (vermelho)\nif (atrasados.length > 0) {\n  mensagem += `*ATRASADOS* (${atrasados.length})\\n`;\n  atrasados.slice(0, 5).forEach(i => {\n    const d = i.json;\n    mensagem += `- ${d.descricao}: ${formatarValor(d.valor)} (${d.dias_atraso}d atraso)\\n`;\n  });\n  if (atrasados.length > 5) mensagem += `  ... e mais ${atrasados.length - 5}\\n`;\n  mensagem += `Total atrasado: *${formatarValor(totalAtrasado)}*\\n\\n`;\n}\n\n// Hoje (urgente)\nif (hoje.length > 0) {\n  mensagem += `*VENCE HOJE* (${hoje.length})\\n`;\n  hoje.forEach(i => {\n    const d = i.json;\n    mensagem += `- ${d.descricao}: ${formatarValor(d.valor)}\\n`;\n  });\n  mensagem += `Total hoje: *${formatarValor(totalHoje)}*\\n\\n`;\n}\n\n// Em 3 dias\nif (em3dias.length > 0) {\n  mensagem += `*VENCE EM 3 DIAS* (${em3dias.length})\\n`;\n  em3dias.forEach(i => {\n    const d = i.json;\n    mensagem += `- ${d.descricao}: ${formatarValor(d.valor)} (${formatarData(d.data_vencimento)})\\n`;\n  });\n  mensagem += `Total: *${formatarValor(total3dias)}*\\n\\n`;\n}\n\n// Resumo\nmensagem += `---\\n`;\nmensagem += `*TOTAL PENDENTE: ${formatarValor(totalGeral)}*\\n`;\nmensagem += `\\nResponda para mais detalhes.`;\n\nreturn {\n  json: {\n    mensagem,\n    admin_contact_id: config.admin_contact_id,\n    ghl_api_key: config.ghl_api_key,\n    total_atrasado: totalAtrasado,\n    total_hoje: totalHoje,\n    total_3dias: total3dias,\n    total_geral: totalGeral,\n    qtd_atrasados: atrasados.length,\n    qtd_hoje: hoje.length,\n    qtd_3dias: em3dias.length\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "id": "consolidar-alertas",
+      "name": "Consolidar Alertas"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "has-contact",
+              "leftValue": "={{ $json.admin_contact_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1120, 400],
+      "id": "check-enviar",
+      "name": "Deve Enviar?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $json.admin_contact_id }}\",\n  \"message\": \"{{ $json.mensagem.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "id": "send-alert",
+      "name": "Enviar Alerta GHL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Registrar envio do alerta\nINSERT INTO logs_financeiros (tipo_acao, descricao, dados)\nVALUES (\n  'alerta_contas_pagar',\n  'Alerta diário de contas a pagar enviado',\n  '{\n    \"total_atrasado\": {{ $json.total_atrasado || 0 }},\n    \"total_hoje\": {{ $json.total_hoje || 0 }},\n    \"total_3dias\": {{ $json.total_3dias || 0 }},\n    \"total_geral\": {{ $json.total_geral || 0 }},\n    \"qtd_atrasados\": {{ $json.qtd_atrasados || 0 }},\n    \"qtd_hoje\": {{ $json.qtd_hoje || 0 }},\n    \"qtd_3dias\": {{ $json.qtd_3dias || 0 }}\n  }'::jsonb\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1560, 300],
+      "id": "log-alerta",
+      "name": "Registrar Log",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 500],
+      "id": "noop-skip",
+      "name": "Nada a Alertar"
+    }
+  ],
+  "connections": {
+    "Todo dia às 8h": {
+      "main": [
+        [
+          {
+            "node": "Config GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config GHL": {
+      "main": [
+        [
+          {
+            "node": "Vencendo em 3 dias",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Vencendo HOJE",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ATRASADOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vencendo em 3 dias": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vencendo HOJE": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ATRASADOS": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Alertas": {
+      "main": [
+        [
+          {
+            "node": "Deve Enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deve Enviar?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta GHL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nada a Alertar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Alerta GHL": {
+      "main": [
+        [
+          {
+            "node": "Registrar Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "alertas-contas-pagar",
+  "tags": []
+}

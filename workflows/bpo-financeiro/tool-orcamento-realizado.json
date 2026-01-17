@@ -1,0 +1,76 @@
+{
+  "name": "[TOOL] Orçamento vs Realizado",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Orçamento vs Realizado\nSELECT \n  ano,\n  mes,\n  tipo,\n  categoria,\n  centro_custo,\n  valor_planejado,\n  valor_realizado,\n  diferenca,\n  percentual_realizado\nFROM vw_orcamento_realizado\nWHERE \n  ano = {{ $json.ano || 'EXTRACT(YEAR FROM CURRENT_DATE)' }}\n  AND mes = {{ $json.mes || 'EXTRACT(MONTH FROM CURRENT_DATE)' }}\nORDER BY tipo, categoria;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 300],
+      "id": "query-orcamento",
+      "name": "Buscar Orçamento",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar relatório de orçamento vs realizado\nconst dados = $input.all().filter(i => i.json.categoria);\n\nconst formatarValor = (valor) => new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(valor || 0);\n\nconst getStatusPercentual = (percentual, tipo) => {\n  if (tipo === 'receita') {\n    if (percentual >= 100) return '🟢';\n    if (percentual >= 80) return '🟡';\n    return '🔴';\n  } else {\n    // Para despesas, menos é melhor\n    if (percentual <= 80) return '🟢';\n    if (percentual <= 100) return '🟡';\n    return '🔴';\n  }\n};\n\n// Separar por tipo\nconst receitas = dados.filter(d => d.json.tipo === 'receita');\nconst despesas = dados.filter(d => d.json.tipo === 'despesa');\n\n// Totais\nconst totalReceitaPlanejada = receitas.reduce((sum, i) => sum + (parseFloat(i.json.valor_planejado) || 0), 0);\nconst totalReceitaRealizada = receitas.reduce((sum, i) => sum + (parseFloat(i.json.valor_realizado) || 0), 0);\nconst totalDespesaPlanejada = despesas.reduce((sum, i) => sum + (parseFloat(i.json.valor_planejado) || 0), 0);\nconst totalDespesaRealizada = despesas.reduce((sum, i) => sum + (parseFloat(i.json.valor_realizado) || 0), 0);\n\nconst mesNome = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });\n\nif (dados.length === 0) {\n  return {\n    json: {\n      titulo: `Orçamento vs Realizado - ${mesNome}`,\n      mensagem: 'Nenhum orçamento cadastrado para este período. Use a ferramenta de criar orçamento para definir metas.',\n      tem_dados: false\n    }\n  };\n}\n\nreturn {\n  json: {\n    titulo: `Orçamento vs Realizado - ${mesNome}`,\n    tem_dados: true,\n    resumo: {\n      receitas: {\n        planejado: formatarValor(totalReceitaPlanejada),\n        realizado: formatarValor(totalReceitaRealizada),\n        percentual: `${totalReceitaPlanejada > 0 ? ((totalReceitaRealizada / totalReceitaPlanejada) * 100).toFixed(1) : 0}%`,\n        status: getStatusPercentual(totalReceitaPlanejada > 0 ? (totalReceitaRealizada / totalReceitaPlanejada) * 100 : 0, 'receita')\n      },\n      despesas: {\n        planejado: formatarValor(totalDespesaPlanejada),\n        realizado: formatarValor(totalDespesaRealizada),\n        percentual: `${totalDespesaPlanejada > 0 ? ((totalDespesaRealizada / totalDespesaPlanejada) * 100).toFixed(1) : 0}%`,\n        status: getStatusPercentual(totalDespesaPlanejada > 0 ? (totalDespesaRealizada / totalDespesaPlanejada) * 100 : 0, 'despesa')\n      },\n      resultado_planejado: formatarValor(totalReceitaPlanejada - totalDespesaPlanejada),\n      resultado_realizado: formatarValor(totalReceitaRealizada - totalDespesaRealizada)\n    },\n    detalhes_receitas: receitas.map(i => ({\n      categoria: i.json.categoria || 'Sem categoria',\n      planejado: formatarValor(i.json.valor_planejado),\n      realizado: formatarValor(i.json.valor_realizado),\n      percentual: `${parseFloat(i.json.percentual_realizado || 0).toFixed(1)}%`,\n      status: getStatusPercentual(parseFloat(i.json.percentual_realizado || 0), 'receita')\n    })),\n    detalhes_despesas: despesas.map(i => ({\n      categoria: i.json.categoria || 'Sem categoria',\n      centro_custo: i.json.centro_custo || '-',\n      planejado: formatarValor(i.json.valor_planejado),\n      realizado: formatarValor(i.json.valor_realizado),\n      percentual: `${parseFloat(i.json.percentual_realizado || 0).toFixed(1)}%`,\n      status: getStatusPercentual(parseFloat(i.json.percentual_realizado || 0), 'despesa')\n    }))\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "formatar-relatorio",
+      "name": "Formatar Relatório"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar Orçamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Orçamento": {
+      "main": [
+        [
+          {
+            "node": "Formatar Relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-orcamento-realizado",
+  "tags": []
+}

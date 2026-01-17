@@ -1,0 +1,627 @@
+{
+  "name": "04. [ Socialfy ] Agendar",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "calendar_id"
+            },
+            {
+              "name": "startTime"
+            },
+            {
+              "name": "firstName"
+            },
+            {
+              "name": "lastName"
+            },
+            {
+              "name": "lead_id"
+            }
+          ]
+        }
+      },
+      "id": "cb62b6fa-f078-4963-a898-38b26d903fd2",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -512,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        320
+      ],
+      "id": "f7f30ea9-1b11-4c33-b990-1b907b267c82",
+      "name": "If4",
+      "notes": "Verifica se encontrou contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Start').item.json.location_id }}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $('Start').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact by Phone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        384,
+        320
+      ],
+      "id": "509addb7-64c6-4e30-a23d-872b0d960536",
+      "notes": "Busca contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        224
+      ],
+      "id": "54d58e2c-7eb4-4b2b-b0dd-bb67139893f7",
+      "name": "If",
+      "notes": "Verifica se encontrou contato por EMAIL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "db1a4173-dc6a-4d5e-895e-610a97e01570",
+              "name": "contact_id",
+              "value": "={{ $('Search Contact1').item?.json?.contacts?.[0]?.id ?? $('Search Contact by Phone').item?.json?.contacts?.[0]?.id ?? $('Create contact1').first().json.contact.id }}",
+              "type": "string"
+            },
+            {
+              "id": "449fd8cd-c042-4267-8b3f-5d1ca0822ad6",
+              "name": "location_id",
+              "value": "={{ $('Start').first().json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "52c150ad-47f8-4129-bf5b-010150511607",
+              "name": "calendar_id",
+              "value": "={{ $('Start').first().json.calendar_id }}",
+              "type": "string"
+            },
+            {
+              "id": "86e46826-8215-4c1a-9404-4a5858ce2e6e",
+              "name": "startTime",
+              "value": "={{ $('Start').item.json.startTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1280,
+        224
+      ],
+      "id": "a3492508-3875-4a8a-a990-17f5d3798d61",
+      "name": "contact1"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/calendars/events/appointments",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "calendarId",
+              "value": "={{$json[\"calendar_id\"]}}"
+            },
+            {
+              "name": "locationId",
+              "value": "={{$json[\"location_id\"]}}"
+            },
+            {
+              "name": "startTime",
+              "value": "={{ $json.startTime }}"
+            },
+            {
+              "name": "contactId",
+              "value": "={{$json[\"contact_id\"]}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        }
+      },
+      "name": "Agendar_reuniao1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        224
+      ],
+      "id": "282db521-5c65-48a8-8909-11e9488fde7c",
+      "notes": "Agendar uma nova reunião. startTime segue o padrão ISO 8601 (ex: 2021-06-23T03:30:00+05:30)."
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{$json[\"location_id\"]}}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        224
+      ],
+      "id": "dc8e4ae7-dca9-4935-a5e0-0f50d4a14416",
+      "notes": "Busca contato por EMAIL"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Start').item.json.location_id }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Start').item.json.email }}"
+            },
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Start').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Create contact1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        368
+      ],
+      "id": "88ba5964-7936-4f1b-aabb-8c8837ee386b",
+      "notes": "Cria novo contato apenas se NÃO existir por email NEM telefone"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contacts[0].id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName != $('Start').item.json.firstName ? $('Start').item.json.lastName : \"\"}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Atualizar Contato1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        80
+      ],
+      "id": "b4a63d25-0092-4254-b833-35f15bd11104"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "trocar",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "7556fef1-4d29-429b-a1e3-26b655b98e84",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        160
+      ],
+      "id": "6dfe9046-ce4a-46a7-9bb3-6a8f60fb68ed",
+      "name": "Verifica Nome1"
+    },
+    {
+      "parameters": {
+        "content": "v1 - tava dando erro na hora de agendar pq nao tava buscando a disponibilidade",
+        "height": 688,
+        "width": 1696
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -192,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "15af1825-3cb6-40ee-830e-ca3144d21d9d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "telefone",
+              "value": "={{ $json.telefone }}"
+            },
+            {
+              "key": "email",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        224
+      ],
+      "id": "784bd038-0af0-4ef4-b62f-bfe824914fb0",
+      "name": "Execution Data"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "API_KEY": "pit-da757200-941e-41eb-83f2-10d5b89ad789",
+          "email": "egislaine.santos1987@gmail.com",
+          "telefone": "+15082154456",
+          "location_id": "Bgi2hFMgiLLoRlOO0K5b",
+          "calendar_id": "LvZWMISiyYnF8p7TrY7q",
+          "startTime": "2025-10-29T12:00:00-04:00",
+          "firstName": "Egislaine",
+          "lastName": "Egislaine"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "Verifica Nome1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Contact by Phone": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Verifica Nome1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search Contact by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contact1": {
+      "main": [
+        [
+          {
+            "node": "Agendar_reuniao1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Contact1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact1": {
+      "main": [
+        [
+          {
+            "node": "contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Contato1": {
+      "main": [
+        [
+          {
+            "node": "contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Nome1": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Contato1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Data": {
+      "main": [
+        [
+          {
+            "node": "Search Contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ffaa3c3a-9ca0-465a-9780-95291c8bb932",
+  "meta": {
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "mnbPUb9D20ydvpGm",
+  "tags": []
+}

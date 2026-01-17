@@ -1,0 +1,76 @@
+{
+  "name": "[TOOL] Listar Categorias",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "execute-workflow-trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nome, tipo, descricao, cor\nFROM categorias_financeiras\nWHERE ativo = true\nORDER BY tipo, nome",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 300],
+      "id": "postgres-listar-categorias",
+      "name": "Listar Categorias",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta\nconst items = $input.all();\n\nif (items.length === 0) {\n  return {\n    json: {\n      message: 'Nenhuma categoria encontrada',\n      categorias: []\n    }\n  };\n}\n\nconst receitas = items.filter(i => i.json.tipo === 'receita').map(i => ({\n  id: i.json.id,\n  nome: i.json.nome,\n  descricao: i.json.descricao\n}));\n\nconst despesas = items.filter(i => i.json.tipo === 'despesa').map(i => ({\n  id: i.json.id,\n  nome: i.json.nome,\n  descricao: i.json.descricao\n}));\n\nreturn {\n  json: {\n    total: items.length,\n    categorias_receita: receitas,\n    categorias_despesa: despesas\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "format-response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Listar Categorias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Categorias": {
+      "main": [
+        [
+          {
+            "node": "Formatar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-listar-categorias",
+  "tags": []
+}

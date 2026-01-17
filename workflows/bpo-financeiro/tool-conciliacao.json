@@ -1,0 +1,163 @@
+{
+  "name": "[TOOL] Conciliação Bancária",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-acao",
+              "leftValue": "={{ $json.acao }}",
+              "rightValue": "pendentes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [460, 300],
+      "id": "check-acao",
+      "name": "Qual Ação?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar itens pendentes de conciliação\nSELECT \n  e.id as extrato_id,\n  e.data_transacao,\n  e.descricao as descricao_extrato,\n  e.valor as valor_extrato,\n  e.tipo as tipo_extrato,\n  cb.nome as conta,\n  m.id as movimentacao_id,\n  m.descricao as descricao_movimentacao,\n  COALESCE(m.valor_realizado, m.valor_previsto) as valor_movimentacao\nFROM extrato_bancario e\nJOIN contas_bancarias cb ON e.conta_bancaria_id = cb.id\nLEFT JOIN movimentacoes_financeiras m ON\n  m.quitado = true\n  AND ABS(e.data_transacao - m.data_vencimento) <= 3\n  AND ABS(e.valor - COALESCE(m.valor_realizado, m.valor_previsto)) < 0.01\n  AND (\n    (e.tipo = 'credito' AND m.tipo = 'receita')\n    OR (e.tipo = 'debito' AND m.tipo = 'despesa')\n  )\nWHERE e.conciliado = false\nORDER BY e.data_transacao DESC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 200],
+      "id": "query-pendentes",
+      "name": "Pendentes de Conciliação",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Executar conciliação\nUPDATE extrato_bancario\nSET \n  conciliado = true,\n  movimentacao_id = '{{ $json.movimentacao_id }}'::uuid,\n  conciliado_em = NOW()\nWHERE id = '{{ $json.extrato_id }}'::uuid\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 400],
+      "id": "executar-conciliacao",
+      "name": "Executar Conciliação",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar lista de pendentes\nconst pendentes = $input.all().filter(i => i.json.extrato_id);\n\nconst formatarValor = (valor) => new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(valor || 0);\n\nconst formatarData = (dataStr) => {\n  if (!dataStr) return '-';\n  const data = new Date(dataStr);\n  return data.toLocaleDateString('pt-BR');\n};\n\n// Separar com e sem match\nconst comMatch = pendentes.filter(p => p.json.movimentacao_id);\nconst semMatch = pendentes.filter(p => !p.json.movimentacao_id);\n\nreturn {\n  json: {\n    titulo: 'Conciliação Bancária - Itens Pendentes',\n    resumo: {\n      total_pendentes: pendentes.length,\n      com_sugestao: comMatch.length,\n      sem_match: semMatch.length\n    },\n    com_sugestao_match: comMatch.map(p => ({\n      extrato_id: p.json.extrato_id,\n      data: formatarData(p.json.data_transacao),\n      descricao_banco: p.json.descricao_extrato,\n      valor: formatarValor(p.json.valor_extrato),\n      tipo: p.json.tipo_extrato === 'credito' ? 'Entrada' : 'Saída',\n      conta: p.json.conta,\n      match: {\n        movimentacao_id: p.json.movimentacao_id,\n        descricao: p.json.descricao_movimentacao,\n        valor: formatarValor(p.json.valor_movimentacao)\n      }\n    })),\n    sem_match: semMatch.slice(0, 10).map(p => ({\n      extrato_id: p.json.extrato_id,\n      data: formatarData(p.json.data_transacao),\n      descricao: p.json.descricao_extrato,\n      valor: formatarValor(p.json.valor_extrato),\n      tipo: p.json.tipo_extrato === 'credito' ? 'Entrada' : 'Saída',\n      conta: p.json.conta,\n      acao_sugerida: 'Criar movimentação correspondente ou ignorar'\n    })),\n    instrucoes: 'Para conciliar um item, use a ação \"conciliar\" informando extrato_id e movimentacao_id'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "id": "formatar-pendentes",
+      "name": "Formatar Pendentes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resultado da conciliação\nconst resultado = $json;\n\nreturn {\n  json: {\n    sucesso: true,\n    mensagem: 'Item conciliado com sucesso!',\n    detalhes: {\n      extrato_id: resultado.id,\n      movimentacao_id: resultado.movimentacao_id,\n      conciliado_em: new Date(resultado.conciliado_em).toLocaleString('pt-BR')\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "id": "formatar-conciliacao",
+      "name": "Formatar Resultado"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Qual Ação?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qual Ação?": {
+      "main": [
+        [
+          {
+            "node": "Pendentes de Conciliação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Executar Conciliação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pendentes de Conciliação": {
+      "main": [
+        [
+          {
+            "node": "Formatar Pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Conciliação": {
+      "main": [
+        [
+          {
+            "node": "Formatar Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-conciliacao",
+  "tags": []
+}

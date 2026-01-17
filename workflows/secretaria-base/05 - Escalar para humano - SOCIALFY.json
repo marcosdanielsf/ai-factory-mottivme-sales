@@ -1,0 +1,187 @@
+{
+  "name": "05 - Escalar para humano - SOCIALFY",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json['api key v2'] }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7884696e-f3ec-471b-8845-3290b58bf0cd",
+      "name": "Send WhatsApp Report1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=skfa6JP6lLlAXkc8FfIp",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+1203633587897208",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json['location.id'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "14e6ffd9-0b82-4a6a-b4b7-60eb5d1d0686",
+      "name": "filtro"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "api key v2"
+            },
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "message"
+            },
+            {
+              "name": "location.id"
+            },
+            {
+              "name": "usuario_responsavel"
+            }
+          ]
+        }
+      },
+      "id": "0700a987-3251-4c7e-b266-e389390475df",
+      "typeVersion": 1.1,
+      "name": "Escalar para humano",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "pinData": {
+    "Escalar para humano": [
+      {
+        "json": {
+          "contact_id": "skfa6JP6lLlAXkc8FfIp",
+          "api key v2": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+          "telefone": "+1203633587897208",
+          "message": "O lead Marcos está extremamente irritado e declarou que não quer mais conversar. Necessário atendimento humano para resolver a situação.",
+          "location.id": "Bgi2hFMgiLLoRlOO0K5b",
+          "usuario_responsavel": " "
+        }
+      }
+    ]
+  },
+  "connections": {
+    "filtro": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalar para humano": {
+      "main": [
+        [
+          {
+            "node": "filtro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "86de1bc2-6e28-48a8-a305-78184ef23a8b",
+  "meta": {
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "0r0V3ija6EM88T6E",
+  "tags": []
+}

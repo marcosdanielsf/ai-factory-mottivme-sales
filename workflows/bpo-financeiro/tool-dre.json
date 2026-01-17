@@ -1,0 +1,110 @@
+{
+  "name": "[TOOL] DRE Simplificado",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- DRE dos últimos meses\nSELECT * FROM vw_dre_mensal\nWHERE \n  (ano = EXTRACT(YEAR FROM CURRENT_DATE) AND mes <= EXTRACT(MONTH FROM CURRENT_DATE))\n  OR (ano = EXTRACT(YEAR FROM CURRENT_DATE) - 1 AND mes > EXTRACT(MONTH FROM CURRENT_DATE))\nORDER BY ano DESC, mes DESC\nLIMIT {{ $json.meses || 6 }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 200],
+      "id": "query-dre",
+      "name": "Buscar DRE",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Despesas detalhadas por categoria (mês atual)\nSELECT \n  cat.nome as categoria,\n  SUM(COALESCE(m.valor_realizado, m.valor_previsto)) as valor\nFROM movimentacoes_financeiras m\nLEFT JOIN categorias_financeiras cat ON m.categoria_id = cat.id\nWHERE \n  m.tipo = 'despesa'\n  AND m.quitado = true\n  AND EXTRACT(YEAR FROM m.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)\n  AND EXTRACT(MONTH FROM m.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)\nGROUP BY cat.nome\nORDER BY valor DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 400],
+      "id": "query-despesas",
+      "name": "Despesas por Categoria",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar DRE\nconst dre = $('Buscar DRE').all().filter(i => i.json.ano);\nconst despesas = $('Despesas por Categoria').all().filter(i => i.json.categoria);\n\nconst formatarValor = (valor) => new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(valor || 0);\n\nconst getMesNome = (mes) => {\n  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];\n  return meses[mes - 1];\n};\n\nconst getStatusResultado = (valor) => {\n  if (valor > 0) return '🟢';\n  if (valor < 0) return '🔴';\n  return '⚪';\n};\n\n// Calcular totais do período\nconst totalReceitas = dre.reduce((sum, i) => sum + (parseFloat(i.json.receita_bruta) || 0), 0);\nconst totalDespesas = dre.reduce((sum, i) => sum + (parseFloat(i.json.despesas_totais) || 0), 0);\nconst totalResultado = dre.reduce((sum, i) => sum + (parseFloat(i.json.resultado_liquido) || 0), 0);\n\nreturn {\n  json: {\n    titulo: 'Demonstrativo de Resultado do Exercício (DRE)',\n    periodo: `Últimos ${dre.length} meses`,\n    resumo_periodo: {\n      receita_total: formatarValor(totalReceitas),\n      despesa_total: formatarValor(totalDespesas),\n      resultado_total: formatarValor(totalResultado),\n      margem_media: `${dre.length > 0 ? (dre.reduce((sum, i) => sum + (parseFloat(i.json.margem_liquida_percentual) || 0), 0) / dre.length).toFixed(1) : 0}%`,\n      status: getStatusResultado(totalResultado)\n    },\n    evolucao_mensal: dre.map(i => ({\n      mes: `${getMesNome(i.json.mes)}/${i.json.ano}`,\n      receita: formatarValor(i.json.receita_bruta),\n      despesa: formatarValor(i.json.despesas_totais),\n      resultado: formatarValor(i.json.resultado_liquido),\n      margem: `${parseFloat(i.json.margem_liquida_percentual || 0).toFixed(1)}%`,\n      status: getStatusResultado(parseFloat(i.json.resultado_liquido))\n    })),\n    composicao_despesas_mes_atual: despesas.map(i => ({\n      categoria: i.json.categoria || 'Sem categoria',\n      valor: formatarValor(i.json.valor)\n    })),\n    gerado_em: new Date().toLocaleString('pt-BR')\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "formatar-dre",
+      "name": "Formatar DRE"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar DRE",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Despesas por Categoria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar DRE": {
+      "main": [
+        [
+          {
+            "node": "Formatar DRE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Despesas por Categoria": {
+      "main": [
+        [
+          {
+            "node": "Formatar DRE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-dre",
+  "tags": []
+}

@@ -1,0 +1,76 @@
+{
+  "name": "[TOOL] Buscar Cliente por Contato",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Buscar cliente por contact_id ou telefone\nSELECT \n  id,\n  nome,\n  documento,\n  tipo,\n  razao_social,\n  nacionalidade,\n  profissao,\n  estado_civil,\n  data_nascimento,\n  telefone,\n  email,\n  endereco,\n  cep,\n  cidade,\n  estado,\n  ghl_contact_id,\n  created_at\nFROM clientes_fornecedores\nWHERE \n  (ghl_contact_id = '{{ $json.contact_id }}' AND '{{ $json.contact_id }}' != '')\n  OR (telefone LIKE '%{{ $json.telefone.replace(/[^0-9]/g, '').slice(-9) }}%' AND '{{ $json.telefone }}' != '')\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 300],
+      "id": "buscar-cliente",
+      "name": "Buscar Cliente",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta\nconst cliente = $json;\n\nif (!cliente.id) {\n  return {\n    json: {\n      encontrado: false,\n      mensagem: 'Cliente não encontrado no sistema. Será necessário coletar todos os dados.',\n      dados_faltantes: [\n        'nome', 'documento', 'nacionalidade', 'profissao', 'estado_civil',\n        'data_nascimento', 'endereco', 'cep', 'cidade', 'estado', 'email'\n      ]\n    }\n  };\n}\n\nconst formatarData = (dataStr) => {\n  if (!dataStr) return null;\n  const data = new Date(dataStr);\n  return data.toLocaleDateString('pt-BR');\n};\n\n// Identificar dados faltantes\nconst dadosFaltantes = [];\nif (!cliente.nome) dadosFaltantes.push('nome');\nif (!cliente.documento) dadosFaltantes.push('documento (CPF/CNPJ)');\nif (!cliente.nacionalidade) dadosFaltantes.push('nacionalidade');\nif (!cliente.profissao) dadosFaltantes.push('profissao');\nif (!cliente.estado_civil) dadosFaltantes.push('estado_civil');\nif (!cliente.data_nascimento) dadosFaltantes.push('data_nascimento');\nif (!cliente.endereco) dadosFaltantes.push('endereco');\nif (!cliente.cep) dadosFaltantes.push('cep');\nif (!cliente.cidade) dadosFaltantes.push('cidade');\nif (!cliente.estado) dadosFaltantes.push('estado');\nif (!cliente.email) dadosFaltantes.push('email');\n\nreturn {\n  json: {\n    encontrado: true,\n    cliente_id: cliente.id,\n    dados_existentes: {\n      nome: cliente.nome || null,\n      documento: cliente.documento || null,\n      tipo: cliente.tipo === 'pf' ? 'Pessoa Física' : 'Pessoa Jurídica',\n      razao_social: cliente.razao_social || null,\n      nacionalidade: cliente.nacionalidade || null,\n      profissao: cliente.profissao || null,\n      estado_civil: cliente.estado_civil || null,\n      data_nascimento: formatarData(cliente.data_nascimento),\n      telefone: cliente.telefone || null,\n      email: cliente.email || null,\n      endereco: cliente.endereco || null,\n      cep: cliente.cep || null,\n      cidade: cliente.cidade || null,\n      estado: cliente.estado || null\n    },\n    dados_faltantes: dadosFaltantes,\n    cadastro_completo: dadosFaltantes.length === 0\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "formatar-resposta",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Formatar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-buscar-cliente-contato",
+  "tags": []
+}

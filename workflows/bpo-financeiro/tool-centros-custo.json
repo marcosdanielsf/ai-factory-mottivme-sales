@@ -1,0 +1,163 @@
+{
+  "name": "[TOOL] Centros de Custo",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-acao",
+              "leftValue": "={{ $json.acao }}",
+              "rightValue": "relatorio",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [460, 300],
+      "id": "check-acao",
+      "name": "Relatório ou Listar?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Relatório de despesas por centro de custo\nSELECT \n  cc.nome as centro_custo,\n  cc.codigo,\n  COUNT(m.id) as qtd_movimentacoes,\n  SUM(COALESCE(m.valor_realizado, m.valor_previsto)) as valor_total,\n  ROUND(SUM(COALESCE(m.valor_realizado, m.valor_previsto)) * 100.0 / \n    NULLIF((SELECT SUM(COALESCE(valor_realizado, valor_previsto)) \n     FROM movimentacoes_financeiras \n     WHERE tipo = 'despesa' \n     AND EXTRACT(YEAR FROM data_vencimento) = {{ $json.ano || 'EXTRACT(YEAR FROM CURRENT_DATE)' }}\n     AND EXTRACT(MONTH FROM data_vencimento) = {{ $json.mes || 'EXTRACT(MONTH FROM CURRENT_DATE)' }}), 0), 2) as percentual\nFROM centros_custo cc\nLEFT JOIN movimentacoes_financeiras m ON \n  m.centro_custo_id = cc.id \n  AND m.tipo = 'despesa'\n  AND EXTRACT(YEAR FROM m.data_vencimento) = {{ $json.ano || 'EXTRACT(YEAR FROM CURRENT_DATE)' }}\n  AND EXTRACT(MONTH FROM m.data_vencimento) = {{ $json.mes || 'EXTRACT(MONTH FROM CURRENT_DATE)' }}\nWHERE cc.ativo = true\nGROUP BY cc.id, cc.nome, cc.codigo\nORDER BY valor_total DESC NULLS LAST;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 200],
+      "id": "query-relatorio",
+      "name": "Relatório por Centro",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Listar centros de custo ativos\nSELECT id, nome, descricao, codigo\nFROM centros_custo\nWHERE ativo = true\nORDER BY nome;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 400],
+      "id": "query-listar",
+      "name": "Listar Centros",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar relatório de centros de custo\nconst dados = $input.all().filter(i => i.json.centro_custo);\n\nconst formatarValor = (valor) => new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(valor || 0);\n\nconst totalGeral = dados.reduce((sum, i) => sum + (parseFloat(i.json.valor_total) || 0), 0);\n\nconst mesNome = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });\n\nreturn {\n  json: {\n    titulo: `Despesas por Centro de Custo - ${mesNome}`,\n    total_geral: formatarValor(totalGeral),\n    centros: dados.map(i => ({\n      centro: i.json.centro_custo,\n      codigo: i.json.codigo,\n      movimentacoes: parseInt(i.json.qtd_movimentacoes) || 0,\n      valor: formatarValor(i.json.valor_total),\n      percentual: `${parseFloat(i.json.percentual || 0).toFixed(1)}%`\n    }))\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "id": "formatar-relatorio",
+      "name": "Formatar Relatório"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar lista de centros de custo\nconst centros = $input.all().filter(i => i.json.id);\n\nreturn {\n  json: {\n    titulo: 'Centros de Custo Disponíveis',\n    quantidade: centros.length,\n    centros: centros.map(i => ({\n      id: i.json.id,\n      nome: i.json.nome,\n      codigo: i.json.codigo,\n      descricao: i.json.descricao || '-'\n    }))\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "id": "formatar-lista",
+      "name": "Formatar Lista"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Relatório ou Listar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relatório ou Listar?": {
+      "main": [
+        [
+          {
+            "node": "Relatório por Centro",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listar Centros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relatório por Centro": {
+      "main": [
+        [
+          {
+            "node": "Formatar Relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Centros": {
+      "main": [
+        [
+          {
+            "node": "Formatar Lista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-centros-custo",
+  "tags": []
+}

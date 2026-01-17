@@ -1,0 +1,76 @@
+{
+  "name": "[TOOL] Salvar Movimentação Financeira",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "execute-workflow-trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO movimentacoes_financeiras (\n  tipo,\n  descricao,\n  valor_previsto,\n  valor_realizado,\n  data_vencimento,\n  data_realizado,\n  quitado,\n  tipo_entidade,\n  categoria_id,\n  cliente_fornecedor_id,\n  observacao\n)\nVALUES (\n  '{{ $json.tipo }}',\n  '{{ $json.descricao.replace(/'/g, \"''\") }}',\n  {{ $json.valor_previsto }},\n  {{ $json.valor_realizado || $json.valor_previsto || 'NULL' }},\n  '{{ $json.data_vencimento }}'::date,\n  {{ $json.data_realizado ? \"'\" + $json.data_realizado + \"'::date\" : 'NULL' }},\n  {{ $json.quitado || false }},\n  '{{ $json.tipo_entidade || 'pj' }}',\n  {{ $json.categoria_id ? \"'\" + $json.categoria_id + \"'::uuid\" : 'NULL' }},\n  {{ $json.cliente_fornecedor_id ? \"'\" + $json.cliente_fornecedor_id + \"'::uuid\" : 'NULL' }},\n  {{ $json.observacao ? \"'\" + $json.observacao.replace(/'/g, \"''\") + \"'\" : 'NULL' }}\n)\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 300],
+      "id": "insert-movimentacao",
+      "name": "Insert Movimentação",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de sucesso\nconst mov = $input.item.json;\n\nconst valorFormatado = new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(mov.valor_previsto || 0);\n\nconst dataVenc = new Date(mov.data_vencimento + 'T00:00:00');\nconst dataFormatada = dataVenc.toLocaleDateString('pt-BR');\n\nreturn {\n  json: {\n    success: true,\n    message: 'Movimentação salva com sucesso',\n    movimentacao_id: mov.id,\n    tipo: mov.tipo,\n    descricao: mov.descricao,\n    valor: valorFormatado,\n    data_vencimento: dataFormatada,\n    quitado: mov.quitado,\n    resumo: `${mov.tipo === 'receita' ? '💰' : '💳'} ${mov.tipo.toUpperCase()} de ${valorFormatado} salva para ${dataFormatada}`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "format-response",
+      "name": "Format Response"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Insert Movimentação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Movimentação": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.1.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-salvar-movimentacao",
+  "tags": []
+}

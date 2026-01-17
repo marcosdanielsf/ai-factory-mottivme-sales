@@ -1,0 +1,263 @@
+{
+  "name": "7. Gerar Recorrências Mensais",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 1 * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "id": "schedule-trigger",
+      "name": "Dia 1 de cada mês 6h"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar todas as recorrências ativas\nSELECT \n  r.id,\n  r.tipo,\n  r.descricao,\n  r.valor,\n  r.dia_vencimento,\n  r.tipo_entidade,\n  r.categoria_id,\n  r.cliente_fornecedor_id,\n  r.observacao,\n  -- Calcular data de vencimento para este mês\n  CASE \n    WHEN r.dia_vencimento > EXTRACT(DAY FROM (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day'))\n    THEN (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')::date\n    ELSE (DATE_TRUNC('month', CURRENT_DATE) + (r.dia_vencimento - 1) * INTERVAL '1 day')::date\n  END as data_vencimento_calculada\nFROM recorrencias r\nWHERE r.ativo = true\nORDER BY r.dia_vencimento;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [460, 400],
+      "id": "query-recorrencias",
+      "name": "Buscar Recorrências Ativas",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 400],
+      "id": "check-recorrencias",
+      "name": "Tem Recorrências?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Verificar se já existe movimentação para esta recorrência este mês\nSELECT COUNT(*) as existe\nFROM movimentacoes_financeiras\nWHERE \n  descricao LIKE '[REC] ' || '{{ $json.descricao.replace(/'/g, \"''\") }}' || '%'\n  AND DATE_TRUNC('month', data_vencimento) = DATE_TRUNC('month', CURRENT_DATE);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [900, 400],
+      "id": "check-existe",
+      "name": "Já Existe Este Mês?",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "nao-existe",
+              "leftValue": "={{ $json.existe }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1120, 400],
+      "id": "filter-novos",
+      "name": "Ainda Não Criado?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Criar movimentação a partir da recorrência\nINSERT INTO movimentacoes_financeiras (\n  tipo,\n  descricao,\n  valor_previsto,\n  data_vencimento,\n  tipo_entidade,\n  categoria_id,\n  cliente_fornecedor_id,\n  observacao,\n  quitado\n)\nVALUES (\n  '{{ $('Buscar Recorrências Ativas').item.json.tipo }}',\n  '[REC] {{ $('Buscar Recorrências Ativas').item.json.descricao.replace(/'/g, \"''\") }} - {{ new Date().toLocaleDateString('pt-BR', {month: 'long', year: 'numeric'}) }}',\n  {{ $('Buscar Recorrências Ativas').item.json.valor }},\n  '{{ $('Buscar Recorrências Ativas').item.json.data_vencimento_calculada }}'::date,\n  '{{ $('Buscar Recorrências Ativas').item.json.tipo_entidade }}',\n  {{ $('Buscar Recorrências Ativas').item.json.categoria_id ? \"'\" + $('Buscar Recorrências Ativas').item.json.categoria_id + \"'::uuid\" : 'NULL' }},\n  {{ $('Buscar Recorrências Ativas').item.json.cliente_fornecedor_id ? \"'\" + $('Buscar Recorrências Ativas').item.json.cliente_fornecedor_id + \"'::uuid\" : 'NULL' }},\n  'Gerado automaticamente de recorrência ID: {{ $('Buscar Recorrências Ativas').item.json.id }}',\n  false\n)\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1340, 300],
+      "id": "criar-movimentacao",
+      "name": "Criar Movimentação",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Registrar log da criação\nINSERT INTO logs_financeiros (tipo_acao, entidade, entidade_id, descricao)\nVALUES (\n  'recorrencia_gerada',\n  'movimentacoes_financeiras',\n  '{{ $json.id }}'::uuid,\n  'Movimentação criada automaticamente a partir de recorrência'\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1560, 300],
+      "id": "log-criacao",
+      "name": "Registrar Log",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 560],
+      "id": "noop-sem-recorrencias",
+      "name": "Sem Recorrências"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 500],
+      "id": "noop-ja-existe",
+      "name": "Já Existe - Ignorar"
+    }
+  ],
+  "connections": {
+    "Dia 1 de cada mês 6h": {
+      "main": [
+        [
+          {
+            "node": "Buscar Recorrências Ativas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Recorrências Ativas": {
+      "main": [
+        [
+          {
+            "node": "Tem Recorrências?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Recorrências?": {
+      "main": [
+        [
+          {
+            "node": "Já Existe Este Mês?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Recorrências",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Já Existe Este Mês?": {
+      "main": [
+        [
+          {
+            "node": "Ainda Não Criado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ainda Não Criado?": {
+      "main": [
+        [
+          {
+            "node": "Criar Movimentação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Já Existe - Ignorar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Movimentação": {
+      "main": [
+        [
+          {
+            "node": "Registrar Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "gerar-recorrencias-mensais",
+  "tags": []
+}

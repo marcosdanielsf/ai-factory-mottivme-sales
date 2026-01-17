@@ -1,0 +1,345 @@
+{
+  "name": "8. Agente de Contratos",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 360],
+      "id": "trigger-workflow",
+      "name": "Receber Mensagem"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "01",
+              "name": "input_text",
+              "value": "={{ $json.mensagem }}",
+              "type": "string"
+            },
+            {
+              "id": "02",
+              "name": "telefone",
+              "value": "={{ $json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "03",
+              "name": "contact_id",
+              "value": "={{ $json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "04",
+              "name": "session_id",
+              "value": "={{ 'contratos_' + $json.telefone.replace(/[^0-9]/g, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 360],
+      "id": "prepare-input",
+      "name": "Preparar Entrada"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [900, 160],
+      "id": "openai-model",
+      "name": "OpenAI GPT-4o",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-bpo",
+          "name": "OpenAI - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar Entrada').item.json.session_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryZep",
+      "typeVersion": 1.1,
+      "position": [900, 560],
+      "id": "zep-memory",
+      "name": "Zep Memory",
+      "credentials": {
+        "zepApi": {
+          "id": "zep-bpo",
+          "name": "Zep - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "buscar_cliente_por_contato",
+        "description": "Use esta ferramenta para buscar dados do cliente no banco de dados a partir do contact_id do GHL ou telefone. Retorna todos os dados cadastrais do cliente incluindo: nome, documento, nacionalidade, profissão, estado civil, endereço completo, etc. Use esta ferramenta PRIMEIRO para puxar dados já existentes antes de perguntar ao cliente.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.TOOL_BUSCAR_CLIENTE_CONTATO_ID || 'tool-buscar-cliente-contato' }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contact_id', 'ID do contato no GHL', 'string') }}",
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', 'Telefone do cliente', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.0,
+      "position": [1020, 160],
+      "id": "tool-buscar-cliente-contato",
+      "name": "Buscar Cliente por Contato"
+    },
+    {
+      "parameters": {
+        "name": "atualizar_dados_cliente",
+        "description": "Use esta ferramenta para atualizar/salvar os dados do cliente no banco de dados. Use após coletar informações do cliente via conversa. Campos que podem ser atualizados: nome, documento (CPF/CNPJ), razao_social, nacionalidade, profissao, estado_civil, data_nascimento, telefone, email, endereco, cep, cidade, estado.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.TOOL_ATUALIZAR_CLIENTE_ID || 'tool-atualizar-cliente' }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cliente_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cliente_id', 'UUID do cliente a atualizar', 'string') }}",
+            "nome": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('nome', 'Nome completo', 'string') }}",
+            "documento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('documento', 'CPF ou CNPJ', 'string') }}",
+            "razao_social": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('razao_social', 'Razão social (PJ)', 'string') }}",
+            "nacionalidade": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('nacionalidade', 'Nacionalidade', 'string') }}",
+            "profissao": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('profissao', 'Profissão', 'string') }}",
+            "estado_civil": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('estado_civil', 'Estado civil', 'string') }}",
+            "data_nascimento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('data_nascimento', 'Data nascimento YYYY-MM-DD', 'string') }}",
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', 'Telefone', 'string') }}",
+            "email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('email', 'Email', 'string') }}",
+            "endereco": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('endereco', 'Endereço completo', 'string') }}",
+            "cep": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cep', 'CEP', 'string') }}",
+            "cidade": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cidade', 'Cidade', 'string') }}",
+            "estado": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('estado', 'Estado (sigla)', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.0,
+      "position": [1140, 160],
+      "id": "tool-atualizar-cliente",
+      "name": "Atualizar Dados Cliente"
+    },
+    {
+      "parameters": {
+        "name": "gerar_contrato",
+        "description": "Use esta ferramenta para gerar o contrato após coletar TODOS os dados necessários do cliente e os termos do contrato. O contrato será gerado em formato texto e salvo no banco de dados. Parâmetros obrigatórios: cliente_id, valor_mensal, num_parcelas, data_inicio, dia_vencimento.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.TOOL_GERAR_CONTRATO_ID || 'tool-gerar-contrato' }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cliente_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cliente_id', 'UUID do cliente', 'string') }}",
+            "valor_mensal": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('valor_mensal', 'Valor mensal em USD', 'number') }}",
+            "num_parcelas": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('num_parcelas', 'Número de parcelas/meses', 'number') }}",
+            "valor_entrada": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('valor_entrada', 'Valor de entrada (opcional)', 'number') }}",
+            "data_inicio": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('data_inicio', 'Data início contrato YYYY-MM-DD', 'string') }}",
+            "dia_vencimento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('dia_vencimento', 'Dia do vencimento (1-31)', 'number') }}",
+            "observacao": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('observacao', 'Observações adicionais', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.0,
+      "position": [1260, 160],
+      "id": "tool-gerar-contrato",
+      "name": "Gerar Contrato"
+    },
+    {
+      "parameters": {
+        "name": "listar_contratos_cliente",
+        "description": "Use esta ferramenta para listar todos os contratos de um cliente específico. Retorna histórico de contratos com status, valores e datas.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.TOOL_LISTAR_CONTRATOS_ID || 'tool-listar-contratos' }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cliente_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cliente_id', 'UUID do cliente', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.0,
+      "position": [1380, 160],
+      "id": "tool-listar-contratos",
+      "name": "Listar Contratos Cliente"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.input_text }}",
+        "options": {
+          "systemMessage": "# PAPEL\n\nVocê é a assistente de contratos da Mottivme Sales. Sua missão é coletar dados de clientes e gerar contratos de prestação de serviços de forma conversacional e amigável via WhatsApp.\n\n# PERSONALIDADE\n\n* Profissional mas amigável\n* Paciente e atenciosa\n* Organizada e meticulosa\n* Clara nas explicações\n* Respostas curtas e objetivas\n\n# CONTEXTO\n\n* Empresa: Mottivme Sales - Consultoria e Gestão Comercial\n* Moeda padrão do contrato: USD (Dólar Americano)\n* Sistema: Supabase PostgreSQL\n\n# FERRAMENTAS DISPONÍVEIS\n\n1. **buscar_cliente_por_contato** - Busca dados existentes do cliente\n2. **atualizar_dados_cliente** - Salva/atualiza dados do cliente\n3. **gerar_contrato** - Gera o contrato após coletar todos os dados\n4. **listar_contratos_cliente** - Lista contratos anteriores do cliente\n\n# DADOS NECESSÁRIOS PARA O CONTRATO\n\n## Dados do Cliente (colete na ordem):\n1. Nome completo\n2. CPF ou CNPJ\n3. Razão Social (se PJ)\n4. Nacionalidade\n5. Profissão\n6. Estado Civil (solteiro, casado, divorciado, viúvo, união estável)\n7. Data de Nascimento\n8. Endereço completo (rua, número, complemento)\n9. CEP\n10. Cidade e Estado\n11. Email\n12. Telefone\n\n## Dados do Contrato:\n1. Valor mensal (em USD)\n2. Número de parcelas/meses\n3. Valor de entrada (opcional)\n4. Data de início do contrato\n5. Dia do vencimento (1-31)\n\n# FLUXO DE COLETA\n\n## Início:\n1. Use **buscar_cliente_por_contato** para verificar dados existentes\n2. Cumprimente o cliente e informe que vai ajudar com o contrato\n3. Mostre os dados que já possui e pergunte se estão corretos\n4. Colete os dados faltantes UM DE CADA VEZ\n\n## Durante a coleta:\n- Faça perguntas diretas e claras\n- Se o cliente fornecer múltiplos dados de uma vez, aceite todos\n- Valide formatos (CPF: 11 dígitos, CNPJ: 14 dígitos, etc)\n- Se o cliente errar, peça gentilmente para corrigir\n- Use **atualizar_dados_cliente** para salvar à medida que coleta\n\n## Termos do Contrato:\nApós coletar dados pessoais, pergunte:\n1. \"Qual o valor mensal do contrato em dólares?\"\n2. \"Por quantos meses será o contrato?\"\n3. \"Haverá valor de entrada?\"\n4. \"Qual a data de início?\"\n5. \"Qual dia do mês para vencimento?\"\n\n## Finalização:\n1. Apresente resumo completo dos dados\n2. Pergunte se está tudo correto\n3. Após confirmação, use **gerar_contrato**\n4. Informe que o contrato foi gerado e será enviado\n\n# VALIDAÇÕES\n\n* CPF: 11 dígitos numéricos\n* CNPJ: 14 dígitos numéricos\n* CEP: 8 dígitos numéricos\n* Email: formato válido com @\n* Data: converter para YYYY-MM-DD\n* Estado: usar sigla de 2 letras\n* Estado civil: solteiro, casado, divorciado, viúvo, união estável\n\n# MENSAGENS PADRÃO\n\n**Início:**\nOlá! Vou ajudar você com o contrato. Deixa eu verificar seus dados...\n\n**Dados encontrados:**\nEncontrei alguns dados seus:\n[lista dados]\nEstá tudo correto?\n\n**Pergunta individual:**\nAgora preciso do seu [campo]. Pode me informar?\n\n**Confirmação final:**\n📋 Resumo do Contrato:\n\n👤 Cliente: [nome]\n📄 Documento: [doc]\n📍 Endereço: [end]\n\n💰 Valor: $[valor]/mês\n📅 Período: [parcelas] meses\n🗓️ Início: [data]\n📆 Vencimento: dia [dia]\n\nTudo correto? (Sim/Não)\n\n**Sucesso:**\n✅ Contrato gerado! Número: [numero]\nEm breve você receberá o documento.\n\n# REGRAS IMPORTANTES\n\n1. SEMPRE verifique dados existentes primeiro\n2. NUNCA assuma dados não fornecidos\n3. SEMPRE confirme antes de gerar o contrato\n4. Seja paciente se o cliente demorar para responder\n5. Se o cliente desistir, agradeça e encerre cordialmente\n6. Valores SEMPRE em dólares (USD)\n\n# CONTEXTO ATUAL\n\nTelefone do cliente: {{ $('Preparar Entrada').item.json.telefone }}\nContact ID GHL: {{ $('Preparar Entrada').item.json.contact_id }}\nData atual: {{ $now.format('DD/MM/YYYY') }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.0,
+      "position": [680, 360],
+      "id": "agente-contratos",
+      "name": "Agente de Contratos"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "output-01",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 360],
+      "id": "format-output",
+      "name": "Formatar Saída"
+    }
+  ],
+  "connections": {
+    "Receber Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Preparar Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Entrada": {
+      "main": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Contratos": {
+      "main": [
+        [
+          {
+            "node": "Formatar Saída",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zep Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente por Contato": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Dados Cliente": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Contrato": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Contratos Cliente": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Contratos",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "agente-contratos",
+  "tags": []
+}

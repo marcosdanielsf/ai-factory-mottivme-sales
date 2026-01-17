@@ -1,0 +1,239 @@
+{
+  "name": "[TOOL] Gerar Contrato",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar dados obrigatórios\nconst input = $json;\n\nconst erros = [];\n\nif (!input.cliente_id) erros.push('cliente_id é obrigatório');\nif (!input.valor_mensal || input.valor_mensal <= 0) erros.push('valor_mensal deve ser maior que zero');\nif (!input.num_parcelas || input.num_parcelas < 1) erros.push('num_parcelas deve ser pelo menos 1');\nif (!input.data_inicio) erros.push('data_inicio é obrigatória');\nif (!input.dia_vencimento || input.dia_vencimento < 1 || input.dia_vencimento > 31) {\n  erros.push('dia_vencimento deve ser entre 1 e 31');\n}\n\nif (erros.length > 0) {\n  return {\n    json: {\n      sucesso: false,\n      erro: erros.join('; ')\n    }\n  };\n}\n\nreturn {\n  json: {\n    sucesso: true,\n    cliente_id: input.cliente_id,\n    valor_mensal: parseFloat(input.valor_mensal),\n    num_parcelas: parseInt(input.num_parcelas),\n    valor_entrada: parseFloat(input.valor_entrada) || 0,\n    data_inicio: input.data_inicio,\n    dia_vencimento: parseInt(input.dia_vencimento),\n    observacao: input.observacao || null\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "id": "validar-dados",
+      "name": "Validar Dados"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-sucesso",
+              "leftValue": "={{ $json.sucesso }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300],
+      "id": "check-validacao",
+      "name": "Validação OK?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Buscar dados completos do cliente\nSELECT \n  id,\n  nome,\n  documento,\n  tipo,\n  razao_social,\n  nacionalidade,\n  profissao,\n  estado_civil,\n  data_nascimento,\n  telefone,\n  email,\n  endereco,\n  cep,\n  cidade,\n  estado\nFROM clientes_fornecedores\nWHERE id = '{{ $json.cliente_id }}'::uuid;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [900, 200],
+      "id": "buscar-cliente",
+      "name": "Buscar Cliente",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Gerar número do contrato\nSELECT gerar_numero_contrato() as numero_contrato;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [900, 360],
+      "id": "gerar-numero",
+      "name": "Gerar Número Contrato",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gerar conteúdo do contrato\nconst cliente = $('Buscar Cliente').first().json;\nconst numero = $('Gerar Número Contrato').first().json.numero_contrato;\nconst dados = $('Validar Dados').first().json;\n\nconst formatarData = (dataStr) => {\n  if (!dataStr) return '_______________';\n  const data = new Date(dataStr + 'T00:00:00');\n  const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', \n                 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];\n  return `${data.getDate()} de ${meses[data.getMonth()]} de ${data.getFullYear()}`;\n};\n\nconst formatarDataNascimento = (dataStr) => {\n  if (!dataStr) return '_______________';\n  const data = new Date(dataStr);\n  return data.toLocaleDateString('pt-BR');\n};\n\nconst valorTotal = dados.valor_mensal * dados.num_parcelas;\n\n// Calcular data fim\nconst dataInicio = new Date(dados.data_inicio + 'T00:00:00');\nconst dataFim = new Date(dataInicio);\ndataFim.setMonth(dataFim.getMonth() + dados.num_parcelas);\n\nconst conteudo = `\nCONTRATO DE PRESTAÇÃO DE SERVIÇOS DE CONSULTORIA COMERCIAL\n\nContrato nº: ${numero}\n\nPelo presente instrumento particular de contrato de prestação de serviços, as partes abaixo qualificadas:\n\nCONTRATANTE:\nNome: ${cliente.nome || '_______________'}\n${cliente.tipo === 'pj' ? `Razão Social: ${cliente.razao_social || '_______________'}\\n` : ''}\n${cliente.tipo === 'pf' ? 'CPF' : 'CNPJ'}: ${cliente.documento || '_______________'}\nNacionalidade: ${cliente.nacionalidade || '_______________'}\n${cliente.tipo === 'pf' ? `Profissão: ${cliente.profissao || '_______________'}\\n` : ''}\n${cliente.tipo === 'pf' ? `Estado Civil: ${cliente.estado_civil || '_______________'}\\n` : ''}\n${cliente.tipo === 'pf' ? `Data de Nascimento: ${formatarDataNascimento(cliente.data_nascimento)}\\n` : ''}\nEndereço: ${cliente.endereco || '_______________'}\nCEP: ${cliente.cep || '_______________'}\nCidade/Estado: ${cliente.cidade || '_______________'}/${cliente.estado || '__'}\nEmail: ${cliente.email || '_______________'}\nTelefone: ${cliente.telefone || '_______________'}\n\nCONTRATADA:\nMOTTIVME SALES - CONSULTORIA E GESTÃO COMERCIAL\nCNPJ: [CNPJ DA EMPRESA]\nEndereço: [ENDEREÇO DA EMPRESA]\n\nCLÁUSULA PRIMEIRA - DO OBJETO\nO presente contrato tem por objeto a prestação de serviços de consultoria comercial e gestão de vendas, conforme especificações acordadas entre as partes.\n\nCLÁUSULA SEGUNDA - DO VALOR E FORMA DE PAGAMENTO\n2.1. Pela prestação dos serviços objeto deste contrato, a CONTRATANTE pagará à CONTRATADA:\n- Valor mensal: US$ ${dados.valor_mensal.toFixed(2)} (${dados.valor_mensal.toLocaleString('pt-BR', {style: 'currency', currency: 'USD'})})\n- Número de parcelas: ${dados.num_parcelas}\n- Valor total do contrato: US$ ${valorTotal.toFixed(2)} (${valorTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'USD'})})\n${dados.valor_entrada > 0 ? `- Valor de entrada: US$ ${dados.valor_entrada.toFixed(2)}` : ''}\n\n2.2. O pagamento deverá ser efetuado até o dia ${dados.dia_vencimento} de cada mês.\n\nCLÁUSULA TERCEIRA - DO PRAZO\n3.1. O presente contrato terá vigência de ${dados.num_parcelas} meses, com início em ${formatarData(dados.data_inicio)} e término previsto para ${formatarData(dataFim.toISOString().split('T')[0])}.\n\nCLÁUSULA QUARTA - DAS OBRIGAÇÕES\n[Texto padrão de obrigações das partes]\n\nCLÁUSULA QUINTA - DA RESCISÃO\n[Texto padrão de rescisão]\n\nCLÁUSULA SEXTA - DO FORO\nAs partes elegem o foro da comarca de [CIDADE] para dirimir quaisquer dúvidas oriundas do presente contrato.\n\nE, por estarem justas e contratadas, as partes assinam o presente instrumento em duas vias de igual teor e forma.\n\n[Local], ${formatarData(new Date().toISOString().split('T')[0])}\n\n\n_________________________________\nCONTRATANTE: ${cliente.nome || '_______________'}\n\n\n_________________________________\nCONTRATADA: MOTTIVME SALES\n`;\n\nreturn {\n  json: {\n    cliente_id: dados.cliente_id,\n    numero_contrato: numero,\n    valor_mensal: dados.valor_mensal,\n    num_parcelas: dados.num_parcelas,\n    valor_entrada: dados.valor_entrada,\n    data_inicio: dados.data_inicio,\n    data_fim: dataFim.toISOString().split('T')[0],\n    dia_vencimento: dados.dia_vencimento,\n    conteudo_contrato: conteudo,\n    observacao: dados.observacao\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 280],
+      "id": "gerar-conteudo",
+      "name": "Gerar Conteúdo"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Salvar contrato no banco\nINSERT INTO contratos (\n  cliente_fornecedor_id,\n  numero_contrato,\n  valor_mensal,\n  moeda,\n  num_parcelas,\n  valor_entrada,\n  data_inicio,\n  data_fim,\n  dia_vencimento,\n  conteudo_contrato,\n  status,\n  observacao\n)\nVALUES (\n  '{{ $json.cliente_id }}'::uuid,\n  '{{ $json.numero_contrato }}',\n  {{ $json.valor_mensal }},\n  'USD',\n  {{ $json.num_parcelas }},\n  {{ $json.valor_entrada }},\n  '{{ $json.data_inicio }}'::date,\n  '{{ $json.data_fim }}'::date,\n  {{ $json.dia_vencimento }},\n  '{{ $json.conteudo_contrato.replace(/'/g, \"''\").replace(/\\n/g, '\\\\n') }}',\n  'rascunho',\n  {{ $json.observacao ? \"'\" + $json.observacao.replace(/'/g, \"''\") + \"'\" : 'NULL' }}\n)\nRETURNING id, numero_contrato, status;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1340, 280],
+      "id": "salvar-contrato",
+      "name": "Salvar Contrato",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de sucesso\nconst contrato = $json;\nconst dadosContrato = $('Gerar Conteúdo').first().json;\n\nconst formatarValor = (valor) => `US$ ${valor.toFixed(2)}`;\n\nreturn {\n  json: {\n    sucesso: true,\n    mensagem: 'Contrato gerado com sucesso!',\n    contrato: {\n      id: contrato.id,\n      numero: contrato.numero_contrato,\n      status: 'Rascunho',\n      valor_mensal: formatarValor(dadosContrato.valor_mensal),\n      parcelas: dadosContrato.num_parcelas,\n      valor_total: formatarValor(dadosContrato.valor_mensal * dadosContrato.num_parcelas),\n      data_inicio: new Date(dadosContrato.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR'),\n      vencimento: `Dia ${dadosContrato.dia_vencimento}`\n    },\n    proximo_passo: 'O contrato foi salvo como rascunho. Você pode enviá-lo para assinatura do cliente.'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 280],
+      "id": "formatar-sucesso",
+      "name": "Formatar Sucesso"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retornar erro\nreturn {\n  json: {\n    sucesso: false,\n    erro: $json.erro\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 460],
+      "id": "retornar-erro",
+      "name": "Retornar Erro"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Dados": {
+      "main": [
+        [
+          {
+            "node": "Validação OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validação OK?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Cliente",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gerar Número Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retornar Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Gerar Conteúdo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Número Contrato": {
+      "main": [
+        [
+          {
+            "node": "Gerar Conteúdo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Conteúdo": {
+      "main": [
+        [
+          {
+            "node": "Salvar Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Contrato": {
+      "main": [
+        [
+          {
+            "node": "Formatar Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "tool-gerar-contrato",
+  "tags": []
+}

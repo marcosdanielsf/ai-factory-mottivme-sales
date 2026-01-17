@@ -1,0 +1,581 @@
+{
+  "name": "3. Processador de Comprovantes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-comprovantes-ghl",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 400],
+      "id": "webhook-comprovantes",
+      "name": "Webhook Comprovantes GHL",
+      "webhookId": "webhook-comprovantes-ghl"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ghl-location",
+              "name": "location_id",
+              "value": "cd1uyzpJox6XPt4Vct8Y",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 400],
+      "id": "config-ghl",
+      "name": "Config GHL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "01",
+              "name": "contact_id",
+              "value": "={{ $json.body?.contactId || $json.contactId || $json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "02",
+              "name": "telefone",
+              "value": "={{ $json.body?.phone || $json.phone || $json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "03",
+              "name": "email",
+              "value": "={{ $json.body?.email || $json.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "04",
+              "name": "mensagem",
+              "value": "={{ $json.body?.message || $json.message || $json.body?.body || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "05",
+              "name": "tem_arquivo",
+              "value": "={{ ['image', 'document', 'file', 'media'].includes($json.body?.type || $json.type || '') || !!($json.body?.attachments || $json.attachments) }}",
+              "type": "boolean"
+            },
+            {
+              "id": "06",
+              "name": "url_arquivo",
+              "value": "={{ $json.body?.attachments?.[0]?.url || $json.attachments?.[0]?.url || $json.body?.mediaUrl || $json.mediaUrl || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "07",
+              "name": "telefone_limpo",
+              "value": "={{ ($json.body?.phone || $json.phone || '').replace(/\\D/g, '').slice(-9) }}",
+              "type": "string"
+            },
+            {
+              "id": "08",
+              "name": "location_id",
+              "value": "={{ $('Config GHL').item.json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "09",
+              "name": "ghl_api_key",
+              "value": "={{ $('Config GHL').item.json.ghl_api_key }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 400],
+      "id": "extract-info",
+      "name": "Extrair Info"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-01",
+              "leftValue": "={{ $json.tem_arquivo }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "check-02",
+              "leftValue": "={{ $json.contact_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [900, 400],
+      "id": "filter-receipts",
+      "name": "Filtrar Comprovantes"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url_arquivo }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400],
+      "id": "download-receipt",
+      "name": "Download Comprovante"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-5-20250929",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-5-20250929"
+        },
+        "text": "# PAPEL\nVocê é um assistente especializado em identificar e extrair informações de comprovantes de pagamento.\n\n# TAREFA\nAnalise o comprovante fornecido e extraia as seguintes informações:\n\n## Dados a Extrair:\n- **tipo_comprovante**: \"pix\", \"ted\", \"doc\", \"boleto\", \"cartao\" ou \"outro\"\n- **valor**: valor pago (apenas número com decimais)\n- **data_pagamento**: data do pagamento no formato YYYY-MM-DD\n- **nome_pagador**: nome de quem pagou\n- **nome_recebedor**: nome de quem recebeu\n- **codigo_transacao**: código/ID da transação (se houver)\n- **descricao**: descrição/histórico da transação\n\n# FORMATO DE SAÍDA\nRetorne APENAS JSON válido, sem texto adicional.\n\n# REGRAS\n1. Se não conseguir identificar um campo, coloque null\n2. Inclua campo \"confianca\" de 0-100\n3. Sempre retorne JSON válido",
+        "imageUrls": "=data:image/{{ $binary.data.fileExtension || 'png' }};base64,{{ $binary.data.data }}",
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "id": "analyze-receipt-claude",
+      "name": "Analisar Comprovante Claude",
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-bpo",
+          "name": "Anthropic - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude response and extract comprovante data\nconst claudeResponse = $input.item.json.content?.[0]?.text || $input.item.json.text || $input.item.json.content || '{}';\nconst extrairInfo = $('Extrair Info').item.json;\n\nlet comprovante = {};\ntry {\n  const jsonMatch = claudeResponse.match(/```json\\s*([\\s\\S]*?)```/) || claudeResponse.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    comprovante = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    comprovante = JSON.parse(claudeResponse);\n  }\n} catch (e) {\n  return {\n    json: {\n      erro: true,\n      mensagem: 'Não foi possível processar o comprovante',\n      telefone: extrairInfo.telefone,\n      telefone_limpo: extrairInfo.telefone_limpo,\n      contact_id: extrairInfo.contact_id,\n      ghl_api_key: extrairInfo.ghl_api_key\n    }\n  };\n}\n\nreturn {\n  json: {\n    ...comprovante,\n    telefone: extrairInfo.telefone,\n    telefone_limpo: extrairInfo.telefone_limpo,\n    mensagem_original: extrairInfo.mensagem,\n    contact_id: extrairInfo.contact_id,\n    ghl_api_key: extrairInfo.ghl_api_key\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400],
+      "id": "parse-receipt",
+      "name": "Parse Comprovante"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Buscar movimentação correspondente ao comprovante\nSELECT \n  m.id,\n  m.descricao,\n  m.valor_previsto,\n  m.data_vencimento,\n  c.nome as cliente_nome,\n  c.telefone,\n  ABS(m.valor_previsto - {{ $json.valor || 0 }}) as diferenca_valor\nFROM movimentacoes_financeiras m\nLEFT JOIN clientes_fornecedores c ON m.cliente_fornecedor_id = c.id\nWHERE \n  m.tipo = 'receita'\n  AND m.quitado = false\n  AND c.telefone LIKE '%{{ $json.telefone_limpo }}%'\n  AND ABS(m.valor_previsto - {{ $json.valor || 0 }}) < 10.00\nORDER BY \n  ABS(m.data_vencimento - '{{ $json.data_pagamento || 'now' }}'::date) ASC,\n  diferenca_valor ASC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1780, 400],
+      "id": "find-movimentacao",
+      "name": "Buscar Movimentação",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "found-01",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2000, 400],
+      "id": "check-found",
+      "name": "Movimentação Encontrada?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Atualizar movimentação como paga\nUPDATE movimentacoes_financeiras\nSET \n  quitado = true,\n  valor_realizado = {{ $('Parse Comprovante').item.json.valor || 0 }},\n  data_realizado = '{{ $('Parse Comprovante').item.json.data_pagamento }}'::date,\n  observacao = COALESCE(observacao || E'\\n', '') || 'Comprovante recebido em {{ $now.format('DD/MM/YYYY HH:mm') }}. Tipo: {{ $('Parse Comprovante').item.json.tipo_comprovante || 'N/A' }}. Código: {{ $('Parse Comprovante').item.json.codigo_transacao || 'N/A' }}',\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2220, 320],
+      "id": "update-paid",
+      "name": "Marcar como Pago",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Atualizar status de cobrança para 'pago'\nUPDATE cobrancas_automaticas\nSET \n  status = 'pago',\n  pago_em = NOW()\nWHERE movimentacao_id = '{{ $('Buscar Movimentação').item.json.id }}'::uuid\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2440, 320],
+      "id": "update-cobranca",
+      "name": "Atualizar Cobrança",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format confirmation message\nconst movimentacao = $('Buscar Movimentação').item.json;\nconst comprovante = $('Parse Comprovante').item.json;\n\nconst valorFormatado = new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(comprovante.valor || 0);\n\nconst dataPagamento = new Date(comprovante.data_pagamento + 'T00:00:00');\nconst pagamentoFormatado = dataPagamento.toLocaleDateString('pt-BR');\n\nconst mensagem = `*COMPROVANTE RECEBIDO*\n\nOlá ${movimentacao.cliente_nome || 'Cliente'}!\n\nConfirmamos o recebimento do seu comprovante de pagamento:\n\nValor: ${valorFormatado}\nData: ${pagamentoFormatado}\nDescrição: ${movimentacao.descricao || 'Serviço'}\n\nPagamento confirmado e registrado em nosso sistema!\n\nObrigado pela preferência!\n\n---\nMottivme Sales - Gestão Financeira`;\n\nreturn {\n  json: {\n    mensagem,\n    contact_id: comprovante.contact_id,\n    ghl_api_key: comprovante.ghl_api_key\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 320],
+      "id": "format-success",
+      "name": "Formatar Confirmação"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $json.contact_id }}\",\n  \"message\": \"{{ $json.mensagem.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 320],
+      "id": "send-confirmation",
+      "name": "Enviar Confirmação GHL"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format not found message\nconst comprovante = $('Parse Comprovante').item.json;\n\nconst valorFormatado = new Intl.NumberFormat('pt-BR', {\n  style: 'currency',\n  currency: 'BRL'\n}).format(comprovante.valor || 0);\n\nconst mensagem = `*COMPROVANTE RECEBIDO*\n\nRecebemos seu comprovante de pagamento no valor de ${valorFormatado}, porém não conseguimos identificar automaticamente a movimentação correspondente.\n\nNossa equipe irá analisar manualmente e retornar em breve.\n\nObrigado!\n\n---\nMottivme Sales - Gestão Financeira`;\n\nreturn {\n  json: {\n    mensagem,\n    contact_id: comprovante.contact_id,\n    ghl_api_key: comprovante.ghl_api_key,\n    dados_comprovante: comprovante\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 480],
+      "id": "format-not-found",
+      "name": "Formatar Não Encontrado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $json.contact_id }}\",\n  \"message\": \"{{ $json.mensagem.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 480],
+      "id": "send-not-found",
+      "name": "Enviar Não Encontrado GHL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Registrar comprovante não identificado para análise manual\nINSERT INTO comprovantes_nao_identificados (\n  telefone,\n  dados_comprovante,\n  created_at\n)\nVALUES (\n  '{{ $('Parse Comprovante').item.json.telefone }}',\n  '{{ JSON.stringify($json.dados_comprovante || {}).replace(/'/g, \"''\") }}'::jsonb,\n  NOW()\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2660, 480],
+      "id": "log-unmatched",
+      "name": "Registrar Não Identificado",
+      "credentials": {
+        "postgres": {
+          "id": "supabase-bpo",
+          "name": "Supabase - BPO Financeiro"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 600],
+      "id": "noop-ignore",
+      "name": "Ignorar"
+    }
+  ],
+  "connections": {
+    "Webhook Comprovantes GHL": {
+      "main": [
+        [
+          {
+            "node": "Config GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config GHL": {
+      "main": [
+        [
+          {
+            "node": "Extrair Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Info": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Comprovantes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Comprovantes": {
+      "main": [
+        [
+          {
+            "node": "Download Comprovante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Comprovante": {
+      "main": [
+        [
+          {
+            "node": "Analisar Comprovante Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisar Comprovante Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Comprovante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Comprovante": {
+      "main": [
+        [
+          {
+            "node": "Buscar Movimentação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Movimentação": {
+      "main": [
+        [
+          {
+            "node": "Movimentação Encontrada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movimentação Encontrada?": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Pago",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Formatar Não Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Pago": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Cobrança",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Cobrança": {
+      "main": [
+        [
+          {
+            "node": "Formatar Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Confirmação": {
+      "main": [
+        [
+          {
+            "node": "Enviar Confirmação GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Não Encontrado": {
+      "main": [
+        [
+          {
+            "node": "Enviar Não Encontrado GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Não Encontrado GHL": {
+      "main": [
+        [
+          {
+            "node": "Registrar Não Identificado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v2.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-bpo-financeiro"
+  },
+  "id": "processador-comprovantes",
+  "tags": []
+}

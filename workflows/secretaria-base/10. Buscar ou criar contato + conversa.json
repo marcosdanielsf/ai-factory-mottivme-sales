@@ -1,0 +1,776 @@
+{
+  "name": "10. Buscar ou criar contato + conversa",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a9b08522-ff71-421e-a35a-0c3a21472441",
+              "leftValue": "={{ $('Buscar contato').item.json.conversations[0].contactId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3296,
+        -112
+      ],
+      "id": "76ec288e-8ecf-43c6-8b1d-8ee88294e6f0",
+      "name": "Contato existe?",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "content": "## Criar novo contato\n",
+        "height": 368,
+        "width": 800,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2976,
+        -48
+      ],
+      "id": "6d76d83a-58ad-47b8-8c1f-581050c46a17",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1f998039-0ebe-4a5c-b487-7f039f648042",
+              "name": "contact_id",
+              "value": "={{ $json.contacts[0].id }}",
+              "type": "string"
+            },
+            {
+              "id": "b2807407-2a85-422c-b25a-6ef564d9fe6f",
+              "name": "conversa",
+              "value": "={{ $json.payload?.first() || $json }}",
+              "type": "object"
+            },
+            {
+              "id": "fe1bebfe-118d-42db-b6c3-df2c54c77746",
+              "name": "SMS/IG",
+              "value": "={{ $('Buscar contato').item.json.conversations[0].lastMessageType }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1952,
+        -112
+      ],
+      "id": "d51f4c4b-73f3-4987-9ac0-4c57338a7f11",
+      "name": "Resultado"
+    },
+    {
+      "parameters": {
+        "content": "## Usar contato já existente\n",
+        "height": 272,
+        "width": 800,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2640,
+        -384
+      ],
+      "id": "a4ae1944-70fc-493b-9b15-81131664d185",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Buscar contato\n",
+        "height": 272,
+        "width": 992,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4304,
+        -224
+      ],
+      "id": "e55a3cb1-70f1-4a54-85df-1dbc17d52710",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Checklist\n- [ ] Abrir nodes do Chatwoot para selecionar credenciais",
+        "height": 128,
+        "width": 512,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3808,
+        -336
+      ],
+      "id": "73672b59-77c4-4513-90ff-9418bc53e061",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## 10. Buscar ou criar contato + conversa",
+        "height": 80,
+        "width": 512,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4816,
+        -464
+      ],
+      "id": "f75140ee-c69e-4321-b26f-346c885594e1",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Telefone não está no WhatsApp: {{ $('Verificar WhatsApp').item.json.toJsonString() }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -2400,
+        16
+      ],
+      "id": "b89f59df-77cc-47a7-89ee-8bc0c1f1952b",
+      "name": "Telefone não está no WhatsApp"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b28e2b5-8d42-41c0-b297-27be561ee0ec",
+              "leftValue": "={{ $json.contact }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2176,
+        -272
+      ],
+      "id": "0f522385-df6d-4e65-9d20-862a85250c32",
+      "name": "Contato com conversa criada?"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "id_conta"
+            },
+            {
+              "name": "id_inbox"
+            },
+            {
+              "name": "api_key"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -4192,
+        -112
+      ],
+      "id": "1d42edaf-2ac6-484d-802d-cccd9b519c47",
+      "name": "Info"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2848,
+        -16
+      ],
+      "id": "7eb67cfb-6128-4a53-880b-62ca0881d8e0",
+      "name": "If4",
+      "notes": "Verifica se encontrou contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Info').item.json.location_id }}"
+            },
+            {
+              "name": "firstName",
+              "value": "={{ $('ID Contato').item.json.conversations[0].firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('ID Contato').item.json.conversations[0].lastName }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Info').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Create contact1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -2176,
+        160
+      ],
+      "id": "09dbe02d-68da-479d-802b-f59acc6dd05b",
+      "notes": "Cria novo contato apenas se NÃO existir por email NEM telefone"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contacts[0].id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "firstName",
+              "value": "={{ $json.contacts[0].firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $json.contacts[0].lastName }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Atualizar Contato1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -2400,
+        -176
+      ],
+      "id": "db5aec04-8e50-4f63-93fd-aee99ecbf319"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "trocar",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "7556fef1-4d29-429b-a1e3-26b655b98e84",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2624,
+        -80
+      ],
+      "id": "90a9c622-f684-4696-af4e-40e3cf35ffe8",
+      "name": "Contato com conversa criada?1"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Info').item.json.location_id }}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $('Info').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Buscar contato (sem 9)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -3968,
+        -112
+      ],
+      "id": "c760e4df-aef5-40da-a742-1ebd9cdc93ba",
+      "notes": "Busca contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/conversations/search?contactId={{ $json.contacts[0].id }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3744,
+        -112
+      ],
+      "id": "01bc0e6b-eb44-484d-8228-c375662c7676",
+      "name": "Buscar contato",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- INÍCIO DO CÓDIGO ---\n\n// Passo 1: Obter os dados de entrada.\n// Assumimos que os dados chegam no primeiro item de entrada.\nconst inputData = $input.first().json;\n\n// Passo 2: Verificar se o array 'conversations' existe e não está vazio.\n// Isso evita erros se a entrada estiver mal formatada.\nif (inputData.conversations && Array.isArray(inputData.conversations)) {\n\n  // Passo 3: Usar .map() para processar cada objeto de conversa.\n  // O .map() cria um NOVO array com as conversas atualizadas.\n  const updatedConversations = inputData.conversations.map(conversation => {\n    \n    const fullName = conversation.fullName;\n    let firstName = '';\n    let lastName = '';\n\n    // Passo 4: Lógica de divisão do nome.\n    // Verifica se fullName existe, é uma string e não está vazio.\n    if (fullName && typeof fullName === 'string' && fullName.trim() !== '') {\n      // Remove espaços extras no início/fim e divide o nome em um array de palavras.\n      const nameParts = fullName.trim().split(' ');\n      \n      // O primeiro elemento é sempre o firstName. O método .shift() remove e retorna o primeiro item.\n      firstName = nameParts.shift() || ''; \n      \n      // O que sobrar no array é o lastName. O .join(' ') junta tudo de volta com espaços.\n      lastName = nameParts.join(' ');\n    }\n\n    // Passo 5: Retornar um novo objeto.\n    // O \"spread operator\" (...) copia todas as propriedades originais da conversa\n    // e depois adicionamos as duas novas propriedades.\n    return {\n      ...conversation,\n      firstName: firstName,\n      lastName: lastName\n    };\n  });\n\n  // Passo 6: Substituir o array de conversas antigo pelo novo, já com os campos adicionados.\n  inputData.conversations = updatedConversations;\n}\n\n// Passo 7: Retornar o objeto de entrada completo, agora modificado.\nreturn [{\n  json: inputData\n}];\n\n// --- FIM DO CÓDIGO ---"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3520,
+        -112
+      ],
+      "id": "0b18fca5-8bfb-4e88-8583-f4b9adf208cc",
+      "name": "ID Contato"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "=locationId",
+              "value": "={{ $('Info').item.json.location_id }}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $('Info').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Listar conversas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -2400,
+        -368
+      ],
+      "id": "749cae98-0071-42d7-bc9b-615b8a20a780",
+      "notes": "Busca contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Info').item.json.location_id }}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $('Contato existe?').item.json.conversations[0].phone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Verificar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -3072,
+        -16
+      ],
+      "id": "7a30fb26-f00b-4651-93d7-fde0183ebba5",
+      "notes": "Busca contato por TELEFONE"
+    }
+  ],
+  "pinData": {
+    "Info": [
+      {
+        "json": {
+          "telefone": "+5581981779478",
+          "id_conta": "1",
+          "id_inbox": "1",
+          "api_key": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+          "location_id": "cd1uyzpJox6XPt4Vct8Y"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Contato existe?": {
+      "main": [
+        [
+          {
+            "node": "Listar conversas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado": {
+      "main": [
+        []
+      ]
+    },
+    "Contato com conversa criada?": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info": {
+      "main": [
+        [
+          {
+            "node": "Buscar contato (sem 9)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "Contato com conversa criada?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact1": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Contato1": {
+      "main": [
+        [
+          {
+            "node": "Contato com conversa criada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contato com conversa criada?1": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Contato1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telefone não está no WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar contato (sem 9)": {
+      "main": [
+        [
+          {
+            "node": "Buscar contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar contato": {
+      "main": [
+        [
+          {
+            "node": "ID Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID Contato": {
+      "main": [
+        [
+          {
+            "node": "Contato existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar conversas": {
+      "main": [
+        [
+          {
+            "node": "Contato com conversa criada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "42c1a59d-efcd-456d-a6e7-98a07b8b2ef5",
+  "meta": {
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "W8sQLUkaWCQa5ENU",
+  "tags": [
+    {
+      "updatedAt": "2025-11-03T19:28:46.270Z",
+      "createdAt": "2025-11-03T19:28:46.270Z",
+      "id": "3znkt8vlq1yubGAB",
+      "name": "on"
+    }
+  ]
+}
