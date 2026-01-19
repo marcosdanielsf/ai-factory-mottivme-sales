@@ -1,6 +1,8 @@
 {
-  "skill_name": "lucas-social-business",
-  "version": "1.0",
+  "skill_name": "marcos-social-business",
+  "version": "2.0",
+  "agent_name": "Marcos Ferreira (@marcosferreiraft)",
+  "empresa": "SocialBusiness",
   "test_cases": [
     {
       "id": "TC001",
@@ -734,7 +736,7 @@
     },
     "tone": {
       "weight": 0.25,
-      "description": "Tom pernambucano, consultivo, informal mas profissional"
+      "description": "Tom direto, inspirador, consultivo, informal mas profissional - estilo Marcos Ferreira"
     },
     "engagement": {
       "weight": 0.20,
