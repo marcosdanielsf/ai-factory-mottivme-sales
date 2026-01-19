@@ -18,6 +18,7 @@ import { AgentDetail } from './pages/AgentDetail';
 import { ReflectionLoop } from './pages/ReflectionLoop';
 import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
+import { Supervision } from './pages/Supervision';
 import { Login } from './pages/Login';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
@@ -134,6 +135,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Performance />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/supervision" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Supervision />
                 </Layout>
               </ProtectedRoute>
             } />
