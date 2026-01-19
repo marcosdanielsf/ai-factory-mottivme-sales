@@ -10,7 +10,7 @@ UPDATE agent_versions
 SET is_active = false,
   updated_at = NOW()
 WHERE agent_name = 'Marcos Social Business'
-  AND location_id = 'LOCATION_ID_MARCOS' -- ⚠️ SUBSTITUIR
+  AND location_id = 'XNjmi1DpvqoF09y1mip9' -- ⚠️ SUBSTITUIR
   AND is_active = true;
 -- ═══════════════════════════════════════════════════════════════════════════
 -- PASSO 2: INSERIR NOVA VERSÃO 2.0 ATIVA (CRITICS FRAMEWORK)
@@ -552,7 +552,7 @@ Ate la, da uma olhada nos conteudos do perfil que tem muita coisa boa."
     '{
     "versao": "2.0.0",
     "framework": "CRITICS",
-    "location_id": "LOCATION_ID_MARCOS",
+    "location_id": "XNjmi1DpvqoF09y1mip9",
     "workflow_aware": true,
     "blocos_xml_esperados": [
       "contexto_conversa",
@@ -771,7 +771,8 @@ Ate la, da uma olhada nos conteudos do perfil que tem muita coisa boa."
     -- contact_id
     null,
     -- location_id
-    'LOCATION_ID_MARCOS', -- ⚠️ SUBSTITUIR
+    'XNjmi1DpvqoF09y1mip9',
+    -- ⚠️ SUBSTITUIR
     -- agent_name
     'Marcos Social Business',
     -- ═══════════════════════════════════════════════════════════════════════════
@@ -996,37 +997,37 @@ LIMIT 3;
 -- ═══════════════════════════════════════════════════════════════════════════
 /*
  ⚠️ ANTES DE EXECUTAR, SUBSTITUIR:
-
- 1. LOCATION_ID_MARCOS → Location ID do GoHighLevel do Marcos
+ 
+ 1. XNjmi1DpvqoF09y1mip9 → Location ID do GoHighLevel do Marcos
  2. CALENDAR_ID_MARCOS → Calendar ID para agendamentos de diagnóstico
-
+ 
  ═══════════════════════════════════════════════════════════════════════════
  CONTEXTO DO MARCOS FERREIRA
  ═══════════════════════════════════════════════════════════════════════════
-
+ 
  Nome: Marcos Ferreira
  Username: @marcosferreiraft
  Seguidores: 119 mil
  Empresa: SocialBusiness
  Credenciais: +8.000 alunos, +12 anos experiência
  Sede: Casa do Storytelling
-
+ 
  VALORES:
  - Cristão (fé como base)
  - Casado com Caroline (Blumenau/SC)
  - Esperando filho Hércules
  - "Livre e Feliz"
-
+ 
  PILARES DE CONTEÚDO:
  1. Stories que Vendem (especialidade!)
  2. Mentalidade Empresarial
  3. Família e Casamento
  4. Lifestyle de Sucesso
  5. Fé e Espiritualidade
-
+ 
  PROPOSTA DE VALOR:
  "Faço Empresários Crescerem Audiência e Lucro"
-
+ 
  FRASES ICÔNICAS:
  - "A regra é simples: quer comprar sem olhar o preço? Esteja disposto a trabalhar enquanto os outros descansam."
  - "Story que passa batido X Story que prende atenção até o final"
@@ -1034,11 +1035,11 @@ LIMIT 3;
  - "Dobra teu preço que tu dobra teu caixa"
  - "Um Story que vende não é o mais bonito, é mais verdadeiro"
  - "Não normalize viver mal"
-
+ 
  ═══════════════════════════════════════════════════════════════════════════
  AUDITORIA CRITICS - PONTUAÇÃO FINAL: 100/100 ✅
  ═══════════════════════════════════════════════════════════════════════════
-
+ 
  */
 -- ═══════════════════════════════════════════════════════════════════════════
 -- FIM

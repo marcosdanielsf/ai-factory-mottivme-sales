@@ -1,0 +1,140 @@
+{
+  "meta": {
+    "instanceId": "cliente-a1.mentorfy.io"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://agenticoskevsacademy-production.up.railway.app/api/match-lead-context",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone\": \"{{ $('Info').first().json.telefone || $json.body?.phone || '' }}\",\n  \"email\": \"{{ $('Info').first().json.email || $json.body?.email || '' }}\",\n  \"ig_id\": \"{{ $json.body?.contact?.attributionSource?.igSid || '' }}\",\n  \"ghl_contact_id\": \"{{ $('Info').first().json.lead_id || $json.body?.contact_id || '' }}\",\n  \"location_id\": \"{{ $('Info').first().json.location_id || $json.body?.location?.id || '' }}\",\n  \"ig_handle\": \"{{ $json.body?.customFields?.instagram_handle || '' }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 400],
+      "id": "match-lead-context-node",
+      "name": "Match Lead Context",
+      "notesInFlow": true,
+      "notes": "Busca dados enriquecidos do lead no AgenticOS. Retorna placeholders prontos para o prompt da IA.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.matched }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "matched-true-condition"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Lead Enriquecido"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.matched }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "matched-false-condition"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Lead Novo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [880, 400],
+      "id": "lead-matched-switch-node",
+      "name": "Lead Matched?"
+    }
+  ],
+  "connections": {
+    "Match Lead Context": {
+      "main": [
+        [
+          {
+            "node": "Lead Matched?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "comments": [
+    {
+      "content": "## Match Lead Context - AgenticOS\n\nEste node consulta o AgenticOS para verificar se o lead já foi prospectado.\n\n**Se matched=true:**\n- Lead já foi prospectado pelo sistema\n- Dados enriquecidos disponíveis (cargo, empresa, ICP)\n- Placeholders prontos: {{nome}}, {{cargo}}, {{empresa}}, etc.\n- Histórico de conversas disponível\n\n**Se matched=false:**\n- Lead novo, não prospectado anteriormente\n- Pode ativar fluxo de scrape do perfil\n- action_required: scrape_profile",
+      "position": [600, 160],
+      "height": 220,
+      "width": 400
+    }
+  ],
+  "usage_example": {
+    "accessing_placeholders": {
+      "nome": "{{ $('Match Lead Context').first().json.placeholders['{{nome}}'] }}",
+      "cargo": "{{ $('Match Lead Context').first().json.placeholders['{{cargo}}'] }}",
+      "empresa": "{{ $('Match Lead Context').first().json.placeholders['{{empresa}}'] }}",
+      "icp_tier": "{{ $('Match Lead Context').first().json.placeholders['{{icp_tier}}'] }}",
+      "contexto": "{{ $('Match Lead Context').first().json.placeholders['{{contexto_prospeccao}}'] }}"
+    },
+    "accessing_lead_data": {
+      "full_name": "{{ $('Match Lead Context').first().json.lead_data?.full_name }}",
+      "cargo": "{{ $('Match Lead Context').first().json.lead_data?.cargo }}",
+      "empresa": "{{ $('Match Lead Context').first().json.lead_data?.empresa }}",
+      "icp_score": "{{ $('Match Lead Context').first().json.lead_data?.icp_score }}",
+      "ig_followers": "{{ $('Match Lead Context').first().json.lead_data?.ig_followers }}"
+    },
+    "conversation_history": "{{ $('Match Lead Context').first().json.conversation_history }}"
+  }
+}
