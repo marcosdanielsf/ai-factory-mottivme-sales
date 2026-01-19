@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createSquadFromConfig } from '../data/squads';
-import { Member, Squad } from '../types/rpg';
-import { Client } from '../types';
+import { Member, Squad } from './types/rpg';
+import { Client } from './types';
 import { Avatar } from '../components/RPG/Avatar';
 import { SkillMenu } from '../components/RPG/SkillMenu';
 import { ClientRanking } from '../components/RPG/ClientRanking';
 import { Layers, Shield, Sword, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
-import { ClientService, AgentService } from '../src/services/dataService';
-import { useToast } from '../src/hooks/useToast';
+import { ClientService, AgentService } from '../services/dataService';
+import { useToast } from '../hooks/useToast';
 
 export const TeamRPG = () => {
   const { showToast } = useToast();

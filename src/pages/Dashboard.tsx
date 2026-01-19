@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
 import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw, MessageSquare, Calendar, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
+import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics } from '../hooks';
+import { useToast } from '../hooks/useToast';
 import { TestReportModal } from '../components/TestReportModal';
 import { 
   LineChart, 

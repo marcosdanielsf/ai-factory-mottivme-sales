@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { superAgent as initialAgent, trainers } from '../data/superAgent';
-import { Member, Trainer } from '../types/rpg';
+import { Member, Trainer } from './types/rpg';
 import { User, Sparkles, Zap, ScrollText, Calendar, Dumbbell, Gavel, GraduationCap, ArrowRight } from 'lucide-react';
 
 export const SuperAgentRPG = () => {

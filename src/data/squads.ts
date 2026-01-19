@@ -1,5 +1,5 @@
-import { Squad, Member, Skill } from '../types/rpg';
-import { AgentConfig } from '../src/services/dataService';
+import { Squad, Member, Skill } from './types/rpg';
+import { AgentConfig } from '../services/dataService';
 
 // --- Skill Definitions (Defaults) ---
 

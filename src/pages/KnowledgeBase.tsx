@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FileText, Upload, Database, Save, Plus, Hash, Bot, Wrench, BrainCircuit, Workflow, Users, Calendar, PhoneCall, HelpCircle, ShieldAlert, UserCheck, ChevronDown, Check, Edit2, Trash2, ExternalLink, Loader2, Search, RefreshCw, AlertCircle } from 'lucide-react';
-import { AGENT_MODES, AGENT_TOOLS, SYSTEM_PROMPT_TEMPLATE } from '../src/data/agent-config';
-import { useAgents, useArtifacts } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
-import { Agent } from '../types';
+import { AGENT_MODES, AGENT_TOOLS, SYSTEM_PROMPT_TEMPLATE } from '../data/agent-config';
+import { useAgents, useArtifacts } from '../hooks';
+import { useToast } from '../hooks/useToast';
+import { Agent } from './types';
 
 type Tab = 'overview' | 'prompt' | 'documentos' | 'adicionar' | 'modes';
 

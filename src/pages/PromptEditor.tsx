@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useAgents, useAgentVersions } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
-import { supabase } from '../src/lib/supabase';
+import { useAgents, useAgentVersions } from '../hooks';
+import { useToast } from '../hooks/useToast';
+import { supabase } from '../lib/supabase';
 import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X } from 'lucide-react';
-import { AgentVersion, Agent } from '../types';
+import { AgentVersion, Agent } from './types';
 import { AdjustmentsChat } from '../components/AdjustmentsChat';
 
 export const PromptEditor = () => {

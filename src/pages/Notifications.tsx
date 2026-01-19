@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Bell, AlertTriangle, CheckCircle2, Clock, Filter, Check, MoreVertical, X, Trash2, Search, RefreshCw, AlertCircle } from 'lucide-react';
-import { useSystemAlerts } from '../src/hooks/useSystemAlerts';
-import { useToast } from '../src/hooks/useToast';
+import { useSystemAlerts } from '../hooks/useSystemAlerts';
+import { useToast } from '../hooks/useToast';
 
 const SeverityBadge = ({ severity }: { severity: string }) => {
   const styles = {

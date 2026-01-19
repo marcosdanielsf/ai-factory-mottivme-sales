@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Lightbulb, CheckCircle2, Clock, TrendingUp, Settings, History, MessageSquare } from 'lucide-react';
-import { supabase } from '../src/lib/supabase';
+import { supabase } from '../lib/supabase';
 import { ReflectionSettings } from '../components/ReflectionSettings';
 import { ReflectionLogs } from '../components/ReflectionLogs';
 import { ExperienceSuggestions } from '../components/ExperienceSuggestions';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, AlertCircle, MessageSquare, CheckCircle2, Loader2, RefreshCw, Inbox, Calendar as CalendarIcon, Phone, User, ExternalLink } from 'lucide-react';
-import { useAgentConversations } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
+import { useAgentConversations } from '../hooks';
+import { useToast } from '../hooks/useToast';
 
 export const Logs = () => {
   const { showToast } = useToast();

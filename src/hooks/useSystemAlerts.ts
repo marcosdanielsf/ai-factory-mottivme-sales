@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MOCK_ALERTS } from '../../constants';
+import { MOCK_ALERTS } from '../constants';
 
 export interface SystemAlert {
   id: string;

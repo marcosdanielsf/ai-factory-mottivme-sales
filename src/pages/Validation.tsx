@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { MOCK_TEST_RUNS, MOCK_AGENT_VERSIONS } from '../constants';
 import { Play, CheckCircle, XCircle, AlertTriangle, FileText, ChevronRight, X, Loader2, AlertCircle, Inbox, RefreshCw, Trash2, Filter, Calendar, ChevronDown } from 'lucide-react';
 import { TestReportModal } from '../components/TestReportModal';
-import { useTestResults } from '../src/hooks/useTestResults';
-import { useToast } from '../src/hooks/useToast';
+import { useTestResults } from '../hooks/useTestResults';
+import { useToast } from '../hooks/useToast';
 
 export const Validation = () => {
   const { testRuns, loading, error, refetch, deleteTestRun, deleting } = useTestResults();

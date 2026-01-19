@@ -18,8 +18,8 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
-import { useAgentConversations } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
+import { useAgentConversations } from '../hooks';
+import { useToast } from '../hooks/useToast';
 
 export const CallsRealizadas = () => {
   const { showToast } = useToast();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Bell, Database, Users, Webhook, Save, RefreshCw } from 'lucide-react';
-import { useToast } from '../src/hooks/useToast';
+import { useToast } from '../hooks/useToast';
 
 export const Configuracoes = () => {
   const { showToast } = useToast();

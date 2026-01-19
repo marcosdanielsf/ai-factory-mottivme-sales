@@ -24,8 +24,8 @@ import {
   Hash,
   Filter
 } from 'lucide-react';
-import { useClientPerformance, useAllAgentVersions, DateRangeType } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
+import { useClientPerformance, useAllAgentVersions, DateRangeType } from '../hooks';
+import { useToast } from '../hooks/useToast';
 
 // Gerar lista de meses disponíveis
 const generateMonthOptions = () => {

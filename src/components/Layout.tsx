@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
-import { useAgents } from '../src/hooks';
+import { useAgents } from '../hooks';
 import AISupportWidget from './AISupportWidget';
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {

@@ -14,13 +14,13 @@ import {
   BarChart3,
   AlertCircle
 } from 'lucide-react';
-import { useToast } from '../src/hooks/useToast';
+import { useToast } from '../hooks/useToast';
 import {
   useClientCosts,
   useClientCostDetails,
   useGlobalCostSummary,
   ClientCostSummary
-} from '../src/hooks/useClientCosts';
+} from '../hooks/useClientCosts';
 
 type DateRange = 'today' | '7d' | '30d' | 'all' | 'month';
 

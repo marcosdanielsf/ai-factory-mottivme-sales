@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { usePendingApprovals } from '../src/hooks';
-import { useToast } from '../src/hooks/useToast';
+import { usePendingApprovals } from '../hooks';
+import { useToast } from '../hooks/useToast';
 import { Check, X, GitCommit, ChevronRight, RefreshCw, AlertCircle, Search } from 'lucide-react';
 
 export const Approvals = () => {

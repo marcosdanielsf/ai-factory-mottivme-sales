@@ -19,9 +19,9 @@ import { ReflectionLoop } from './pages/ReflectionLoop';
 import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
 import { Login } from './pages/Login';
-import { ToastProvider } from './src/hooks/useToast';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { ProtectedRoute } from './src/components/ProtectedRoute';
+import { ToastProvider } from './hooks/useToast';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 const App = () => {
   return (

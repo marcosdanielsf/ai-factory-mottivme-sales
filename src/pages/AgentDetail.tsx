@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle2, AlertCircle, Edit, Play, Clock, TrendingUp } from 'lucide-react';
-import { supabase } from '../src/lib/supabase';
+import { supabase } from '../lib/supabase';
 import { AgentPerformanceRadar, ScoreAreaChart } from '../components/charts';
 
 interface AgentVersion {

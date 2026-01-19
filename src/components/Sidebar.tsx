@@ -21,7 +21,7 @@ import {
   Trophy,
   UserPlus
 } from 'lucide-react';
-import { useAuth } from '../src/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const SidebarItem = ({ 
   icon: Icon, 

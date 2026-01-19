@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { MOCK_CLIENTS, MOCK_AGENT_VERSION, MOCK_CALLS } from '../constants';
 import { MoreHorizontal, Bot, Calendar, FileText, Video, RefreshCw } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
-import { useToast } from '../src/hooks/useToast';
+import { useToast } from '../hooks/useToast';
 
 const PropertyRow = ({ label, value, isBadge = false }: any) => (
   <div className="flex items-start py-1.5 text-sm">

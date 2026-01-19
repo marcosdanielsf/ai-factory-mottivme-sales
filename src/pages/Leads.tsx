@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, MessageSquare, Calendar, X, Send, Download, ChevronLeft, ChevronRight, User, RefreshCw, Building2, Instagram, Phone, Mail, ExternalLink, AlertCircle } from 'lucide-react';
-import { Lead } from '../types';
-import { useToast } from '../src/hooks/useToast';
-import { useLeads, useLeadConversations, LeadFilter } from '../src/hooks/useLeads';
+import { Lead } from './types';
+import { useToast } from '../hooks/useToast';
+import { useLeads, useLeadConversations, LeadFilter } from '../hooks/useLeads';
 
 // Tipo estendido de Lead com campos extras do Supabase
 interface ExtendedLead extends Lead {
