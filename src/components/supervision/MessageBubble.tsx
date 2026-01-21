@@ -1,6 +1,21 @@
 import React from 'react';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, Instagram, MessageCircle, Mail, Globe } from 'lucide-react';
 import { SupervisionMessage } from '../../types/supervision';
+
+const getChannelIcon = (channel: string | null) => {
+  switch (channel?.toLowerCase()) {
+    case 'instagram':
+    case 'ig':
+      return <Instagram size={10} className="text-pink-400" />;
+    case 'whatsapp':
+    case 'wa':
+      return <MessageCircle size={10} className="text-green-400" />;
+    case 'email':
+      return <Mail size={10} className="text-blue-400" />;
+    default:
+      return <Globe size={10} className="text-gray-400" />;
+  }
+};
 
 interface MessageBubbleProps {
   message: SupervisionMessage;
@@ -53,6 +68,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           `}
         >
           <span>{formatTime(message.created_at)}</span>
+          {message.channel && message.channel !== 'unknown' && (
+            <span className="flex items-center gap-1">
+              {getChannelIcon(message.channel)}
+            </span>
+          )}
           {message.sentiment_score !== null && isAssistant && (
             <span
               className={`

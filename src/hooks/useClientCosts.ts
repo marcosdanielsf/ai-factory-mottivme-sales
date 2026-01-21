@@ -39,10 +39,14 @@ export interface ClientCostDetail {
 interface UseClientCostsOptions {
   dateRange?: 'today' | '7d' | '30d' | 'all' | 'month';
   month?: string; // Formato: 'YYYY-MM' (ex: '2026-01')
+  clientName?: string; // Filtrar por cliente específico
+  showInactive?: boolean; // Mostrar clientes inativos (sem atividade nos últimos 30 dias)
+  inactiveDays?: number; // Dias para considerar inativo (padrão: 30)
 }
 
 interface UseClientCostsReturn {
   clients: ClientCostSummary[];
+  allClients: ClientCostSummary[]; // Todos os clientes (para dropdown)
   totalCost: number;
   totalRequests: number;
   loading: boolean;
@@ -78,9 +82,16 @@ const getDateRange = (range: string, month?: string): { start: Date | null; end:
 };
 
 export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCostsReturn => {
-  const { dateRange = '30d', month } = options;
+  const {
+    dateRange = '30d',
+    month,
+    clientName,
+    showInactive = false,
+    inactiveDays = 30
+  } = options;
 
   const [clients, setClients] = useState<ClientCostSummary[]>([]);
+  const [allClients, setAllClients] = useState<ClientCostSummary[]>([]); // Para dropdown
   const [totalCost, setTotalCost] = useState(0);
   const [totalRequests, setTotalRequests] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -214,11 +225,34 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
           .sort((a, b) => b.total_cost_usd - a.total_cost_usd);
       }
 
-      // Calcular totais
-      const total = result.reduce((acc, c) => acc + c.total_cost_usd, 0);
-      const requests = result.reduce((acc, c) => acc + c.total_requests, 0);
+      // Guardar todos os clientes para o dropdown
+      setAllClients(result);
 
-      setClients(result);
+      // Aplicar filtros
+      let filteredResult = result;
+
+      // Filtro por cliente específico
+      if (clientName) {
+        filteredResult = filteredResult.filter(c =>
+          c.location_name.toLowerCase() === clientName.toLowerCase()
+        );
+      }
+
+      // Filtro de ativos/inativos (baseado em última atividade)
+      if (!showInactive) {
+        const inactiveThreshold = new Date();
+        inactiveThreshold.setDate(inactiveThreshold.getDate() - inactiveDays);
+        filteredResult = filteredResult.filter(c => {
+          if (!c.last_activity) return false;
+          return new Date(c.last_activity) >= inactiveThreshold;
+        });
+      }
+
+      // Calcular totais (baseado nos filtrados)
+      const total = filteredResult.reduce((acc, c) => acc + c.total_cost_usd, 0);
+      const requests = filteredResult.reduce((acc, c) => acc + c.total_requests, 0);
+
+      setClients(filteredResult);
       setTotalCost(total);
       setTotalRequests(requests);
     } catch (err: any) {
@@ -227,13 +261,13 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     } finally {
       setLoading(false);
     }
-  }, [dateRange, month]);
+  }, [dateRange, month, clientName, showInactive, inactiveDays]);
 
   useEffect(() => {
     fetchCosts();
   }, [fetchCosts]);
 
-  return { clients, totalCost, totalRequests, loading, error, refetch: fetchCosts };
+  return { clients, allClients, totalCost, totalRequests, loading, error, refetch: fetchCosts };
 };
 
 // Hook para custos detalhados de um cliente especifico

@@ -10,6 +10,8 @@ import {
   Archive,
   StickyNote,
   Loader2,
+  MapPin,
+  Copy,
 } from 'lucide-react';
 import {
   SupervisionConversation,
@@ -93,6 +95,28 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
               )}
               <Bot size={12} />
               <span>{conversation.client_name || 'Cliente'}</span>
+            </div>
+            {/* Location ID e Session ID */}
+            <div className="flex items-center gap-3 mt-1 text-xs text-text-muted">
+              {conversation.location_id && (
+                <button
+                  onClick={() => navigator.clipboard.writeText(conversation.location_id || '')}
+                  className="flex items-center gap-1 hover:text-accent-primary transition-colors"
+                  title="Copiar Location ID"
+                >
+                  <MapPin size={10} />
+                  <span className="font-mono">{conversation.location_id.slice(0, 12)}...</span>
+                  <Copy size={10} />
+                </button>
+              )}
+              <button
+                onClick={() => navigator.clipboard.writeText(conversation.session_id)}
+                className="flex items-center gap-1 hover:text-accent-primary transition-colors"
+                title="Copiar Session ID"
+              >
+                <span className="font-mono">#{conversation.session_id.slice(0, 8)}</span>
+                <Copy size={10} />
+              </button>
             </div>
           </div>
         </div>

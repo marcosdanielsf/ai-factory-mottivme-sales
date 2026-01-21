@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   TrendingUp,
   Users,
@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Trophy,
   MessageSquare,
-  Calendar,
   CheckCircle,
   XCircle,
   RefreshCw,
@@ -22,7 +21,10 @@ import {
   ToggleRight,
   Clock,
   Hash,
-  Filter
+  Filter,
+  Eye,
+  EyeOff,
+  Search
 } from 'lucide-react';
 import { useClientPerformance, useAllAgentVersions, DateRangeType } from '../hooks';
 import { useToast } from '../hooks/useToast';
@@ -189,13 +191,19 @@ const StatusBadge = ({ status }: { status: string }) => {
 export const Performance = () => {
   const { showToast } = useToast();
 
-  // Filtros de período
+  // Filtros de período (aplicado aos CUSTOS, não aos leads do GHL)
   const [dateRange, setDateRange] = useState<DateRangeType>('30d');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_OPTIONS[0].value);
 
-  // Hook com filtro aplicado
+  // Filtros de cliente
+  const [clientFilter, setClientFilter] = useState<string>('');
+  const [showInactive, setShowInactive] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  // Hook com filtros aplicados
   const {
     clients,
+    allClients,
     ranking,
     alerts,
     totals,
@@ -204,7 +212,10 @@ export const Performance = () => {
     refetch
   } = useClientPerformance({
     dateRange,
-    month: dateRange === 'month' ? selectedMonth : undefined
+    month: dateRange === 'month' ? selectedMonth : undefined,
+    clientName: clientFilter || undefined,
+    showInactive,
+    inactiveDays: 30
   });
 
   const {
@@ -218,18 +229,6 @@ export const Performance = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'leads' | 'conversao' | 'resposta'>('leads');
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
-
-  // Label do período selecionado
-  const periodLabel = useMemo(() => {
-    if (dateRange === '7d') return 'Últimos 7 dias';
-    if (dateRange === '30d') return 'Últimos 30 dias';
-    if (dateRange === 'all') return 'Todo histórico';
-    if (dateRange === 'month') {
-      const monthOpt = MONTH_OPTIONS.find(m => m.value === selectedMonth);
-      return monthOpt?.label || selectedMonth;
-    }
-    return '';
-  }, [dateRange, selectedMonth]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -297,7 +296,7 @@ export const Performance = () => {
           </p>
         </div>
 
-        {/* Filtros de Período */}
+        {/* Filtros de Período (aplicado aos custos) */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-bg-secondary border border-border-default rounded-lg p-1">
             <button
@@ -330,11 +329,11 @@ export const Performance = () => {
                 dateRange === 'all' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
               }`}
             >
-              Tudo
+              Todos
             </button>
           </div>
 
-          {/* Seletor de Mês (aparece quando dateRange === 'month') */}
+          {/* Seletor de Mês */}
           {dateRange === 'month' && (
             <select
               value={selectedMonth}
@@ -348,6 +347,18 @@ export const Performance = () => {
           )}
 
           <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+              showFilters || clientFilter || showInactive
+                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                : 'bg-bg-secondary border-border-default text-text-muted hover:text-text-primary'
+            }`}
+            title="Filtrar por cliente"
+          >
+            <Filter size={16} />
+          </button>
+
+          <button
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-2 px-4 py-2 bg-accent-primary/10 text-accent-primary rounded-lg hover:bg-accent-primary/20 transition-colors disabled:opacity-50"
@@ -358,11 +369,68 @@ export const Performance = () => {
         </div>
       </div>
 
-      {/* Badge do período */}
-      <div className="flex items-center gap-2">
-        <Calendar size={14} className="text-text-muted" />
-        <span className="text-sm text-text-muted">Período: <span className="text-text-primary font-medium">{periodLabel}</span></span>
-      </div>
+      {/* Painel de Filtros Avançados */}
+      {showFilters && (
+        <div className="bg-bg-secondary border border-border-default rounded-xl p-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Search size={16} className="text-text-muted" />
+            <span className="text-xs font-bold text-text-muted uppercase">Filtros:</span>
+          </div>
+
+          {/* Dropdown de Cliente */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted">Cliente:</label>
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 min-w-[180px]"
+            >
+              <option value="">Todos os clientes</option>
+              {allClients?.map((client) => (
+                <option key={client.locationId} value={client.agentName}>
+                  {client.agentName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Toggle Mostrar Inativos */}
+          <button
+            onClick={() => setShowInactive(!showInactive)}
+            disabled={loading}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+              showInactive
+                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                : 'bg-bg-primary border-border-default text-text-muted hover:text-text-primary'
+            }`}
+          >
+            {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
+            {showInactive ? 'Mostrando inativos' : 'Mostrar inativos'}
+          </button>
+
+          {/* Limpar Filtros */}
+          {(clientFilter || showInactive) && (
+            <button
+              onClick={() => {
+                setClientFilter('');
+                setShowInactive(false);
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+            >
+              Limpar filtros
+            </button>
+          )}
+
+          {/* Info de inativos */}
+          <div className="ml-auto text-xs text-text-muted">
+            {!showInactive && (
+              <span>Mostrando apenas clientes com atividade de IA nos últimos 30 dias</span>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* Cards de Totais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

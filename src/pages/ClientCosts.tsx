@@ -12,7 +12,11 @@ import {
   Zap,
   MessageSquare,
   BarChart3,
-  AlertCircle
+  AlertCircle,
+  Filter,
+  Eye,
+  EyeOff,
+  Search
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import {
@@ -46,12 +50,20 @@ export const ClientCosts = () => {
   });
   const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
 
+  // Novos filtros
+  const [clientFilter, setClientFilter] = useState<string>(''); // Filtro por cliente específico
+  const [showInactive, setShowInactive] = useState<boolean>(false); // Mostrar inativos
+  const [showFilters, setShowFilters] = useState<boolean>(false); // Toggle painel de filtros
+
   const availableMonths = getAvailableMonths();
 
   // Hooks de dados
-  const { clients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
+  const { clients, allClients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
     dateRange,
-    month: dateRange === 'month' ? selectedMonth : undefined
+    month: dateRange === 'month' ? selectedMonth : undefined,
+    clientName: clientFilter || undefined,
+    showInactive,
+    inactiveDays: 30
   });
   const { summary, loading: loadingSummary } = useGlobalCostSummary();
   const { costs: clientDetails, dailyCosts, loading: loadingDetails } = useClientCostDetails(
@@ -151,6 +163,18 @@ export const ClientCosts = () => {
           )}
 
           <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2 border rounded-lg transition-all ${
+              showFilters || clientFilter || showInactive
+                ? 'text-accent-primary bg-accent-primary/10 border-accent-primary/30'
+                : 'text-text-muted hover:text-text-primary hover:bg-bg-secondary border-border-default'
+            }`}
+            title="Filtros avançados"
+          >
+            <Filter size={18} />
+          </button>
+
+          <button
             onClick={handleRefresh}
             disabled={loading}
             className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all disabled:opacity-50"
@@ -160,6 +184,68 @@ export const ClientCosts = () => {
           </button>
         </div>
       </div>
+
+      {/* Painel de Filtros Avançados */}
+      {showFilters && (
+        <div className="bg-bg-secondary border border-border-default rounded-xl p-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Search size={16} className="text-text-muted" />
+            <span className="text-xs font-bold text-text-muted uppercase">Filtros:</span>
+          </div>
+
+          {/* Dropdown de Cliente */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted">Cliente:</label>
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 min-w-[180px]"
+            >
+              <option value="">Todos os clientes</option>
+              {allClients.map((client) => (
+                <option key={client.location_name} value={client.location_name}>
+                  {client.location_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Toggle Mostrar Inativos */}
+          <button
+            onClick={() => setShowInactive(!showInactive)}
+            disabled={loading}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+              showInactive
+                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                : 'bg-bg-primary border-border-default text-text-muted hover:text-text-primary'
+            }`}
+          >
+            {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
+            {showInactive ? 'Mostrando inativos' : 'Mostrar inativos'}
+          </button>
+
+          {/* Limpar Filtros */}
+          {(clientFilter || showInactive) && (
+            <button
+              onClick={() => {
+                setClientFilter('');
+                setShowInactive(false);
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+            >
+              Limpar filtros
+            </button>
+          )}
+
+          {/* Info de inativos */}
+          <div className="ml-auto text-xs text-text-muted">
+            {!showInactive && (
+              <span>Mostrando apenas clientes com atividade nos últimos 30 dias</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (

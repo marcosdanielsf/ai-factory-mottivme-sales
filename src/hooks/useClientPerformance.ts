@@ -44,6 +44,8 @@ export interface ClientPerformance {
   totalTestRuns: number;
   lastTestScore: number | null;
   avgScoreOverall: number;
+  // Última atividade (para filtro de inativos)
+  lastActivity?: string;
 }
 
 export interface ClientRanking {
@@ -73,6 +75,7 @@ export interface ClientAlert {
 
 interface ClientPerformanceState {
   clients: ClientPerformance[];
+  allClients: ClientPerformance[]; // Todos os clientes (para dropdown)
   ranking: ClientRanking[];
   alerts: ClientAlert[];
   loading: boolean;
@@ -86,6 +89,9 @@ export type DateRangeType = '7d' | '30d' | 'month' | 'all';
 interface UseClientPerformanceOptions {
   dateRange?: DateRangeType;
   month?: string; // Formato: 'YYYY-MM' - NAO USADO (tabela sem campo de data)
+  clientName?: string; // Filtrar por cliente específico
+  showInactive?: boolean; // Mostrar clientes inativos (sem atividade de custo nos últimos 30 dias)
+  inactiveDays?: number; // Dias para considerar inativo (padrão: 30)
 }
 
 // Interface para métricas agregadas por responsável (cliente)
@@ -100,12 +106,44 @@ interface ClientMetrics {
   lost: number;
 }
 
-export const useClientPerformance = (_options: UseClientPerformanceOptions = {}) => {
-  // NOTA: dateRange e month nao sao usados porque app_dash_principal nao tem campo de data
-  // Mantidos na interface para compatibilidade com componentes que passam esses parametros
+// Helper para calcular data de inicio e fim (igual ao useClientCosts)
+const getDateRange = (range: string, month?: string): { start: Date | null; end: Date | null } => {
+  const now = new Date();
+
+  switch (range) {
+    case '7d':
+      now.setDate(now.getDate() - 7);
+      return { start: now, end: null };
+    case '30d':
+      now.setDate(now.getDate() - 30);
+      return { start: now, end: null };
+    case 'month':
+      if (month) {
+        const [year, monthNum] = month.split('-').map(Number);
+        const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+        const end = new Date(year, monthNum, 0, 23, 59, 59, 999);
+        return { start, end };
+      }
+      return { start: null, end: null };
+    default:
+      return { start: null, end: null };
+  }
+};
+
+export const useClientPerformance = (options: UseClientPerformanceOptions = {}) => {
+  // NOTA: dateRange e month sao aplicados APENAS aos custos (llm_costs)
+  // Os dados de leads (app_dash_principal) nao tem campo de data, mostra historico completo
+  const {
+    dateRange = '30d',
+    month,
+    clientName,
+    showInactive = false,
+    inactiveDays = 30
+  } = options;
 
   const [state, setState] = useState<ClientPerformanceState>({
     clients: [],
+    allClients: [],
     ranking: [],
     alerts: [],
     loading: true,
@@ -238,86 +276,165 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         }
       });
 
-      // 3. Buscar custos AGREGADOS da view vw_custos_por_cliente
-      // A view já faz a agregação no banco, evitando o limite de 1000 registros
-      const { data: custsAggData, error: custsError } = await supabase
-        .from('vw_custos_por_cliente')
-        .select('cliente_nome, total_chamadas, total_tokens, custo_total_usd');
+      // 3. Buscar custos com filtro de período
+      // Usa a mesma lógica de useClientCosts para consistência
+      const { start: startDate, end: endDate } = getDateRange(dateRange, month);
+      const needsDateFilter = startDate !== null;
 
-      if (custsError) {
-        console.warn('[DEBUG] View vw_custos_por_cliente não existe, usando fallback:', custsError.message);
+      const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number; lastActivity?: string }> = {};
+
+      if (!needsDateFilter) {
+        // Sem filtro de período: usar view agregada
+        const { data: custsAggData, error: custsError } = await supabase
+          .from('vw_client_costs_summary')
+          .select('location_name, total_cost_usd, total_requests, last_activity');
+
+        if (custsError) {
+          console.warn('[DEBUG] View vw_client_costs_summary não disponível:', custsError.message);
+        }
+
+        (custsAggData || []).forEach((row: any) => {
+          const clientNameKey = (row.location_name || '').toLowerCase().trim();
+          if (!clientNameKey) return;
+
+          custosPorCliente[clientNameKey] = {
+            custo: row.total_cost_usd || 0,
+            tokens: 0,
+            chamadas: row.total_requests || 0,
+            lastActivity: row.last_activity || null
+          };
+        });
+      } else {
+        // Com filtro de período: buscar da tabela llm_costs com paginação
+        let allCostsData: any[] = [];
+        let offset = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = supabase
+            .from('llm_costs')
+            .select('location_name, custo_usd, created_at')
+            .gte('created_at', startDate.toISOString());
+
+          if (endDate) {
+            query = query.lte('created_at', endDate.toISOString());
+          }
+
+          const { data: pageData, error: pageError } = await query
+            .range(offset, offset + pageSize - 1);
+
+          if (pageError) {
+            console.warn('[DEBUG] Erro ao buscar llm_costs:', pageError.message);
+            break;
+          }
+
+          if (pageData && pageData.length > 0) {
+            allCostsData = [...allCostsData, ...pageData];
+            offset += pageSize;
+            hasMore = pageData.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        // Agregar custos por cliente
+        allCostsData.forEach((row: any) => {
+          const clientNameKey = (row.location_name || '').toLowerCase().trim();
+          if (!clientNameKey) return;
+
+          if (!custosPorCliente[clientNameKey]) {
+            custosPorCliente[clientNameKey] = { custo: 0, tokens: 0, chamadas: 0, lastActivity: undefined };
+          }
+
+          custosPorCliente[clientNameKey].custo += row.custo_usd || 0;
+          custosPorCliente[clientNameKey].chamadas += 1;
+
+          // Atualizar última atividade
+          if (!custosPorCliente[clientNameKey].lastActivity ||
+              new Date(row.created_at) > new Date(custosPorCliente[clientNameKey].lastActivity!)) {
+            custosPorCliente[clientNameKey].lastActivity = row.created_at;
+          }
+        });
+
+        console.log(`[DEBUG] Custos carregados com filtro ${dateRange}:`, Object.keys(custosPorCliente).length, 'clientes');
       }
 
-      // Mapear custos agregados da view para o formato esperado
-      const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number }> = {};
-      (custsAggData || []).forEach((row: any) => {
-        const clientName = (row.cliente_nome || '').toLowerCase().trim();
-        if (!clientName) return;
+      // Buscar última atividade por cliente (para filtro de inativos)
+      const { data: lastActivityData } = await supabase
+        .from('vw_client_costs_summary')
+        .select('location_name, last_activity');
 
-        custosPorCliente[clientName] = {
-          custo: row.custo_total_usd || 0,
-          tokens: row.total_tokens || 0,
-          chamadas: row.total_chamadas || 0
-        };
+      const lastActivityByClient: Record<string, string> = {};
+      (lastActivityData || []).forEach((row: any) => {
+        const name = (row.location_name || '').toLowerCase().trim();
+        if (name && row.last_activity) {
+          lastActivityByClient[name] = row.last_activity;
+        }
       });
 
       console.log('[DEBUG] Custos agregados por cliente (view):', custosPorCliente);
 
       // Mapeamento manual: llm_costs.location_name → app_dash.lead_usuario_responsavel
       // Necessário porque os nomes são diferentes entre as duas fontes
+      // Mapeamento: nome em llm_costs → nome em app_dash_principal (GHL)
+      // APENAS para nomes que são DIFERENTES entre as duas fontes
       const mapeamentoClienteVendedor: Record<string, string[]> = {
         'legacy agency': ['milton'],
-        'mottivme sales': ['marcos daniel', 'suporte mottivme', 'marcos'],
-        'lappe finances': ['fernanda lappe'],
-        'dr. luiz augusto': ['luiz augusto'],
-        'dr. luiz': ['luiz augusto'],
-        'dr luiz': ['luiz augusto'],
-        'dr thauan': ['thauan'],
-        'dr. thauan': ['thauan'],
-        'dra. gabriela rossmam': ['gabriela rossmam', 'dra gabriella rossmam'],
-        'dra gabriela rossmam': ['gabriela rossmam', 'dra gabriella rossmam'],
-        'eline lôbo': ['eline lôbo', 'eline lobo'],
-        'marina couto': ['marina couto'],
-        'fernanda lappe': ['fernanda lappe'],
-        'gustavo couto': ['gustavo couto'],
-        'andré rosa': ['andre rosa', 'andré rosa'],
-        'andre rosa': ['andre rosa', 'andré rosa'],
+        'mottivme sales': ['marcos daniel', 'suporte mottivme'],
       };
 
       // Helper para encontrar custo por nome (com mapeamento)
-      const findCustoByName = (vendedorName: string): { custo: number; tokens: number; chamadas: number } => {
+      const findCustoByName = (vendedorName: string): { custo: number; tokens: number; chamadas: number; lastActivity?: string } => {
         const normalizedVendedor = vendedorName.toLowerCase().trim();
 
-        // 1. Verificar mapeamento reverso: vendedor → cliente
+        // 1. PRIORIDADE: Match EXATO primeiro (antes do mapeamento)
+        if (custosPorCliente[normalizedVendedor]) {
+          return custosPorCliente[normalizedVendedor];
+        }
+
+        // 2. Verificar mapeamento: vendedor GHL → cliente llm_costs
         for (const [clienteName, vendedores] of Object.entries(mapeamentoClienteVendedor)) {
-          if (vendedores.some(v => v === normalizedVendedor || normalizedVendedor.includes(v) || v.includes(normalizedVendedor))) {
+          if (vendedores.some(v => v === normalizedVendedor)) {
             if (custosPorCliente[clienteName]) {
               return custosPorCliente[clienteName];
             }
           }
         }
 
-        // 2. Match exato
-        if (custosPorCliente[normalizedVendedor]) {
-          return custosPorCliente[normalizedVendedor];
-        }
-
-        // 3. Match parcial (nome contém ou é contido)
+        // 3. Match parcial cuidadoso (apenas se nome contém o outro E tem mais de 5 chars)
         for (const [clientName, data] of Object.entries(custosPorCliente)) {
-          if (normalizedVendedor.includes(clientName) || clientName.includes(normalizedVendedor)) {
-            return data;
+          // Evitar matches falsos como "lappe" matching "fernanda lappe"
+          if (clientName.length > 5 && normalizedVendedor.length > 5) {
+            if (normalizedVendedor === clientName ||
+                (normalizedVendedor.includes(clientName) && clientName.length > normalizedVendedor.length * 0.6)) {
+              return data;
+            }
           }
         }
 
-        // 4. Match por primeira palavra
-        const firstName = normalizedVendedor.split(' ')[0];
-        for (const [clientName, data] of Object.entries(custosPorCliente)) {
-          if (clientName.startsWith(firstName) || firstName.startsWith(clientName.split(' ')[0])) {
-            return data;
+        return { custo: 0, tokens: 0, chamadas: 0, lastActivity: undefined };
+      };
+
+      // Helper para encontrar última atividade
+      const findLastActivity = (vendedorName: string): string | undefined => {
+        const normalizedVendedor = vendedorName.toLowerCase().trim();
+
+        // 1. Match exato primeiro
+        if (lastActivityByClient[normalizedVendedor]) {
+          return lastActivityByClient[normalizedVendedor];
+        }
+
+        // 2. Verificar mapeamento
+        for (const [clienteNameKey, vendedores] of Object.entries(mapeamentoClienteVendedor)) {
+          if (vendedores.some(v => v === normalizedVendedor)) {
+            if (lastActivityByClient[clienteNameKey]) {
+              return lastActivityByClient[clienteNameKey];
+            }
           }
         }
 
-        return { custo: 0, tokens: 0, chamadas: 0 };
+        return undefined;
       };
 
       // Log para debug - clientes com custos encontrados
@@ -382,14 +499,48 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
             // Testes (não disponível nesta fonte)
             totalTestRuns: 0,
             lastTestScore: null,
-            avgScoreOverall: 0
+            avgScoreOverall: 0,
+            // Última atividade (para filtro de inativos)
+            lastActivity: findLastActivity(responsavel)
           };
         })
         .filter(c => c.totalLeads > 0)
         .sort((a, b) => b.totalLeads - a.totalLeads);
 
-      // 7. Processar ranking
-      const ranking: ClientRanking[] = clients
+      // Guardar todos os clientes para dropdown
+      const allClients = [...clients];
+
+      // Aplicar filtros
+      let filteredClients = clients;
+
+      // Filtro por cliente específico
+      if (clientName) {
+        filteredClients = filteredClients.filter(c =>
+          c.agentName.toLowerCase() === clientName.toLowerCase()
+        );
+      }
+
+      // Filtro de ativos/inativos (baseado em custos de IA)
+      // ATIVO = tem custos de IA no período selecionado
+      // INATIVO = não tem custos de IA ou custo = $0
+      if (!showInactive) {
+        const inactiveThreshold = new Date();
+        inactiveThreshold.setDate(inactiveThreshold.getDate() - inactiveDays);
+        filteredClients = filteredClients.filter(c => {
+          // Se não tem custos de IA, é INATIVO
+          if (c.custoTotalUsd === 0 || !c.lastActivity) {
+            return false; // Não mostrar inativos
+          }
+          // Se tem custos mas a última atividade é antiga, também é inativo
+          return new Date(c.lastActivity) >= inactiveThreshold;
+        });
+      }
+
+      // Usar filteredClients para o resto do processamento
+      const clientsToProcess = filteredClients;
+
+      // 7. Processar ranking (usando clientes filtrados)
+      const ranking: ClientRanking[] = clientsToProcess
         .filter(c => c.totalLeads > 0)
         .sort((a, b) => b.taxaConversaoGeral - a.taxaConversaoGeral)
         .map((c, idx) => ({
@@ -415,8 +566,8 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         r.rankResposta = byResposta.findIndex(x => x.locationId === r.locationId) + 1;
       });
 
-      // 8. Processar alertas (recalcular com métricas reais)
-      const alerts: ClientAlert[] = clients
+      // 8. Processar alertas (recalcular com métricas reais - usando clientes filtrados)
+      const alerts: ClientAlert[] = clientsToProcess
         .filter(c => c.totalLeads > 0)
         .map((c) => {
           const alertaBaixaResposta = c.taxaResposta < 10 && c.totalLeads >= 10;
@@ -438,7 +589,8 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         .filter(a => a.totalAlertas > 0);
 
       setState({
-        clients,
+        clients: clientsToProcess,
+        allClients,
         ranking,
         alerts,
         loading: false,
@@ -453,7 +605,7 @@ export const useClientPerformance = (_options: UseClientPerformanceOptions = {})
         error: error.message || 'Erro ao carregar dados'
       }));
     }
-  }, []); // Sem dependencias - dados nao filtrados por periodo
+  }, [dateRange, month, clientName, showInactive, inactiveDays]); // Dependências dos filtros
 
   useEffect(() => {
     fetchData();

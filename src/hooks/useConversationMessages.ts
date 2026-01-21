@@ -33,6 +33,8 @@ export const useConversationMessages = (
       return;
     }
 
+    console.log('[useConversationMessages] Buscando mensagens para session_id:', sessionId);
+
     try {
       setLoading(true);
       setError(null);
@@ -43,6 +45,8 @@ export const useConversationMessages = (
         .select('*')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
+
+      console.log('[useConversationMessages] View result:', { data, error: fetchError });
 
       if (fetchError) throw fetchError;
 
@@ -69,12 +73,16 @@ export const useConversationMessages = (
   const fetchFromTable = async () => {
     if (!sessionId) return;
 
+    console.log('[useConversationMessages] Fallback: buscando direto da tabela para session_id:', sessionId);
+
     try {
       const { data, error: fetchError } = await supabase
         .from('n8n_historico_mensagens')
         .select('*')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
+
+      console.log('[useConversationMessages] Fallback result:', { count: data?.length, error: fetchError });
 
       if (fetchError) throw fetchError;
 
