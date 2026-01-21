@@ -10,24 +10,21 @@ export type SupervisionStatus =
 
 export interface SupervisionConversation {
   conversation_id: string;
-  lead_id: string | null;
-  agent_id: string | null;
+  session_id: string;
+  location_id: string | null;
 
   // Dados do contato
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
-  lead_status: string | null;
 
-  // Dados do agente
-  agent_name: string | null;
-  agent_slug: string | null;
+  // Dados do cliente (location)
+  client_name: string | null;
 
   // Ultima mensagem
   last_message: string | null;
   last_message_role: 'user' | 'assistant' | 'system';
   last_message_at: string;
-  sentiment_score: number | null;
 
   // Estado de supervisao
   supervision_status: SupervisionStatus;
@@ -43,8 +40,8 @@ export interface SupervisionConversation {
 
 export interface SupervisionMessage {
   message_id: string;
-  lead_id: string | null;
-  agent_id: string | null;
+  session_id: string;
+  location_id: string | null;
   role: 'user' | 'assistant' | 'system';
   content: string;
   channel: string | null;

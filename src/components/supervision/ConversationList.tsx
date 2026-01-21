@@ -80,7 +80,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   return (
     <div className="flex-1 overflow-y-auto">
       {conversations.map((conversation) => {
-        const isSelected = selectedId === conversation.lead_id;
+        const isSelected = selectedId === conversation.session_id;
         const statusConfig = supervisionStatusConfig[conversation.supervision_status];
 
         return (
@@ -132,10 +132,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   <MessageSquare size={12} />
                   {conversation.message_count}
                 </span>
-                {conversation.agent_name && (
-                  <span className="flex items-center gap-1">
+                {conversation.client_name && (
+                  <span className="flex items-center gap-1 truncate max-w-[120px]">
                     <Bot size={12} />
-                    {conversation.agent_name}
+                    {conversation.client_name}
                   </span>
                 )}
               </div>

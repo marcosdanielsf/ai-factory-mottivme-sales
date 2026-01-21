@@ -126,10 +126,12 @@ function getMockConversations(): SupervisionConversation[] {
     'converted',
   ];
 
+  const clients = ['Marina Couto', 'Dr. Luiz Augusto', 'Lappe Finances', 'Instituto Amar', 'Clinic Pro'];
+
   return Array.from({ length: 15 }, (_, i) => ({
     conversation_id: `conv-${i + 1}`,
-    lead_id: `lead-${i + 1}`,
-    agent_id: 'agent-1',
+    session_id: `session-${i + 1}`,
+    location_id: `location-${i % 5}`,
     contact_name: [
       'Maria Silva',
       'João Santos',
@@ -137,11 +139,9 @@ function getMockConversations(): SupervisionConversation[] {
       'Carlos Oliveira',
       'Fernanda Lima',
     ][i % 5],
-    contact_phone: `+55119${String(i).padStart(8, '0')}`,
-    contact_email: `contato${i + 1}@email.com`,
-    lead_status: 'qualified',
-    agent_name: 'Nina SDR',
-    agent_slug: 'nina_viverdeia',
+    contact_phone: null,
+    contact_email: null,
+    client_name: clients[i % clients.length],
     last_message: [
       'Olá! Gostaria de saber mais sobre o programa.',
       'Qual o valor do investimento?',
@@ -151,7 +151,6 @@ function getMockConversations(): SupervisionConversation[] {
     ][i % 5],
     last_message_role: i % 2 === 0 ? 'user' : 'assistant',
     last_message_at: new Date(Date.now() - i * 3600000).toISOString(),
-    sentiment_score: 0.5 + Math.random() * 0.5,
     supervision_status: statuses[i % statuses.length],
     ai_enabled: statuses[i % statuses.length] !== 'ai_paused',
     supervision_notes: i % 3 === 0 ? 'Lead qualificado, aguardando retorno.' : null,

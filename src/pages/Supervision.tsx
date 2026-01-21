@@ -27,7 +27,7 @@ export const Supervision: React.FC = () => {
     messages,
     loading: messagesLoading,
     refetch: refetchMessages,
-  } = useConversationMessages(selectedConversation?.lead_id || null);
+  } = useConversationMessages(selectedConversation?.session_id || null);
 
   const {
     executing,
@@ -52,37 +52,37 @@ export const Supervision: React.FC = () => {
 
   const handlePauseAI = useCallback(async () => {
     if (selectedConversation) {
-      await pauseAI(selectedConversation.conversation_id, selectedConversation.lead_id || undefined);
+      await pauseAI(selectedConversation.session_id, selectedConversation.location_id || undefined);
     }
   }, [selectedConversation, pauseAI]);
 
   const handleResumeAI = useCallback(async () => {
     if (selectedConversation) {
-      await resumeAI(selectedConversation.conversation_id);
+      await resumeAI(selectedConversation.session_id);
     }
   }, [selectedConversation, resumeAI]);
 
   const handleMarkScheduled = useCallback(async (scheduledAt: string, notes?: string) => {
     if (selectedConversation) {
-      await markAsScheduled(selectedConversation.conversation_id, scheduledAt, notes);
+      await markAsScheduled(selectedConversation.session_id, scheduledAt, notes);
     }
   }, [selectedConversation, markAsScheduled]);
 
   const handleMarkConverted = useCallback(async (notes?: string) => {
     if (selectedConversation) {
-      await markAsConverted(selectedConversation.conversation_id, notes);
+      await markAsConverted(selectedConversation.session_id, notes);
     }
   }, [selectedConversation, markAsConverted]);
 
   const handleAddNote = useCallback(async (notes: string) => {
     if (selectedConversation) {
-      await addNote(selectedConversation.conversation_id, notes);
+      await addNote(selectedConversation.session_id, notes);
     }
   }, [selectedConversation, addNote]);
 
   const handleArchive = useCallback(async () => {
     if (selectedConversation) {
-      await archiveConversation(selectedConversation.conversation_id);
+      await archiveConversation(selectedConversation.session_id);
       setSelectedConversation(null);
     }
   }, [selectedConversation, archiveConversation]);
@@ -100,7 +100,7 @@ export const Supervision: React.FC = () => {
         />
         <ConversationList
           conversations={conversations}
-          selectedId={selectedConversation?.lead_id || null}
+          selectedId={selectedConversation?.session_id || null}
           onSelect={handleSelectConversation}
           loading={listLoading}
         />

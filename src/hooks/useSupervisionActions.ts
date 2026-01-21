@@ -22,15 +22,15 @@ export const useSupervisionActions = (
 
   const updateState = useCallback(
     async (
-      conversationId: string,
+      sessionId: string,
       updates: {
         status?: SupervisionStatus;
         ai_enabled?: boolean;
         notes?: string;
         scheduled_at?: string;
         converted_at?: string;
-        lead_id?: string;
-        agent_id?: string;
+        location_id?: string;
+        contact_name?: string;
       }
     ): Promise<boolean> => {
       try {
@@ -41,7 +41,7 @@ export const useSupervisionActions = (
         const { data: existing } = await supabase
           .from('supervision_states')
           .select('id')
-          .eq('conversation_id', conversationId)
+          .eq('session_id', sessionId)
           .single();
 
         if (existing) {
@@ -53,7 +53,7 @@ export const useSupervisionActions = (
               updated_by: 'user',
               updated_at: new Date().toISOString(),
             })
-            .eq('conversation_id', conversationId);
+            .eq('session_id', sessionId);
 
           if (updateError) throw updateError;
         } else {
@@ -61,9 +61,9 @@ export const useSupervisionActions = (
           const { error: insertError } = await supabase
             .from('supervision_states')
             .insert({
-              conversation_id: conversationId,
-              lead_id: updates.lead_id,
-              agent_id: updates.agent_id,
+              session_id: sessionId,
+              location_id: updates.location_id,
+              contact_name: updates.contact_name,
               status: updates.status || 'ai_active',
               ai_enabled: updates.ai_enabled ?? true,
               notes: updates.notes,
@@ -83,7 +83,7 @@ export const useSupervisionActions = (
 
         // Se tabela nao existe, simular sucesso para desenvolvimento
         if (err.message?.includes('does not exist')) {
-          console.log('Mock: Supervision state updated', { conversationId, updates });
+          console.log('Mock: Supervision state updated', { sessionId, updates });
           onSuccess?.();
           setError(null);
           return true;
@@ -98,19 +98,19 @@ export const useSupervisionActions = (
   );
 
   const pauseAI = useCallback(
-    async (conversationId: string, leadId?: string): Promise<boolean> => {
-      return updateState(conversationId, {
+    async (sessionId: string, locationId?: string): Promise<boolean> => {
+      return updateState(sessionId, {
         status: 'ai_paused',
         ai_enabled: false,
-        lead_id: leadId,
+        location_id: locationId,
       });
     },
     [updateState]
   );
 
   const resumeAI = useCallback(
-    async (conversationId: string): Promise<boolean> => {
-      return updateState(conversationId, {
+    async (sessionId: string): Promise<boolean> => {
+      return updateState(sessionId, {
         status: 'ai_active',
         ai_enabled: true,
       });
@@ -119,8 +119,8 @@ export const useSupervisionActions = (
   );
 
   const markAsScheduled = useCallback(
-    async (conversationId: string, scheduledAt: string, notes?: string): Promise<boolean> => {
-      return updateState(conversationId, {
+    async (sessionId: string, scheduledAt: string, notes?: string): Promise<boolean> => {
+      return updateState(sessionId, {
         status: 'scheduled',
         scheduled_at: scheduledAt,
         notes,
@@ -130,8 +130,8 @@ export const useSupervisionActions = (
   );
 
   const markAsConverted = useCallback(
-    async (conversationId: string, notes?: string): Promise<boolean> => {
-      return updateState(conversationId, {
+    async (sessionId: string, notes?: string): Promise<boolean> => {
+      return updateState(sessionId, {
         status: 'converted',
         converted_at: new Date().toISOString(),
         ai_enabled: false,
@@ -142,15 +142,15 @@ export const useSupervisionActions = (
   );
 
   const addNote = useCallback(
-    async (conversationId: string, notes: string): Promise<boolean> => {
-      return updateState(conversationId, { notes });
+    async (sessionId: string, notes: string): Promise<boolean> => {
+      return updateState(sessionId, { notes });
     },
     [updateState]
   );
 
   const archiveConversation = useCallback(
-    async (conversationId: string): Promise<boolean> => {
-      return updateState(conversationId, {
+    async (sessionId: string): Promise<boolean> => {
+      return updateState(sessionId, {
         status: 'archived',
         ai_enabled: false,
       });

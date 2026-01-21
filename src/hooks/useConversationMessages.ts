@@ -15,7 +15,7 @@ interface UseConversationMessagesReturn {
 }
 
 export const useConversationMessages = (
-  leadId: string | null
+  sessionId: string | null
 ): UseConversationMessagesReturn => {
   const [messages, setMessages] = useState<SupervisionMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export const useConversationMessages = (
   } | null>(null);
 
   const fetchMessages = useCallback(async () => {
-    if (!leadId) {
+    if (!sessionId) {
       setMessages([]);
       setContactInfo(null);
       return;
@@ -37,11 +37,11 @@ export const useConversationMessages = (
       setLoading(true);
       setError(null);
 
-      // Tentar buscar da view primeiro
+      // Buscar da view
       const { data, error: fetchError } = await supabase
         .from('vw_supervision_messages')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -68,48 +68,32 @@ export const useConversationMessages = (
     } finally {
       setLoading(false);
     }
-  }, [leadId]);
+  }, [sessionId]);
 
   const fetchFromTable = async () => {
-    if (!leadId) return;
+    if (!sessionId) return;
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('agent_conversations')
-        .select(`
-          id,
-          lead_id,
-          agent_id,
-          role,
-          content,
-          channel,
-          sentiment_score,
-          created_at,
-          leads:lead_id (
-            name,
-            phone
-          ),
-          agents:agent_id (
-            name
-          )
-        `)
-        .eq('lead_id', leadId)
+        .from('n8n_historico_mensagens')
+        .select('*')
+        .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
 
       const formatted: SupervisionMessage[] = (data || []).map((msg: any) => ({
-        message_id: msg.id,
-        lead_id: msg.lead_id,
-        agent_id: msg.agent_id,
-        role: msg.role,
-        content: msg.content || '',
-        channel: msg.channel,
-        sentiment_score: msg.sentiment_score,
+        message_id: String(msg.id),
+        session_id: msg.session_id,
+        location_id: msg.location_id,
+        role: msg.message?.type === 'human' ? 'user' : 'assistant',
+        content: msg.message?.content || '',
+        channel: msg.message?.additional_kwargs?.source || null,
+        sentiment_score: null,
         created_at: msg.created_at,
-        contact_name: msg.leads?.name || null,
-        contact_phone: msg.leads?.phone || null,
-        agent_name: msg.agents?.name || null,
+        contact_name: msg.message?.additional_kwargs?.full_name || null,
+        contact_phone: null,
+        agent_name: 'IA',
       }));
 
       setMessages(formatted);
@@ -125,11 +109,11 @@ export const useConversationMessages = (
     } catch (err: any) {
       console.error('Error fetching from table:', err);
       // Usar mock se nada funcionar
-      setMessages(getMockMessages(leadId));
+      setMessages(getMockMessages(sessionId));
       setContactInfo({
         name: 'Contato Mock',
         phone: '+5511999999999',
-        agentName: 'Nina SDR',
+        agentName: 'IA',
       });
       setError(null);
     }

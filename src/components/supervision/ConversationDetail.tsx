@@ -84,11 +84,15 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
               {conversation.contact_name || 'Desconhecido'}
             </h2>
             <div className="flex items-center gap-2 text-sm text-text-muted">
-              <Phone size={12} />
-              <span>{conversation.contact_phone || 'Sem telefone'}</span>
-              <span className="mx-1">•</span>
+              {conversation.contact_phone && (
+                <>
+                  <Phone size={12} />
+                  <span>{conversation.contact_phone}</span>
+                  <span className="mx-1">•</span>
+                </>
+              )}
               <Bot size={12} />
-              <span>{conversation.agent_name || 'IA'}</span>
+              <span>{conversation.client_name || 'Cliente'}</span>
             </div>
           </div>
         </div>
