@@ -58,13 +58,9 @@ export const useConversationMessages = (
         });
       }
     } catch (err: any) {
-      console.error('Error fetching messages:', err);
-      setError(err.message || 'Erro ao carregar mensagens');
-
-      // Fallback para tabela direta se view nao existir
-      if (err.message?.includes('does not exist')) {
-        await fetchFromTable();
-      }
+      console.error('Error fetching messages from view:', err);
+      // Fallback para tabela direta em qualquer erro
+      await fetchFromTable();
     } finally {
       setLoading(false);
     }
@@ -133,7 +129,7 @@ export const useConversationMessages = (
 };
 
 // Mock messages para desenvolvimento
-function getMockMessages(leadId: string): SupervisionMessage[] {
+function getMockMessages(sessionId: string): SupervisionMessage[] {
   const mockConversation = [
     { role: 'assistant' as const, content: 'Olá! Sou a Nina, assistente virtual. Como posso ajudar você hoje?' },
     { role: 'user' as const, content: 'Oi! Vi o anúncio de vocês sobre o programa de mentoria.' },
@@ -147,9 +143,9 @@ function getMockMessages(leadId: string): SupervisionMessage[] {
   const baseTime = Date.now() - 3600000; // 1 hora atrás
 
   return mockConversation.map((msg, i) => ({
-    message_id: `msg-${leadId}-${i}`,
-    lead_id: leadId,
-    agent_id: 'agent-1',
+    message_id: `msg-${sessionId}-${i}`,
+    session_id: sessionId,
+    location_id: null,
     role: msg.role,
     content: msg.content,
     channel: 'whatsapp',
