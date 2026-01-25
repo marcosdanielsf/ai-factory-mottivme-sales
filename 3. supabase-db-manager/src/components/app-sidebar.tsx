@@ -9,6 +9,7 @@ import {
   Activity,
   Settings,
   AlertTriangle,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -64,6 +65,11 @@ const managementItems = [
     title: "Health Check",
     url: "/health",
     icon: AlertTriangle,
+  },
+  {
+    title: "Code Fixer",
+    url: "/code-fixer",
+    icon: Wrench,
   },
 ];
 
