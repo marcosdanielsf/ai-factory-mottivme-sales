@@ -9,7 +9,18 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { toast } from "sonner";
-import { RefreshCw, Sparkles, Clock, FileCode, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
+import { RefreshCw, Sparkles, Clock, FileCode, AlertCircle, Zap, Loader2 } from "lucide-react";
 import { IssueList } from "@/components/code-fixer/issue-list";
 import { FixPreview } from "@/components/code-fixer/fix-preview";
 import type { CodeIssue, FixSuggestion, AnalysisResult } from "@/types/code-fixer";
@@ -25,6 +36,15 @@ export default function CodeFixerPage() {
   const [lastAnalysis, setLastAnalysis] = useState<string | null>(null);
   const [analysisTime, setAnalysisTime] = useState<number>(0);
   const [filesAnalyzed, setFilesAnalyzed] = useState<number>(0);
+
+  // Fix All states
+  const [isFixingAll, setIsFixingAll] = useState(false);
+  const [fixAllProgress, setFixAllProgress] = useState(0);
+  const [fixAllTotal, setFixAllTotal] = useState(0);
+  const [fixAllCurrent, setFixAllCurrent] = useState<string>("");
+  const [fixAllResults, setFixAllResults] = useState<{ fixed: number; failed: number; skipped: number }>({ fixed: 0, failed: 0, skipped: 0 });
+  const [showFixAllConfirm, setShowFixAllConfirm] = useState(false);
+  const [showFixAllResults, setShowFixAllResults] = useState(false);
 
   // Load cached issues on mount
   useEffect(() => {
@@ -198,6 +218,111 @@ export default function CodeFixerPage() {
     );
   }, []);
 
+  // Fix All - processes all non-ignored issues
+  const fixAll = useCallback(async () => {
+    const issuesToFix = issues.filter((i) => i.status !== "ignored");
+
+    if (issuesToFix.length === 0) {
+      toast.info("No issues to fix");
+      return;
+    }
+
+    setIsFixingAll(true);
+    setFixAllTotal(issuesToFix.length);
+    setFixAllProgress(0);
+    setFixAllResults({ fixed: 0, failed: 0, skipped: 0 });
+    setShowFixAllConfirm(false);
+
+    const results = { fixed: 0, failed: 0, skipped: 0 };
+    const fixedIssueIds: string[] = [];
+
+    for (let i = 0; i < issuesToFix.length; i++) {
+      const issue = issuesToFix[i];
+      setFixAllProgress(i + 1);
+      setFixAllCurrent(`${issue.relativePath}:${issue.line}`);
+
+      try {
+        // Get file content
+        const fileRes = await fetch("/api/code-fixer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath: issue.filePath }),
+        });
+        const fileData = await fileRes.json();
+
+        if (!fileData.fileContent) {
+          results.skipped++;
+          continue;
+        }
+
+        // Get AI suggestion
+        const suggestRes = await fetch("/api/code-fixer/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            issueId: issue.id,
+            issue,
+            fileContent: fileData.fileContent,
+          }),
+        });
+        const suggestData = await suggestRes.json();
+
+        if (suggestData.error || !suggestData.suggestion) {
+          results.failed++;
+          continue;
+        }
+
+        // Only apply high-confidence fixes (>= 70%)
+        if (suggestData.suggestion.confidence < 70) {
+          results.skipped++;
+          continue;
+        }
+
+        // Apply the fix
+        const applyRes = await fetch("/api/code-fixer/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            issueId: issue.id,
+            filePath: issue.filePath,
+            originalCode: suggestData.suggestion.originalCode,
+            fixedCode: suggestData.suggestion.fixedCode,
+            confirmed: true,
+          }),
+        });
+        const applyData = await applyRes.json();
+
+        if (applyData.success) {
+          results.fixed++;
+          fixedIssueIds.push(issue.id);
+        } else {
+          results.failed++;
+        }
+      } catch (error) {
+        console.error(`Fix failed for ${issue.relativePath}:`, error);
+        results.failed++;
+      }
+
+      // Small delay to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    // Update state
+    setFixAllResults(results);
+    setIsFixingAll(false);
+    setShowFixAllResults(true);
+
+    // Remove fixed issues from the list
+    if (fixedIssueIds.length > 0) {
+      setIssues((prev) => prev.filter((i) => !fixedIssueIds.includes(i.id)));
+    }
+
+    toast.success(`Fix All completed`, {
+      description: `Fixed: ${results.fixed}, Failed: ${results.failed}, Skipped: ${results.skipped}`,
+    });
+  }, [issues]);
+
+  const activeIssues = issues.filter((i) => i.status !== "ignored");
   const errorCount = issues.filter((i) => i.severity === "error" && i.status !== "ignored").length;
   const warningCount = issues.filter((i) => i.severity === "warning" && i.status !== "ignored").length;
 
@@ -244,21 +369,123 @@ export default function CodeFixerPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="flex items-center gap-4 px-6 py-2 bg-muted/50 border-b">
-        <Badge
-          variant={errorCount > 0 ? "destructive" : "secondary"}
-          className="gap-1"
-        >
-          <AlertCircle className="h-3 w-3" />
-          {errorCount} errors
-        </Badge>
-        <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600">
-          {warningCount} warnings
-        </Badge>
-        <span className="text-sm text-muted-foreground">
-          {issues.length} total issues
-        </span>
+      <div className="flex items-center justify-between px-6 py-2 bg-muted/50 border-b">
+        <div className="flex items-center gap-4">
+          <Badge
+            variant={errorCount > 0 ? "destructive" : "secondary"}
+            className="gap-1"
+          >
+            <AlertCircle className="h-3 w-3" />
+            {errorCount} errors
+          </Badge>
+          <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600">
+            {warningCount} warnings
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            {issues.length} total issues
+          </span>
+        </div>
+
+        {activeIssues.length > 0 && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setShowFixAllConfirm(true)}
+            disabled={isFixingAll || isAnalyzing}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Zap className="h-4 w-4" />
+            Fix All ({activeIssues.length})
+          </Button>
+        )}
       </div>
+
+      {/* Fix All Progress Dialog */}
+      <AlertDialog open={isFixingAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Fixing All Issues...
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <div className="text-sm">
+                  Processing {fixAllProgress} of {fixAllTotal}
+                </div>
+                <Progress value={(fixAllProgress / fixAllTotal) * 100} className="h-2" />
+                <div className="text-xs text-muted-foreground font-mono truncate">
+                  {fixAllCurrent}
+                </div>
+                <div className="flex gap-4 text-sm">
+                  <span className="text-emerald-500">Fixed: {fixAllResults.fixed}</span>
+                  <span className="text-red-500">Failed: {fixAllResults.failed}</span>
+                  <span className="text-amber-500">Skipped: {fixAllResults.skipped}</span>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Fix All Confirmation Dialog */}
+      <AlertDialog open={showFixAllConfirm} onOpenChange={setShowFixAllConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fix All Issues?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will attempt to automatically fix <strong>{activeIssues.length}</strong> issues using AI.
+              <br /><br />
+              <strong>Note:</strong> Only fixes with {">"}= 70% confidence will be applied. Low-confidence fixes will be skipped.
+              <br /><br />
+              Backups will be created for all modified files.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={fixAll}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Fix All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Fix All Results Dialog */}
+      <AlertDialog open={showFixAllResults} onOpenChange={setShowFixAllResults}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fix All Completed</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4 py-4">
+                  <div className="text-center p-4 bg-emerald-500/10 rounded-lg">
+                    <div className="text-3xl font-bold text-emerald-500">{fixAllResults.fixed}</div>
+                    <div className="text-sm text-muted-foreground">Fixed</div>
+                  </div>
+                  <div className="text-center p-4 bg-red-500/10 rounded-lg">
+                    <div className="text-3xl font-bold text-red-500">{fixAllResults.failed}</div>
+                    <div className="text-sm text-muted-foreground">Failed</div>
+                  </div>
+                  <div className="text-center p-4 bg-amber-500/10 rounded-lg">
+                    <div className="text-3xl font-bold text-amber-500">{fixAllResults.skipped}</div>
+                    <div className="text-sm text-muted-foreground">Skipped</div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Skipped fixes had {"<"} 70% confidence. Review them manually.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Done</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Main content */}
       <div className="flex-1 min-h-0">
