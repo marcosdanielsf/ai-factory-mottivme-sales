@@ -19,6 +19,7 @@ import { ReflectionLoop } from './pages/ReflectionLoop';
 import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
 import { Supervision } from './pages/Supervision';
+import { SalesOps } from './pages/SalesOps';
 import { Login } from './pages/Login';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
@@ -47,6 +48,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Leads />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/sales-ops" element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalesOps />
                 </Layout>
               </ProtectedRoute>
             } />

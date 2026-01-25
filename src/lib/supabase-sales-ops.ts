@@ -1,0 +1,253 @@
+// ============================================
+// MOTTIVME AI Factory - Sales Ops DAO
+// ============================================
+
+import { supabase } from './supabase';
+
+// ============================================
+// TYPES
+// ============================================
+
+export interface SalesOpsOverview {
+  location_id: string;
+  location_name: string;
+  leads_ativos: number;
+  leads_inativos: number;
+  total_leads: number;
+  media_follow_ups: number | null;
+  ultima_execucao: string | null;
+  canais_ativos: number;
+}
+
+export interface FollowUpFunnel {
+  location_id: string;
+  location_name: string;
+  follow_up_count: number;
+  quantidade: number;
+  percentual: number;
+}
+
+export interface LeadsProntosFollowUp {
+  location_id: string;
+  location_name: string;
+  prontos_para_follow_up: number;
+}
+
+export interface ConversaoPorEtapa {
+  location_id: string;
+  location_name: string;
+  etapa: number;
+  ativos_nesta_etapa: number;
+  desativados_nesta_etapa: number;
+  total_etapa: number;
+  taxa_desistencia_percentual: number;
+}
+
+export interface AtividadeDiaria {
+  location_id: string;
+  location_name: string;
+  data: string;
+  mensagens_enviadas: number;
+  leads_contactados: number;
+}
+
+export interface ClientInfo {
+  location_id: string;
+  location_name: string;
+  leads_ativos: number;
+}
+
+// ============================================
+// SALES OPS DAO
+// ============================================
+
+export const salesOpsDAO = {
+  async getOverview(locationId?: string): Promise<SalesOpsOverview[]> {
+    let query = supabase
+      .from('vw_sales_ops_overview')
+      .select('*')
+      .order('leads_ativos', { ascending: false });
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getTotals(): Promise<{
+    totalAtivos: number;
+    totalInativos: number;
+    totalLeads: number;
+    mediaFollowUps: number;
+  }> {
+    const { data, error } = await supabase
+      .from('vw_sales_ops_overview')
+      .select('leads_ativos, leads_inativos, total_leads, media_follow_ups');
+
+    if (error) throw error;
+
+    const totals = (data || []).reduce(
+      (acc, row) => ({
+        totalAtivos: acc.totalAtivos + (row.leads_ativos || 0),
+        totalInativos: acc.totalInativos + (row.leads_inativos || 0),
+        totalLeads: acc.totalLeads + (row.total_leads || 0),
+        sumFollowUps: acc.sumFollowUps + (row.media_follow_ups || 0),
+        countFollowUps: acc.countFollowUps + (row.media_follow_ups ? 1 : 0),
+      }),
+      { totalAtivos: 0, totalInativos: 0, totalLeads: 0, sumFollowUps: 0, countFollowUps: 0 }
+    );
+
+    return {
+      totalAtivos: totals.totalAtivos,
+      totalInativos: totals.totalInativos,
+      totalLeads: totals.totalLeads,
+      mediaFollowUps: totals.countFollowUps > 0
+        ? Math.round((totals.sumFollowUps / totals.countFollowUps) * 100) / 100
+        : 0,
+    };
+  },
+
+  async getFunnel(locationId?: string): Promise<FollowUpFunnel[]> {
+    let query = supabase
+      .from('vw_follow_up_funnel')
+      .select('*')
+      .order('follow_up_count', { ascending: true });
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getAggregatedFunnel(): Promise<{ follow_up_count: number; quantidade: number; percentual: number }[]> {
+    const { data, error } = await supabase
+      .from('vw_follow_up_funnel')
+      .select('follow_up_count, quantidade');
+
+    if (error) throw error;
+
+    const aggregated = (data || []).reduce((acc, row) => {
+      const key = row.follow_up_count;
+      if (!acc[key]) {
+        acc[key] = { follow_up_count: key, quantidade: 0 };
+      }
+      acc[key].quantidade += row.quantidade;
+      return acc;
+    }, {} as Record<number, { follow_up_count: number; quantidade: number }>);
+
+    const result = Object.values(aggregated);
+    const total = result.reduce((sum, r) => sum + r.quantidade, 0);
+
+    return result
+      .map(r => ({
+        ...r,
+        percentual: total > 0 ? Math.round((r.quantidade / total) * 10000) / 100 : 0,
+      }))
+      .sort((a, b) => a.follow_up_count - b.follow_up_count);
+  },
+
+  async getLeadsProntos(locationId?: string): Promise<LeadsProntosFollowUp[]> {
+    let query = supabase
+      .from('vw_leads_prontos_follow_up')
+      .select('*')
+      .order('prontos_para_follow_up', { ascending: false });
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getTotalLeadsProntos(locationId?: string): Promise<number> {
+    const data = await this.getLeadsProntos(locationId);
+    return data.reduce((sum, row) => sum + row.prontos_para_follow_up, 0);
+  },
+
+  async getConversao(locationId?: string): Promise<ConversaoPorEtapa[]> {
+    let query = supabase
+      .from('vw_conversao_por_etapa')
+      .select('*')
+      .order('etapa', { ascending: true });
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getAtividade(locationId?: string, days: number = 30): Promise<AtividadeDiaria[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    let query = supabase
+      .from('vw_atividade_diaria')
+      .select('*')
+      .gte('data', startDate.toISOString().split('T')[0])
+      .order('data', { ascending: false });
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getAggregatedAtividade(days: number = 30): Promise<{ data: string; mensagens_enviadas: number; leads_contactados: number }[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const { data, error } = await supabase
+      .from('vw_atividade_diaria')
+      .select('data, mensagens_enviadas, leads_contactados')
+      .gte('data', startDate.toISOString().split('T')[0]);
+
+    if (error) throw error;
+
+    const aggregated = (data || []).reduce((acc, row) => {
+      const key = row.data;
+      if (!acc[key]) {
+        acc[key] = { data: key, mensagens_enviadas: 0, leads_contactados: 0 };
+      }
+      acc[key].mensagens_enviadas += row.mensagens_enviadas;
+      acc[key].leads_contactados += row.leads_contactados;
+      return acc;
+    }, {} as Record<string, { data: string; mensagens_enviadas: number; leads_contactados: number }>);
+
+    return Object.values(aggregated).sort((a, b) => a.data.localeCompare(b.data));
+  },
+
+  async getClients(): Promise<ClientInfo[]> {
+    const { data, error } = await supabase
+      .from('vw_sales_ops_overview')
+      .select('location_id, location_name, leads_ativos')
+      .order('leads_ativos', { ascending: false });
+
+    if (error) throw error;
+
+    const clientMap = new Map<string, ClientInfo>();
+    for (const row of data || []) {
+      const existing = clientMap.get(row.location_id);
+      if (!existing || row.leads_ativos > existing.leads_ativos) {
+        clientMap.set(row.location_id, row);
+      }
+    }
+
+    return Array.from(clientMap.values());
+  },
+};
+
+export default salesOpsDAO;
