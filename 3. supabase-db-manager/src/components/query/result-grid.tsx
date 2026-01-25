@@ -158,9 +158,9 @@ export function ResultGrid({ result, isLoading }: ResultGridProps) {
                     <TableHead className="w-12 text-center font-mono text-xs text-muted-foreground">
                       #
                     </TableHead>
-                    {result.columns.map((column) => (
+                    {result.columns.map((column, colIndex) => (
                       <TableHead
-                        key={column}
+                        key={`${column}-${colIndex}`}
                         className="font-medium whitespace-nowrap"
                       >
                         {column}
@@ -174,9 +174,9 @@ export function ResultGrid({ result, isLoading }: ResultGridProps) {
                       <TableCell className="text-center font-mono text-xs text-muted-foreground">
                         {rowIndex + 1}
                       </TableCell>
-                      {result.columns.map((column) => (
+                      {result.columns.map((column, colIndex) => (
                         <TableCell
-                          key={column}
+                          key={`${column}-${colIndex}`}
                           className={`max-w-[300px] truncate ${getValueClassName(
                             row[column]
                           )}`}
