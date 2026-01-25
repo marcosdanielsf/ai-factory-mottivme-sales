@@ -70,11 +70,92 @@ src/pages/SalesOps/components/
 
 ---
 
+---
+
+## LISTA COMPLETA DE ACOES PENDENTES
+
+### SECAO 1: METRICAS JA DISPONIVEIS (implementar no Dashboard)
+
+| # | Acao | Fonte | Dados |
+|---|------|-------|-------|
+| 1.1 | Adicionar metricas FUU por location | `fuu_metrics_by_location` | pending_count, completed_count, responded_count, failed_count, response_rate |
+| 1.2 | Adicionar grafico de status FUU | `fuu_queue` | pending (499), completed (1) |
+| 1.3 | Adicionar ROI por canal | `growth_leads.source_channel` | apify_scraping (84), cnpj_search (2), doctoralia (14) |
+| 1.4 | Adicionar distribuicao funnel_stage | `growth_leads.funnel_stage` | lead (108), lead_novo (392) |
+
+### SECAO 2: VIEWS SQL A CRIAR
+
+| # | Acao | Descricao |
+|---|------|-----------|
+| 2.1 | Criar view `vw_fuu_dashboard` | Agregar fuu_metrics_by_location com nome do cliente |
+| 2.2 | Criar view `vw_leads_por_canal` | Agrupar growth_leads por source_channel |
+| 2.3 | Criar view `vw_leads_por_stage` | Agrupar growth_leads por funnel_stage |
+
+### SECAO 3: COMPONENTES FRONTEND A CRIAR
+
+| # | Acao | Descricao |
+|---|------|-----------|
+| 3.1 | FUUMetricsCards.tsx | Cards: Pendentes, Completados, Taxa Resposta |
+| 3.2 | FUUStatusChart.tsx | Grafico pizza: pending vs completed vs responded |
+| 3.3 | LeadsByChannelChart.tsx | Grafico barras: Leads por canal de origem |
+| 3.4 | LeadsByStageChart.tsx | Grafico funil: lead_novo -> lead |
+
+### SECAO 4: INTEGRACOES DAO
+
+| # | Acao | Descricao |
+|---|------|-----------|
+| 4.1 | Adicionar `getFUUMetrics()` no DAO | Query fuu_metrics_by_location |
+| 4.2 | Adicionar `getLeadsByChannel()` no DAO | Query growth_leads agrupado |
+| 4.3 | Adicionar `getLeadsByStage()` no DAO | Query growth_leads agrupado |
+
+### SECAO 5: DADOS QUE PRECISAM SER POPULADOS (n8n/GHL)
+
+| # | Acao | Campos | Responsavel |
+|---|------|--------|-------------|
+| 5.1 | Popular BANT scores | bant_*_score | Workflow de qualificacao |
+| 5.2 | Popular propostas | proposal_value, proposal_status | Workflow de vendas |
+| 5.3 | Popular reunioes | meeting_scheduled_at, meeting_show_status | Workflow de calendario |
+| 5.4 | Popular perdas | lost_at, lost_reason, lost_competitor | Workflow de feedback |
+| 5.5 | Popular temperatura | lead_temperature (variacao) | Workflow de scoring |
+
+### SECAO 6: AJUSTES NO DASHBOARD ATUAL
+
+| # | Acao | Descricao |
+|---|------|-----------|
+| 6.1 | Refatorar cores para CSS vars | Trocar #1a1a1a -> bg-bg-primary |
+| 6.2 | Filtro cliente em todas metricas | Atualmente so filtra tabela conversao |
+| 6.3 | Adicionar loading skeleton | Melhorar UX durante carregamento |
+
+---
+
+## Views Existentes Descobertas
+
+### fuu_metrics_by_location (JA EXISTE NO SUPABASE)
+```sql
+SELECT
+  location_id,
+  follow_up_type,
+  pending_count,      -- Leads aguardando FU
+  completed_count,    -- FUs completados
+  responded_count,    -- Leads que responderam
+  failed_count,       -- FUs que falharam
+  response_rate       -- Taxa de resposta %
+FROM fuu_metrics_by_location;
+```
+
+**Dados atuais:**
+- Bgi2hFMgiLLoRlOO0K5b: 465 pending
+- sNwLyynZWP6jEtBy1ubf: 692 pending
+- EKHxHl3KLPN0iRc69GNU: 168 pending
+- Total na fuu_queue: 499 pending, 1 completed
+
+---
+
 ## Como Continuar
 
 ```bash
 # Na proxima sessao, dizer:
-"Continua o Sales Ops Dashboard - implementa [secao X]"
+"Continua o Sales Ops Dashboard - implementa secao [1/2/3/4/5/6]"
 
 # Ou buscar contexto no RAG:
 /ms search "sales-ops dashboard"
@@ -91,3 +172,13 @@ src/pages/SalesOps/components/
   - Considerar filtrar em todas as metricas
 
 - **Recharts:** Ja instalado (v3.6.0), funciona bem
+
+## Referencia: ai-factory-agents
+
+Documentacao adicional em:
+```
+/Users/marcosdaniels/Projects/mottivme/ai-factory-mottivme-sales/1. ai-factory-agents/
+├── docs/MAPA_TABELAS_FUU.md     # Mapa de todas tabelas FUU
+├── migrations/fuu_schema_v1.sql  # Schema completo FUU
+└── sql/                          # Scripts SQL diversos
+```
