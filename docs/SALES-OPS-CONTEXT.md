@@ -33,17 +33,40 @@ src/pages/SalesOps/components/
 
 ## Expansao Planejada (PENDENTE)
 
-### Campos disponiveis em `growth_leads`:
+### IMPORTANTE: Validacao de Dados (2026-01-25)
+
+**Campos COM dados (podem ser implementados):**
+| Campo | Dados Encontrados |
+|-------|-------------------|
+| `funnel_stage` | "lead" (108), "lead_novo" (392) |
+| `source_channel` | apify_scraping (84), cnpj_search (2), doctoralia (14) |
+| `lead_temperature` | Todos "cold" (sem variacao) |
+
+**Campos SEM dados (aguardar fluxo de vendas popular):**
+| Campo | Status |
+|-------|--------|
+| `bant_*_score` | Todos = 0 |
+| `proposal_value` | Nenhum registro |
+| `meeting_scheduled_at` | Nenhum registro |
+| `lost_reason`, `lost_competitor` | Nenhum registro |
+| `converted_at`, `conversion_value` | Nenhum registro |
+
+### O que PODE ser implementado agora:
 
 | Secao | Campos | Descricao |
 |-------|--------|-----------|
-| **Pipeline de Valor** | `proposal_value`, `proposal_status`, `proposal_sent_at`, `conversion_value` | Valor total em propostas, taxa aceite |
-| **BANT Score** | `bant_budget_score`, `bant_authority_score`, `bant_need_score`, `bant_timeline_score`, `bant_total_score` | Grafico radar qualificacao |
-| **Temperatura** | `lead_temperature`, `lead_score`, `icp_score` | Pizza quentes/mornos/frios |
-| **Reunioes** | `meeting_scheduled_at`, `meeting_show_status`, `total_meetings` | Taxa show-up |
-| **Perdas** | `lost_at`, `lost_reason`, `lost_competitor` | Top motivos + concorrentes |
-| **Resposta** | `response_time_avg_hours`, `total_messages_sent`, `total_messages_received` | Tempo medio resposta |
-| **ROI Canal** | `source_channel`, `source_campaign` | Performance por origem |
+| **ROI por Canal** | `source_channel` | Leads por origem (apify, doctoralia, cnpj) |
+| **Funil Real** | `funnel_stage` | Distribuicao lead vs lead_novo |
+
+### O que precisa de DADOS primeiro (n8n/GHL popular):
+
+| Secao | Campos | Bloqueio |
+|-------|--------|----------|
+| **Pipeline de Valor** | `proposal_value`, `proposal_status` | Campos vazios |
+| **BANT Score** | `bant_*_score` | Todos zerados |
+| **Temperatura** | `lead_temperature` | Todos "cold" (sem variacao) |
+| **Reunioes** | `meeting_scheduled_at`, `meeting_show_status` | Campos vazios |
+| **Perdas** | `lost_reason`, `lost_competitor` | Campos vazios |
 
 ---
 
