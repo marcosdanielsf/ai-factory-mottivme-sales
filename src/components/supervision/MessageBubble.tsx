@@ -19,14 +19,20 @@ const getChannelIcon = (channel: string | null) => {
 
 interface MessageBubbleProps {
   message: SupervisionMessage;
+  isMobile?: boolean;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile = false }) => {
   const isAssistant = message.role === 'assistant';
   const isSystem = message.role === 'system';
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('pt-BR', {
+  // Formata horário considerando UTC e timezone local
+  const formatTime = (dateStr: string): string => {
+    if (!dateStr) return '--:--';
+    const date = new Date(dateStr);
+    // Verifica se é UTC e adiciona offset se necessário
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return localDate.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -35,7 +41,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   if (isSystem) {
     return (
       <div className="flex justify-center my-2">
-        <div className="px-3 py-1 bg-bg-hover rounded-full text-xs text-text-muted">
+        <div className="px-2 md:px-3 py-1 bg-bg-hover rounded-full text-xs text-text-muted text-center max-w-[90%]">
           {message.content}
         </div>
       </div>
@@ -43,16 +49,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   }
 
   return (
-    <div className={`flex gap-2 mb-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}>
+    <div className={`flex gap-1.5 md:gap-2 mb-2 md:mb-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}>
       {isAssistant && (
-        <div className="w-8 h-8 rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
-          <Bot size={16} className="text-accent-primary" />
+        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0`}>
+          <Bot size={isMobile ? 12 : 16} className="text-accent-primary" />
         </div>
       )}
 
       <div
         className={`
-          max-w-[70%] px-3 py-2 rounded-2xl
+          ${isMobile ? 'max-w-[80%] px-2.5 py-1.5' : 'max-w-[70%] px-3 py-2'} rounded-2xl
           ${
             isAssistant
               ? 'bg-bg-hover text-text-primary rounded-tl-sm'
@@ -60,10 +66,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           }
         `}
       >
-        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        <p className={`${isMobile ? 'text-[13px]' : 'text-sm'} whitespace-pre-wrap break-words`}>
+          {message.content}
+        </p>
         <div
           className={`
-            flex items-center gap-2 mt-1 text-xs
+            flex items-center gap-1.5 md:gap-2 mt-1 ${isMobile ? 'text-[10px]' : 'text-xs'}
             ${isAssistant ? 'text-text-muted' : 'text-white/70'}
           `}
         >
@@ -73,7 +81,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               {getChannelIcon(message.channel)}
             </span>
           )}
-          {message.sentiment_score !== null && isAssistant && (
+          {message.sentiment_score !== null && isAssistant && !isMobile && (
             <span
               className={`
                 px-1.5 py-0.5 rounded text-[10px]
@@ -93,8 +101,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       </div>
 
       {!isAssistant && (
-        <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center flex-shrink-0">
-          <User size={16} className="text-text-secondary" />
+        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-bg-hover flex items-center justify-center flex-shrink-0`}>
+          <User size={isMobile ? 12 : 16} className="text-text-secondary" />
         </div>
       )}
     </div>

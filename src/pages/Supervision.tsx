@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
 import {
   SupervisionHeader,
@@ -8,11 +8,26 @@ import {
 import { useSupervisionPanel } from '../hooks/useSupervisionPanel';
 import { useConversationMessages } from '../hooks/useConversationMessages';
 import { useSupervisionActions } from '../hooks/useSupervisionActions';
+import { useFilterOptions } from '../hooks/useFilterOptions';
+import { useSupervisionRealtime, useConversationRealtime } from '../hooks/useSupervisionRealtime';
+import { useSendMessage } from '../hooks/useSendMessage';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { SupervisionConversation } from '../types/supervision';
 
 export const Supervision: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<SupervisionConversation | null>(null);
+
+  // Detecta se é mobile
+  const isMobile = useIsMobile();
+
+  // Ref para selectedConversation - estabiliza callbacks do realtime
+  const selectedConversationRef = useRef<SupervisionConversation | null>(null);
+
+  // Sincroniza ref com state
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
 
   const {
     conversations,
@@ -29,6 +44,9 @@ export const Supervision: React.FC = () => {
     refetch: refetchMessages,
   } = useConversationMessages(selectedConversation?.session_id || null);
 
+  // Opcoes de filtros (Fase 2)
+  const { options: filterOptions, loading: filterOptionsLoading } = useFilterOptions();
+
   const {
     executing,
     pauseAI,
@@ -42,6 +60,50 @@ export const Supervision: React.FC = () => {
     refetchMessages();
   });
 
+  // Hook para envio de mensagens manuais
+  const {
+    sending: sendingMessage,
+    error: sendError,
+    sendMessage,
+    clearError: clearSendError,
+  } = useSendMessage(() => {
+    // Callback de sucesso - refetch mensagens
+    refetchMessages();
+  });
+
+  // Real-time: atualiza lista de conversas quando há mudanças
+  useSupervisionRealtime({
+    onNewMessage: useCallback(() => {
+      // Nova mensagem em qualquer conversa - atualiza lista
+      refetch();
+    }, [refetch]),
+    onConversationUpdate: useCallback(() => {
+      refetch();
+    }, [refetch]),
+    onSupervisionStateChange: useCallback((payload) => {
+      // Estado de supervisão mudou - atualiza lista
+      refetch();
+      // Usa ref para evitar re-criar callback quando selectedConversation muda
+      const current = selectedConversationRef.current;
+      if (current && payload.new?.session_id === current.session_id) {
+        // Atualiza conversa selecionada com novos dados
+        setSelectedConversation((prev) =>
+          prev ? { ...prev, ai_enabled: payload.new?.ai_enabled, supervision_status: payload.new?.status } : null
+        );
+      }
+    }, [refetch]), // Removido selectedConversation das deps!
+    enabled: true,
+  });
+
+  // Real-time: atualiza mensagens da conversa selecionada
+  useConversationRealtime(
+    selectedConversation?.session_id || null,
+    useCallback(() => {
+      // Nova mensagem na conversa selecionada - refetch imediato
+      refetchMessages();
+    }, [refetchMessages])
+  );
+
   const handleSelectConversation = useCallback((conversation: SupervisionConversation) => {
     setSelectedConversation(conversation);
   }, []);
@@ -51,42 +113,110 @@ export const Supervision: React.FC = () => {
   }, []);
 
   const handlePauseAI = useCallback(async () => {
-    if (selectedConversation) {
-      await pauseAI(selectedConversation.session_id, selectedConversation.location_id || undefined);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await pauseAI(current.session_id, current.location_id || undefined);
     }
-  }, [selectedConversation, pauseAI]);
+  }, [pauseAI]);
 
   const handleResumeAI = useCallback(async () => {
-    if (selectedConversation) {
-      await resumeAI(selectedConversation.session_id);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await resumeAI(current.session_id);
     }
-  }, [selectedConversation, resumeAI]);
+  }, [resumeAI]);
 
   const handleMarkScheduled = useCallback(async (scheduledAt: string, notes?: string) => {
-    if (selectedConversation) {
-      await markAsScheduled(selectedConversation.session_id, scheduledAt, notes);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await markAsScheduled(current.session_id, scheduledAt, notes);
     }
-  }, [selectedConversation, markAsScheduled]);
+  }, [markAsScheduled]);
 
   const handleMarkConverted = useCallback(async (notes?: string) => {
-    if (selectedConversation) {
-      await markAsConverted(selectedConversation.session_id, notes);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await markAsConverted(current.session_id, notes);
     }
-  }, [selectedConversation, markAsConverted]);
+  }, [markAsConverted]);
 
   const handleAddNote = useCallback(async (notes: string) => {
-    if (selectedConversation) {
-      await addNote(selectedConversation.session_id, notes);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await addNote(current.session_id, notes);
     }
-  }, [selectedConversation, addNote]);
+  }, [addNote]);
 
   const handleArchive = useCallback(async () => {
-    if (selectedConversation) {
-      await archiveConversation(selectedConversation.session_id);
+    const current = selectedConversationRef.current;
+    if (current) {
+      await archiveConversation(current.session_id);
       setSelectedConversation(null);
     }
-  }, [selectedConversation, archiveConversation]);
+  }, [archiveConversation]);
 
+  const handleSendMessage = useCallback(async (message: string): Promise<boolean> => {
+    const current = selectedConversationRef.current;
+    if (!current) return false;
+
+    return await sendMessage({
+      sessionId: current.session_id,
+      locationId: current.location_id || '',
+      contactId: current.contact_id || undefined,
+      message,
+      channel: (current.channel as 'instagram' | 'whatsapp' | 'sms' | 'email') || 'instagram',
+    });
+  }, [sendMessage]);
+
+  // Layout Mobile: mostra lista OU detalhe (não ambos)
+  if (isMobile) {
+    return (
+      <div className="h-[calc(100vh-52px)] flex flex-col bg-bg-primary">
+        {selectedConversation ? (
+          // Mobile: Detalhe da conversa (fullscreen)
+          <ConversationDetail
+            conversation={selectedConversation}
+            messages={messages}
+            loading={messagesLoading}
+            onClose={handleCloseDetail}
+            onPauseAI={handlePauseAI}
+            onResumeAI={handleResumeAI}
+            onMarkScheduled={handleMarkScheduled}
+            onMarkConverted={handleMarkConverted}
+            onAddNote={handleAddNote}
+            onArchive={handleArchive}
+            executing={executing}
+            onSendMessage={handleSendMessage}
+            sendingMessage={sendingMessage}
+            sendError={sendError}
+            onClearSendError={clearSendError}
+            isMobile={true}
+          />
+        ) : (
+          // Mobile: Lista de conversas (fullscreen)
+          <>
+            <SupervisionHeader
+              stats={stats}
+              filters={filters}
+              onFilterChange={setFilters}
+              onRefresh={refetch}
+              loading={listLoading}
+              filterOptions={filterOptions}
+              isMobile={true}
+            />
+            <ConversationList
+              conversations={conversations}
+              selectedId={selectedConversation?.session_id || null}
+              onSelect={handleSelectConversation}
+              loading={listLoading}
+            />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Layout Desktop: side-by-side
   return (
     <div className="h-[calc(100vh-52px)] flex bg-bg-primary">
       {/* Left Panel - Conversation List */}
@@ -97,6 +227,8 @@ export const Supervision: React.FC = () => {
           onFilterChange={setFilters}
           onRefresh={refetch}
           loading={listLoading}
+          filterOptions={filterOptions}
+          isMobile={false}
         />
         <ConversationList
           conversations={conversations}
@@ -121,6 +253,11 @@ export const Supervision: React.FC = () => {
             onAddNote={handleAddNote}
             onArchive={handleArchive}
             executing={executing}
+            onSendMessage={handleSendMessage}
+            sendingMessage={sendingMessage}
+            sendError={sendError}
+            onClearSendError={clearSendError}
+            isMobile={false}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-bg-secondary">

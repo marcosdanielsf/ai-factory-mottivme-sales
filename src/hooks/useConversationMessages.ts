@@ -14,6 +14,15 @@ interface UseConversationMessagesReturn {
   } | null;
 }
 
+// Campos específicos em vez de SELECT *
+const MESSAGE_FIELDS = `
+  id,
+  session_id,
+  location_id,
+  message,
+  created_at
+`;
+
 export const useConversationMessages = (
   sessionId: string | null
 ): UseConversationMessagesReturn => {
@@ -34,58 +43,28 @@ export const useConversationMessages = (
     }
 
     console.log('[useConversationMessages] Buscando mensagens para session_id:', sessionId);
+    console.time('[ConversationMessages] fetch');
 
     try {
       setLoading(true);
       setError(null);
 
-      // Buscar da view
-      const { data, error: fetchError } = await supabase
-        .from('vw_supervision_messages')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: true });
-
-      console.log('[useConversationMessages] View result:', { data, error: fetchError });
-
-      if (fetchError) throw fetchError;
-
-      const typedData = (data as SupervisionMessage[]) || [];
-      setMessages(typedData);
-
-      // Extrair info do contato da primeira mensagem
-      if (typedData.length > 0) {
-        setContactInfo({
-          name: typedData[0].contact_name || 'Desconhecido',
-          phone: typedData[0].contact_phone || '',
-          agentName: typedData[0].agent_name || 'IA',
-        });
-      }
-    } catch (err: any) {
-      console.error('Error fetching messages from view:', err);
-      // Fallback para tabela direta em qualquer erro
-      await fetchFromTable();
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId]);
-
-  const fetchFromTable = async () => {
-    if (!sessionId) return;
-
-    console.log('[useConversationMessages] Fallback: buscando direto da tabela para session_id:', sessionId);
-
-    try {
+      // Buscar da tabela direta com campos específicos e ordenação no banco
       const { data, error: fetchError } = await supabase
         .from('n8n_historico_mensagens')
-        .select('*')
+        .select(MESSAGE_FIELDS)
         .eq('session_id', sessionId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }) // Ordenação no banco, não no cliente
+        .limit(100);
 
-      console.log('[useConversationMessages] Fallback result:', { count: data?.length, error: fetchError });
+      console.timeEnd('[ConversationMessages] fetch');
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.log('[useConversationMessages] Erro na tabela:', fetchError);
+        throw fetchError;
+      }
 
+      // Formatar mensagens (sem ordenação no cliente - já vem ordenado)
       const formatted: SupervisionMessage[] = (data || []).map((msg: any) => ({
         message_id: String(msg.id),
         session_id: msg.session_id,
@@ -96,12 +75,11 @@ export const useConversationMessages = (
         sentiment_score: null,
         created_at: msg.created_at,
         contact_name: msg.message?.additional_kwargs?.full_name || null,
-        contact_phone: null,
+        contact_phone: msg.message?.additional_kwargs?.phone || null,
         agent_name: 'IA',
       }));
 
       setMessages(formatted);
-      setError(null);
 
       if (formatted.length > 0) {
         setContactInfo({
@@ -110,8 +88,10 @@ export const useConversationMessages = (
           agentName: formatted[0].agent_name || 'IA',
         });
       }
+
+      setError(null);
     } catch (err: any) {
-      console.error('Error fetching from table:', err);
+      console.error('Error fetching messages:', err);
       // Usar mock se nada funcionar
       setMessages(getMockMessages(sessionId));
       setContactInfo({
@@ -120,8 +100,10 @@ export const useConversationMessages = (
         agentName: 'IA',
       });
       setError(null);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [sessionId]);
 
   useEffect(() => {
     fetchMessages();

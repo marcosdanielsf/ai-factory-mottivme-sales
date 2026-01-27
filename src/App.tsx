@@ -16,6 +16,7 @@ import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
 import { AgentDetail } from './pages/AgentDetail';
 import { ReflectionLoop } from './pages/ReflectionLoop';
+import OnboardingWizard from './pages/OnboardingWizard';
 import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
 import { Supervision } from './pages/Supervision';
@@ -31,8 +32,10 @@ const App = () => {
       <ToastProvider>
         <HashRouter>
           <Routes>
-            {/* Public Route */}
+            {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/onboarding" element={<OnboardingWizard />} />
+            <Route path="/welcome" element={<OnboardingWizard skipIntro />} />
 
             {/* Protected Routes */}
             <Route path="/" element={

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   SupervisionConversation,
@@ -22,6 +22,30 @@ interface UseSupervisionPanelReturn {
   };
 }
 
+// Campos específicos em vez de SELECT *
+const CONVERSATION_FIELDS = `
+  conversation_id,
+  session_id,
+  location_id,
+  contact_name,
+  contact_phone,
+  contact_email,
+  client_name,
+  last_message,
+  last_message_role,
+  last_message_at,
+  supervision_status,
+  ai_enabled,
+  supervision_notes,
+  scheduled_at,
+  converted_at,
+  supervision_updated_at,
+  message_count,
+  channel,
+  instagram_username,
+  quality_issues_count
+`;
+
 export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
   const [conversations, setConversations] = useState<SupervisionConversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,29 +54,39 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
     status: 'all',
   });
 
+  // Debounce do search - evita queries excessivas
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search || '');
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('vw_supervision_conversations')
-        .select('*')
-        .order('last_message_at', { ascending: false })
-        .limit(100);
+      console.time('[SupervisionPanel] fetch-conversations');
 
-      // Aplicar filtros
+      // Usa a view v3 com campos específicos (não SELECT *)
+      let query = supabase
+        .from('vw_supervision_conversations_v3')
+        .select(CONVERSATION_FIELDS)
+        .order('last_message_at', { ascending: false })
+        .limit(50); // Reduzido de 100 para 50 para melhor performance
+
+      // Aplicar filtros basicos
       if (filters.status && filters.status !== 'all') {
         query = query.eq('supervision_status', filters.status);
       }
 
-      if (filters.agentId) {
-        query = query.eq('agent_id', filters.agentId);
-      }
-
-      if (filters.search) {
+      // Usar debouncedSearch em vez de filters.search
+      if (debouncedSearch) {
         query = query.or(
-          `contact_name.ilike.%${filters.search}%,contact_phone.ilike.%${filters.search}%,last_message.ilike.%${filters.search}%`
+          `contact_name.ilike.%${debouncedSearch}%,contact_phone.ilike.%${debouncedSearch}%,last_message.ilike.%${debouncedSearch}%`
         );
       }
 
@@ -64,45 +98,96 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
         query = query.lte('last_message_at', filters.dateTo);
       }
 
+      // Novos filtros (Fase 2)
+      if (filters.locationId) {
+        query = query.eq('location_id', filters.locationId);
+      }
+
+      if (filters.channel) {
+        query = query.eq('channel', filters.channel);
+      }
+
+      if (filters.etapaFunil) {
+        query = query.eq('etapa_funil', filters.etapaFunil);
+      }
+
+      if (filters.responsavel) {
+        query = query.eq('usuario_responsavel', filters.responsavel);
+      }
+
+      // Filtro de qualidade (Fase 3)
+      if (filters.hasQualityIssues) {
+        query = query.gt('quality_issues_count', 0);
+      }
+
       const { data, error: fetchError } = await query;
+
+      console.timeEnd('[SupervisionPanel] fetch-conversations');
 
       if (fetchError) throw fetchError;
 
+      console.log(`[SupervisionPanel] Carregadas ${data?.length || 0} conversas`);
       setConversations((data as SupervisionConversation[]) || []);
     } catch (err: any) {
+      console.timeEnd('[SupervisionPanel] fetch-conversations');
       console.error('Error fetching supervision conversations:', err);
-      setError(err.message || 'Erro ao carregar conversas');
-      // Fallback para dados mock se view nao existir
-      if (err.message?.includes('does not exist')) {
-        setConversations(getMockConversations());
-        setError(null);
+
+      // Fallback para view antiga ou mock se v3 nao existir
+      if (err.message?.includes('does not exist') || err.message?.includes('vw_supervision_conversations_v3')) {
+        try {
+          console.log('[SupervisionPanel] Tentando fallback para view antiga...');
+          // Tenta view antiga
+          const { data: fallbackData } = await supabase
+            .from('vw_supervision_conversations')
+            .select(CONVERSATION_FIELDS)
+            .order('last_message_at', { ascending: false })
+            .limit(50);
+
+          if (fallbackData) {
+            setConversations(fallbackData as SupervisionConversation[]);
+            setError(null);
+            return;
+          }
+        } catch {
+          // Se falhar, usa mock
+          setConversations(getMockConversations());
+          setError(null);
+          return;
+        }
       }
+
+      setError(err.message || 'Erro ao carregar conversas');
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters.status, filters.dateFrom, filters.dateTo, filters.locationId, filters.channel, filters.etapaFunil, filters.responsavel, filters.hasQualityIssues, debouncedSearch]);
 
+  // Fetch inicial e quando filtros mudam
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Polling para atualizacoes (cada 30s)
+  // Polling SEPARADO - usa ref para evitar stale closure
+  const fetchConversationsRef = useRef(fetchConversations);
+  fetchConversationsRef.current = fetchConversations;
+
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchConversations();
-    }, 30000);
+      console.log('[SupervisionPanel] Polling triggered');
+      fetchConversationsRef.current();
+    }, 60000); // 60s
 
     return () => clearInterval(interval);
-  }, [fetchConversations]);
+  }, []); // Array vazio - usa ref
 
-  // Calcular stats
-  const stats = {
+  // Stats memoizadas - evita recálculo a cada render
+  const stats = useMemo(() => ({
     total: conversations.length,
     aiActive: conversations.filter((c) => c.supervision_status === 'ai_active').length,
     aiPaused: conversations.filter((c) => c.supervision_status === 'ai_paused').length,
     scheduled: conversations.filter((c) => c.supervision_status === 'scheduled').length,
     converted: conversations.filter((c) => c.supervision_status === 'converted').length,
-  };
+  }), [conversations]);
 
   return {
     conversations,

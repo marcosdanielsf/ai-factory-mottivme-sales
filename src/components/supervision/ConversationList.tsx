@@ -1,10 +1,14 @@
-import React from 'react';
-import { MessageSquare, Bot, User, Clock, CheckCircle, PauseCircle, Calendar } from 'lucide-react';
+import React, { useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { MessageSquare, Bot, User, Clock, CheckCircle, PauseCircle, Calendar, Instagram } from 'lucide-react';
 import {
   SupervisionConversation,
   SupervisionStatus,
   supervisionStatusConfig,
+  channelConfig,
 } from '../../types/supervision';
+import { QualityBadge } from './QualityBadge';
+import { useQualitySummary } from '../../hooks/useQualityFlags';
 
 interface ConversationListProps {
   conversations: SupervisionConversation[];
@@ -13,40 +17,75 @@ interface ConversationListProps {
   loading?: boolean;
 }
 
+// Altura estimada de cada item da lista
+const ITEM_HEIGHT = 88;
+const ITEM_HEIGHT_MOBILE = 80;
+
 export const ConversationList: React.FC<ConversationListProps> = ({
   conversations,
   selectedId,
   onSelect,
   loading,
 }) => {
-  if (loading) {
-    return (
-      <div className="flex-1 overflow-y-auto p-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="p-3 mb-2 bg-bg-hover rounded-lg animate-pulse">
-            <div className="h-4 bg-border-default rounded w-1/3 mb-2" />
-            <div className="h-3 bg-border-default rounded w-2/3 mb-2" />
-            <div className="h-3 bg-border-default rounded w-1/2" />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  // Ref para o container de scroll
+  const parentRef = useRef<HTMLDivElement>(null);
 
-  if (conversations.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8 text-center">
-        <div>
-          <MessageSquare size={48} className="mx-auto text-text-muted mb-4" />
-          <p className="text-text-secondary">Nenhuma conversa encontrada</p>
-          <p className="text-sm text-text-muted">
-            Ajuste os filtros ou aguarde novas conversas
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Detecta mobile via ref (para virtualização)
+  const isMobileRef = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
 
+  // Extrai session_ids para buscar resumos de qualidade
+  const sessionIds = useMemo(
+    () => conversations.map(c => c.session_id),
+    [conversations]
+  );
+
+  // Virtualização - só renderiza itens visíveis
+  const virtualizer = useVirtualizer({
+    count: conversations.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => isMobileRef.current ? ITEM_HEIGHT_MOBILE : ITEM_HEIGHT,
+    overscan: 5, // Renderiza 5 itens extras acima/abaixo
+  });
+
+  // Helper: obtém nome de exibição do contato com fallbacks
+  const getContactDisplayName = (conversation: SupervisionConversation): string => {
+    // 1. Nome do contato (prioridade)
+    if (conversation.contact_name?.trim()) return conversation.contact_name;
+
+    // 2. Usuário do Instagram
+    if (conversation.instagram_username?.trim()) return `@${conversation.instagram_username}`;
+
+    // 3. Telefone (formatado)
+    if (conversation.contact_phone?.trim()) {
+      const phone = conversation.contact_phone;
+      // Se começar com +55, formata bonitinho
+      if (phone.startsWith('+55') && phone.length > 12) {
+        return `(${phone.slice(3, 5)}) ${phone.slice(5, 10)}-${phone.slice(10)}`;
+      }
+      return phone;
+    }
+
+    // 4. Email (última opção antes de "Desconhecido")
+    if (conversation.contact_email?.trim()) {
+      const email = conversation.contact_email;
+      return email.split('@')[0]; // Mostra só a parte antes do @
+    }
+
+    // 5. Extrair nome da primeira mensagem (fallback inteligente)
+    if (conversation.last_message) {
+      const msg = conversation.last_message;
+      // Tenta extrair nome do início da mensagem
+      const nameMatch = msg.match(/^(Oi|Olá|Ola|Bom dia|Boa tarde|Boa noite|Fala|Eae),?\s*([A-Z][a-z]+)/i);
+      if (nameMatch) return nameMatch[1];
+      // Tenta pegar a primeira palavra
+      const firstWord = msg.split(/\s/)[0];
+      if (firstWord && firstWord.length < 20) return firstWord;
+    }
+
+    return 'Desconhecido';
+  };
+
+  // Helper: formata horário considerando UTC
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -60,89 +99,172 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
+  // Busca resumos de qualidade para mostrar badges
+  const { getSummary } = useQualitySummary(sessionIds);
+
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-3 md:p-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="p-2.5 md:p-3 mb-2 bg-bg-hover rounded-lg animate-pulse">
+            <div className="h-4 bg-border-default rounded w-1/3 mb-2" />
+            <div className="h-3 bg-border-default rounded w-2/3 mb-2" />
+            <div className="h-3 bg-border-default rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 md:p-8 text-center">
+        <div>
+          <MessageSquare size={40} className="mx-auto text-text-muted mb-4" />
+          <p className="text-text-secondary text-sm md:text-base">Nenhuma conversa encontrada</p>
+          <p className="text-xs md:text-sm text-text-muted mt-1">
+            Ajuste os filtros ou aguarde novas conversas
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const getStatusIcon = (status: SupervisionStatus) => {
     switch (status) {
       case 'ai_active':
-        return <Bot size={14} className="text-green-400" />;
+        return <Bot size={12} className="text-green-400" />;
       case 'ai_paused':
-        return <PauseCircle size={14} className="text-yellow-400" />;
+        return <PauseCircle size={12} className="text-yellow-400" />;
       case 'manual_takeover':
-        return <User size={14} className="text-blue-400" />;
+        return <User size={12} className="text-blue-400" />;
       case 'scheduled':
-        return <Calendar size={14} className="text-purple-400" />;
+        return <Calendar size={12} className="text-purple-400" />;
       case 'converted':
-        return <CheckCircle size={14} className="text-emerald-400" />;
+        return <CheckCircle size={12} className="text-emerald-400" />;
       default:
-        return <Clock size={14} className="text-gray-400" />;
+        return <Clock size={12} className="text-gray-400" />;
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      {conversations.map((conversation) => {
-        const isSelected = selectedId === conversation.session_id;
-        const statusConfig = supervisionStatusConfig[conversation.supervision_status];
+    <div
+      ref={parentRef}
+      className="flex-1 overflow-y-auto"
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const conversation = conversations[virtualItem.index];
+          const isSelected = selectedId === conversation.session_id;
+          const statusConfig = supervisionStatusConfig[conversation.supervision_status];
+          const qualitySummary = getSummary(conversation.session_id);
 
-        return (
-          <div
-            key={conversation.conversation_id}
-            onClick={() => onSelect(conversation)}
-            className={`
-              p-3 mx-2 mb-1 rounded-lg cursor-pointer transition-colors
-              ${isSelected ? 'bg-accent-primary/10 border border-accent-primary' : 'hover:bg-bg-hover border border-transparent'}
-            `}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary">
-                  {conversation.contact_name?.[0]?.toUpperCase() || '?'}
+          return (
+            <div
+              key={conversation.conversation_id}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <div
+                onClick={() => onSelect(conversation)}
+                className={`
+                  p-2.5 md:p-3 mx-2 mb-1 rounded-lg cursor-pointer transition-colors active:bg-bg-hover/80
+                  ${isSelected ? 'bg-accent-primary/10 border border-accent-primary' : 'hover:bg-bg-hover border border-transparent'}
+                `}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary flex-shrink-0">
+                      {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs md:text-sm font-medium text-text-primary truncate">
+                          {getContactDisplayName(conversation)}
+                        </p>
+                        {/* Link Instagram */}
+                        {conversation.instagram_username && (
+                          <a
+                            href={`https://instagram.com/${conversation.instagram_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-pink-400 hover:text-pink-300 transition-colors flex-shrink-0"
+                            title={`@${conversation.instagram_username}`}
+                          >
+                            <Instagram size={12} />
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-[10px] md:text-xs text-text-muted truncate">
+                        {conversation.contact_phone || conversation.instagram_username || ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                    {/* Quality Badge */}
+                    <QualityBadge summary={qualitySummary} size="sm" />
+                    <span className="text-[10px] md:text-xs text-text-muted">
+                      {formatTime(conversation.last_message_at)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {conversation.contact_name || 'Desconhecido'}
-                  </p>
-                  <p className="text-xs text-text-muted truncate">
-                    {conversation.contact_phone}
-                  </p>
+
+                {/* Last Message Preview */}
+                <p className="text-[11px] md:text-xs text-text-secondary truncate mb-1.5 md:mb-2 pl-9 md:pl-10">
+                  {conversation.last_message_role === 'assistant' && (
+                    <span className="text-accent-primary">IA: </span>
+                  )}
+                  {conversation.last_message?.slice(0, 60)}
+                  {(conversation.last_message?.length || 0) > 60 && '...'}
+                </p>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pl-9 md:pl-10">
+                  <div className="flex items-center gap-1 md:gap-1.5 flex-1 min-w-0">
+                    <div className={`flex items-center gap-1 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs ${statusConfig.bgColor}`}>
+                      {getStatusIcon(conversation.supervision_status)}
+                      <span className={`${statusConfig.color} hidden md:inline`}>{statusConfig.label}</span>
+                      <span className={`${statusConfig.color} md:hidden`}>{statusConfig.label.slice(0, 6)}</span>
+                    </div>
+                    {/* Badge de Canal - esconde no mobile */}
+                    {conversation.channel && conversation.channel !== 'unknown' && (
+                      <span className={`text-[10px] md:text-xs hidden md:inline ${channelConfig[conversation.channel]?.color || 'text-text-muted'}`}>
+                        {channelConfig[conversation.channel]?.label || conversation.channel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-text-muted flex-shrink-0">
+                    <span className="flex items-center gap-0.5 md:gap-1">
+                      <MessageSquare size={10} />
+                      {conversation.message_count}
+                    </span>
+                    {conversation.client_name && (
+                      <span className="items-center gap-1 truncate max-w-[60px] md:max-w-[100px] hidden md:flex">
+                        <Bot size={10} />
+                        {conversation.client_name}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="text-xs text-text-muted flex items-center gap-1">
-                {formatTime(conversation.last_message_at)}
               </div>
             </div>
-
-            {/* Last Message Preview */}
-            <p className="text-xs text-text-secondary truncate mb-2 pl-10">
-              {conversation.last_message_role === 'assistant' && (
-                <span className="text-accent-primary">IA: </span>
-              )}
-              {conversation.last_message?.slice(0, 80)}
-              {(conversation.last_message?.length || 0) > 80 && '...'}
-            </p>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between pl-10">
-              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${statusConfig.bgColor}`}>
-                {getStatusIcon(conversation.supervision_status)}
-                <span className={statusConfig.color}>{statusConfig.label}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-text-muted">
-                <span className="flex items-center gap-1">
-                  <MessageSquare size={12} />
-                  {conversation.message_count}
-                </span>
-                {conversation.client_name && (
-                  <span className="flex items-center gap-1 truncate max-w-[120px]">
-                    <Bot size={12} />
-                    {conversation.client_name}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
