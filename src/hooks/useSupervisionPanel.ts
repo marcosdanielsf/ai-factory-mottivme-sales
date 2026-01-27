@@ -44,8 +44,8 @@ const CONVERSATION_FIELDS = `
   channel
 `;
 
-// View a usar (v3 tem bugs, voltando para original)
-const SUPERVISION_VIEW = 'vw_supervision_conversations';
+// View a usar (v4 corrige duplicatas e nomes)
+const SUPERVISION_VIEW = 'vw_supervision_conversations_v4';
 
 export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
   const [conversations, setConversations] = useState<SupervisionConversation[]>([]);
