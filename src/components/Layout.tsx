@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
-import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone } from 'lucide-react';
+import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone, Menu } from 'lucide-react';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
 import { useAgents } from '../hooks';
@@ -10,9 +11,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { agents } = useAgents();
+  const isMobile = useIsMobile();
+
+  // Fechar sidebar ao mudar de página no mobile
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname, isMobile]);
 
   // Listen for ⌘K
   useEffect(() => {
@@ -70,13 +80,36 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen bg-bg-primary text-text-primary">
-      <Sidebar />
+      {/* Backdrop overlay para mobile */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar com props de mobile */}
+      <Sidebar 
+        isMobile={isMobile} 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
+      
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-[52px] border-b border-border-default flex items-center justify-between px-6 bg-bg-primary/80 backdrop-blur sticky top-0 z-10">
-          {/* Breadcrumb Area */}
+        <header className="h-[52px] border-b border-border-default flex items-center justify-between px-4 md:px-6 bg-bg-primary/80 backdrop-blur sticky top-0 z-10">
+          {/* Mobile menu button + Breadcrumb Area */}
           <div className="text-sm text-text-muted flex items-center gap-2">
+            {isMobile && (
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="p-1.5 -ml-1.5 mr-1 hover:bg-bg-secondary rounded-md transition-colors"
+                aria-label="Abrir menu"
+              >
+                <Menu size={22} className="text-text-primary" />
+              </button>
+            )}
             <span className="hidden md:inline">Mottiv.me</span>
-            <span className="text-text-muted/50">/</span>
+            <span className="hidden md:inline text-text-muted/50">/</span>
             <span className="text-text-primary font-medium">Dashboard</span>
           </div>
 

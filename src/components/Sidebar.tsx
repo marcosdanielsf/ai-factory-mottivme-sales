@@ -21,9 +21,16 @@ import {
   Trophy,
   UserPlus,
   Eye,
-  BarChart3
+  BarChart3,
+  X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+
+interface SidebarProps {
+  isMobile?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
 
 const SidebarItem = ({ 
   icon: Icon, 
@@ -33,10 +40,17 @@ const SidebarItem = ({
   isOpen = false, 
   onToggle,
   badge,
-  indent = 0
+  indent = 0,
+  onNavigate
 }: any) => {
   const location = useLocation();
   const isActive = to ? location.pathname === to || location.pathname.startsWith(to + '/') : false;
+  
+  const handleClick = () => {
+    if (!hasSubmenu && onNavigate) {
+      onNavigate();
+    }
+  };
   
   return (
     <div className="select-none">
@@ -46,7 +60,7 @@ const SidebarItem = ({
           ${isActive && !hasSubmenu ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
         `}
         style={{ paddingLeft: `${indent * 12 + 12}px` }}
-        onClick={hasSubmenu ? onToggle : undefined}
+        onClick={hasSubmenu ? onToggle : handleClick}
       >
         {to && !hasSubmenu ? (
           <NavLink to={to} className="flex items-center gap-2 flex-1 truncate">
@@ -74,12 +88,18 @@ const SidebarItem = ({
   );
 };
 
-export const Sidebar = () => {
+export const Sidebar = ({ isMobile = false, isOpen = false, onClose }: SidebarProps) => {
   const [clientsOpen, setClientsOpen] = useState(true);
   const { user, signOut } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
+  };
+
+  const handleNavigate = () => {
+    if (isMobile && onClose) {
+      onClose();
+    }
   };
 
   // Get user initials
@@ -105,52 +125,68 @@ export const Sidebar = () => {
     return 'Usuário';
   };
 
+  // Classes condicionais para mobile/desktop
+  const sidebarClasses = isMobile
+    ? `fixed left-0 top-0 h-screen w-[280px] bg-bg-secondary border-r border-border-default flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`
+    : 'w-[260px] h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0';
+
   return (
-    <aside className="w-[260px] h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0">
+    <aside className={sidebarClasses}>
       {/* Header */}
-      <div className="h-[52px] flex items-center px-4 border-b border-border-default">
+      <div className="h-[52px] flex items-center justify-between px-4 border-b border-border-default">
         <div className="flex items-center gap-2 font-semibold text-text-primary">
           <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center">
             <span className="text-bg-primary text-xs font-bold">M</span>
           </div>
           <span>MOTTIV.ME</span>
         </div>
+        {isMobile && (
+          <button 
+            onClick={onClose}
+            className="p-1.5 hover:bg-bg-hover rounded-md transition-colors"
+            aria-label="Fechar menu"
+          >
+            <X size={20} className="text-text-secondary" />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-        <SidebarItem icon={Home} label="Control Tower" to="/" />
-        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" />
+        <SidebarItem icon={Home} label="Control Tower" to="/" onNavigate={handleNavigate} />
+        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" onNavigate={handleNavigate} />
         
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           SALES OS
         </div>
-        <SidebarItem icon={BarChart3} label="Sales Ops" to="/sales-ops" />
-        <SidebarItem icon={Eye} label="Supervisao IA" to="/supervision" />
-        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" />
-        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" />
-        <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" />
+        <SidebarItem icon={BarChart3} label="Sales Ops" to="/sales-ops" onNavigate={handleNavigate} />
+        <SidebarItem icon={Eye} label="Supervisao IA" to="/supervision" onNavigate={handleNavigate} />
+        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" onNavigate={handleNavigate} />
+        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" onNavigate={handleNavigate} />
+        <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" onNavigate={handleNavigate} />
 
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           AI FACTORY
         </div>
-        <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" />
-        <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" />
-        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" />
-        <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" />
-        <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" />
+        <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} />
+        <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} />
+        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} />
+        <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} />
+        <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} />
         
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           GAMIFICATION
         </div>
-        <SidebarItem icon={Users} label="Squads RPG" to="/team-rpg" />
+        <SidebarItem icon={Users} label="Squads RPG" to="/team-rpg" onNavigate={handleNavigate} />
         
         <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
           SISTEMA
         </div>
-        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" />
-        <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" />
-        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" />
+        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" onNavigate={handleNavigate} />
+        <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" onNavigate={handleNavigate} />
+        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" onNavigate={handleNavigate} />
 
         {/* Link externo para documentação */}
         <a
@@ -158,6 +194,7 @@ export const Sidebar = () => {
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+          onClick={handleNavigate}
         >
           <BookOpen size={16} />
           <span>Documentação</span>

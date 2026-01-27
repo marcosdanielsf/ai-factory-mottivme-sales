@@ -71,9 +71,9 @@ const CustomBar: React.FC<CustomBarProps> = ({ x = 0, y = 0, width = 0, height =
 export const FunnelChart: React.FC<FunnelChartProps> = ({ data, isLoading = false, onBarClick }) => {
   if (isLoading) {
     return (
-      <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-6">
-        <div className="h-4 bg-[#333] rounded w-1/3 mb-4 animate-pulse" />
-        <div className="h-64 bg-[#333] rounded animate-pulse" />
+      <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 md:p-6">
+        <div className="h-3 md:h-4 bg-[#333] rounded w-1/3 mb-3 md:mb-4 animate-pulse" />
+        <div className="h-48 md:h-64 bg-[#333] rounded animate-pulse" />
       </div>
     );
   }
@@ -94,14 +94,14 @@ export const FunnelChart: React.FC<FunnelChartProps> = ({ data, isLoading = fals
   };
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-400">Distribuicao por Etapa de Follow-up</h3>
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 md:mb-4 gap-1">
+        <h3 className="text-xs md:text-sm font-medium text-gray-400">Distribuição por Etapa de Follow-up</h3>
         {onBarClick && (
-          <span className="text-xs text-blue-400">Clique nas barras para ver detalhes</span>
+          <span className="text-[10px] md:text-xs text-blue-400">Toque para ver detalhes</span>
         )}
       </div>
-      <div className="h-64">
+      <div className="h-48 md:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart 
             data={chartData} 
@@ -140,18 +140,18 @@ export const FunnelChart: React.FC<FunnelChartProps> = ({ data, isLoading = fals
 
       {/* Legend with clickable items */}
       {onBarClick && (
-        <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-[#333]">
+        <div className="flex flex-wrap gap-2 md:gap-3 mt-3 md:mt-4 pt-3 md:pt-4 border-t border-[#333]">
           {chartData.map((entry, index) => (
             <button
               key={entry.name}
               onClick={() => handleBarClick(entry)}
-              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#222] transition-colors"
+              className="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-0.5 md:py-1 rounded hover:bg-[#222] transition-colors"
             >
               <div
-                className="w-3 h-3 rounded-sm"
+                className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm flex-shrink-0"
                 style={{ backgroundColor: COLORS[index % COLORS.length] }}
               />
-              <span className="text-xs text-gray-400">
+              <span className="text-[10px] md:text-xs text-gray-400">
                 {entry.name}: {entry.value.toLocaleString()}
               </span>
             </button>

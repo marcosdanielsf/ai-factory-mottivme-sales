@@ -83,21 +83,21 @@ export const SalesOps = () => {
     <div className="min-h-screen bg-bg-primary">
       {/* Header */}
       <div className="border-b border-border-default bg-bg-secondary">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <BarChart3 className="text-blue-500" size={20} />
+        <div className="px-4 md:px-6 py-3 md:py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="text-blue-500" size={18} />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-text-primary">Sales Ops Dashboard</h1>
-                <p className="text-sm text-text-muted">
-                  Metricas de follow-up e conversao em tempo real
+                <h1 className="text-lg md:text-xl font-semibold text-text-primary">Sales Ops Dashboard</h1>
+                <p className="text-xs md:text-sm text-text-muted">
+                  Metricas de follow-up e conversao
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <ClientSelector
                 clients={clients}
                 selectedId={selectedLocationId}
@@ -107,24 +107,24 @@ export const SalesOps = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-3 py-2 bg-bg-hover border border-border-default rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 bg-bg-hover border border-border-default rounded-lg text-xs md:text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
               >
                 <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-                Atualizar
+                <span className="hidden md:inline">Atualizar</span>
               </button>
             </div>
           </div>
 
           {lastUpdated && (
-            <p className="text-xs text-text-muted mt-2">
-              Ultima atualizacao: {lastUpdated.toLocaleTimeString('pt-BR')}
+            <p className="text-[10px] md:text-xs text-text-muted mt-2">
+              Atualizado: {lastUpdated.toLocaleTimeString('pt-BR')}
             </p>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Overview Cards - agora clicáveis */}
         <OverviewCards
           leadsAtivos={totals.totalAtivos}
@@ -136,7 +136,7 @@ export const SalesOps = () => {
         />
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Funnel Chart - agora clicável */}
           <FunnelChart 
             data={funnel} 

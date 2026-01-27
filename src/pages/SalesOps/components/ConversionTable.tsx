@@ -9,11 +9,11 @@ interface ConversionTableProps {
 export const ConversionTable: React.FC<ConversionTableProps> = ({ data, isLoading = false }) => {
   if (isLoading) {
     return (
-      <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-6">
-        <div className="h-4 bg-[#333] rounded w-1/3 mb-4 animate-pulse" />
+      <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 md:p-6">
+        <div className="h-3 md:h-4 bg-[#333] rounded w-1/3 mb-3 md:mb-4 animate-pulse" />
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-10 bg-[#333] rounded animate-pulse" />
+            <div key={i} className="h-8 md:h-10 bg-[#333] rounded animate-pulse" />
           ))}
         </div>
       </div>
@@ -39,9 +39,43 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({ data, isLoadin
     }));
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-6">
-      <h3 className="text-sm font-medium text-gray-400 mb-4">Conversao por Etapa</h3>
-      <div className="overflow-x-auto">
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 md:p-6">
+      <h3 className="text-xs md:text-sm font-medium text-gray-400 mb-3 md:mb-4">Conversão por Etapa</h3>
+      
+      {/* Mobile: Cards empilhados */}
+      <div className="md:hidden space-y-2">
+        {tableData.map((row) => (
+          <div key={row.etapa} className="bg-[#222] border border-[#333] rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">FU {row.etapa}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] ${
+                parseFloat(row.taxaDesistencia) > 30 ? 'bg-red-500/20 text-red-500' :
+                parseFloat(row.taxaDesistencia) > 15 ? 'bg-yellow-500/20 text-yellow-500' :
+                'bg-green-500/20 text-green-500'
+              }`}>
+                {row.taxaDesistencia}% desist.
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[10px] text-gray-500 mb-0.5">Ativos</div>
+                <div className="text-sm font-medium text-green-500">{row.ativos.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500 mb-0.5">Desativ.</div>
+                <div className="text-sm font-medium text-red-500">{row.desativados.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500 mb-0.5">Total</div>
+                <div className="text-sm font-medium text-gray-400">{row.total.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: Tabela normal */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#333]">

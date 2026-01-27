@@ -110,115 +110,115 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-[#0d0d0d] border-l border-[#333] z-50 flex flex-col shadow-2xl animate-slide-in-right">
+      <div className="fixed right-0 top-0 h-full w-full md:max-w-lg bg-[#0d0d0d] border-l border-[#333] z-50 flex flex-col shadow-2xl animate-slide-in-right">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#333]">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[#333]">
           <div>
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="text-base md:text-lg font-semibold text-white">{title}</h2>
+            <p className="text-xs md:text-sm text-gray-400">
               {loading ? 'Carregando...' : `${leads.length} leads encontrados`}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[#222] transition-colors"
+            className="p-1.5 md:p-2 rounded-lg hover:bg-[#222] transition-colors"
           >
-            <X size={20} className="text-gray-400" />
+            <X size={18} className="text-gray-400" />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 md:p-6 space-y-3 md:space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="bg-[#1a1a1a] rounded-lg p-4 animate-pulse">
-                  <div className="h-4 bg-[#333] rounded w-3/4 mb-3" />
-                  <div className="h-3 bg-[#333] rounded w-1/2 mb-2" />
-                  <div className="h-3 bg-[#333] rounded w-full" />
+                <div key={i} className="bg-[#1a1a1a] rounded-lg p-3 md:p-4 animate-pulse">
+                  <div className="h-3 md:h-4 bg-[#333] rounded w-3/4 mb-2 md:mb-3" />
+                  <div className="h-2.5 md:h-3 bg-[#333] rounded w-1/2 mb-1.5 md:mb-2" />
+                  <div className="h-2.5 md:h-3 bg-[#333] rounded w-full" />
                 </div>
               ))}
             </div>
           ) : error ? (
-            <div className="p-6 text-center">
-              <p className="text-red-400">{error}</p>
+            <div className="p-4 md:p-6 text-center">
+              <p className="text-red-400 text-sm md:text-base">{error}</p>
               <button
                 onClick={loadLeads}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="mt-3 md:mt-4 px-3 md:px-4 py-1.5 md:py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
               >
                 Tentar novamente
               </button>
             </div>
           ) : leads.length === 0 ? (
-            <div className="p-6 text-center">
-              <User size={48} className="mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-400">Nenhum lead encontrado</p>
+            <div className="p-4 md:p-6 text-center">
+              <User size={40} className="mx-auto text-gray-600 mb-3 md:mb-4" />
+              <p className="text-gray-400 text-sm md:text-base">Nenhum lead encontrado</p>
             </div>
           ) : (
-            <div className="p-4 space-y-3">
+            <div className="p-3 md:p-4 space-y-2 md:space-y-3">
               {leads.map((lead) => (
                 <div
                   key={lead.session_id || lead.contact_id}
                   onClick={() => handleLeadClick(lead)}
-                  className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 hover:bg-[#222] hover:border-[#444] transition-all cursor-pointer group"
+                  className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 md:p-4 hover:bg-[#222] hover:border-[#444] transition-all cursor-pointer group"
                 >
                   {/* Lead Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <User size={18} className="text-blue-400" />
+                  <div className="flex items-start justify-between mb-2 md:mb-3">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <User size={16} className="text-blue-400" />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-white">
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-white text-sm md:text-base truncate">
                           {lead.contact_name || 'Sem nome'}
                         </h3>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-xs md:text-sm text-gray-400 truncate">
                           {lead.location_name || 'Sem cliente'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Actions - always visible on mobile */}
+                    <div className="flex items-center gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       {lead.contact_phone && (
                         <button
                           onClick={(e) => handleWhatsAppClick(e, lead.contact_phone)}
-                          className="p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
+                          className="p-1.5 md:p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
                           title="Abrir WhatsApp"
                         >
-                          <MessageCircle size={16} className="text-green-400" />
+                          <MessageCircle size={14} className="text-green-400" />
                         </button>
                       )}
                       <button
-                        className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
+                        className="p-1.5 md:p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
                         title="Ver no Supervision"
                       >
-                        <ExternalLink size={16} className="text-blue-400" />
+                        <ExternalLink size={14} className="text-blue-400" />
                       </button>
                     </div>
                   </div>
 
                   {/* Phone */}
-                  <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                    <Phone size={14} />
+                  <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-400 mb-1.5 md:mb-2">
+                    <Phone size={12} />
                     <span>{formatPhone(lead.contact_phone)}</span>
                   </div>
 
                   {/* Last Message */}
-                  <div className="bg-[#0d0d0d] rounded-lg p-3 mb-3">
-                    <p className="text-sm text-gray-300">
-                      {truncateMessage(lead.last_message)}
+                  <div className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3">
+                    <p className="text-xs md:text-sm text-gray-300">
+                      {truncateMessage(lead.last_message, 60)}
                     </p>
                   </div>
 
                   {/* Metrics */}
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-3 md:gap-4 text-[10px] md:text-xs text-gray-500">
                     <div className="flex items-center gap-1">
-                      <Hash size={12} />
-                      <span>{lead.follow_up_count} follow-ups</span>
+                      <Hash size={10} className="md:w-3 md:h-3" />
+                      <span>{lead.follow_up_count} FUs</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Clock size={12} />
+                      <Clock size={10} className="md:w-3 md:h-3" />
                       <span>{formatDate(lead.last_contact_at)}</span>
                     </div>
                   </div>

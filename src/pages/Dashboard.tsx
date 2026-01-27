@@ -34,10 +34,10 @@ const SectionHeader = ({ title, icon: Icon }: { title: string, icon: any }) => (
   </h2>
 );
 
-const ChartPlaceholder = ({ title, loading, error, empty, children, height = "h-[300px]" }: { title: string, loading?: boolean, error?: string | null, empty?: boolean, children: React.ReactNode, height?: string }) => (
-  <div className="space-y-4">
+const ChartPlaceholder = ({ title, loading, error, empty, children, height = "h-[250px] md:h-[300px]" }: { title: string, loading?: boolean, error?: string | null, empty?: boolean, children: React.ReactNode, height?: string }) => (
+  <div className="space-y-3 md:space-y-4">
     <SectionHeader title={title} icon={title.includes('Evolução') ? TrendingUp : BarChart2} />
-    <div className={`bg-bg-secondary border border-border-default rounded-lg p-6 ${height} flex flex-col relative overflow-hidden`}>
+    <div className={`bg-bg-secondary border border-border-default rounded-lg p-4 md:p-6 ${height} flex flex-col relative overflow-hidden`}>
       {loading ? (
         <div className="absolute inset-0 bg-bg-secondary/50 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
@@ -194,14 +194,14 @@ export const Dashboard = () => {
   ];
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold mb-2">🚀 Torre de Controle</h1>
-          <p className="text-text-secondary">Visão unificada: Sales OS + AI Factory.</p>
+          <h1 className="text-2xl md:text-3xl font-semibold mb-1 md:mb-2">🚀 Torre de Controle</h1>
+          <p className="text-sm md:text-base text-text-secondary">Visão unificada: Sales OS + AI Factory.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
            {/* Filtro de Período */}
            <select
               value={selectedPeriod}
@@ -233,7 +233,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Detailed Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {dashboardMetrics.map((metric, i) => (
           <MetricCard
             key={i}
@@ -246,18 +246,18 @@ export const Dashboard = () => {
 
       {/* Alertas Urgentes */}
       {(alerts.leadsSemResposta24h > 0 || alerts.followupsFalhados > 0 || alerts.leadsEsfriando > 0 || alerts.noShows > 0) && (
-        <div className={`p-4 rounded-xl border-l-4 ${
+        <div className={`p-3 md:p-4 rounded-xl border-l-4 ${
           alerts.leadsSemResposta24h > 5 || alerts.followupsFalhados > 0
             ? 'bg-accent-error/5 border-accent-error'
             : 'bg-accent-warning/5 border-accent-warning'
         }`}>
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2">
-              <Zap size={18} className={alerts.leadsSemResposta24h > 5 ? 'text-accent-error' : 'text-accent-warning'} />
-              <span className="font-semibold text-text-primary">AÇÕES URGENTES</span>
+              <Zap size={16} className={`md:w-[18px] md:h-[18px] ${alerts.leadsSemResposta24h > 5 ? 'text-accent-error' : 'text-accent-warning'}`} />
+              <span className="font-semibold text-sm md:text-base text-text-primary">AÇÕES URGENTES</span>
             </div>
 
-            <div className="flex-1 flex items-center gap-6 flex-wrap">
+            <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
               {alerts.leadsSemResposta24h > 0 && (
                 <button 
                   onClick={() => handleDrilldown('sem_resposta_24h', 'Leads sem Resposta (24h+)')}
@@ -308,11 +308,11 @@ export const Dashboard = () => {
       )}
 
       {/* Funil de Conversão + Métricas de Engajamento */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
         {/* Funil */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <SectionHeader title="Funil de Conversão" icon={Target} />
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-6 min-h-[300px] relative">
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-4 md:p-6 min-h-[280px] md:min-h-[300px] relative">
             {funnelLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
@@ -347,7 +347,7 @@ export const Dashboard = () => {
                   return (
                     <div key={stage.stage}>
                       <div 
-                        className="flex items-center gap-3 cursor-pointer hover:bg-bg-tertiary rounded-lg p-2 -mx-2 transition-colors group"
+                        className="flex items-center gap-2 md:gap-3 cursor-pointer hover:bg-bg-tertiary rounded-lg p-1.5 md:p-2 -mx-1.5 md:-mx-2 transition-colors group"
                         onClick={() => {
                           const metricType = stageToMetric[stage.stage];
                           if (metricType) {
@@ -355,22 +355,22 @@ export const Dashboard = () => {
                           }
                         }}
                       >
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform" style={{ backgroundColor: `${stage.color}20` }}>
-                          {i === 0 && <Users size={16} style={{ color: stage.color }} />}
-                          {i === 1 && <MessageSquare size={16} style={{ color: stage.color }} />}
-                          {i === 2 && <Calendar size={16} style={{ color: stage.color }} />}
-                          {i === 3 && <UserCheck size={16} style={{ color: stage.color }} />}
-                          {i === 4 && <CheckCircle size={16} style={{ color: stage.color }} />}
+                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0" style={{ backgroundColor: `${stage.color}20` }}>
+                          {i === 0 && <Users size={14} className="md:w-4 md:h-4" style={{ color: stage.color }} />}
+                          {i === 1 && <MessageSquare size={14} className="md:w-4 md:h-4" style={{ color: stage.color }} />}
+                          {i === 2 && <Calendar size={14} className="md:w-4 md:h-4" style={{ color: stage.color }} />}
+                          {i === 3 && <UserCheck size={14} className="md:w-4 md:h-4" style={{ color: stage.color }} />}
+                          {i === 4 && <CheckCircle size={14} className="md:w-4 md:h-4" style={{ color: stage.color }} />}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">{stage.stage}</span>
-                            <span className="text-lg font-bold text-text-primary">{stage.count}</span>
-                            <span className="text-[10px] text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                            <span className="text-xs md:text-sm text-text-secondary group-hover:text-text-primary transition-colors truncate">{stage.stage}</span>
+                            <span className="text-base md:text-lg font-bold text-text-primary">{stage.count}</span>
+                            <span className="text-[9px] md:text-[10px] text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto hidden md:inline">
                               Ver leads →
                             </span>
                           </div>
-                          <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
+                          <div className="h-2.5 md:h-3 bg-bg-tertiary rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{ width: `${width}%`, backgroundColor: stage.color }}
@@ -403,36 +403,36 @@ export const Dashboard = () => {
         </div>
 
         {/* Métricas de Engajamento */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <SectionHeader title="Métricas de Follow-up" icon={Activity} />
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Follow-ups/Lead</div>
-                <div className="text-2xl font-bold text-text-primary">{engagement.followupsPerLead}</div>
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-4 md:p-6">
+            <div className="grid grid-cols-2 gap-2 md:gap-4">
+              <div className="p-3 md:p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider mb-1 md:mb-2">Follow-ups/Lead</div>
+                <div className="text-xl md:text-2xl font-bold text-text-primary">{engagement.followupsPerLead}</div>
               </div>
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Tentativa que Converte</div>
-                <div className="text-2xl font-bold text-text-primary">{engagement.tentativaQueConverte}</div>
+              <div className="p-3 md:p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider mb-1 md:mb-2">Tentativa Converte</div>
+                <div className="text-xl md:text-2xl font-bold text-text-primary">{engagement.tentativaQueConverte}</div>
               </div>
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Taxa de Resposta</div>
-                <div className="flex items-end gap-2">
-                  <span className="text-2xl font-bold text-text-primary">{engagement.taxaResposta}%</span>
-                  {engagement.taxaResposta > 30 && <TrendingUp size={16} className="text-accent-success mb-1" />}
+              <div className="p-3 md:p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider mb-1 md:mb-2">Taxa de Resposta</div>
+                <div className="flex items-end gap-1 md:gap-2">
+                  <span className="text-xl md:text-2xl font-bold text-text-primary">{engagement.taxaResposta}%</span>
+                  {engagement.taxaResposta > 30 && <TrendingUp size={14} className="text-accent-success mb-1" />}
                 </div>
               </div>
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Tempo até Resposta</div>
-                <div className="text-2xl font-bold text-text-primary">{engagement.tempoAteResposta}</div>
+              <div className="p-3 md:p-4 bg-bg-tertiary rounded-lg">
+                <div className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider mb-1 md:mb-2">Tempo Resposta</div>
+                <div className="text-xl md:text-2xl font-bold text-text-primary">{engagement.tempoAteResposta}</div>
               </div>
             </div>
 
             {/* Insight */}
-            <div className="mt-4 p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg">
+            <div className="mt-3 md:mt-4 p-2.5 md:p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg">
               <div className="flex items-start gap-2">
-                <Zap size={14} className="text-accent-primary mt-0.5" />
-                <p className="text-xs text-text-secondary">
+                <Zap size={12} className="text-accent-primary mt-0.5 flex-shrink-0" />
+                <p className="text-[10px] md:text-xs text-text-secondary">
                   <strong className="text-text-primary">Insight:</strong> Leads que respondem no 2º follow-up têm 3x mais chance de agendar.
                 </p>
               </div>
@@ -442,7 +442,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Performance Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
         {/* Evolution Chart */}
         <ChartPlaceholder 
           title="Evolução do Score (Média V4)" 
@@ -533,9 +533,9 @@ export const Dashboard = () => {
         </ChartPlaceholder>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         {/* Recent Activity & Tests */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-4 md:space-y-8">
           {/* Agentes Recentes */}
           <div className="space-y-4">
             <SectionHeader title="Agentes Recentes" icon={Activity} />
@@ -573,7 +573,7 @@ export const Dashboard = () => {
           </div>
 
           {/* Últimos Testes (Validation) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             <div className="space-y-4">
               <SectionHeader title="Últimas Validações" icon={Activity} />
               <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden min-h-[200px] relative">

@@ -25,8 +25,10 @@ import {
   Eye,
   EyeOff,
   Search,
-  ExternalLink
+  ExternalLink,
+  MoreVertical
 } from 'lucide-react';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { useClientPerformance, useAllAgentVersions, DateRangeType, usePerformanceDrilldown, DrilldownFilter } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { LeadsDrilldownModal } from '../components/LeadsDrilldownModal';
@@ -248,6 +250,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export const Performance = () => {
   const { showToast } = useToast();
+  const isMobile = useIsMobile();
 
   // Filtros de período (aplicado aos CUSTOS, não aos leads do GHL)
   const [dateRange, setDateRange] = useState<DateRangeType>('30d');
@@ -379,54 +382,39 @@ export const Performance = () => {
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Trophy className="text-amber-400" size={28} />
+          <h1 className="text-xl md:text-2xl font-bold text-text-primary flex items-center gap-2">
+            <Trophy className="text-amber-400" size={isMobile ? 24 : 28} />
             Performance por Cliente
           </h1>
-          <p className="text-sm text-text-muted mt-1">
+          <p className="text-xs md:text-sm text-text-muted mt-1">
             Métricas de desempenho dos agentes por cliente
           </p>
         </div>
 
         {/* Filtros de Período (aplicado aos custos) */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-bg-secondary border border-border-default rounded-lg p-1">
-            <button
-              onClick={() => setDateRange('7d')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                dateRange === '7d' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              7 dias
-            </button>
-            <button
-              onClick={() => setDateRange('30d')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                dateRange === '30d' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              30 dias
-            </button>
-            <button
-              onClick={() => setDateRange('month')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                dateRange === 'month' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Mês
-            </button>
-            <button
-              onClick={() => setDateRange('all')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                dateRange === 'all' ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Todos
-            </button>
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          {/* Date Range - Compacto no mobile */}
+          <div className="flex items-center bg-bg-secondary border border-border-default rounded-lg p-1 overflow-x-auto">
+            {[
+              { value: '7d', label: '7d' },
+              { value: '30d', label: '30d' },
+              { value: 'month', label: 'Mês' },
+              { value: 'all', label: 'Todos' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setDateRange(opt.value as any)}
+                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm rounded-md transition-colors whitespace-nowrap ${
+                  dateRange === opt.value ? 'bg-accent-primary text-white' : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
           {/* Seletor de Mês */}
@@ -434,40 +422,42 @@ export const Performance = () => {
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary"
+              className="bg-bg-secondary border border-border-default rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm text-text-primary flex-shrink-0"
             >
               {MONTH_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>{isMobile ? opt.value : opt.label}</option>
               ))}
             </select>
           )}
 
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-              showFilters || clientFilter || showInactive
-                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
-                : 'bg-bg-secondary border-border-default text-text-muted hover:text-text-primary'
-            }`}
-            title="Filtrar por cliente"
-          >
-            <Filter size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border transition-all ${
+                showFilters || clientFilter || showInactive
+                  ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                  : 'bg-bg-secondary border-border-default text-text-muted hover:text-text-primary'
+              }`}
+              title="Filtrar por cliente"
+            >
+              <Filter size={16} />
+            </button>
 
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-primary/10 text-accent-primary rounded-lg hover:bg-accent-primary/20 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 p-2 md:px-4 md:py-2 bg-accent-primary/10 text-accent-primary rounded-lg hover:bg-accent-primary/20 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              <span className="hidden md:inline">Atualizar</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Painel de Filtros Avançados */}
       {showFilters && (
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-4 flex flex-wrap items-center gap-4">
+        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4 space-y-3 md:space-y-0 md:flex md:flex-wrap md:items-center md:gap-4">
           <div className="flex items-center gap-2">
             <Search size={16} className="text-text-muted" />
             <span className="text-xs font-bold text-text-muted uppercase">Filtros:</span>
@@ -475,12 +465,12 @@ export const Performance = () => {
 
           {/* Dropdown de Cliente */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted">Cliente:</label>
+            <label className="text-xs text-text-muted hidden md:inline">Cliente:</label>
             <select
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
               disabled={loading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 min-w-[180px]"
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[180px]"
             >
               <option value="">Todos os clientes</option>
               {allClients?.map((client) => (
@@ -491,35 +481,38 @@ export const Performance = () => {
             </select>
           </div>
 
-          {/* Toggle Mostrar Inativos */}
-          <button
-            onClick={() => setShowInactive(!showInactive)}
-            disabled={loading}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
-              showInactive
-                ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
-                : 'bg-bg-primary border-border-default text-text-muted hover:text-text-primary'
-            }`}
-          >
-            {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
-            {showInactive ? 'Mostrando inativos' : 'Mostrar inativos'}
-          </button>
-
-          {/* Limpar Filtros */}
-          {(clientFilter || showInactive) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Toggle Mostrar Inativos */}
             <button
-              onClick={() => {
-                setClientFilter('');
-                setShowInactive(false);
-              }}
-              className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+              onClick={() => setShowInactive(!showInactive)}
+              disabled={loading}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                showInactive
+                  ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
+                  : 'bg-bg-primary border-border-default text-text-muted hover:text-text-primary'
+              }`}
             >
-              Limpar filtros
+              {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
+              <span className="hidden md:inline">{showInactive ? 'Mostrando inativos' : 'Mostrar inativos'}</span>
+              <span className="md:hidden">{showInactive ? 'Inativos' : 'Inativos'}</span>
             </button>
-          )}
 
-          {/* Info de inativos */}
-          <div className="ml-auto text-xs text-text-muted">
+            {/* Limpar Filtros */}
+            {(clientFilter || showInactive) && (
+              <button
+                onClick={() => {
+                  setClientFilter('');
+                  setShowInactive(false);
+                }}
+                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Info de inativos - escondido no mobile */}
+          <div className="hidden md:block md:ml-auto text-xs text-text-muted">
             {!showInactive && (
               <span>Mostrando apenas clientes com atividade de IA nos últimos 30 dias</span>
             )}
@@ -529,7 +522,7 @@ export const Performance = () => {
 
 
       {/* Cards de Totais - CLICÁVEIS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           title="Total Clientes"
           value={totals.totalClientes}
@@ -590,22 +583,22 @@ export const Performance = () => {
 
       {/* Alertas */}
       {alerts.length > 0 && (
-        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 md:p-4">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="text-red-400" size={20} />
-            <h3 className="font-semibold text-red-400">Clientes com Alertas ({alerts.length})</h3>
+            <AlertTriangle className="text-red-400" size={18} />
+            <h3 className="font-semibold text-red-400 text-sm md:text-base">Alertas ({alerts.length})</h3>
           </div>
           <div className="space-y-2">
-            {alerts.slice(0, 5).map((alert) => (
+            {alerts.slice(0, isMobile ? 3 : 5).map((alert) => (
               <div
                 key={alert.locationId}
-                className="flex items-center justify-between bg-bg-secondary/50 rounded-lg px-4 py-2"
+                className="flex flex-col md:flex-row md:items-center justify-between bg-bg-secondary/50 rounded-lg px-3 md:px-4 py-2 gap-2"
               >
-                <div className="flex items-center gap-3">
-                  <Bot size={16} className="text-text-muted" />
-                  <span className="text-sm text-text-primary">{alert.agentName}</span>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Bot size={14} className="text-text-muted flex-shrink-0" />
+                  <span className="text-xs md:text-sm text-text-primary truncate">{alert.agentName}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap pl-6 md:pl-0">
                   {alert.alertaBaixaResposta && <AlertBadge type="baixa_resposta" />}
                   {alert.alertaBaixaConversao && <AlertBadge type="baixa_conversao" />}
                   {alert.alertaCustoSemResultado && <AlertBadge type="custo_sem_resultado" />}
@@ -619,16 +612,16 @@ export const Performance = () => {
 
       {/* Ranking Top 3 */}
       {ranking.length > 0 && (
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
-          <h3 className="font-semibold text-text-primary flex items-center gap-2 mb-4">
-            <Trophy className="text-amber-400" size={20} />
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-4 md:p-6">
+          <h3 className="font-semibold text-text-primary flex items-center gap-2 mb-3 md:mb-4 text-sm md:text-base">
+            <Trophy className="text-amber-400" size={18} />
             Top Performers
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             {ranking.slice(0, 3).map((client, index) => (
               <div
                 key={client.locationId}
-                className={`relative overflow-hidden rounded-lg p-4 border ${
+                className={`relative overflow-hidden rounded-lg p-3 md:p-4 border ${
                   index === 0 ? 'bg-amber-500/5 border-amber-500/30' :
                   index === 1 ? 'bg-slate-400/5 border-slate-400/30' :
                   'bg-orange-700/5 border-orange-700/30'
@@ -637,27 +630,27 @@ export const Performance = () => {
                 <div className="absolute top-2 right-2">
                   <RankBadge rank={index + 1} />
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-bg-tertiary flex items-center justify-center">
-                    <Bot size={20} className="text-text-muted" />
+                <div className="flex items-start gap-2 md:gap-3">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-bg-tertiary flex items-center justify-center flex-shrink-0">
+                    <Bot size={isMobile ? 16 : 20} className="text-text-muted" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-text-primary truncate">{client.agentName}</p>
-                    <p className="text-xs text-text-muted truncate">{client.locationId}</p>
+                  <div className="flex-1 min-w-0 pr-6">
+                    <p className="font-semibold text-text-primary truncate text-sm md:text-base">{client.agentName}</p>
+                    <p className="text-[10px] md:text-xs text-text-muted truncate">{client.locationId}</p>
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div className="mt-3 md:mt-4 grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-lg font-bold text-text-primary">{client.totalLeads}</p>
-                    <p className="text-[10px] text-text-muted uppercase">Leads</p>
+                    <p className="text-base md:text-lg font-bold text-text-primary">{client.totalLeads}</p>
+                    <p className="text-[9px] md:text-[10px] text-text-muted uppercase">Leads</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-emerald-400">{client.taxaResposta}%</p>
-                    <p className="text-[10px] text-text-muted uppercase">Resp.</p>
+                    <p className="text-base md:text-lg font-bold text-emerald-400">{client.taxaResposta}%</p>
+                    <p className="text-[9px] md:text-[10px] text-text-muted uppercase">Resp.</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-amber-400">{client.taxaConversaoGeral}%</p>
-                    <p className="text-[10px] text-text-muted uppercase">Conv.</p>
+                    <p className="text-base md:text-lg font-bold text-amber-400">{client.taxaConversaoGeral}%</p>
+                    <p className="text-[9px] md:text-[10px] text-text-muted uppercase">Conv.</p>
                   </div>
                 </div>
               </div>
@@ -668,18 +661,18 @@ export const Performance = () => {
 
       {/* Tabela de Clientes */}
       <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-border-default flex items-center justify-between">
-          <h3 className="font-semibold text-text-primary">Todos os Clientes</h3>
+        <div className="p-3 md:p-4 border-b border-border-default flex items-center justify-between">
+          <h3 className="font-semibold text-text-primary text-sm md:text-base">Todos os Clientes</h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-text-muted">Ordenar por:</span>
+            <span className="text-xs text-text-muted hidden md:inline">Ordenar por:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-bg-tertiary border border-border-default rounded px-2 py-1 text-sm text-text-primary"
+              className="bg-bg-tertiary border border-border-default rounded px-2 py-1 text-xs md:text-sm text-text-primary"
             >
-              <option value="leads">Volume de Leads</option>
-              <option value="conversao">Taxa de Conversão</option>
-              <option value="resposta">Taxa de Resposta</option>
+              <option value="leads">Leads</option>
+              <option value="conversao">Conversão</option>
+              <option value="resposta">Resposta</option>
             </select>
           </div>
         </div>
@@ -700,7 +693,89 @@ export const Performance = () => {
             <p className="text-sm text-text-muted">Nenhum cliente encontrado</p>
             <p className="text-xs text-text-muted mt-1">Execute a migration SQL primeiro</p>
           </div>
+        ) : isMobile ? (
+          /* VERSÃO MOBILE - Cards */
+          <div className="divide-y divide-border-default">
+            {sortedClients.map((client, index) => (
+              <div key={client.locationId} className="p-4 space-y-3">
+                {/* Header do Card */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-bg-tertiary text-xs font-mono text-text-muted">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-text-primary text-sm truncate">{client.agentName}</p>
+                      <p className="text-[10px] text-text-muted flex items-center gap-1 truncate">
+                        <Bot size={10} />
+                        {client.locationId}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-text-muted">$</span>
+                    <span className="font-mono text-text-primary text-sm">{client.custoTotalUsd.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Métricas Grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    onClick={() => openDrilldown(`Leads - ${client.agentName}`, 'all', client.agentName, `${client.totalLeads} leads totais`)}
+                    className="bg-bg-tertiary/50 rounded-lg p-2 text-center hover:bg-bg-tertiary transition-colors"
+                  >
+                    <p className="text-sm font-bold text-text-primary">{client.totalLeads}</p>
+                    <p className="text-[9px] text-text-muted uppercase">Leads</p>
+                  </button>
+                  <button
+                    onClick={() => openDrilldown(`Responderam - ${client.agentName}`, 'responderam', client.agentName, `${client.leadsResponderam} leads`)}
+                    className="bg-bg-tertiary/50 rounded-lg p-2 text-center hover:bg-bg-tertiary transition-colors"
+                  >
+                    <p className="text-sm font-bold text-text-primary">{client.leadsResponderam}</p>
+                    <p className="text-[9px] text-text-muted uppercase">Resp.</p>
+                  </button>
+                  <button
+                    onClick={() => openDrilldown(`Agendaram - ${client.agentName}`, 'agendaram', client.agentName, `${client.leadsAgendaram} leads`)}
+                    className="bg-bg-tertiary/50 rounded-lg p-2 text-center hover:bg-bg-tertiary transition-colors"
+                  >
+                    <p className="text-sm font-bold text-text-primary">{client.leadsAgendaram}</p>
+                    <p className="text-[9px] text-text-muted uppercase">Agend.</p>
+                  </button>
+                  <button
+                    onClick={() => openDrilldown(`Fecharam - ${client.agentName}`, 'fecharam', client.agentName, `${client.leadsFecharam} leads`)}
+                    className="bg-emerald-500/10 rounded-lg p-2 text-center hover:bg-emerald-500/20 transition-colors"
+                  >
+                    <p className="text-sm font-bold text-emerald-400">{client.leadsFecharam}</p>
+                    <p className="text-[9px] text-text-muted uppercase">Fechou</p>
+                  </button>
+                </div>
+
+                {/* Taxas */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-text-muted">Tx Resposta</span>
+                      <span className={`text-xs font-medium ${client.taxaResposta >= 15 ? 'text-emerald-400' : client.taxaResposta >= 5 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {client.taxaResposta}%
+                      </span>
+                    </div>
+                    <PercentageBar value={client.taxaResposta} color={client.taxaResposta >= 15 ? 'green' : client.taxaResposta >= 5 ? 'yellow' : 'red'} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-text-muted">Tx Conversão</span>
+                      <span className={`text-xs font-medium ${client.taxaConversaoGeral >= 10 ? 'text-emerald-400' : client.taxaConversaoGeral >= 3 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {client.taxaConversaoGeral}%
+                      </span>
+                    </div>
+                    <PercentageBar value={client.taxaConversaoGeral * 2} color={client.taxaConversaoGeral >= 10 ? 'green' : client.taxaConversaoGeral >= 3 ? 'yellow' : 'red'} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
+          /* VERSÃO DESKTOP - Tabela */
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -814,13 +889,14 @@ export const Performance = () => {
 
       {/* Seção de Versões por Cliente */}
       <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-border-default flex items-center justify-between">
-          <h3 className="font-semibold text-text-primary flex items-center gap-2">
-            <Layers size={20} className="text-purple-400" />
-            Versões de Agentes por Cliente
+        <div className="p-3 md:p-4 border-b border-border-default flex items-center justify-between">
+          <h3 className="font-semibold text-text-primary flex items-center gap-2 text-sm md:text-base">
+            <Layers size={18} className="text-purple-400" />
+            <span className="hidden md:inline">Versões de Agentes por Cliente</span>
+            <span className="md:hidden">Versões</span>
           </h3>
-          <span className="text-xs text-text-muted">
-            {versionsByLocation.reduce((acc, loc) => acc + loc.versions.length, 0)} versões em {versionsByLocation.length} clientes
+          <span className="text-[10px] md:text-xs text-text-muted">
+            {versionsByLocation.reduce((acc, loc) => acc + loc.versions.length, 0)} versões
           </span>
         </div>
 
@@ -841,28 +917,28 @@ export const Performance = () => {
                 {/* Header do Cliente */}
                 <button
                   onClick={() => toggleLocationExpanded(location.locationId)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-bg-tertiary/30 transition-colors"
+                  className="w-full flex items-center justify-between p-3 md:p-4 hover:bg-bg-tertiary/30 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-bg-tertiary flex items-center justify-center">
-                      <Bot size={20} className="text-text-muted" />
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-bg-tertiary flex items-center justify-center flex-shrink-0">
+                      <Bot size={isMobile ? 16 : 20} className="text-text-muted" />
                     </div>
-                    <div className="text-left">
-                      <p className="font-medium text-text-primary">{location.agentName}</p>
-                      <p className="text-xs text-text-muted">{location.locationId}</p>
+                    <div className="text-left min-w-0">
+                      <p className="font-medium text-text-primary text-sm md:text-base truncate">{location.agentName}</p>
+                      <p className="text-[10px] md:text-xs text-text-muted truncate hidden md:block">{location.locationId}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-muted">{location.versions.length} versões</span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
-                        {location.versions.filter(v => v.isActive).length} ativas
+                  <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                    <div className="flex items-center gap-1 md:gap-2">
+                      <span className="text-[10px] md:text-xs text-text-muted">{location.versions.length}</span>
+                      <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                        {location.versions.filter(v => v.isActive).length} <span className="hidden md:inline">ativas</span>
                       </span>
                     </div>
                     {expandedLocations.has(location.locationId) ? (
-                      <ChevronUp size={20} className="text-text-muted" />
+                      <ChevronUp size={18} className="text-text-muted" />
                     ) : (
-                      <ChevronDown size={20} className="text-text-muted" />
+                      <ChevronDown size={18} className="text-text-muted" />
                     )}
                   </div>
                 </button>
@@ -870,66 +946,100 @@ export const Performance = () => {
                 {/* Lista de Versões Expandida */}
                 {expandedLocations.has(location.locationId) && (
                   <div className="bg-bg-tertiary/20 border-t border-border-default">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-bg-tertiary/50">
-                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Versão</th>
-                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Status</th>
-                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Testes</th>
-                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Score</th>
-                          <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Atualizado</th>
-                          <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Ativo</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-default/50">
+                    {isMobile ? (
+                      /* VERSÃO MOBILE - Cards de versões */
+                      <div className="divide-y divide-border-default/50 p-3 space-y-2">
                         {location.versions.map((version) => (
-                          <tr key={version.id} className="hover:bg-bg-tertiary/40 transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <Hash size={14} className="text-text-muted" />
-                                <span className="font-mono text-sm text-text-primary">{version.version}</span>
+                          <div key={version.id} className="bg-bg-primary rounded-lg p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-sm text-text-primary">v{version.version}</span>
+                                  <StatusBadge status={version.status} />
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
+                                  <span>{version.totalTestRuns} testes</span>
+                                  {version.lastTestScore !== null && (
+                                    <span className={version.lastTestScore >= 7 ? 'text-emerald-400' : version.lastTestScore >= 4 ? 'text-amber-400' : 'text-red-400'}>
+                                      Score: {version.lastTestScore.toFixed(1)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <StatusBadge status={version.status} />
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              <span className="text-sm text-text-primary">{version.totalTestRuns}</span>
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              {version.lastTestScore !== null ? (
-                                <span className={`text-sm font-medium ${
-                                  version.lastTestScore >= 7 ? 'text-emerald-400' :
-                                  version.lastTestScore >= 4 ? 'text-amber-400' : 'text-red-400'
-                                }`}>
-                                  {version.lastTestScore.toFixed(1)}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-text-muted">-</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-1.5 text-xs text-text-muted">
-                                <Clock size={12} />
-                                {formatDate(version.updatedAt)}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <ToggleSwitch
-                                  isOn={version.isActive}
-                                  onToggle={() => handleToggleVersion(version.id, version.isActive)}
-                                  loading={versionUpdating === version.id}
-                                />
-                                <span className={`text-xs ${version.isActive ? 'text-emerald-400' : 'text-text-muted'}`}>
-                                  {version.isActive ? 'ON' : 'OFF'}
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <ToggleSwitch
+                                isOn={version.isActive}
+                                onToggle={() => handleToggleVersion(version.id, version.isActive)}
+                                loading={versionUpdating === version.id}
+                              />
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+                    ) : (
+                      /* VERSÃO DESKTOP - Tabela */
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-bg-tertiary/50">
+                            <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Versão</th>
+                            <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Status</th>
+                            <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Testes</th>
+                            <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Score</th>
+                            <th className="text-left py-2 px-4 text-xs font-medium text-text-muted uppercase">Atualizado</th>
+                            <th className="text-center py-2 px-4 text-xs font-medium text-text-muted uppercase">Ativo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-default/50">
+                          {location.versions.map((version) => (
+                            <tr key={version.id} className="hover:bg-bg-tertiary/40 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <Hash size={14} className="text-text-muted" />
+                                  <span className="font-mono text-sm text-text-primary">{version.version}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <StatusBadge status={version.status} />
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="text-sm text-text-primary">{version.totalTestRuns}</span>
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                {version.lastTestScore !== null ? (
+                                  <span className={`text-sm font-medium ${
+                                    version.lastTestScore >= 7 ? 'text-emerald-400' :
+                                    version.lastTestScore >= 4 ? 'text-amber-400' : 'text-red-400'
+                                  }`}>
+                                    {version.lastTestScore.toFixed(1)}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-text-muted">-</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                                  <Clock size={12} />
+                                  {formatDate(version.updatedAt)}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center justify-center gap-2">
+                                  <ToggleSwitch
+                                    isOn={version.isActive}
+                                    onToggle={() => handleToggleVersion(version.id, version.isActive)}
+                                    loading={versionUpdating === version.id}
+                                  />
+                                  <span className={`text-xs ${version.isActive ? 'text-emerald-400' : 'text-text-muted'}`}>
+                                    {version.isActive ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 )}
               </div>
