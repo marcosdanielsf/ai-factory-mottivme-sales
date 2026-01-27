@@ -57,6 +57,29 @@ export interface ClientInfo {
   leads_ativos: number;
 }
 
+export interface LeadDetail {
+  session_id: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  location_id: string | null;
+  location_name: string | null;
+  last_message: string | null;
+  follow_up_count: number;
+  last_contact_at: string | null;
+  is_active: boolean;
+}
+
+export type LeadFilterType = 
+  | 'ativos' 
+  | 'inativos' 
+  | 'prontos_fu' 
+  | 'fu_0' 
+  | 'fu_1' 
+  | 'fu_2' 
+  | 'fu_3' 
+  | 'fu_4_plus';
+
 // ============================================
 // SALES OPS DAO
 // ============================================
@@ -247,6 +270,152 @@ export const salesOpsDAO = {
     }
 
     return Array.from(clientMap.values());
+  },
+
+  /**
+   * Busca leads detalhados por tipo de filtro
+   */
+  async getLeadsByFilter(filterType: LeadFilterType, locationId?: string): Promise<LeadDetail[]> {
+    // Query base para buscar leads com detalhes
+    // Usa a view de leads prontos como base e complementa
+    let query = supabase
+      .from('vw_leads_detalhados')
+      .select('*')
+      .order('last_contact_at', { ascending: false })
+      .limit(100);
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    // Aplica filtros baseado no tipo
+    switch (filterType) {
+      case 'ativos':
+        query = query.eq('is_active', true);
+        break;
+      case 'inativos':
+        query = query.eq('is_active', false);
+        break;
+      case 'prontos_fu':
+        // Leads prontos para follow-up (view específica)
+        const { data: prontosData, error: prontosError } = await supabase
+          .from('vw_leads_prontos_detalhados')
+          .select('*')
+          .order('last_contact_at', { ascending: false })
+          .limit(100);
+        
+        if (prontosError) {
+          console.warn('View vw_leads_prontos_detalhados não existe, usando fallback');
+          // Fallback: busca leads ativos com data de último contato > 24h
+          query = query.eq('is_active', true);
+        } else {
+          return prontosData || [];
+        }
+        break;
+      case 'fu_0':
+        query = query.eq('follow_up_count', 0);
+        break;
+      case 'fu_1':
+        query = query.eq('follow_up_count', 1);
+        break;
+      case 'fu_2':
+        query = query.eq('follow_up_count', 2);
+        break;
+      case 'fu_3':
+        query = query.eq('follow_up_count', 3);
+        break;
+      case 'fu_4_plus':
+        query = query.gte('follow_up_count', 4);
+        break;
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Erro ao buscar leads:', error);
+      // Tenta fallback com tabelas base se a view não existir
+      return this.getLeadsFallback(filterType, locationId);
+    }
+
+    return data || [];
+  },
+
+  /**
+   * Fallback caso as views de leads detalhados não existam
+   * Busca diretamente das tabelas base
+   */
+  async getLeadsFallback(filterType: LeadFilterType, locationId?: string): Promise<LeadDetail[]> {
+    try {
+      // Tenta buscar de follow_up_leads com join
+      let query = supabase
+        .from('follow_up_leads')
+        .select(`
+          id,
+          session_id,
+          contact_id,
+          contact_phone,
+          location_id,
+          follow_up_count,
+          is_active,
+          ultima_resposta,
+          ultima_mensagem_lead
+        `)
+        .order('ultima_resposta', { ascending: false })
+        .limit(100);
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      // Aplica filtros
+      switch (filterType) {
+        case 'ativos':
+          query = query.eq('is_active', true);
+          break;
+        case 'inativos':
+          query = query.eq('is_active', false);
+          break;
+        case 'prontos_fu':
+          query = query.eq('is_active', true);
+          break;
+        case 'fu_0':
+          query = query.eq('follow_up_count', 0);
+          break;
+        case 'fu_1':
+          query = query.eq('follow_up_count', 1);
+          break;
+        case 'fu_2':
+          query = query.eq('follow_up_count', 2);
+          break;
+        case 'fu_3':
+          query = query.eq('follow_up_count', 3);
+          break;
+        case 'fu_4_plus':
+          query = query.gte('follow_up_count', 4);
+          break;
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Mapeia para o formato LeadDetail
+      return (data || []).map((lead) => ({
+        session_id: lead.session_id,
+        contact_id: lead.contact_id,
+        contact_name: null, // Não disponível no fallback
+        contact_phone: lead.contact_phone,
+        location_id: lead.location_id,
+        location_name: null, // Não disponível no fallback
+        last_message: lead.ultima_mensagem_lead,
+        follow_up_count: lead.follow_up_count || 0,
+        last_contact_at: lead.ultima_resposta,
+        is_active: lead.is_active ?? true,
+      }));
+    } catch (err) {
+      console.error('Fallback também falhou:', err);
+      return [];
+    }
   },
 };
 

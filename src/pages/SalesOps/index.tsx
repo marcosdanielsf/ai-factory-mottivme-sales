@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BarChart3, RefreshCw } from 'lucide-react';
 import { salesOpsDAO, type ClientInfo } from '../../lib/supabase-sales-ops';
 import { ClientSelector } from './components/ClientSelector';
@@ -6,6 +6,7 @@ import { OverviewCards } from './components/OverviewCards';
 import { FunnelChart } from './components/FunnelChart';
 import { ActivityChart } from './components/ActivityChart';
 import { ConversionTable } from './components/ConversionTable';
+import { LeadsDrawer, type LeadFilterType } from './components/LeadsDrawer';
 
 export const SalesOps = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +20,11 @@ export const SalesOps = () => {
   const [activity, setActivity] = useState<{ data: string; mensagens_enviadas: number; leads_contactados: number }[]>([]);
   const [conversao, setConversao] = useState<any[]>([]);
   const [leadsProntos, setLeadsProntos] = useState(0);
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTitle, setDrawerTitle] = useState('');
+  const [drawerFilterType, setDrawerFilterType] = useState<LeadFilterType>('ativos');
 
   const loadData = async (locationId: string | null = null) => {
     setIsLoading(true);
@@ -53,6 +59,25 @@ export const SalesOps = () => {
   const handleRefresh = () => {
     loadData(selectedLocationId);
   };
+
+  // Handler para abrir drawer de cards
+  const handleCardClick = useCallback((filterType: LeadFilterType, title: string) => {
+    setDrawerFilterType(filterType);
+    setDrawerTitle(title);
+    setDrawerOpen(true);
+  }, []);
+
+  // Handler para abrir drawer do funil
+  const handleFunnelClick = useCallback((filterType: LeadFilterType, title: string) => {
+    setDrawerFilterType(filterType);
+    setDrawerTitle(title);
+    setDrawerOpen(true);
+  }, []);
+
+  // Handler para fechar drawer
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+  }, []);
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -100,24 +125,39 @@ export const SalesOps = () => {
 
       {/* Content */}
       <div className="p-6 space-y-6">
-        {/* Overview Cards */}
+        {/* Overview Cards - agora clicáveis */}
         <OverviewCards
           leadsAtivos={totals.totalAtivos}
           leadsInativos={totals.totalInativos}
           mediaFollowUps={totals.mediaFollowUps}
           leadsProntos={leadsProntos}
           isLoading={isLoading}
+          onCardClick={handleCardClick}
         />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <FunnelChart data={funnel} isLoading={isLoading} />
+          {/* Funnel Chart - agora clicável */}
+          <FunnelChart 
+            data={funnel} 
+            isLoading={isLoading} 
+            onBarClick={handleFunnelClick}
+          />
           <ActivityChart data={activity} isLoading={isLoading} />
         </div>
 
         {/* Conversion Table */}
         <ConversionTable data={conversao} isLoading={isLoading} />
       </div>
+
+      {/* Leads Drawer */}
+      <LeadsDrawer
+        isOpen={drawerOpen}
+        onClose={handleCloseDrawer}
+        title={drawerTitle}
+        filterType={drawerFilterType}
+        locationId={selectedLocationId}
+      />
     </div>
   );
 };

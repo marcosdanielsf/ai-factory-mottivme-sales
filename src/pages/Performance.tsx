@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   TrendingUp,
   Users,
@@ -24,10 +24,12 @@ import {
   Filter,
   Eye,
   EyeOff,
-  Search
+  Search,
+  ExternalLink
 } from 'lucide-react';
-import { useClientPerformance, useAllAgentVersions, DateRangeType } from '../hooks';
+import { useClientPerformance, useAllAgentVersions, DateRangeType, usePerformanceDrilldown, DrilldownFilter } from '../hooks';
 import { useToast } from '../hooks/useToast';
+import { LeadsDrilldownModal } from '../components/LeadsDrilldownModal';
 
 // Gerar lista de meses disponíveis
 const generateMonthOptions = () => {
@@ -54,7 +56,9 @@ const StatCard = ({
   subtitle,
   icon: Icon,
   color = 'blue',
-  trend
+  trend,
+  onClick,
+  clickable = false
 }: {
   title: string;
   value: string | number;
@@ -62,6 +66,8 @@ const StatCard = ({
   icon: any;
   color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
   trend?: { value: number; label: string };
+  onClick?: () => void;
+  clickable?: boolean;
 }) => {
   const colorClasses = {
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -71,12 +77,28 @@ const StatCard = ({
     purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
   };
 
+  const isClickable = clickable || !!onClick;
+
   return (
-    <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+    <div 
+      onClick={onClick}
+      className={`bg-bg-secondary border border-border-default rounded-lg p-4 transition-all ${
+        isClickable 
+          ? 'cursor-pointer hover:border-accent-primary/50 hover:bg-bg-tertiary/50 hover:shadow-lg hover:shadow-accent-primary/5 group' 
+          : ''
+      }`}
+    >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs text-text-muted uppercase tracking-wide">{title}</p>
-          <p className="text-2xl font-bold text-text-primary mt-1">{value}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide flex items-center gap-1">
+            {title}
+            {isClickable && (
+              <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity text-accent-primary" />
+            )}
+          </p>
+          <p className={`text-2xl font-bold text-text-primary mt-1 ${isClickable ? 'group-hover:text-accent-primary transition-colors' : ''}`}>
+            {value}
+          </p>
           {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
           {trend && (
             <div className={`flex items-center gap-1 mt-2 text-xs ${trend.value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -85,7 +107,7 @@ const StatCard = ({
             </div>
           )}
         </div>
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${colorClasses[color]}`}>
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${colorClasses[color]} ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`}>
           <Icon size={20} />
         </div>
       </div>
@@ -116,6 +138,42 @@ const PercentageBar = ({ value, color = 'blue' }: { value: number; color?: strin
         style={{ width: `${Math.min(value, 100)}%` }}
       />
     </div>
+  );
+};
+
+// Célula clicável para drill-down na tabela
+const ClickableCell = ({
+  value,
+  onClick,
+  highlight = false,
+  className = ''
+}: {
+  value: number | string;
+  onClick?: () => void;
+  highlight?: boolean;
+  className?: string;
+}) => {
+  if (!onClick) {
+    return <span className={className}>{value}</span>;
+  }
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`
+        px-2 py-1 rounded-md transition-all
+        hover:bg-accent-primary/10 hover:text-accent-primary
+        active:scale-95 cursor-pointer
+        ${highlight ? 'font-semibold text-emerald-400' : 'text-text-primary'}
+        ${className}
+      `}
+      title="Clique para ver detalhes"
+    >
+      {value}
+    </button>
   );
 };
 
@@ -200,6 +258,22 @@ export const Performance = () => {
   const [showInactive, setShowInactive] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(false);
 
+  // Estado do modal de drill-down
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [drilldownTitle, setDrilldownTitle] = useState('');
+  const [drilldownSubtitle, setDrilldownSubtitle] = useState('');
+  const [drilldownClientName, setDrilldownClientName] = useState<string | undefined>();
+  const [drilldownFilterType, setDrilldownFilterType] = useState<DrilldownFilter>('all');
+
+  // Hook de drill-down
+  const {
+    leads: drilldownLeads,
+    loading: drilldownLoading,
+    error: drilldownError,
+    fetchLeads,
+    clearLeads
+  } = usePerformanceDrilldown();
+
   // Hook com filtros aplicados
   const {
     clients,
@@ -229,6 +303,28 @@ export const Performance = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'leads' | 'conversao' | 'resposta'>('leads');
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+
+  // Função para abrir drill-down
+  const openDrilldown = useCallback(async (
+    title: string,
+    filter: DrilldownFilter,
+    clientName?: string,
+    subtitle?: string
+  ) => {
+    setDrilldownTitle(title);
+    setDrilldownSubtitle(subtitle || '');
+    setDrilldownClientName(clientName);
+    setDrilldownFilterType(filter);
+    setDrilldownOpen(true);
+
+    await fetchLeads({ filter, clientName });
+  }, [fetchLeads]);
+
+  // Função para fechar drill-down
+  const closeDrilldown = useCallback(() => {
+    setDrilldownOpen(false);
+    clearLeads();
+  }, [clearLeads]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -432,35 +528,63 @@ export const Performance = () => {
       )}
 
 
-      {/* Cards de Totais */}
+      {/* Cards de Totais - CLICÁVEIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Clientes"
           value={totals.totalClientes}
-          subtitle="com agentes ativos"
+          subtitle="com agentes ativos • clique para ver lista"
           icon={Building2}
           color="blue"
+          clickable
+          onClick={() => openDrilldown(
+            'Lista de Clientes',
+            'clientes',
+            undefined,
+            `${totals.totalClientes} clientes com agentes ativos`
+          )}
         />
         <StatCard
           title="Total Leads"
           value={totals.totalLeads.toLocaleString()}
-          subtitle="em todos os clientes"
+          subtitle="em todos os clientes • clique para ver"
           icon={Users}
           color="purple"
+          clickable
+          onClick={() => openDrilldown(
+            'Todos os Leads',
+            'all',
+            undefined,
+            `${totals.totalLeads.toLocaleString()} leads em todos os clientes`
+          )}
         />
         <StatCard
           title="Taxa Resposta Média"
           value={`${totals.taxaRespostMedia.toFixed(1)}%`}
-          subtitle="média geral"
+          subtitle="clique para ver leads que responderam"
           icon={MessageSquare}
           color="green"
+          clickable
+          onClick={() => openDrilldown(
+            'Leads que Responderam',
+            'responderam',
+            undefined,
+            `${totals.totalResponderam.toLocaleString()} leads que avançaram no funil`
+          )}
         />
         <StatCard
           title="Taxa Conversão Média"
           value={`${totals.taxaConversaoMedia.toFixed(1)}%`}
-          subtitle="lead → fechamento"
+          subtitle="clique para ver leads convertidos"
           icon={Target}
           color="yellow"
+          clickable
+          onClick={() => openDrilldown(
+            'Leads Convertidos (Fecharam)',
+            'fecharam',
+            undefined,
+            `${totals.totalFecharam.toLocaleString()} leads que fecharam negócio`
+          )}
         />
       </div>
 
@@ -609,16 +733,50 @@ export const Performance = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="font-semibold text-text-primary">{client.totalLeads}</span>
+                      <ClickableCell
+                        value={client.totalLeads}
+                        className="font-semibold"
+                        onClick={() => openDrilldown(
+                          `Leads - ${client.agentName}`,
+                          'all',
+                          client.agentName,
+                          `${client.totalLeads} leads totais`
+                        )}
+                      />
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="text-text-primary">{client.leadsResponderam}</span>
+                      <ClickableCell
+                        value={client.leadsResponderam}
+                        onClick={() => openDrilldown(
+                          `Leads que Responderam - ${client.agentName}`,
+                          'responderam',
+                          client.agentName,
+                          `${client.leadsResponderam} leads que avançaram no funil`
+                        )}
+                      />
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="text-text-primary">{client.leadsAgendaram}</span>
+                      <ClickableCell
+                        value={client.leadsAgendaram}
+                        onClick={() => openDrilldown(
+                          `Leads que Agendaram - ${client.agentName}`,
+                          'agendaram',
+                          client.agentName,
+                          `${client.leadsAgendaram} leads que agendaram reunião`
+                        )}
+                      />
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className="text-emerald-400 font-semibold">{client.leadsFecharam}</span>
+                      <ClickableCell
+                        value={client.leadsFecharam}
+                        highlight
+                        onClick={() => openDrilldown(
+                          `Leads Convertidos - ${client.agentName}`,
+                          'fecharam',
+                          client.agentName,
+                          `${client.leadsFecharam} leads que fecharam negócio`
+                        )}
+                      />
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-col items-center gap-1">
@@ -779,6 +937,19 @@ export const Performance = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Drill-down de Leads */}
+      <LeadsDrilldownModal
+        isOpen={drilldownOpen}
+        onClose={closeDrilldown}
+        leads={drilldownLeads}
+        loading={drilldownLoading}
+        error={drilldownError}
+        title={drilldownTitle}
+        subtitle={drilldownSubtitle}
+        clientName={drilldownClientName}
+        filterType={drilldownFilterType}
+      />
     </div>
   );
 };

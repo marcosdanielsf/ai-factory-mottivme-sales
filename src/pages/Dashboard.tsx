@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
 import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw, MessageSquare, Calendar, UserCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { TestReportModal } from '../components/TestReportModal';
+import { DrilldownModal } from '../components/DrilldownModal';
+import { useDrilldownLeads, MetricType } from '../hooks/useDrilldownLeads';
 import { 
   LineChart, 
   Line, 
@@ -66,6 +68,7 @@ const ChartPlaceholder = ({ title, loading, error, empty, children, height = "h-
 );
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const { metrics } = useDashboardMetrics();
   const { agents, loading: agentsLoading, error: agentsError, refetch: refetchAgents } = useAgents();
@@ -77,6 +80,23 @@ export const Dashboard = () => {
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Estado para drill-down
+  const [selectedMetric, setSelectedMetric] = useState<MetricType | null>(null);
+  const [drilldownTitle, setDrilldownTitle] = useState<string>('');
+  const { leads: drilldownLeads, loading: drilldownLoading, error: drilldownError } = useDrilldownLeads(selectedMetric, selectedPeriod);
+
+  // Handler para abrir drill-down
+  const handleDrilldown = (metricType: MetricType, title: string) => {
+    setSelectedMetric(metricType);
+    setDrilldownTitle(title);
+  };
+
+  // Handler para clicar em um lead no drill-down
+  const handleLeadClick = (leadId: string) => {
+    navigate(`/supervision?lead=${leadId}`);
+    setSelectedMetric(null);
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -239,36 +259,48 @@ export const Dashboard = () => {
 
             <div className="flex-1 flex items-center gap-6 flex-wrap">
               {alerts.leadsSemResposta24h > 0 && (
-                <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDrilldown('sem_resposta_24h', 'Leads sem Resposta (24h+)')}
+                  className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded transition-colors"
+                >
                   <span className={`w-2 h-2 rounded-full ${alerts.leadsSemResposta24h > 5 ? 'bg-accent-error animate-pulse' : 'bg-accent-warning'}`} />
-                  <span className="text-sm text-text-secondary">
+                  <span className="text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {alerts.leadsSemResposta24h} leads sem resposta {'>'}24h
                   </span>
-                </div>
+                </button>
               )}
               {alerts.followupsFalhados > 0 && (
-                <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDrilldown('follow_ups_pendentes', 'Follow-ups Pendentes')}
+                  className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded transition-colors"
+                >
                   <span className="w-2 h-2 rounded-full bg-accent-error animate-pulse" />
-                  <span className="text-sm text-text-secondary">
+                  <span className="text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {alerts.followupsFalhados} follow-ups falhados
                   </span>
-                </div>
+                </button>
               )}
               {alerts.leadsEsfriando > 0 && (
-                <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDrilldown('leads_esfriando', 'Leads Esfriando')}
+                  className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded transition-colors"
+                >
                   <span className="w-2 h-2 rounded-full bg-accent-warning" />
-                  <span className="text-sm text-text-secondary">
+                  <span className="text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {alerts.leadsEsfriando} leads esfriando
                   </span>
-                </div>
+                </button>
               )}
               {alerts.noShows > 0 && (
-                <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDrilldown('no_shows', 'No-Shows')}
+                  className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded transition-colors"
+                >
                   <span className="w-2 h-2 rounded-full bg-accent-warning" />
-                  <span className="text-sm text-text-secondary">
+                  <span className="text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {alerts.noShows} no-shows
                   </span>
-                </div>
+                </button>
               )}
             </div>
           </div>
@@ -303,10 +335,27 @@ export const Dashboard = () => {
                   const prevCount = i > 0 ? funnel[i - 1].count : stage.count;
                   const conversionRate = prevCount > 0 ? ((stage.count / prevCount) * 100).toFixed(1) : '0';
 
+                  // Mapeamento de estágio para tipo de métrica
+                  const stageToMetric: Record<string, MetricType> = {
+                    'Leads Novos': 'leads_novos',
+                    'Responderam': 'responderam',
+                    'Agendaram': 'agendaram',
+                    'Compareceram': 'compareceram',
+                    'Fecharam': 'fecharam'
+                  };
+
                   return (
                     <div key={stage.stage}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${stage.color}20` }}>
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer hover:bg-bg-tertiary rounded-lg p-2 -mx-2 transition-colors group"
+                        onClick={() => {
+                          const metricType = stageToMetric[stage.stage];
+                          if (metricType) {
+                            handleDrilldown(metricType, stage.stage);
+                          }
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform" style={{ backgroundColor: `${stage.color}20` }}>
                           {i === 0 && <Users size={16} style={{ color: stage.color }} />}
                           {i === 1 && <MessageSquare size={16} style={{ color: stage.color }} />}
                           {i === 2 && <Calendar size={16} style={{ color: stage.color }} />}
@@ -315,8 +364,11 @@ export const Dashboard = () => {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-text-secondary">{stage.stage}</span>
+                            <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">{stage.stage}</span>
                             <span className="text-lg font-bold text-text-primary">{stage.count}</span>
+                            <span className="text-[10px] text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                              Ver leads →
+                            </span>
                           </div>
                           <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
                             <div
@@ -658,6 +710,18 @@ export const Dashboard = () => {
           onClose={() => setSelectedReportId(null)} 
         />
       )}
+
+      {/* Modal de Drill-Down */}
+      <DrilldownModal
+        isOpen={!!selectedMetric}
+        onClose={() => setSelectedMetric(null)}
+        title={drilldownTitle}
+        metricType={selectedMetric || 'total_leads'}
+        leads={drilldownLeads}
+        loading={drilldownLoading}
+        error={drilldownError}
+        onLeadClick={handleLeadClick}
+      />
     </div>
   );
 };
