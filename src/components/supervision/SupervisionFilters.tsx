@@ -261,6 +261,7 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
     filters.responsavel,
     filters.dateFrom || filters.dateTo,
     filters.hasQualityIssues,
+    filters.noResponse,
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -273,6 +274,7 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
       dateFrom: undefined,
       dateTo: undefined,
       hasQualityIssues: undefined,
+      noResponse: undefined,
     });
   };
 
@@ -334,6 +336,22 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
         dateTo={filters.dateTo}
         onChange={(from, to) => onFilterChange({ ...filters, dateFrom: from, dateTo: to })}
       />
+
+      {/* Toggle: Sem Resposta */}
+      <button
+        onClick={() => onFilterChange({ ...filters, noResponse: !filters.noResponse })}
+        className={`
+          flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+          ${filters.noResponse
+            ? 'bg-yellow-400/10 border border-yellow-400 text-yellow-400'
+            : 'bg-bg-hover border border-transparent text-text-secondary hover:bg-border-default'
+          }
+        `}
+        title="Filtrar conversas aguardando resposta da IA"
+      >
+        <MessageCircle size={14} />
+        <span className="hidden sm:inline">Sem Resposta</span>
+      </button>
 
       {/* Toggle: Com Problemas */}
       <button

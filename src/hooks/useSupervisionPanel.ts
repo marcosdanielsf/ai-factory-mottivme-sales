@@ -41,10 +41,11 @@ const CONVERSATION_FIELDS = `
   converted_at,
   supervision_updated_at,
   message_count,
-  channel,
-  instagram_username,
-  quality_issues_count
+  channel
 `;
+
+// View a usar (v3 tem bugs, voltando para original)
+const SUPERVISION_VIEW = 'vw_supervision_conversations';
 
 export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
   const [conversations, setConversations] = useState<SupervisionConversation[]>([]);
@@ -71,9 +72,9 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
 
       console.time('[SupervisionPanel] fetch-conversations');
 
-      // Usa a view v3 com campos específicos (não SELECT *)
+      // Usa a view original (v3 tinha bugs de nomes e duplicatas)
       let query = supabase
-        .from('vw_supervision_conversations_v3')
+        .from(SUPERVISION_VIEW)
         .select(CONVERSATION_FIELDS)
         .order('last_message_at', { ascending: false })
         .limit(50); // Reduzido de 100 para 50 para melhor performance
@@ -115,9 +116,15 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
         query = query.eq('usuario_responsavel', filters.responsavel);
       }
 
-      // Filtro de qualidade (Fase 3)
-      if (filters.hasQualityIssues) {
-        query = query.gt('quality_issues_count', 0);
+      // Filtro de qualidade (Fase 3) - desabilitado temporariamente (campo não existe na view original)
+      // TODO: Adicionar quality_issues_count na view vw_supervision_conversations
+      // if (filters.hasQualityIssues) {
+      //   query = query.gt('quality_issues_count', 0);
+      // }
+
+      // Filtro sem resposta (Fase 4) - última mensagem foi do user (lead)
+      if (filters.noResponse) {
+        query = query.eq('last_message_role', 'user');
       }
 
       const { data, error: fetchError } = await query;
@@ -126,14 +133,19 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
 
       if (fetchError) throw fetchError;
 
-      console.log(`[SupervisionPanel] Carregadas ${data?.length || 0} conversas`);
-      setConversations((data as SupervisionConversation[]) || []);
+      // Dedupe por conversation_id (workaround para bug na view)
+      const uniqueConversations = data ? 
+        Array.from(new Map((data as SupervisionConversation[]).map(c => [c.conversation_id, c])).values()) 
+        : [];
+      
+      console.log(`[SupervisionPanel] Carregadas ${data?.length || 0} conversas (${uniqueConversations.length} únicas)`);
+      setConversations(uniqueConversations);
     } catch (err: any) {
       console.timeEnd('[SupervisionPanel] fetch-conversations');
       console.error('Error fetching supervision conversations:', err);
 
-      // Fallback para view antiga ou mock se v3 nao existir
-      if (err.message?.includes('does not exist') || err.message?.includes('vw_supervision_conversations_v3')) {
+      // Fallback para mock se view nao existir
+      if (err.message?.includes('does not exist') || err.message?.includes('vw_supervision_conversations')) {
         try {
           console.log('[SupervisionPanel] Tentando fallback para view antiga...');
           // Tenta view antiga
@@ -160,7 +172,7 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.dateFrom, filters.dateTo, filters.locationId, filters.channel, filters.etapaFunil, filters.responsavel, filters.hasQualityIssues, debouncedSearch]);
+  }, [filters.status, filters.dateFrom, filters.dateTo, filters.locationId, filters.channel, filters.etapaFunil, filters.responsavel, filters.hasQualityIssues, filters.noResponse, debouncedSearch]);
 
   // Fetch inicial e quando filtros mudam
   useEffect(() => {

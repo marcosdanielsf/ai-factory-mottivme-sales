@@ -219,6 +219,8 @@ export interface SupervisionFilters {
   responsavel?: string | null;
   // Filtro de qualidade (Fase 3)
   hasQualityIssues?: boolean;
+  // Filtro sem resposta (Fase 4)
+  noResponse?: boolean;
 }
 
 // Opcao de filtro para dropdowns

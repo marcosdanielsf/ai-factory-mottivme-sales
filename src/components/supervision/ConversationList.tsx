@@ -17,9 +17,9 @@ interface ConversationListProps {
   loading?: boolean;
 }
 
-// Altura estimada de cada item da lista
-const ITEM_HEIGHT = 88;
-const ITEM_HEIGHT_MOBILE = 80;
+// Altura estimada de cada item da lista (aumentado para evitar sobreposição)
+const ITEM_HEIGHT = 100;
+const ITEM_HEIGHT_MOBILE = 92;
 
 export const ConversationList: React.FC<ConversationListProps> = ({
   conversations,
@@ -49,8 +49,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
   // Helper: obtém nome de exibição do contato com fallbacks
   const getContactDisplayName = (conversation: SupervisionConversation): string => {
-    // 1. Nome do contato (prioridade)
-    if (conversation.contact_name?.trim()) return conversation.contact_name;
+    // 1. Nome do contato (prioridade) - ignora se for "Desconhecido"
+    if (conversation.contact_name?.trim() && conversation.contact_name !== 'Desconhecido') {
+      return conversation.contact_name;
+    }
 
     // 2. Usuário do Instagram
     if (conversation.instagram_username?.trim()) return `@${conversation.instagram_username}`;
@@ -71,17 +73,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       return email.split('@')[0]; // Mostra só a parte antes do @
     }
 
-    // 5. Extrair nome da primeira mensagem (fallback inteligente)
-    if (conversation.last_message) {
-      const msg = conversation.last_message;
-      // Tenta extrair nome do início da mensagem
-      const nameMatch = msg.match(/^(Oi|Olá|Ola|Bom dia|Boa tarde|Boa noite|Fala|Eae),?\s*([A-Z][a-z]+)/i);
-      if (nameMatch) return nameMatch[1];
-      // Tenta pegar a primeira palavra
-      const firstWord = msg.split(/\s/)[0];
-      if (firstWord && firstWord.length < 20) return firstWord;
-    }
-
+    // TODO: Corrigir view vw_supervision_conversations_v3 para fazer JOIN 
+    // com n8n_active_conversation e trazer o lead_name
     return 'Desconhecido';
   };
 
@@ -181,13 +174,22 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 onClick={() => onSelect(conversation)}
                 className={`
                   p-2.5 md:p-3 mx-2 mb-1 rounded-lg cursor-pointer transition-colors active:bg-bg-hover/80
-                  ${isSelected ? 'bg-accent-primary/10 border border-accent-primary' : 'hover:bg-bg-hover border border-transparent'}
+                  ${isSelected 
+                    ? 'bg-accent-primary/10 border border-accent-primary' 
+                    : conversation.last_message_role === 'user'
+                      ? 'bg-yellow-400/20 hover:bg-yellow-400/25 border border-yellow-400/40'
+                      : 'hover:bg-bg-hover border border-transparent'
+                  }
                 `}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary flex-shrink-0">
+                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
+                      conversation.last_message_role === 'user' 
+                        ? 'bg-yellow-400/20 text-yellow-400 ring-2 ring-yellow-400/50' 
+                        : 'bg-bg-hover text-text-primary'
+                    }`}>
                       {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
