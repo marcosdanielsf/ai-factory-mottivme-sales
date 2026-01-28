@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Agent } from '../../types';
+import { Agent } from '../types';
 
 export const useAgents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);

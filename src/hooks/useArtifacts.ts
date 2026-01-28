@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { FactoryArtifact } from '../../types';
+import { FactoryArtifact } from '../types';
 
 export const useArtifacts = (agentId?: string) => {
   const [artifacts, setArtifacts] = useState<FactoryArtifact[]>([]);

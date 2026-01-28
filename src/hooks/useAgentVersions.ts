@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentVersion } from '../../types';
+import { AgentVersion } from '../types';
 
 export const useAgentVersions = (agentId?: string) => {
   const [versions, setVersions] = useState<AgentVersion[]>([]);

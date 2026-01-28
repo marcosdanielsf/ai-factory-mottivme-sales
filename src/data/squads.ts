@@ -1,4 +1,4 @@
-import { Squad, Member, Skill } from './types/rpg';
+import { Squad, Member, Skill } from '../types/rpg';
 import { AgentConfig } from '../services/dataService';
 
 // --- Skill Definitions (Defaults) ---
@@ -167,7 +167,7 @@ export const createSquadFromConfig = (
       {
         id: `m-${clientId}-2`,
         name: 'Agenda Bot',
-        role: 'Scheduler',
+        role: 'Rescheduler',
         type: 'operative',
         level: Math.floor(Math.random() * 5) + 3,
         xp: Math.floor(Math.random() * 3000),

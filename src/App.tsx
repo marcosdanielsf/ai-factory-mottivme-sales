@@ -12,6 +12,7 @@ import { SuperAgentRPG } from './pages/SuperAgentRPG';
 import { Notifications } from './pages/Notifications';
 import { Validation } from './pages/Validation';
 import { Logs } from './pages/Logs';
+import { FollowUps } from './pages/FollowUps';
 import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
 import { AgentDetail } from './pages/AgentDetail';
@@ -95,6 +96,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Logs />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/follow-ups" element={
+              <ProtectedRoute>
+                <Layout>
+                  <FollowUps />
                 </Layout>
               </ProtectedRoute>
             } />

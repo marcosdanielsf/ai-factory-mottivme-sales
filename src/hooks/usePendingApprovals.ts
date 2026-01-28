@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentVersion, PendingApproval } from '../../types';
+import { AgentVersion, PendingApproval } from '../types';
 
 export interface ApprovalRequest extends AgentVersion {
   agent_name?: string;

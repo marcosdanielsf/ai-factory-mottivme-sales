@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentPerformanceSummary } from '../../types';
+import { AgentPerformanceSummary } from '../types';
 
 export const useAgentPerformance = () => {
   const [performance, setPerformance] = useState<AgentPerformanceSummary[]>([]);

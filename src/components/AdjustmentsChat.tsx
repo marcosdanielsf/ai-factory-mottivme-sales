@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, Eye, Sparkles, Shield, AlertTriangle, Zap, Brain } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
 interface Message {
   id: string;
@@ -466,9 +467,11 @@ Uma nova versão do prompt foi criada.
                 <div
                   className="text-sm whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{
-                    __html: message.content
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/_(.*?)_/g, '<em>$1</em>'),
+                    __html: DOMPurify.sanitize(
+                      message.content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/_(.*?)_/g, '<em>$1</em>')
+                    ),
                   }}
                 />
 

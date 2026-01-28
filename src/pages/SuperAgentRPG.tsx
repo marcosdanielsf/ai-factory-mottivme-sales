@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { superAgent as initialAgent, trainers } from '../data/superAgent';
-import { Member, Trainer } from './types/rpg';
+import { Member, Trainer } from '../types/rpg';
 import { User, Sparkles, Zap, ScrollText, Calendar, Dumbbell, Gavel, GraduationCap, ArrowRight } from 'lucide-react';
 
 export const SuperAgentRPG = () => {
@@ -12,7 +12,7 @@ export const SuperAgentRPG = () => {
   // Efeito de evolução quando um treinador é ativado
   useEffect(() => {
     if (activeTrainer) {
-      let aura: 'blue' | 'yellow' | 'red' = 'none';
+      let aura: 'blue' | 'yellow' | 'red' = 'blue';
       if (activeTrainer.specialization === 'Law') aura = 'blue';
       if (activeTrainer.specialization === 'Coaching') aura = 'yellow';
       if (activeTrainer.specialization === 'Fitness') aura = 'red';

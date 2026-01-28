@@ -3,7 +3,7 @@ import { FileText, Upload, Database, Save, Plus, Hash, Bot, Wrench, BrainCircuit
 import { AGENT_MODES, AGENT_TOOLS, SYSTEM_PROMPT_TEMPLATE } from '../data/agent-config';
 import { useAgents, useArtifacts } from '../hooks';
 import { useToast } from '../hooks/useToast';
-import { Agent } from './types';
+import { Agent } from '../types';
 
 type Tab = 'overview' | 'prompt' | 'documentos' | 'adicionar' | 'modes';
 

@@ -1,6 +1,6 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Client, Agent, AgentVersion } from '../../types'; // Using new types
+import { Client, Agent, AgentVersion } from '../types'; // Using new types
 import { MOCK_CLIENTS } from '../constants';
 import { SYSTEM_PROMPT_TEMPLATE } from '../data/agent-config';
 

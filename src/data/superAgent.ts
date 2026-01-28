@@ -1,4 +1,4 @@
-import { Member, Trainer } from './types/rpg';
+import { Member, Trainer } from '../types/rpg';
 
 export const superAgent: Member = {
   id: 'super-goku-1',

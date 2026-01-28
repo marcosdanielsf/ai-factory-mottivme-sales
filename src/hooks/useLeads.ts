@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Lead } from '../../types';
+import { Lead } from '../types';
 
 export type LeadFilter = 'Todos' | 'Hoje' | 'Amanhã' | 'Agendados';
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentConversation } from '../../types';
+import { AgentConversation } from '../types';
 
 export interface ConversationSummary {
   id: string;

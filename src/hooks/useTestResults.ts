@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentTestRun } from '../../types';
+import { AgentTestRun } from '../types';
 
 // Interface para test_result individual
 interface TestResultItem {

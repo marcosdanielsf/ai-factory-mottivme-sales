@@ -22,7 +22,8 @@ import {
   UserPlus,
   Eye,
   BarChart3,
-  X
+  X,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -173,6 +174,7 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose }: SidebarPr
         <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} />
         <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} />
         <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} />
+        <SidebarItem icon={Send} label="Follow-ups" to="/follow-ups" onNavigate={handleNavigate} />
         <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} />
         <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} />
         
