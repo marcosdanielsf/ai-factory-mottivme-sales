@@ -106,28 +106,40 @@ export const salesOpsDAO = {
     totalLeads: number;
     mediaFollowUps: number;
   }> {
-    // Buscar dados diretamente da n8n_schedule_tracking para cálculos precisos
-    const { data, error } = await supabase
-      .from('n8n_schedule_tracking')
-      .select('ativo, follow_up_count');
+    // Usar view para totais (já agregada no banco)
+    const { data: overviewData, error: overviewError } = await supabase
+      .from('vw_sales_ops_overview')
+      .select('leads_ativos, leads_inativos, total_leads');
 
-    if (error) throw error;
+    if (overviewError) throw overviewError;
 
-    const leads = data || [];
-    const totalAtivos = leads.filter(l => l.ativo === true).length;
-    const totalInativos = leads.filter(l => l.ativo === false).length;
-    const totalLeads = leads.length;
-    
-    // Calcular média de follow-ups corretamente (soma total / quantidade de leads)
-    const totalFollowUps = leads.reduce((sum, l) => sum + (l.follow_up_count || 0), 0);
-    const mediaFollowUps = totalLeads > 0 
-      ? Math.round((totalFollowUps / totalLeads) * 100) / 100 
-      : 0;
+    const totals = (overviewData || []).reduce(
+      (acc, row) => ({
+        totalAtivos: acc.totalAtivos + (row.leads_ativos || 0),
+        totalInativos: acc.totalInativos + (row.leads_inativos || 0),
+        totalLeads: acc.totalLeads + (row.total_leads || 0),
+      }),
+      { totalAtivos: 0, totalInativos: 0, totalLeads: 0 }
+    );
+
+    // Calcular média de FU usando o funil (já agregado)
+    const { data: funnelData, error: funnelError } = await supabase
+      .from('vw_follow_up_funnel')
+      .select('follow_up_count, quantidade');
+
+    let mediaFollowUps = 0;
+    if (!funnelError && funnelData) {
+      const totalFUs = funnelData.reduce((sum, row) => 
+        sum + (row.follow_up_count * row.quantidade), 0);
+      const totalLeadsFromFunnel = funnelData.reduce((sum, row) => 
+        sum + row.quantidade, 0);
+      mediaFollowUps = totalLeadsFromFunnel > 0 
+        ? Math.round((totalFUs / totalLeadsFromFunnel) * 100) / 100 
+        : 0;
+    }
 
     return {
-      totalAtivos,
-      totalInativos,
-      totalLeads,
+      ...totals,
       mediaFollowUps,
     };
   },
@@ -253,38 +265,31 @@ export const salesOpsDAO = {
   },
 
   async getClients(): Promise<ClientInfo[]> {
-    // Buscar clientes diretamente da n8n_schedule_tracking para ter dados atualizados
+    // Usar view que já está agregada por location
     const { data, error } = await supabase
-      .from('n8n_schedule_tracking')
-      .select('location_id, location_name, ativo');
+      .from('vw_sales_ops_overview')
+      .select('location_id, location_name, leads_ativos')
+      .order('leads_ativos', { ascending: false });
 
     if (error) throw error;
 
-    // Agrupar por location_id e contar leads ativos
-    const clientMap = new Map<string, { location_id: string; location_name: string; leads_ativos: number }>();
-    
+    // Deduplicar e tratar nomes vazios
+    const clientMap = new Map<string, ClientInfo>();
     for (const row of data || []) {
       if (!row.location_id) continue;
       
       const existing = clientMap.get(row.location_id);
-      if (!existing) {
+      if (!existing || row.leads_ativos > existing.leads_ativos) {
         clientMap.set(row.location_id, {
           location_id: row.location_id,
-          // Se não tem nome, usar ID truncado
-          location_name: row.location_name || `Location ${row.location_id.substring(0, 8)}...`,
-          leads_ativos: row.ativo ? 1 : 0,
+          // Se não tem nome, usar ID truncado para identificação
+          location_name: row.location_name || `ID: ${row.location_id.substring(0, 12)}...`,
+          leads_ativos: row.leads_ativos || 0,
         });
-      } else {
-        if (row.ativo) existing.leads_ativos++;
-        // Atualiza nome se encontrar um válido
-        if (row.location_name && existing.location_name.startsWith('Location ')) {
-          existing.location_name = row.location_name;
-        }
       }
     }
 
     return Array.from(clientMap.values())
-      .filter(c => c.leads_ativos > 0 || c.location_name) // Remove completamente vazios
       .sort((a, b) => b.leads_ativos - a.leads_ativos);
   },
 
