@@ -274,14 +274,14 @@ export const salesOpsDAO = {
 
   /**
    * Busca leads detalhados por tipo de filtro
+   * Usa n8n_schedule_tracking como fonte principal (mesma do gráfico)
    */
   async getLeadsByFilter(filterType: LeadFilterType, locationId?: string): Promise<LeadDetail[]> {
-    // Query base para buscar leads com detalhes
-    // Usa a view de leads prontos como base e complementa
+    // Query base - usar n8n_schedule_tracking diretamente para consistência com o gráfico
     let query = supabase
-      .from('vw_leads_detalhados')
-      .select('*')
-      .order('last_contact_at', { ascending: false })
+      .from('n8n_schedule_tracking')
+      .select('unique_id, location_id, location_name, follow_up_count, ativo, created_at, first_name, source')
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (locationId) {
@@ -291,26 +291,14 @@ export const salesOpsDAO = {
     // Aplica filtros baseado no tipo
     switch (filterType) {
       case 'ativos':
-        query = query.eq('is_active', true);
+        query = query.eq('ativo', true);
         break;
       case 'inativos':
-        query = query.eq('is_active', false);
+        query = query.eq('ativo', false);
         break;
       case 'prontos_fu':
-        // Leads prontos para follow-up (view específica)
-        const { data: prontosData, error: prontosError } = await supabase
-          .from('vw_leads_prontos_detalhados')
-          .select('*')
-          .order('last_contact_at', { ascending: false })
-          .limit(100);
-        
-        if (prontosError) {
-          console.warn('View vw_leads_prontos_detalhados não existe, usando fallback');
-          // Fallback: busca leads ativos com data de último contato > 24h
-          query = query.eq('is_active', true);
-        } else {
-          return prontosData || [];
-        }
+        // Leads ativos com follow_up_count = 0 (prontos para primeiro FU)
+        query = query.eq('ativo', true).eq('follow_up_count', 0);
         break;
       case 'fu_0':
         query = query.eq('follow_up_count', 0);
@@ -337,7 +325,19 @@ export const salesOpsDAO = {
       return this.getLeadsFallback(filterType, locationId);
     }
 
-    return data || [];
+    // Mapear dados da n8n_schedule_tracking para formato LeadDetail
+    return (data || []).map((lead: any) => ({
+      session_id: null,
+      contact_id: lead.unique_id,
+      contact_name: lead.first_name || null,
+      contact_phone: null,
+      location_id: lead.location_id,
+      location_name: lead.location_name,
+      last_message: null,
+      follow_up_count: lead.follow_up_count || 0,
+      last_contact_at: lead.created_at,
+      is_active: lead.ativo ?? true,
+    }));
   },
 
   /**
