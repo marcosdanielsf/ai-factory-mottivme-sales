@@ -38,8 +38,10 @@ export interface ConversaoPorEtapa {
   location_name: string;
   etapa: number;
   ativos_nesta_etapa: number;
+  respondidos_nesta_etapa: number;
   desativados_nesta_etapa: number;
   total_etapa: number;
+  taxa_resposta_percentual: number;
   taxa_desistencia_percentual: number;
 }
 
