@@ -106,30 +106,29 @@ export const salesOpsDAO = {
     totalLeads: number;
     mediaFollowUps: number;
   }> {
+    // Buscar dados diretamente da n8n_schedule_tracking para cálculos precisos
     const { data, error } = await supabase
-      .from('vw_sales_ops_overview')
-      .select('leads_ativos, leads_inativos, total_leads, media_follow_ups');
+      .from('n8n_schedule_tracking')
+      .select('ativo, follow_up_count');
 
     if (error) throw error;
 
-    const totals = (data || []).reduce(
-      (acc, row) => ({
-        totalAtivos: acc.totalAtivos + (row.leads_ativos || 0),
-        totalInativos: acc.totalInativos + (row.leads_inativos || 0),
-        totalLeads: acc.totalLeads + (row.total_leads || 0),
-        sumFollowUps: acc.sumFollowUps + (row.media_follow_ups || 0),
-        countFollowUps: acc.countFollowUps + (row.media_follow_ups ? 1 : 0),
-      }),
-      { totalAtivos: 0, totalInativos: 0, totalLeads: 0, sumFollowUps: 0, countFollowUps: 0 }
-    );
+    const leads = data || [];
+    const totalAtivos = leads.filter(l => l.ativo === true).length;
+    const totalInativos = leads.filter(l => l.ativo === false).length;
+    const totalLeads = leads.length;
+    
+    // Calcular média de follow-ups corretamente (soma total / quantidade de leads)
+    const totalFollowUps = leads.reduce((sum, l) => sum + (l.follow_up_count || 0), 0);
+    const mediaFollowUps = totalLeads > 0 
+      ? Math.round((totalFollowUps / totalLeads) * 100) / 100 
+      : 0;
 
     return {
-      totalAtivos: totals.totalAtivos,
-      totalInativos: totals.totalInativos,
-      totalLeads: totals.totalLeads,
-      mediaFollowUps: totals.countFollowUps > 0
-        ? Math.round((totals.sumFollowUps / totals.countFollowUps) * 100) / 100
-        : 0,
+      totalAtivos,
+      totalInativos,
+      totalLeads,
+      mediaFollowUps,
     };
   },
 
@@ -254,22 +253,39 @@ export const salesOpsDAO = {
   },
 
   async getClients(): Promise<ClientInfo[]> {
+    // Buscar clientes diretamente da n8n_schedule_tracking para ter dados atualizados
     const { data, error } = await supabase
-      .from('vw_sales_ops_overview')
-      .select('location_id, location_name, leads_ativos')
-      .order('leads_ativos', { ascending: false });
+      .from('n8n_schedule_tracking')
+      .select('location_id, location_name, ativo');
 
     if (error) throw error;
 
-    const clientMap = new Map<string, ClientInfo>();
+    // Agrupar por location_id e contar leads ativos
+    const clientMap = new Map<string, { location_id: string; location_name: string; leads_ativos: number }>();
+    
     for (const row of data || []) {
+      if (!row.location_id) continue;
+      
       const existing = clientMap.get(row.location_id);
-      if (!existing || row.leads_ativos > existing.leads_ativos) {
-        clientMap.set(row.location_id, row);
+      if (!existing) {
+        clientMap.set(row.location_id, {
+          location_id: row.location_id,
+          // Se não tem nome, usar ID truncado
+          location_name: row.location_name || `Location ${row.location_id.substring(0, 8)}...`,
+          leads_ativos: row.ativo ? 1 : 0,
+        });
+      } else {
+        if (row.ativo) existing.leads_ativos++;
+        // Atualiza nome se encontrar um válido
+        if (row.location_name && existing.location_name.startsWith('Location ')) {
+          existing.location_name = row.location_name;
+        }
       }
     }
 
-    return Array.from(clientMap.values());
+    return Array.from(clientMap.values())
+      .filter(c => c.leads_ativos > 0 || c.location_name) // Remove completamente vazios
+      .sort((a, b) => b.leads_ativos - a.leads_ativos);
   },
 
   /**
@@ -329,11 +345,13 @@ export const salesOpsDAO = {
     return (data || []).map((lead: any) => ({
       session_id: null,
       contact_id: lead.unique_id,
-      contact_name: lead.first_name || null,
+      // Usar first_name ou extrair algo do source/unique_id
+      contact_name: lead.first_name || (lead.source ? `Lead via ${lead.source}` : null),
       contact_phone: null,
       location_id: lead.location_id,
       location_name: lead.location_name,
-      last_message: null,
+      // Usar source como info adicional se não tiver mensagem
+      last_message: lead.source ? `Origem: ${lead.source}` : null,
       follow_up_count: lead.follow_up_count || 0,
       last_contact_at: lead.created_at,
       is_active: lead.ativo ?? true,
