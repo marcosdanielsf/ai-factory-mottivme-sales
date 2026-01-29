@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Phone, MessageCircle, User, Clock, ExternalLink, Hash } from 'lucide-react';
-import { salesOpsDAO, type LeadDetail } from '../../../lib/supabase-sales-ops';
+import { X, Phone, MessageCircle, User, Clock, ExternalLink, Hash, Instagram, Check, Square, CheckSquare, Send, XCircle, AlertTriangle } from 'lucide-react';
+import { salesOpsDAO, updateLeadsBatch, scheduleFollowUpBatch, type LeadDetail } from '../../../lib/supabase-sales-ops';
 
 export type LeadFilterType = 
   | 'ativos' 
@@ -10,7 +10,11 @@ export type LeadFilterType =
   | 'fu_1' 
   | 'fu_2' 
   | 'fu_3' 
-  | 'fu_4_plus';
+  | 'fu_4_plus'
+  | 'esfriando'
+  | 'fuu_scheduled';
+
+type BatchAction = 'send_fu' | 'deactivate' | 'mark_responded' | null;
 
 interface LeadsDrawerProps {
   isOpen: boolean;
@@ -34,9 +38,7 @@ const formatDate = (dateStr: string | null) => {
 
 const formatPhone = (phone: string | null) => {
   if (!phone) return 'Sem telefone';
-  // Remove caracteres não numéricos
   const cleaned = phone.replace(/\D/g, '');
-  // Formato brasileiro
   if (cleaned.length === 11) {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
   }
@@ -52,6 +54,92 @@ const truncateMessage = (msg: string | null, maxLength = 80) => {
   return msg.slice(0, maxLength) + '...';
 };
 
+// Modal de confirmação
+const ConfirmationModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  action: BatchAction;
+  selectedCount: number;
+  isLoading: boolean;
+}> = ({ isOpen, onClose, onConfirm, action, selectedCount, isLoading }) => {
+  if (!isOpen || !action) return null;
+
+  const actionConfig = {
+    send_fu: {
+      title: 'Enviar Follow-up',
+      description: `Você está prestes a agendar follow-up para ${selectedCount} lead${selectedCount > 1 ? 's' : ''}.`,
+      icon: <Send className="text-blue-400" size={24} />,
+      confirmText: 'Agendar Follow-ups',
+      confirmClass: 'bg-blue-500 hover:bg-blue-600',
+    },
+    deactivate: {
+      title: 'Desativar Leads',
+      description: `Você está prestes a desativar ${selectedCount} lead${selectedCount > 1 ? 's' : ''}. Eles não receberão mais follow-ups automáticos.`,
+      icon: <XCircle className="text-red-400" size={24} />,
+      confirmText: 'Desativar',
+      confirmClass: 'bg-red-500 hover:bg-red-600',
+    },
+    mark_responded: {
+      title: 'Marcar como Respondido',
+      description: `Você está prestes a marcar ${selectedCount} lead${selectedCount > 1 ? 's' : ''} como respondido${selectedCount > 1 ? 's' : ''}.`,
+      icon: <Check className="text-green-400" size={24} />,
+      confirmText: 'Marcar Respondido',
+      confirmClass: 'bg-green-500 hover:bg-green-600',
+    },
+  };
+
+  const config = actionConfig[action];
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-black/60 z-[60]"
+        onClick={onClose}
+      />
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl max-w-md w-full p-6 shadow-2xl">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-full bg-[#222] flex items-center justify-center">
+              {config.icon}
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">{config.title}</h3>
+              <p className="text-sm text-gray-400">{selectedCount} lead{selectedCount > 1 ? 's' : ''} selecionado{selectedCount > 1 ? 's' : ''}</p>
+            </div>
+          </div>
+
+          <p className="text-gray-300 mb-6">{config.description}</p>
+
+          <div className="flex items-center gap-3 justify-end">
+            <button
+              onClick={onClose}
+              disabled={isLoading}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isLoading}
+              className={`px-4 py-2 text-sm text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 ${config.confirmClass}`}
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                config.confirmText
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   isOpen,
   onClose,
@@ -62,10 +150,19 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   const [leads, setLeads] = useState<LeadDetail[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Batch selection state
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [pendingAction, setPendingAction] = useState<BatchAction>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       loadLeads();
+      // Limpar seleção ao abrir
+      setSelectedLeads([]);
+      setActionResult(null);
     }
   }, [isOpen, filterType, locationId]);
 
@@ -84,10 +181,7 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   };
 
   const handleLeadClick = (lead: LeadDetail) => {
-    // Abre no Supervision com filtro de busca pelo telefone/session
     if (lead.session_id) {
-      // Se tiver session_id, navega direto para Supervision
-      // A URL usa HashRouter
       window.location.href = `#/supervision?search=${encodeURIComponent(lead.contact_phone || lead.contact_name || '')}`;
     }
   };
@@ -97,6 +191,86 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
     if (!phone) return;
     const cleaned = phone.replace(/\D/g, '');
     window.open(`https://wa.me/${cleaned}`, '_blank');
+  };
+
+  // ============================================
+  // BATCH SELECTION HANDLERS
+  // ============================================
+
+  const toggleLeadSelection = (e: React.MouseEvent, contactId: string | null) => {
+    e.stopPropagation();
+    if (!contactId) return;
+    
+    setSelectedLeads(prev => 
+      prev.includes(contactId) 
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.length === leads.length) {
+      setSelectedLeads([]);
+    } else {
+      setSelectedLeads(leads.map(l => l.contact_id).filter((id): id is string => id !== null));
+    }
+  };
+
+  const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
+  const isSomeSelected = selectedLeads.length > 0;
+
+  // ============================================
+  // BATCH ACTION HANDLERS
+  // ============================================
+
+  const handleBatchAction = (action: BatchAction) => {
+    setPendingAction(action);
+  };
+
+  const confirmBatchAction = async () => {
+    if (!pendingAction || selectedLeads.length === 0) return;
+
+    setIsActionLoading(true);
+    setActionResult(null);
+
+    try {
+      let result;
+
+      switch (pendingAction) {
+        case 'send_fu':
+          result = await scheduleFollowUpBatch(selectedLeads, locationId ?? null);
+          break;
+        case 'deactivate':
+          result = await updateLeadsBatch(selectedLeads, { ativo: false });
+          break;
+        case 'mark_responded':
+          result = await updateLeadsBatch(selectedLeads, { responded: true });
+          break;
+      }
+
+      if (result?.success) {
+        setActionResult({ 
+          success: true, 
+          message: `${result.updated} lead${result.updated > 1 ? 's' : ''} atualizado${result.updated > 1 ? 's' : ''} com sucesso!` 
+        });
+        setSelectedLeads([]);
+        // Recarregar lista após sucesso
+        await loadLeads();
+      } else {
+        setActionResult({ 
+          success: false, 
+          message: result?.error || 'Erro ao processar ação' 
+        });
+      }
+    } catch (err) {
+      setActionResult({ 
+        success: false, 
+        message: err instanceof Error ? err.message : 'Erro desconhecido' 
+      });
+    } finally {
+      setIsActionLoading(false);
+      setPendingAction(null);
+    }
   };
 
   if (!isOpen) return null;
@@ -113,11 +287,34 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
       <div className="fixed right-0 top-0 h-full w-full md:max-w-lg bg-[#0d0d0d] border-l border-[#333] z-50 flex flex-col shadow-2xl animate-slide-in-right">
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[#333]">
-          <div>
-            <h2 className="text-base md:text-lg font-semibold text-white">{title}</h2>
-            <p className="text-xs md:text-sm text-gray-400">
-              {loading ? 'Carregando...' : `${leads.length} leads encontrados`}
-            </p>
+          <div className="flex items-center gap-3">
+            {/* Select All Checkbox */}
+            {!loading && leads.length > 0 && (
+              <button
+                onClick={toggleSelectAll}
+                className="p-1 rounded hover:bg-[#222] transition-colors"
+                title={isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+              >
+                {isAllSelected ? (
+                  <CheckSquare size={20} className="text-blue-400" />
+                ) : isSomeSelected ? (
+                  <div className="relative">
+                    <Square size={20} className="text-gray-400" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2.5 h-0.5 bg-blue-400 rounded" />
+                    </div>
+                  </div>
+                ) : (
+                  <Square size={20} className="text-gray-400" />
+                )}
+              </button>
+            )}
+            <div>
+              <h2 className="text-base md:text-lg font-semibold text-white">{title}</h2>
+              <p className="text-xs md:text-sm text-gray-400">
+                {loading ? 'Carregando...' : isSomeSelected ? `${selectedLeads.length} de ${leads.length} selecionados` : `${leads.length} leads encontrados`}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -126,6 +323,22 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
             <X size={18} className="text-gray-400" />
           </button>
         </div>
+
+        {/* Action Result Banner */}
+        {actionResult && (
+          <div className={`px-4 py-3 text-sm flex items-center gap-2 ${
+            actionResult.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+          }`}>
+            {actionResult.success ? <Check size={16} /> : <AlertTriangle size={16} />}
+            {actionResult.message}
+            <button
+              onClick={() => setActionResult(null)}
+              className="ml-auto p-1 hover:bg-white/10 rounded"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
@@ -155,79 +368,169 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
               <p className="text-gray-400 text-sm md:text-base">Nenhum lead encontrado</p>
             </div>
           ) : (
-            <div className="p-3 md:p-4 space-y-2 md:space-y-3">
-              {leads.map((lead) => (
-                <div
-                  key={lead.session_id || lead.contact_id}
-                  onClick={() => handleLeadClick(lead)}
-                  className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 md:p-4 hover:bg-[#222] hover:border-[#444] transition-all cursor-pointer group"
-                >
-                  {/* Lead Header */}
-                  <div className="flex items-start justify-between mb-2 md:mb-3">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <User size={16} className="text-blue-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-medium text-white text-sm md:text-base truncate">
-                          {lead.contact_name || 'Sem nome'}
-                        </h3>
-                        <p className="text-xs md:text-sm text-gray-400 truncate">
-                          {lead.location_name || 'Sem cliente'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Actions - always visible on mobile */}
-                    <div className="flex items-center gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {lead.contact_phone && (
+            <div className="p-3 md:p-4 space-y-2 md:space-y-3 pb-24">
+              {leads.map((lead) => {
+                const isSelected = lead.contact_id ? selectedLeads.includes(lead.contact_id) : false;
+                
+                return (
+                  <div
+                    key={lead.session_id || lead.contact_id}
+                    onClick={() => handleLeadClick(lead)}
+                    className={`bg-[#1a1a1a] border rounded-lg p-3 md:p-4 hover:bg-[#222] transition-all cursor-pointer group ${
+                      isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-[#333] hover:border-[#444]'
+                    }`}
+                  >
+                    {/* Lead Header */}
+                    <div className="flex items-start justify-between mb-2 md:mb-3">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        {/* Selection Checkbox */}
                         <button
-                          onClick={(e) => handleWhatsAppClick(e, lead.contact_phone)}
-                          className="p-1.5 md:p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
-                          title="Abrir WhatsApp"
+                          onClick={(e) => toggleLeadSelection(e, lead.contact_id)}
+                          className="p-0.5 rounded hover:bg-[#333] transition-colors"
                         >
-                          <MessageCircle size={14} className="text-green-400" />
+                          {isSelected ? (
+                            <CheckSquare size={18} className="text-blue-400" />
+                          ) : (
+                            <Square size={18} className="text-gray-500 group-hover:text-gray-400" />
+                          )}
                         </button>
-                      )}
-                      <button
-                        className="p-1.5 md:p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
-                        title="Ver no Supervision"
-                      >
-                        <ExternalLink size={14} className="text-blue-400" />
-                      </button>
+                        
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          lead.source === 'instagram' ? 'bg-pink-500/20' : 
+                          lead.source === 'whatsapp' ? 'bg-green-500/20' : 'bg-blue-500/20'
+                        }`}>
+                          {lead.source === 'instagram' ? (
+                            <Instagram size={16} className="text-pink-400" />
+                          ) : lead.source === 'whatsapp' ? (
+                            <MessageCircle size={16} className="text-green-400" />
+                          ) : (
+                            <User size={16} className="text-blue-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-white text-sm md:text-base truncate">
+                              {lead.contact_name || 'Sem nome'}
+                            </h3>
+                            {lead.source && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                lead.source === 'instagram' ? 'bg-pink-500/20 text-pink-400' :
+                                lead.source === 'whatsapp' ? 'bg-green-500/20 text-green-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {lead.source === 'instagram' ? 'IG' : lead.source === 'whatsapp' ? 'WA' : lead.source.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-400 truncate">
+                            {lead.location_name || 'Sem cliente'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        {lead.contact_phone && (
+                          <button
+                            onClick={(e) => handleWhatsAppClick(e, lead.contact_phone)}
+                            className="p-1.5 md:p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
+                            title="Abrir WhatsApp"
+                          >
+                            <MessageCircle size={14} className="text-green-400" />
+                          </button>
+                        )}
+                        <button
+                          className="p-1.5 md:p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
+                          title="Ver no Supervision"
+                        >
+                          <ExternalLink size={14} className="text-blue-400" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Phone */}
+                    {lead.contact_phone && (
+                      <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-400 mb-1.5 md:mb-2 ml-7 md:ml-8">
+                        <Phone size={12} />
+                        <span>{formatPhone(lead.contact_phone)}</span>
+                      </div>
+                    )}
+
+                    {/* Last Message */}
+                    <div className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3 ml-7 md:ml-8">
+                      <p className="text-xs md:text-sm text-gray-300">
+                        {truncateMessage(lead.last_message, 60)}
+                      </p>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="flex items-center gap-3 md:gap-4 text-[10px] md:text-xs text-gray-500 ml-7 md:ml-8">
+                      <div className="flex items-center gap-1">
+                        <Hash size={10} className="md:w-3 md:h-3" />
+                        <span>{lead.follow_up_count} FUs</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock size={10} className="md:w-3 md:h-3" />
+                        <span>{formatDate(lead.last_contact_at)}</span>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Phone */}
-                  <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-400 mb-1.5 md:mb-2">
-                    <Phone size={12} />
-                    <span>{formatPhone(lead.contact_phone)}</span>
-                  </div>
-
-                  {/* Last Message */}
-                  <div className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3">
-                    <p className="text-xs md:text-sm text-gray-300">
-                      {truncateMessage(lead.last_message, 60)}
-                    </p>
-                  </div>
-
-                  {/* Metrics */}
-                  <div className="flex items-center gap-3 md:gap-4 text-[10px] md:text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Hash size={10} className="md:w-3 md:h-3" />
-                      <span>{lead.follow_up_count} FUs</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock size={10} className="md:w-3 md:h-3" />
-                      <span>{formatDate(lead.last_contact_at)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Batch Actions Footer - Sticky */}
+        {isSomeSelected && (
+          <div className="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-[#333] px-4 py-3 shadow-2xl animate-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-white font-medium">
+                {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selecionado{selectedLeads.length > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={() => setSelectedLeads([])}
+                className="text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                Limpar seleção
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleBatchAction('send_fu')}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+              >
+                <Send size={14} />
+                <span>Enviar FU</span>
+              </button>
+              <button
+                onClick={() => handleBatchAction('deactivate')}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors border border-red-500/30"
+              >
+                <XCircle size={14} />
+                <span>Desativar</span>
+              </button>
+              <button
+                onClick={() => handleBatchAction('mark_responded')}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm rounded-lg transition-colors border border-green-500/30"
+              >
+                <Check size={14} />
+                <span>Respondido</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        onConfirm={confirmBatchAction}
+        action={pendingAction}
+        selectedCount={selectedLeads.length}
+        isLoading={isActionLoading}
+      />
 
       {/* Animation styles */}
       <style>{`
@@ -241,6 +544,19 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
         }
         .animate-slide-in-right {
           animation: slide-in-right 0.3s ease-out;
+        }
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.2s ease-out;
         }
       `}</style>
     </>

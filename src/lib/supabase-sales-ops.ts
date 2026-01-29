@@ -70,6 +70,7 @@ export interface LeadDetail {
   follow_up_count: number;
   last_contact_at: string | null;
   is_active: boolean;
+  source?: string | null;
 }
 
 export type LeadFilterType = 
@@ -80,11 +81,61 @@ export type LeadFilterType =
   | 'fu_1' 
   | 'fu_2' 
   | 'fu_3' 
-  | 'fu_4_plus';
+  | 'fu_4_plus'
+  | 'esfriando'
+  | 'fuu_scheduled';
+
+export interface FuuQueueStats {
+  scheduled: number;  // status = 'scheduled'
+  pending: number;    // status = 'pending'  
+  failed: number;     // status = 'failed'
+}
+
+export interface FuuQueueLead {
+  contact_id: string;
+  contact_name: string | null;
+  location_id: string;
+  status: string;
+  scheduled_at: string | null;
+  follow_up_type: string | null;
+}
+
+export interface AgentPerformance {
+  agente_ia: string;
+  total_leads: number;
+  respondidos: number;
+  taxa_conversao: number;
+}
 
 // ============================================
 // SALES OPS DAO
 // ============================================
+
+// ============================================
+// TREND TYPES
+// ============================================
+
+export interface TrendData {
+  ativos: number;      // % variação (positivo = cresceu)
+  inativos: number;
+  leadsProntos: number;
+}
+
+export interface TotalsWithTrend {
+  current: {
+    totalAtivos: number;
+    totalInativos: number;
+    totalLeads: number;
+    mediaFollowUps: number;
+  };
+  previous: {
+    totalAtivos: number;
+    totalInativos: number;
+    totalLeads: number;
+    mediaFollowUps: number;
+  };
+  trends: TrendData;
+}
 
 export const salesOpsDAO = {
   async getOverview(locationId?: string): Promise<SalesOpsOverview[]> {
@@ -102,16 +153,65 @@ export const salesOpsDAO = {
     return data || [];
   },
 
-  async getTotals(): Promise<{
+  /**
+   * Retorna métricas de funil filtradas por período
+   * Usa n8n_schedule_tracking diretamente para suportar filtro de data
+   */
+  async getFunnelByPeriod(days: number = 30, locationId?: string): Promise<{
+    totalLeads: number;
+    responderam: number;
+    taxaResposta: number;
+    ativos: number;
+    inativos: number;
+  }> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    let query = supabase
+      .from('n8n_schedule_tracking')
+      .select('ativo, responded')
+      .gte('created_at', startDate.toISOString());
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = data || [];
+    const totalLeads = rows.length;
+    const responderam = rows.filter(r => r.responded === true).length;
+    const ativos = rows.filter(r => r.ativo === true).length;
+    const inativos = rows.filter(r => r.ativo === false).length;
+    const taxaResposta = totalLeads > 0 ? Math.round((responderam / totalLeads) * 1000) / 10 : 0;
+
+    return {
+      totalLeads,
+      responderam,
+      taxaResposta,
+      ativos,
+      inativos,
+    };
+  },
+
+  async getTotals(locationId?: string): Promise<{
     totalAtivos: number;
     totalInativos: number;
     totalLeads: number;
     mediaFollowUps: number;
   }> {
     // Usar view para totais (já agregada no banco)
-    const { data: overviewData, error: overviewError } = await supabase
+    let overviewQuery = supabase
       .from('vw_sales_ops_overview')
-      .select('leads_ativos, leads_inativos, total_leads');
+      .select('leads_ativos, leads_inativos, total_leads, location_id');
+
+    // Aplicar filtro por location se especificado
+    if (locationId) {
+      overviewQuery = overviewQuery.eq('location_id', locationId);
+    }
+
+    const { data: overviewData, error: overviewError } = await overviewQuery;
 
     if (overviewError) throw overviewError;
 
@@ -125,9 +225,15 @@ export const salesOpsDAO = {
     );
 
     // Calcular média de FU usando o funil (já agregado)
-    const { data: funnelData, error: funnelError } = await supabase
+    let funnelQuery = supabase
       .from('vw_follow_up_funnel')
-      .select('follow_up_count, quantidade');
+      .select('follow_up_count, quantidade, location_id');
+
+    if (locationId) {
+      funnelQuery = funnelQuery.eq('location_id', locationId);
+    }
+
+    const { data: funnelData, error: funnelError } = await funnelQuery;
 
     let mediaFollowUps = 0;
     if (!funnelError && funnelData) {
@@ -146,6 +252,130 @@ export const salesOpsDAO = {
     };
   },
 
+  /**
+   * Busca totais com comparação de tendência vs período anterior
+   * @param periodDays - Número de dias para comparar (ex: 7 = última semana vs semana anterior)
+   * @param locationId - Filtro opcional por location
+   */
+  async getTotalsWithTrend(periodDays: number = 7, locationId?: string): Promise<TotalsWithTrend> {
+    const now = new Date();
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(currentPeriodStart.getDate() - periodDays);
+    
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays);
+
+    // Helper para calcular variação percentual
+    const calcTrend = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    // Buscar dados do período atual (leads criados nos últimos X dias)
+    let currentQuery = supabase
+      .from('n8n_schedule_tracking')
+      .select('ativo, follow_up_count', { count: 'exact' })
+      .gte('created_at', currentPeriodStart.toISOString());
+
+    if (locationId) {
+      currentQuery = currentQuery.eq('location_id', locationId);
+    }
+
+    // Buscar dados do período anterior
+    let previousQuery = supabase
+      .from('n8n_schedule_tracking')
+      .select('ativo, follow_up_count', { count: 'exact' })
+      .gte('created_at', previousPeriodStart.toISOString())
+      .lt('created_at', currentPeriodStart.toISOString());
+
+    if (locationId) {
+      previousQuery = previousQuery.eq('location_id', locationId);
+    }
+
+    // Buscar leads prontos para FU (período atual)
+    let currentProntosQuery = supabase
+      .from('n8n_schedule_tracking')
+      .select('unique_id', { count: 'exact', head: true })
+      .eq('ativo', true)
+      .eq('follow_up_count', 0)
+      .gte('created_at', currentPeriodStart.toISOString());
+
+    if (locationId) {
+      currentProntosQuery = currentProntosQuery.eq('location_id', locationId);
+    }
+
+    // Buscar leads prontos para FU (período anterior)
+    let previousProntosQuery = supabase
+      .from('n8n_schedule_tracking')
+      .select('unique_id', { count: 'exact', head: true })
+      .eq('ativo', true)
+      .eq('follow_up_count', 0)
+      .gte('created_at', previousPeriodStart.toISOString())
+      .lt('created_at', currentPeriodStart.toISOString());
+
+    if (locationId) {
+      previousProntosQuery = previousProntosQuery.eq('location_id', locationId);
+    }
+
+    const [currentData, previousData, currentProntos, previousProntos] = await Promise.all([
+      currentQuery,
+      previousQuery,
+      currentProntosQuery,
+      previousProntosQuery,
+    ]);
+
+    // Processar dados do período atual
+    const currentRows = currentData.data || [];
+    const currentTotals = currentRows.reduce(
+      (acc, row) => ({
+        ativos: acc.ativos + (row.ativo ? 1 : 0),
+        inativos: acc.inativos + (!row.ativo ? 1 : 0),
+        total: acc.total + 1,
+        fuSum: acc.fuSum + (row.follow_up_count || 0),
+      }),
+      { ativos: 0, inativos: 0, total: 0, fuSum: 0 }
+    );
+
+    // Processar dados do período anterior
+    const previousRows = previousData.data || [];
+    const previousTotals = previousRows.reduce(
+      (acc, row) => ({
+        ativos: acc.ativos + (row.ativo ? 1 : 0),
+        inativos: acc.inativos + (!row.ativo ? 1 : 0),
+        total: acc.total + 1,
+        fuSum: acc.fuSum + (row.follow_up_count || 0),
+      }),
+      { ativos: 0, inativos: 0, total: 0, fuSum: 0 }
+    );
+
+    const currentLeadsProntos = currentProntos.count || 0;
+    const previousLeadsProntos = previousProntos.count || 0;
+
+    return {
+      current: {
+        totalAtivos: currentTotals.ativos,
+        totalInativos: currentTotals.inativos,
+        totalLeads: currentTotals.total,
+        mediaFollowUps: currentTotals.total > 0 
+          ? Math.round((currentTotals.fuSum / currentTotals.total) * 100) / 100 
+          : 0,
+      },
+      previous: {
+        totalAtivos: previousTotals.ativos,
+        totalInativos: previousTotals.inativos,
+        totalLeads: previousTotals.total,
+        mediaFollowUps: previousTotals.total > 0 
+          ? Math.round((previousTotals.fuSum / previousTotals.total) * 100) / 100 
+          : 0,
+      },
+      trends: {
+        ativos: calcTrend(currentTotals.ativos, previousTotals.ativos),
+        inativos: calcTrend(currentTotals.inativos, previousTotals.inativos),
+        leadsProntos: calcTrend(currentLeadsProntos, previousLeadsProntos),
+      },
+    };
+  },
+
   async getFunnel(locationId?: string): Promise<FollowUpFunnel[]> {
     let query = supabase
       .from('vw_follow_up_funnel')
@@ -161,10 +391,16 @@ export const salesOpsDAO = {
     return data || [];
   },
 
-  async getAggregatedFunnel(): Promise<{ follow_up_count: number; quantidade: number; percentual: number }[]> {
-    const { data, error } = await supabase
+  async getAggregatedFunnel(locationId?: string): Promise<{ follow_up_count: number; quantidade: number; percentual: number }[]> {
+    let query = supabase
       .from('vw_follow_up_funnel')
       .select('follow_up_count, quantidade');
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -208,6 +444,31 @@ export const salesOpsDAO = {
     return data.reduce((sum, row) => sum + row.prontos_para_follow_up, 0);
   },
 
+  /**
+   * Busca contagem de leads esfriando (sem contato há mais de 48h)
+   */
+  async getLeadsEsfriando(locationId?: string): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - 48);
+
+    let query = supabase
+      .from('n8n_schedule_tracking')
+      .select('unique_id', { count: 'exact', head: true })
+      .eq('ativo', true)
+      .lt('updated_at', cutoffDate.toISOString());
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { count, error } = await query;
+    if (error) {
+      console.error('Erro ao buscar leads esfriando:', error);
+      return 0;
+    }
+    return count || 0;
+  },
+
   async getConversao(locationId?: string): Promise<ConversaoPorEtapa[]> {
     let query = supabase
       .from('vw_conversao_por_etapa')
@@ -242,14 +503,20 @@ export const salesOpsDAO = {
     return data || [];
   },
 
-  async getAggregatedAtividade(days: number = 30): Promise<{ data: string; mensagens_enviadas: number; leads_contactados: number }[]> {
+  async getAggregatedAtividade(days: number = 30, locationId?: string): Promise<{ data: string; mensagens_enviadas: number; leads_contactados: number }[]> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('vw_atividade_diaria')
       .select('data, mensagens_enviadas, leads_contactados')
       .gte('data', startDate.toISOString().split('T')[0]);
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -296,6 +563,93 @@ export const salesOpsDAO = {
   },
 
   /**
+   * Busca estatísticas da fila de follow-ups agendados (fuu_queue)
+   */
+  async getFuuQueueStats(locationId?: string): Promise<FuuQueueStats> {
+    try {
+      // Buscar todos os registros e agrupar por status
+      let query = supabase
+        .from('fuu_queue')
+        .select('status');
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar fuu_queue stats:', error);
+        return { scheduled: 0, pending: 0, failed: 0 };
+      }
+
+      // Contar por status
+      const stats = (data || []).reduce(
+        (acc, row) => {
+          if (row.status === 'scheduled') acc.scheduled++;
+          else if (row.status === 'pending') acc.pending++;
+          else if (row.status === 'failed') acc.failed++;
+          return acc;
+        },
+        { scheduled: 0, pending: 0, failed: 0 }
+      );
+
+      return stats;
+    } catch (err) {
+      console.error('Erro ao buscar fuu_queue stats:', err);
+      return { scheduled: 0, pending: 0, failed: 0 };
+    }
+  },
+
+  /**
+   * Busca leads da fuu_queue para o drawer
+   */
+  async getFuuQueueLeads(locationId?: string): Promise<LeadDetail[]> {
+    try {
+      let query = supabase
+        .from('fuu_queue')
+        .select('contact_id, contact_name, location_id, status, scheduled_at, follow_up_type')
+        .order('scheduled_at', { ascending: true })
+        .limit(100);
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar fuu_queue leads:', error);
+        return [];
+      }
+
+      // Mapear para formato LeadDetail
+      return (data || []).map((lead) => {
+        const statusLabel = lead.status === 'scheduled' ? '📅' : 
+                           lead.status === 'pending' ? '🟡' : 
+                           lead.status === 'failed' ? '🔴' : '⚪';
+        
+        return {
+          session_id: null,
+          contact_id: lead.contact_id,
+          contact_name: lead.contact_name || `Lead #${lead.contact_id?.slice(-6).toUpperCase() || '???'}`,
+          contact_phone: null,
+          location_id: lead.location_id,
+          location_name: null,
+          last_message: `${statusLabel} ${lead.follow_up_type || 'Follow-up'} • Agendado: ${lead.scheduled_at ? new Date(lead.scheduled_at).toLocaleString('pt-BR') : 'N/A'}`,
+          follow_up_count: 0,
+          last_contact_at: lead.scheduled_at,
+          is_active: lead.status === 'scheduled',
+          source: lead.follow_up_type,
+        };
+      });
+    } catch (err) {
+      console.error('Erro ao buscar fuu_queue leads:', err);
+      return [];
+    }
+  },
+
+  /**
    * Busca leads detalhados por tipo de filtro
    * Usa n8n_schedule_tracking como fonte principal (mesma do gráfico)
    */
@@ -338,6 +692,15 @@ export const salesOpsDAO = {
       case 'fu_4_plus':
         query = query.gte('follow_up_count', 4);
         break;
+      case 'esfriando':
+        // Leads ativos sem contato há mais de 48h
+        const cutoffDate = new Date();
+        cutoffDate.setHours(cutoffDate.getHours() - 48);
+        query = query.eq('ativo', true).lt('updated_at', cutoffDate.toISOString());
+        break;
+      case 'fuu_scheduled':
+        // Redireciona para método específico da fuu_queue
+        return this.getFuuQueueLeads(locationId);
     }
 
     const { data, error } = await query;
@@ -348,21 +711,62 @@ export const salesOpsDAO = {
       return this.getLeadsFallback(filterType, locationId);
     }
 
-    // Mapear dados da n8n_schedule_tracking para formato LeadDetail
-    return (data || []).map((lead: any) => ({
-      session_id: null,
-      contact_id: lead.unique_id,
-      // Usar first_name ou extrair algo do source/unique_id
-      contact_name: lead.first_name || (lead.source ? `Lead via ${lead.source}` : null),
-      contact_phone: null,
-      location_id: lead.location_id,
-      location_name: lead.location_name,
-      // Usar source como info adicional se não tiver mensagem
-      last_message: lead.source ? `Origem: ${lead.source}` : null,
-      follow_up_count: lead.follow_up_count || 0,
-      last_contact_at: lead.created_at,
-      is_active: lead.ativo ?? true,
-    }));
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Buscar dados de contato (telefone/nome) do app_dash_principal
+    // O unique_id do tracking corresponde ao id do app_dash_principal
+    const uniqueIds = data.map((lead: any) => parseInt(lead.unique_id, 10)).filter((id: number) => !isNaN(id));
+    
+    let contactsMap: Map<string, { name: string | null; phone: string | null }> = new Map();
+    
+    if (uniqueIds.length > 0) {
+      try {
+        const { data: contactsData, error: contactsError } = await supabase
+          .from('app_dash_principal')
+          .select('id, contato_principal, celular_contato, telefone_comercial_contato')
+          .in('id', uniqueIds);
+        
+        if (!contactsError && contactsData) {
+          for (const contact of contactsData) {
+            contactsMap.set(String(contact.id), {
+              name: contact.contato_principal,
+              // Preferir celular, fallback para telefone comercial
+              phone: contact.celular_contato || contact.telefone_comercial_contato || null,
+            });
+          }
+        }
+      } catch (contactErr) {
+        console.warn('Não foi possível enriquecer com dados de contato:', contactErr);
+      }
+    }
+
+    // Mapear dados da n8n_schedule_tracking para formato LeadDetail, enriquecido com contatos
+    return (data || []).map((lead: any) => {
+      const contactInfo = contactsMap.get(lead.unique_id);
+      // Criar identificador amigável quando não tem nome
+      const shortId = lead.unique_id ? lead.unique_id.slice(-6).toUpperCase() : '???';
+      const sourceLabel = lead.source === 'instagram' ? '📸 IG' : lead.source === 'whatsapp' ? '💬 WA' : lead.source || '';
+      
+      return {
+        session_id: null,
+        contact_id: lead.unique_id,
+        // Prioridade: app_dash nome > first_name > "Lead #ID"
+        contact_name: contactInfo?.name || lead.first_name || `Lead #${shortId}`,
+        // Usar telefone do app_dash_principal
+        contact_phone: contactInfo?.phone || null,
+        location_id: lead.location_id,
+        location_name: lead.location_name,
+        // Mostrar source como badge + origem
+        last_message: sourceLabel ? `${sourceLabel} • Origem: ${lead.source}` : null,
+        follow_up_count: lead.follow_up_count || 0,
+        last_contact_at: lead.created_at,
+        is_active: lead.ativo ?? true,
+        // Campos extras para o drawer
+        source: lead.source,
+      };
+    });
   },
 
   /**
@@ -442,6 +846,180 @@ export const salesOpsDAO = {
       return [];
     }
   },
+
+  /**
+   * Busca performance dos agentes IA agrupando por agente_ia
+   * Conta total de leads e respondidos (responded = true)
+   */
+  async getAgentPerformance(locationId?: string): Promise<AgentPerformance[]> {
+    try {
+      // Buscar apenas leads que têm agente_ia preenchido
+      let query = supabase
+        .from('n8n_schedule_tracking')
+        .select('agente_ia, responded')
+        .not('agente_ia', 'is', null);  // Filtrar apenas leads com agente
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar performance dos agentes:', error);
+        return [];
+      }
+
+      // Agrupar por agente_ia
+      const agentMap = new Map<string, { total: number; respondidos: number }>();
+
+      for (const row of data || []) {
+        const agentName = row.agente_ia || 'Sem Agente';
+        
+        if (!agentMap.has(agentName)) {
+          agentMap.set(agentName, { total: 0, respondidos: 0 });
+        }
+
+        const agent = agentMap.get(agentName)!;
+        agent.total++;
+        if (row.responded === true) {
+          agent.respondidos++;
+        }
+      }
+
+      // Converter para array e calcular taxa de conversão
+      const result: AgentPerformance[] = Array.from(agentMap.entries()).map(([agente_ia, stats]) => ({
+        agente_ia,
+        total_leads: stats.total,
+        respondidos: stats.respondidos,
+        taxa_conversao: stats.total > 0 
+          ? Math.round((stats.respondidos / stats.total) * 10000) / 100 
+          : 0,
+      }));
+
+      // Ordenar por taxa de conversão (maior primeiro)
+      return result.sort((a, b) => b.taxa_conversao - a.taxa_conversao);
+    } catch (err) {
+      console.error('Erro ao buscar performance dos agentes:', err);
+      return [];
+    }
+  },
 };
+
+// ============================================
+// BATCH UPDATE TYPES
+// ============================================
+
+export interface LeadBatchUpdate {
+  ativo?: boolean;
+  responded?: boolean;
+  follow_up_count?: number;
+  // Adicionar campos conforme necessidade
+}
+
+export interface BatchUpdateResult {
+  success: boolean;
+  updated: number;
+  error?: string;
+}
+
+/**
+ * Atualiza múltiplos leads em batch
+ * @param contactIds - Array de unique_ids dos leads
+ * @param updates - Objeto com os campos a atualizar
+ */
+export async function updateLeadsBatch(
+  contactIds: string[],
+  updates: LeadBatchUpdate
+): Promise<BatchUpdateResult> {
+  if (!contactIds || contactIds.length === 0) {
+    return { success: false, updated: 0, error: 'Nenhum lead selecionado' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('n8n_schedule_tracking')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .in('unique_id', contactIds)
+      .select('unique_id');
+
+    if (error) {
+      console.error('Erro ao atualizar leads em batch:', error);
+      return { success: false, updated: 0, error: error.message };
+    }
+
+    return { success: true, updated: data?.length || 0 };
+  } catch (err) {
+    console.error('Erro ao atualizar leads em batch:', err);
+    return { 
+      success: false, 
+      updated: 0, 
+      error: err instanceof Error ? err.message : 'Erro desconhecido' 
+    };
+  }
+}
+
+/**
+ * Agenda follow-up para múltiplos leads
+ * Cria registros na fuu_queue
+ */
+export async function scheduleFollowUpBatch(
+  contactIds: string[],
+  locationId: string | null
+): Promise<BatchUpdateResult> {
+  if (!contactIds || contactIds.length === 0) {
+    return { success: false, updated: 0, error: 'Nenhum lead selecionado' };
+  }
+
+  try {
+    // Primeiro buscar os dados dos leads para ter as infos necessárias
+    const { data: leads, error: fetchError } = await supabase
+      .from('n8n_schedule_tracking')
+      .select('unique_id, location_id, first_name')
+      .in('unique_id', contactIds);
+
+    if (fetchError) {
+      console.error('Erro ao buscar leads para agendar FU:', fetchError);
+      return { success: false, updated: 0, error: fetchError.message };
+    }
+
+    if (!leads || leads.length === 0) {
+      return { success: false, updated: 0, error: 'Nenhum lead encontrado' };
+    }
+
+    // Criar registros na fuu_queue
+    const queueRecords = leads.map(lead => ({
+      contact_id: lead.unique_id,
+      contact_name: lead.first_name || `Lead #${lead.unique_id?.slice(-6).toUpperCase()}`,
+      location_id: lead.location_id,
+      status: 'scheduled',
+      scheduled_at: new Date().toISOString(),
+      follow_up_type: 'manual_batch',
+      created_at: new Date().toISOString(),
+    }));
+
+    const { data: insertData, error: insertError } = await supabase
+      .from('fuu_queue')
+      .insert(queueRecords)
+      .select('contact_id');
+
+    if (insertError) {
+      console.error('Erro ao agendar FU em batch:', insertError);
+      return { success: false, updated: 0, error: insertError.message };
+    }
+
+    return { success: true, updated: insertData?.length || 0 };
+  } catch (err) {
+    console.error('Erro ao agendar FU em batch:', err);
+    return { 
+      success: false, 
+      updated: 0, 
+      error: err instanceof Error ? err.message : 'Erro desconhecido' 
+    };
+  }
+}
 
 export default salesOpsDAO;

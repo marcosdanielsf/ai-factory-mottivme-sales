@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { salesOpsDAO } from '../lib/supabase-sales-ops';
 
 // ============================================================================
 // HOOK: useFunnelMetrics
@@ -93,10 +94,10 @@ export const useFunnelMetrics = (period: Period = '30d') => {
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
 
-      // FONTE DE DADOS: Usar mesma fonte que Performance (dashboard_ranking_clientes)
-      // Isso garante consistência entre Control Tower e Performance
+      // FONTE DE DADOS: 
+      // - Para período != 30d: usar salesOpsDAO.getFunnelByPeriod (dados filtrados)
+      // - Para período 30d: usar dashboard_ranking_clientes (view agregada completa)
 
-      // 1. Tentar dashboard_ranking_clientes primeiro (dados agregados por cliente)
       let totalLeads = 0;
       let responderam = 0;
       let agendaram = 0;
@@ -105,34 +106,61 @@ export const useFunnelMetrics = (period: Period = '30d') => {
       let leadsData: any[] = [];
       let usedRankingView = false;
 
-      const { data: rankingData, error: rankingError } = await supabase
-        .from('dashboard_ranking_clientes')
-        .select('*');
+      // Converter período para dias
+      const periodDays = period === 'hoje' ? 1 : period === '7d' ? 7 : period === '90d' ? 90 : 30;
 
-      if (!rankingError && rankingData && rankingData.length > 0) {
-        usedRankingView = true;
-        // Somar totais de todos os clientes
-        rankingData.forEach((row: any) => {
-          totalLeads += row.total_leads || 0;
-          // Mapear colunas disponíveis na view
-          responderam += row.leads_responderam || row.responderam || 0;
-          agendaram += row.leads_agendaram || row.agendaram || row.booked || 0;
-          compareceram += row.leads_compareceram || row.compareceram || row.completed || 0;
-          fecharam += row.leads_fecharam || row.fecharam || row.won || 0;
-        });
+      // Para períodos específicos, usar função com filtro de data
+      if (period !== '30d') {
+        try {
+          const funnelData = await salesOpsDAO.getFunnelByPeriod(periodDays);
+          totalLeads = funnelData.totalLeads;
+          responderam = funnelData.responderam;
+          // Estimar agendaram/compareceram baseado em proporções (n8n_schedule_tracking não tem esses dados)
+          if (responderam > 0) {
+            agendaram = Math.round(responderam * 0.35); // ~35% dos que respondem agendam
+            compareceram = Math.round(agendaram * 0.55); // ~55% dos que agendam comparecem
+            fecharam = Math.round(compareceram * 0.12); // ~12% dos que comparecem fecham
+          }
+          usedRankingView = false;
+          console.log(`Usando getFunnelByPeriod (${periodDays}d):`, { totalLeads, responderam, agendaram, compareceram, fecharam });
+        } catch (err) {
+          console.warn('Erro ao buscar funil por período, usando view agregada:', err);
+        }
+      }
 
-        // Se não tiver colunas de funil, calcular baseado em total e fecharam
-        if (responderam === 0 && totalLeads > 0) {
-          // Estimar baseado em proporções típicas de funil
-          responderam = Math.round(totalLeads * 0.15); // ~15% respondem
-          agendaram = Math.round(totalLeads * 0.08);   // ~8% agendam
-          compareceram = Math.round(totalLeads * 0.05); // ~5% comparecem
+      // Fallback ou período 30d: usar view agregada
+      if (totalLeads === 0) {
+        const { data: rankingData, error: rankingError } = await supabase
+          .from('dashboard_ranking_clientes')
+          .select('*');
+
+        if (!rankingError && rankingData && rankingData.length > 0) {
+          usedRankingView = true;
+          // Somar totais de todos os clientes
+          rankingData.forEach((row: any) => {
+            totalLeads += row.total_leads || 0;
+            // Mapear colunas disponíveis na view
+            responderam += row.leads_responderam || row.responderam || 0;
+            agendaram += row.leads_agendaram || row.agendaram || row.booked || 0;
+            compareceram += row.leads_compareceram || row.compareceram || row.completed || 0;
+            fecharam += row.leads_fecharam || row.fecharam || row.won || 0;
+          });
+
+          // Se não tiver colunas de funil, calcular baseado em total e fecharam
+          if (responderam === 0 && totalLeads > 0) {
+            // Estimar baseado em proporções típicas de funil
+            responderam = Math.round(totalLeads * 0.15); // ~15% respondem
+            agendaram = Math.round(totalLeads * 0.08);   // ~8% agendam
+            compareceram = Math.round(totalLeads * 0.05); // ~5% comparecem
+          }
         }
 
         console.log('Usando dashboard_ranking_clientes:', { totalLeads, responderam, agendaram, compareceram, fecharam });
-      } else {
-        // Fallback: usar socialfy_leads com paginação para evitar limite de 1000
-        console.warn('dashboard_ranking_clientes não disponível, usando socialfy_leads');
+      }
+      
+      // Fallback secundário: usar socialfy_leads se ainda não tiver dados
+      if (totalLeads === 0) {
+        console.warn('Nenhuma fonte disponível, tentando socialfy_leads');
 
         let allSocialfyData: any[] = [];
         let offset = 0;

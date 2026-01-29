@@ -1,45 +1,57 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BarChart3, RefreshCw } from 'lucide-react';
-import { salesOpsDAO, type ClientInfo } from '../../lib/supabase-sales-ops';
+import { BarChart3, RefreshCw, Download } from 'lucide-react';
+import { exportToCSV, generateFilename } from '../../lib/export-utils';
+import { salesOpsDAO, type ClientInfo, type TrendData } from '../../lib/supabase-sales-ops';
 import { ClientSelector } from './components/ClientSelector';
 import { OverviewCards } from './components/OverviewCards';
+import { FuuQueueCard } from './components/FuuQueueCard';
 import { FunnelChart } from './components/FunnelChart';
 import { ActivityChart } from './components/ActivityChart';
 import { ConversionTable } from './components/ConversionTable';
 import { LeadsDrawer, type LeadFilterType } from './components/LeadsDrawer';
+import { AlertBanner } from './components/AlertBanner';
+import { PeriodFilter } from './components/PeriodFilter';
+import { AgentLeaderboard } from './components/AgentLeaderboard';
 
 export const SalesOps = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [periodDays, setPeriodDays] = useState(30);
 
   // Dashboard data
   const [totals, setTotals] = useState({ totalAtivos: 0, totalInativos: 0, totalLeads: 0, mediaFollowUps: 0 });
+  const [trends, setTrends] = useState<TrendData | null>(null);
   const [funnel, setFunnel] = useState<{ follow_up_count: number; quantidade: number; percentual: number }[]>([]);
   const [activity, setActivity] = useState<{ data: string; mensagens_enviadas: number; leads_contactados: number }[]>([]);
   const [conversao, setConversao] = useState<any[]>([]);
   const [leadsProntos, setLeadsProntos] = useState(0);
+  
+  // Período para comparação de tendências (em dias)
+  const trendPeriodDays = 7;
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilterType, setDrawerFilterType] = useState<LeadFilterType>('ativos');
 
-  const loadData = async (locationId: string | null = null) => {
+  const loadData = async (locationId: string | null = null, days: number = 30) => {
     setIsLoading(true);
     try {
-      const [clientsData, totalsData, funnelData, activityData, conversaoData, leadsData] = await Promise.all([
+      const [clientsData, totalsData, trendData, funnelData, activityData, conversaoData, leadsData] = await Promise.all([
         salesOpsDAO.getClients(),
-        salesOpsDAO.getTotals(),
-        salesOpsDAO.getAggregatedFunnel(),
-        salesOpsDAO.getAggregatedAtividade(30),
+        salesOpsDAO.getTotals(locationId ?? undefined),
+        salesOpsDAO.getTotalsWithTrend(trendPeriodDays, locationId ?? undefined),
+        salesOpsDAO.getAggregatedFunnel(locationId ?? undefined),
+        salesOpsDAO.getAggregatedAtividade(days, locationId ?? undefined),
         salesOpsDAO.getConversao(locationId ?? undefined),
         salesOpsDAO.getTotalLeadsProntos(locationId ?? undefined),
       ]);
 
       setClients(clientsData);
       setTotals(totalsData);
+      setTrends(trendData.trends);
       setFunnel(funnelData);
       setActivity(activityData);
       setConversao(conversaoData);
@@ -53,11 +65,11 @@ export const SalesOps = () => {
   };
 
   useEffect(() => {
-    loadData(selectedLocationId);
-  }, [selectedLocationId]);
+    loadData(selectedLocationId, periodDays);
+  }, [selectedLocationId, periodDays]);
 
   const handleRefresh = () => {
-    loadData(selectedLocationId);
+    loadData(selectedLocationId, periodDays);
   };
 
   // Handler para abrir drawer de cards
@@ -78,6 +90,56 @@ export const SalesOps = () => {
   const handleCloseDrawer = useCallback(() => {
     setDrawerOpen(false);
   }, []);
+
+  // Handler para alerta de leads esfriando
+  const handleEsfriandoClick = useCallback(() => {
+    setDrawerFilterType('esfriando');
+    setDrawerTitle('Leads Esfriando (+48h)');
+    setDrawerOpen(true);
+  }, []);
+
+  // Handler para FuuQueueCard
+  const handleFuuQueueClick = useCallback(() => {
+    setDrawerFilterType('fuu_scheduled');
+    setDrawerTitle('📅 Follow-ups Agendados');
+    setDrawerOpen(true);
+  }, []);
+
+  // Handler para exportar dados do dashboard
+  const handleExport = useCallback(() => {
+    // Prepara dados do resumo
+    const summaryData = [{
+      tipo: 'Resumo',
+      leads_ativos: totals.totalAtivos,
+      leads_inativos: totals.totalInativos,
+      total_leads: totals.totalLeads,
+      media_follow_ups: totals.mediaFollowUps,
+      leads_prontos: leadsProntos,
+    }];
+
+    // Prepara dados do funil
+    const funnelData = funnel.map(f => ({
+      tipo: 'Funil',
+      follow_ups: f.follow_up_count,
+      quantidade: f.quantidade,
+      percentual: `${f.percentual}%`,
+    }));
+
+    // Prepara dados de conversão
+    const conversionData = conversao.map(c => ({
+      tipo: 'Conversão',
+      cliente: c.location_name || 'N/A',
+      leads_ativos: c.leads_ativos || 0,
+      leads_inativos: c.leads_inativos || 0,
+      taxa_conversao: c.taxa_conversao ? `${c.taxa_conversao}%` : 'N/A',
+    }));
+
+    // Combina todos os dados
+    const allData = [...summaryData, ...funnelData, ...conversionData];
+    
+    const filename = generateFilename('sales-ops-dashboard');
+    exportToCSV(allData, filename);
+  }, [totals, funnel, conversao, leadsProntos]);
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -104,6 +166,19 @@ export const SalesOps = () => {
                 onChange={setSelectedLocationId}
                 isLoading={isLoading}
               />
+              <PeriodFilter
+                selected={periodDays}
+                onChange={setPeriodDays}
+              />
+              <button
+                onClick={handleExport}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 bg-bg-hover border border-border-default rounded-lg text-xs md:text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+                title="Exportar CSV"
+              >
+                <Download size={14} />
+                <span className="hidden md:inline">Exportar</span>
+              </button>
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
@@ -123,9 +198,15 @@ export const SalesOps = () => {
         </div>
       </div>
 
+      {/* Alert Banner - Leads Esfriando */}
+      <AlertBanner 
+        locationId={selectedLocationId} 
+        onViewClick={handleEsfriandoClick} 
+      />
+
       {/* Content */}
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Overview Cards - agora clicáveis */}
+        {/* Overview Cards - com indicadores de tendência */}
         <OverviewCards
           leadsAtivos={totals.totalAtivos}
           leadsInativos={totals.totalInativos}
@@ -133,7 +214,18 @@ export const SalesOps = () => {
           leadsProntos={leadsProntos}
           isLoading={isLoading}
           onCardClick={handleCardClick}
+          trends={trends}
+          periodLabel="sem"
         />
+
+        {/* FuuQueue Card - Follow-ups Agendados (destaque) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <FuuQueueCard
+            locationId={selectedLocationId}
+            isLoading={isLoading}
+            onClick={handleFuuQueueClick}
+          />
+        </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -146,8 +238,21 @@ export const SalesOps = () => {
           <ActivityChart data={activity} isLoading={isLoading} />
         </div>
 
-        {/* Conversion Table */}
-        <ConversionTable data={conversao} isLoading={isLoading} />
+        {/* Agent Leaderboard + Conversion Table */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          {/* Agent Leaderboard - Performance dos Agentes IA */}
+          <div className="lg:col-span-1">
+            <AgentLeaderboard 
+              locationId={selectedLocationId} 
+              isLoading={isLoading} 
+            />
+          </div>
+          
+          {/* Conversion Table */}
+          <div className="lg:col-span-2">
+            <ConversionTable data={conversao} isLoading={isLoading} />
+          </div>
+        </div>
       </div>
 
       {/* Leads Drawer */}

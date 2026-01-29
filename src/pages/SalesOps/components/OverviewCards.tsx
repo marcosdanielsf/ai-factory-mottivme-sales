@@ -1,6 +1,7 @@
 import React from 'react';
-import { Users, UserMinus, TrendingUp, Clock } from 'lucide-react';
+import { Users, UserMinus, TrendingUp, Clock, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import type { LeadFilterType } from './LeadsDrawer';
+import type { TrendData } from '../../../lib/supabase-sales-ops';
 
 interface OverviewCardsProps {
   leadsAtivos: number;
@@ -9,7 +10,44 @@ interface OverviewCardsProps {
   leadsProntos: number;
   isLoading?: boolean;
   onCardClick?: (filterType: LeadFilterType, title: string) => void;
+  trends?: TrendData | null;
+  periodLabel?: string; // ex: "sem" (semana), "mês"
 }
+
+interface TrendBadgeProps {
+  value: number;
+  periodLabel?: string;
+  invertColors?: boolean; // Para métricas onde queda é positiva (ex: inativos)
+}
+
+const TrendBadge: React.FC<TrendBadgeProps> = ({ value, periodLabel = 'sem', invertColors = false }) => {
+  const isPositive = value > 0;
+  const isNegative = value < 0;
+  const isNeutral = value === 0;
+
+  // Determina cor baseado na tendência
+  // Para métricas normais: ↑ = verde, ↓ = vermelho
+  // Para métricas invertidas (ex: inativos): ↑ = vermelho, ↓ = verde
+  let colorClass = 'text-gray-400 bg-gray-500/10';
+  if (isPositive) {
+    colorClass = invertColors 
+      ? 'text-red-400 bg-red-500/10' 
+      : 'text-emerald-400 bg-emerald-500/10';
+  } else if (isNegative) {
+    colorClass = invertColors 
+      ? 'text-emerald-400 bg-emerald-500/10' 
+      : 'text-red-400 bg-red-500/10';
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium ${colorClass}`}>
+      {isPositive && <ArrowUp size={10} className="md:w-3 md:h-3" />}
+      {isNegative && <ArrowDown size={10} className="md:w-3 md:h-3" />}
+      {isNeutral && <Minus size={10} className="md:w-3 md:h-3" />}
+      {Math.abs(value)}% vs {periodLabel}
+    </span>
+  );
+};
 
 interface MetricCardProps {
   title: string;
@@ -18,6 +56,9 @@ interface MetricCardProps {
   subtext: string;
   onClick?: () => void;
   clickable?: boolean;
+  trend?: number | null;
+  periodLabel?: string;
+  invertTrendColors?: boolean;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ 
@@ -26,7 +67,10 @@ const MetricCard: React.FC<MetricCardProps> = ({
   icon: Icon, 
   subtext, 
   onClick, 
-  clickable = false 
+  clickable = false,
+  trend,
+  periodLabel = 'sem',
+  invertTrendColors = false,
 }) => (
   <div
     onClick={onClick}
@@ -41,7 +85,12 @@ const MetricCard: React.FC<MetricCardProps> = ({
       <h3 className="text-xs md:text-sm text-gray-400 font-medium truncate pr-2">{title}</h3>
       <Icon size={14} className={`text-gray-500 flex-shrink-0 md:w-4 md:h-4 ${clickable ? 'group-hover:text-blue-400' : ''}`} />
     </div>
-    <div className="text-xl md:text-2xl font-semibold text-white">{value}</div>
+    <div className="flex items-center gap-2">
+      <span className="text-xl md:text-2xl font-semibold text-white">{value}</span>
+      {trend !== undefined && trend !== null && (
+        <TrendBadge value={trend} periodLabel={periodLabel} invertColors={invertTrendColors} />
+      )}
+    </div>
     <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 md:mt-2 truncate">
       {subtext}
       {clickable && (
@@ -60,6 +109,8 @@ export const OverviewCards: React.FC<OverviewCardsProps> = ({
   leadsProntos,
   isLoading = false,
   onCardClick,
+  trends,
+  periodLabel = 'sem',
 }) => {
   if (isLoading) {
     return (
@@ -83,6 +134,8 @@ export const OverviewCards: React.FC<OverviewCardsProps> = ({
         subtext="Total em follow-up ativo"
         onClick={onCardClick ? () => onCardClick('ativos', 'Leads Ativos') : undefined}
         clickable={!!onCardClick}
+        trend={trends?.ativos}
+        periodLabel={periodLabel}
       />
       <MetricCard
         title="Leads Inativos"
@@ -91,6 +144,9 @@ export const OverviewCards: React.FC<OverviewCardsProps> = ({
         subtext="Finalizados ou pausados"
         onClick={onCardClick ? () => onCardClick('inativos', 'Leads Inativos') : undefined}
         clickable={!!onCardClick}
+        trend={trends?.inativos}
+        periodLabel={periodLabel}
+        invertTrendColors={true} // Mais inativos = ruim
       />
       <MetricCard
         title="Media Follow-ups"
@@ -98,6 +154,7 @@ export const OverviewCards: React.FC<OverviewCardsProps> = ({
         icon={TrendingUp}
         subtext="Tentativas por lead"
         // Não clicável - é uma métrica calculada
+        // Sem trend pois é calculada diferente
         clickable={false}
       />
       <MetricCard
@@ -107,6 +164,8 @@ export const OverviewCards: React.FC<OverviewCardsProps> = ({
         subtext="Aguardando proximo contato"
         onClick={onCardClick ? () => onCardClick('prontos_fu', 'Prontos para Follow-up') : undefined}
         clickable={!!onCardClick}
+        trend={trends?.leadsProntos}
+        periodLabel={periodLabel}
       />
     </div>
   );
