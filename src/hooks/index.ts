@@ -23,3 +23,4 @@ export * from './useMediaQuery';
 export * from './useDrilldownLeads';
 export * from './usePerformanceDrilldown';
 export * from './useFollowUpMetrics';
+export { useLocations } from './useLocations';

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
 import { Activity, Clock, Users, BarChart2, Database, Rocket, Play, Shield, Zap, Target, Heart, TrendingUp, CheckCircle, FileText, AlertCircle, Inbox, RefreshCw, MessageSquare, Calendar, UserCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics } from '../hooks';
+import { useDashboardMetrics, useAgents, usePendingApprovals, useTestResults, useAgentPerformance, useFunnelMetrics, useLocations } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { TestReportModal } from '../components/TestReportModal';
 import { DrilldownModal } from '../components/DrilldownModal';
@@ -76,7 +76,9 @@ export const Dashboard = () => {
   const { testRuns: testResults, loading: testResultsLoading, error: testResultsError } = useTestResults();
   const { performance, loading: performanceLoading, error: performanceError, refetch: refetchPerformance } = useAgentPerformance();
   const [selectedPeriod, setSelectedPeriod] = useState<'hoje' | '7d' | '30d' | '90d'>('30d');
-  const { funnel, alerts, engagement, loading: funnelLoading, error: funnelError, refetch: refetchFunnel } = useFunnelMetrics(selectedPeriod);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const { locations, loading: locationsLoading } = useLocations();
+  const { funnel, alerts, engagement, loading: funnelLoading, error: funnelError, refetch: refetchFunnel } = useFunnelMetrics(selectedPeriod, selectedLocation);
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -212,6 +214,20 @@ export const Dashboard = () => {
               <option value="7d">📅 7 dias</option>
               <option value="30d">📅 30 dias</option>
               <option value="90d">📅 90 dias</option>
+           </select>
+           {/* Filtro de Usuário/Location */}
+           <select
+              value={selectedLocation || ''}
+              onChange={(e) => setSelectedLocation(e.target.value || null)}
+              className="px-3 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary cursor-pointer min-w-[140px]"
+              disabled={locationsLoading}
+            >
+              <option value="">👥 Todos</option>
+              {locations.map((loc) => (
+                <option key={loc.location_id} value={loc.location_id}>
+                  👤 {loc.location_name}
+                </option>
+              ))}
            </select>
            <button
               onClick={handleRefresh}

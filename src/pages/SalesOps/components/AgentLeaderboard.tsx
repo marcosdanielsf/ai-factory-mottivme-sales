@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Users, BarChart3 } from 'lucide-react';
+import { Trophy, Users, TrendingUp } from 'lucide-react';
 import { salesOpsDAO, type AgentPerformance } from '../../../lib/supabase-sales-ops';
 
 interface AgentLeaderboardProps {
@@ -16,11 +16,11 @@ const getMedal = (position: number): string => {
   }
 };
 
-const getProgressColor = (percentual: number): string => {
-  if (percentual >= 30) return 'bg-blue-500';
-  if (percentual >= 20) return 'bg-cyan-500';
-  if (percentual >= 10) return 'bg-teal-500';
-  return 'bg-gray-500';
+const getProgressColor = (taxa: number): string => {
+  if (taxa >= 80) return 'bg-green-500';
+  if (taxa >= 60) return 'bg-yellow-500';
+  if (taxa >= 40) return 'bg-orange-500';
+  return 'bg-red-500';
 };
 
 export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, isLoading: parentLoading }) => {
@@ -32,7 +32,7 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
       setIsLoading(true);
       try {
         const data = await salesOpsDAO.getAgentPerformance(locationId ?? undefined);
-        // Filtrar agentes sem nome e ordenar por volume (total_leads)
+        // Filtrar agentes sem nome e ordenar por total de leads (volume)
         const filteredData = data
           .filter(a => a.agente_ia && a.agente_ia !== 'Sem Agente' && a.agente_ia !== 'NULL' && a.total_leads >= 1)
           .sort((a, b) => b.total_leads - a.total_leads);
@@ -55,7 +55,7 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
       <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="text-yellow-500" size={20} />
-          <h3 className="font-semibold text-white">🏆 Volume por Agente</h3>
+          <h3 className="font-semibold text-white">🏆 Taxa de Resposta por Agente</h3>
         </div>
         <div className="animate-pulse space-y-3">
           {[1, 2, 3].map((i) => (
@@ -71,7 +71,7 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
       <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="text-yellow-500" size={20} />
-          <h3 className="font-semibold text-white">🏆 Volume por Agente</h3>
+          <h3 className="font-semibold text-white">🏆 Taxa de Resposta por Agente</h3>
         </div>
         <div className="text-center py-8 text-gray-400">
           <Users size={32} className="mx-auto mb-2 opacity-50" />
@@ -81,8 +81,10 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
     );
   }
 
-  // Calcular total para percentuais
+  // Calcular totais
   const totalLeads = agents.reduce((sum, a) => sum + a.total_leads, 0);
+  const totalRespondidos = agents.reduce((sum, a) => sum + a.respondidos, 0);
+  const taxaGeral = totalLeads > 0 ? Math.round((totalRespondidos / totalLeads) * 100) : 0;
 
   return (
     <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-4 md:p-6">
@@ -90,11 +92,11 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Trophy className="text-yellow-500" size={20} />
-          <h3 className="font-semibold text-white">🏆 Volume por Agente</h3>
+          <h3 className="font-semibold text-white">🏆 Taxa de Resposta por Agente</h3>
         </div>
         <div className="flex items-center gap-1 text-xs text-gray-400">
-          <BarChart3 size={12} />
-          <span>Total: <strong className="text-white">{totalLeads} leads</strong></span>
+          <TrendingUp size={12} />
+          <span>Geral: <strong className={taxaGeral >= 80 ? 'text-green-400' : taxaGeral >= 60 ? 'text-yellow-400' : 'text-red-400'}>{taxaGeral}%</strong></span>
         </div>
       </div>
 
@@ -103,7 +105,7 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
         {agents.map((agent, index) => {
           const position = index + 1;
           const isTop3 = position <= 3;
-          const percentual = totalLeads > 0 ? Math.round((agent.total_leads / totalLeads) * 100) : 0;
+          const taxa = agent.taxa_conversao;
           
           return (
             <div
@@ -131,19 +133,25 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
                   <span className={`font-medium truncate text-sm ${isTop3 ? 'text-white' : 'text-gray-300'}`}>
                     {agent.agente_ia}
                   </span>
-                  <span className={`text-sm font-bold ${isTop3 ? 'text-blue-400' : 'text-gray-400'}`}>
-                    {agent.total_leads} leads
+                  <span className={`text-sm font-bold ${
+                    taxa >= 80 ? 'text-green-400' : 
+                    taxa >= 60 ? 'text-yellow-400' : 
+                    'text-red-400'
+                  }`}>
+                    {taxa.toFixed(0)}%
                   </span>
                 </div>
                 {/* Progress bar */}
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-[#333] rounded-full overflow-hidden">
                     <div 
-                      className={`h-full rounded-full transition-all duration-500 ${getProgressColor(percentual)}`}
-                      style={{ width: `${percentual}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${getProgressColor(taxa)}`}
+                      style={{ width: `${taxa}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-500 w-10 text-right">{percentual}%</span>
+                  <span className="text-xs text-gray-500 w-16 text-right">
+                    {agent.respondidos}/{agent.total_leads}
+                  </span>
                 </div>
               </div>
             </div>
@@ -153,9 +161,9 @@ export const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({ locationId, 
 
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-[#333]">
-        <p className="text-xs text-gray-500 text-center">
-          Ranking por volume de leads atendidos
-        </p>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Total: <strong className="text-gray-300">{totalRespondidos}/{totalLeads} responderam</strong></span>
+        </div>
       </div>
     </div>
   );
