@@ -1,14 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { salesOpsDAO } from '../lib/supabase-sales-ops';
 
 // ============================================================================
-// HOOK: useFunnelMetrics
-// Consome as views SQL criadas para o dashboard:
-// - dashboard_funnel
-// - dashboard_alertas_urgentes
-// - dashboard_followup_performance
-// - dashboard_resumo_diario
+// HOOK: useFunnelMetrics v2.0
+// Usa dados REAIS de:
+// - app_dash_principal (histórico + atual - coluna status)
+// - n8n_schedule_tracking (etapa_funil - tempo real)
+// - appointments_log (agendamentos novos)
 // ============================================================================
 
 export interface FunnelStage {
@@ -53,6 +51,38 @@ interface FunnelMetricsState {
 
 type Period = 'hoje' | '7d' | '30d' | '90d';
 
+// Mapeamento de status do app_dash_principal para etapas do funil
+const STATUS_MAP = {
+  // Novo
+  novo: ['new_lead', 'new', 'available'],
+  // Em Contato (recebendo follow-ups)
+  emContato: ['qualifying', 'in_cadence', 'contacted'],
+  // Respondeu
+  respondeu: ['replied', 'responded', 'warm', 'hot'],
+  // Agendou
+  agendou: ['booked', 'scheduled', 'appointment'],
+  // Compareceu
+  compareceu: ['completed', 'showed', 'attended'],
+  // No-show
+  noShow: ['no_show', 'noshow', 'missed'],
+  // Fechou
+  fechou: ['won', 'converted', 'closed', 'customer'],
+  // Perdido
+  perdido: ['lost', 'dead', 'unqualified']
+};
+
+// Mapeamento de etapa_funil do n8n_schedule_tracking
+const ETAPA_FUNIL_MAP = {
+  'Novo': 'novo',
+  'Em Contato': 'emContato',
+  'Respondeu': 'respondeu',
+  'Agendou': 'agendou',
+  'Compareceu': 'compareceu',
+  'No-show': 'noShow',
+  'Fechou': 'fechou',
+  'Perdido': 'perdido'
+};
+
 export const useFunnelMetrics = (period: Period = '30d') => {
   const [state, setState] = useState<FunnelMetricsState>({
     funnel: [],
@@ -94,245 +124,160 @@ export const useFunnelMetrics = (period: Period = '30d') => {
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
 
-      // FONTE DE DADOS: 
-      // - Para período != 30d: usar salesOpsDAO.getFunnelByPeriod (dados filtrados)
-      // - Para período 30d: usar dashboard_ranking_clientes (view agregada completa)
+      // Inicializar contadores do funil
+      const funnelCounts = {
+        novo: 0,
+        emContato: 0,
+        respondeu: 0,
+        agendou: 0,
+        compareceu: 0,
+        noShow: 0,
+        fechou: 0,
+        perdido: 0
+      };
 
-      let totalLeads = 0;
-      let responderam = 0;
-      let agendaram = 0;
-      let compareceram = 0;
-      let fecharam = 0;
-      let leadsData: any[] = [];
-      let usedRankingView = false;
+      // ========================================
+      // FONTE 1: app_dash_principal (histórico)
+      // ========================================
+      const { data: dashData, error: dashError } = await supabase
+        .from('app_dash_principal')
+        .select('status, data_criada, data_da_atualizacao')
+        .gte('data_criada', startDate.toISOString());
 
-      // Converter período para dias
-      const periodDays = period === 'hoje' ? 1 : period === '7d' ? 7 : period === '90d' ? 90 : 30;
-
-      // Para períodos específicos, usar função com filtro de data
-      if (period !== '30d') {
-        try {
-          const funnelData = await salesOpsDAO.getFunnelByPeriod(periodDays);
-          totalLeads = funnelData.totalLeads;
-          responderam = funnelData.responderam;
-          // Estimar agendaram/compareceram baseado em proporções (n8n_schedule_tracking não tem esses dados)
-          if (responderam > 0) {
-            agendaram = Math.round(responderam * 0.35); // ~35% dos que respondem agendam
-            compareceram = Math.round(agendaram * 0.55); // ~55% dos que agendam comparecem
-            fecharam = Math.round(compareceram * 0.12); // ~12% dos que comparecem fecham
-          }
-          usedRankingView = false;
-          console.log(`Usando getFunnelByPeriod (${periodDays}d):`, { totalLeads, responderam, agendaram, compareceram, fecharam });
-        } catch (err) {
-          console.warn('Erro ao buscar funil por período, usando view agregada:', err);
-        }
-      }
-
-      // Fallback ou período 30d: usar view agregada
-      if (totalLeads === 0) {
-        const { data: rankingData, error: rankingError } = await supabase
-          .from('dashboard_ranking_clientes')
-          .select('*');
-
-        if (!rankingError && rankingData && rankingData.length > 0) {
-          usedRankingView = true;
-          // Somar totais de todos os clientes
-          rankingData.forEach((row: any) => {
-            totalLeads += row.total_leads || 0;
-            // Mapear colunas disponíveis na view
-            responderam += row.leads_responderam || row.responderam || 0;
-            agendaram += row.leads_agendaram || row.agendaram || row.booked || 0;
-            compareceram += row.leads_compareceram || row.compareceram || row.completed || 0;
-            fecharam += row.leads_fecharam || row.fecharam || row.won || 0;
-          });
-
-          // Se não tiver colunas de funil, calcular baseado em total e fecharam
-          if (responderam === 0 && totalLeads > 0) {
-            // Estimar baseado em proporções típicas de funil
-            responderam = Math.round(totalLeads * 0.15); // ~15% respondem
-            agendaram = Math.round(totalLeads * 0.08);   // ~8% agendam
-            compareceram = Math.round(totalLeads * 0.05); // ~5% comparecem
-          }
-        }
-
-        console.log('Usando dashboard_ranking_clientes:', { totalLeads, responderam, agendaram, compareceram, fecharam });
-      }
-      
-      // Fallback secundário: usar socialfy_leads se ainda não tiver dados
-      if (totalLeads === 0) {
-        console.warn('Nenhuma fonte disponível, tentando socialfy_leads');
-
-        let allSocialfyData: any[] = [];
-        let offset = 0;
-        const pageSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data: socialfyData, error: socialfyError } = await supabase
-            .from('socialfy_leads')
-            .select('*')
-            .gte('created_at', startDate.toISOString())
-            .range(offset, offset + pageSize - 1);
-
-          if (socialfyError) throw socialfyError;
-
-          if (socialfyData && socialfyData.length > 0) {
-            allSocialfyData = allSocialfyData.concat(socialfyData);
-            offset += pageSize;
-            hasMore = socialfyData.length === pageSize;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        leadsData = allSocialfyData;
-      }
-
-      // 2. Buscar conversas para verificar respostas reais (apenas se usando socialfy_leads)
-      let respondedLeadIds = new Set<any>();
-      if (!usedRankingView) {
-        const { data: conversationsData } = await supabase
-          .from('ai_factory_conversations')
-          .select('lead_id, role')
-          .eq('role', 'user')
-          .gte('created_at', startDate.toISOString());
-
-        respondedLeadIds = new Set(
-          (conversationsData || [])
-            .map((c: any) => c.lead_id)
-            .filter(Boolean)
-        );
-      }
-
-      // Processar dados - se usou ranking view, usa totais; senão calcula de leads
-      let funnelData: FunnelStage[];
-      let alertsData: UrgentAlerts;
-
-      if (usedRankingView) {
-        funnelData = [
-          { stage: 'Leads Novos', count: totalLeads, color: '#3b82f6' },
-          { stage: 'Responderam', count: responderam, color: '#6366f1' },
-          { stage: 'Agendaram', count: agendaram, color: '#8b5cf6' },
-          { stage: 'Compareceram', count: compareceram, color: '#a855f7' },
-          { stage: 'Fecharam', count: fecharam, color: '#22c55e' }
-        ];
-        alertsData = {
-          leadsSemResposta24h: Math.max(0, totalLeads - responderam),
-          followupsFalhados: 0,
-          leadsEsfriando: 0,
-          noShows: Math.max(0, agendaram - compareceram)
-        };
-      } else {
-        funnelData = calculateFunnelFromLeads(leadsData, respondedLeadIds);
-        alertsData = calculateAlertsFromLeads(leadsData);
-        totalLeads = leadsData.length;
-        responderam = funnelData.find(f => f.stage === 'Responderam')?.count || 0;
-        agendaram = funnelData.find(f => f.stage === 'Agendaram')?.count || 0;
-        compareceram = funnelData.find(f => f.stage === 'Compareceram')?.count || 0;
-        fecharam = funnelData.find(f => f.stage === 'Fecharam')?.count || 0;
-      }
-
-      // Calcular métricas reais de engagement (usando variáveis já definidas acima)
-      // totalLeads, responderam, agendaram, compareceram, fecharam já definidos
-
-      // Contar leads que receberam outreach (apenas se temos dados individuais)
-      let leadsContacted = 0;
-      if (!usedRankingView && leadsData.length > 0) {
-        leadsContacted = leadsData.filter(l => {
-          if (l.outreach_sent_at) return true;
-          if (l.contacted_at) return true;
-          if (l.last_contact) return true;
-          const status = (l.status || '').toLowerCase();
-          return !['novo', 'new', 'available', 'new_lead'].includes(status);
-        }).length;
-      } else {
-        // Se usou ranking view, estimar baseado em responderam
-        leadsContacted = responderam > 0 ? Math.round(responderam * 1.5) : Math.round(totalLeads * 0.3);
-      }
-
-      // Taxa de resposta real: leads que responderam / total de leads
-      const taxaRespostaReal = totalLeads > 0
-        ? Math.round((responderam / totalLeads) * 100)
-        : 0;
-
-      // Followups por lead: média estimada baseada na proporção de contatos
-      const contactRate = totalLeads > 0 ? leadsContacted / totalLeads : 0;
-      let followupsPerLeadReal = 0;
-      if (contactRate > 0.8) {
-        followupsPerLeadReal = 2.5;
-      } else if (contactRate > 0.5) {
-        followupsPerLeadReal = 1.8;
-      } else if (contactRate > 0.2) {
-        followupsPerLeadReal = 1.2;
-      } else if (contactRate > 0) {
-        followupsPerLeadReal = 0.5;
-      }
-
-      // Calcular tempo médio até resposta
-      let tempoMedioResposta = '-';
-      if (!usedRankingView && leadsData.length > 0) {
-        const leadsComResposta = leadsData.filter(lead => {
-          const status = (lead.status || '').toLowerCase();
-          return respondedLeadIds.has(lead.id) ||
-            ['warm', 'hot', 'qualified', 'call_booked', 'scheduled', 'proposal', 'won', 'responded'].includes(status);
-        });
-
-        if (leadsComResposta.length > 0) {
-          const temposResposta = leadsComResposta
-            .filter(l => l.created_at && l.updated_at)
-            .map(l => {
-              const created = new Date(l.created_at).getTime();
-              const updated = new Date(l.updated_at).getTime();
-              return (updated - created) / (1000 * 60 * 60); // horas
-            })
-            .filter(h => h > 0 && h < 720);
-
-          if (temposResposta.length > 0) {
-            const mediaHoras = temposResposta.reduce((a, b) => a + b, 0) / temposResposta.length;
-            if (mediaHoras < 1) {
-              tempoMedioResposta = `${Math.round(mediaHoras * 60)}min`;
-            } else if (mediaHoras < 24) {
-              tempoMedioResposta = `${Math.round(mediaHoras)}h`;
-            } else {
-              tempoMedioResposta = `${Math.round(mediaHoras / 24)}d`;
+      if (dashError) {
+        console.warn('Erro ao buscar app_dash_principal:', dashError);
+      } else if (dashData) {
+        dashData.forEach((lead: any) => {
+          const status = (lead.status || '').toLowerCase().trim();
+          
+          // Mapear status para etapa do funil
+          for (const [etapa, statusList] of Object.entries(STATUS_MAP)) {
+            if (statusList.includes(status)) {
+              funnelCounts[etapa as keyof typeof funnelCounts]++;
+              break;
             }
           }
+        });
+        console.log('app_dash_principal:', dashData.length, 'leads');
+      }
+
+      // ========================================
+      // FONTE 2: n8n_schedule_tracking (tempo real)
+      // ========================================
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('n8n_schedule_tracking')
+        .select('etapa_funil, created_at')
+        .not('etapa_funil', 'is', null)
+        .gte('created_at', startDate.toISOString());
+
+      if (trackingError) {
+        console.warn('Erro ao buscar n8n_schedule_tracking:', trackingError);
+      } else if (trackingData) {
+        trackingData.forEach((lead: any) => {
+          const etapa = lead.etapa_funil;
+          const mappedEtapa = ETAPA_FUNIL_MAP[etapa as keyof typeof ETAPA_FUNIL_MAP];
+          if (mappedEtapa && funnelCounts[mappedEtapa as keyof typeof funnelCounts] !== undefined) {
+            funnelCounts[mappedEtapa as keyof typeof funnelCounts]++;
+          }
+        });
+        console.log('n8n_schedule_tracking:', trackingData.length, 'com etapa_funil');
+      }
+
+      // ========================================
+      // FONTE 3: appointments_log (agendamentos reais)
+      // ========================================
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments_log')
+        .select('id, appointment_date, created_at')
+        .gte('created_at', startDate.toISOString());
+
+      if (appointmentsError) {
+        console.warn('Erro ao buscar appointments_log:', appointmentsError);
+      } else if (appointmentsData && appointmentsData.length > 0) {
+        // Se temos dados de appointments_log, usar como fonte de verdade para agendamentos
+        // mas não duplicar se já contou de outras fontes
+        const appointmentsCount = appointmentsData.length;
+        console.log('appointments_log:', appointmentsCount, 'agendamentos');
+        
+        // Se appointments_log tem mais que o contado, usar esse valor
+        if (appointmentsCount > funnelCounts.agendou) {
+          funnelCounts.agendou = appointmentsCount;
         }
-      } else if (usedRankingView && responderam > 0) {
-        // Estimar tempo médio se usando ranking view
-        tempoMedioResposta = '24h';
       }
 
-      // Calcular qual tentativa converte
+      // ========================================
+      // Calcular totais e métricas
+      // ========================================
+      const totalLeads = funnelCounts.novo + funnelCounts.emContato + funnelCounts.respondeu + 
+                         funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + 
+                         funnelCounts.fechou + funnelCounts.perdido;
+
+      // Para o funil visual, usamos contagem cumulativa invertida
+      // (quem agendou também respondeu, quem compareceu também agendou, etc.)
+      const responderam = funnelCounts.respondeu + funnelCounts.agendou + funnelCounts.compareceu + 
+                          funnelCounts.noShow + funnelCounts.fechou;
+      const agendaram = funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + funnelCounts.fechou;
+      const compareceram = funnelCounts.compareceu + funnelCounts.fechou;
+      const fecharam = funnelCounts.fechou;
+
+      // Montar funil visual
+      const funnelData: FunnelStage[] = [
+        { stage: 'Leads Novos', count: totalLeads, color: '#3b82f6' },
+        { stage: 'Responderam', count: responderam, color: '#6366f1' },
+        { stage: 'Agendaram', count: agendaram, color: '#8b5cf6' },
+        { stage: 'Compareceram', count: compareceram, color: '#a855f7' },
+        { stage: 'Fecharam', count: fecharam, color: '#22c55e' }
+      ];
+
+      // Alertas
+      const alertsData: UrgentAlerts = {
+        leadsSemResposta24h: funnelCounts.novo,
+        followupsFalhados: funnelCounts.perdido,
+        leadsEsfriando: funnelCounts.emContato,
+        noShows: funnelCounts.noShow
+      };
+
+      // Métricas de engagement
+      const taxaResposta = totalLeads > 0 ? Math.round((responderam / totalLeads) * 100) : 0;
+      const taxaAgendamento = responderam > 0 ? Math.round((agendaram / responderam) * 100) : 0;
+      const taxaComparecimento = agendaram > 0 ? Math.round((compareceram / agendaram) * 100) : 0;
+      const taxaFechamento = compareceram > 0 ? Math.round((fecharam / compareceram) * 100) : 0;
+
+      // Qual tentativa converte
       let tentativaQueConverte = '-';
-      if (taxaRespostaReal > 50) {
-        tentativaQueConverte = '1ª';
-      } else if (taxaRespostaReal > 30) {
-        tentativaQueConverte = '2ª';
-      } else if (taxaRespostaReal > 15) {
-        tentativaQueConverte = '3ª';
-      } else if (taxaRespostaReal > 5) {
-        tentativaQueConverte = '4ª+';
-      }
+      if (taxaResposta > 50) tentativaQueConverte = '1ª';
+      else if (taxaResposta > 30) tentativaQueConverte = '2ª';
+      else if (taxaResposta > 15) tentativaQueConverte = '3ª';
+      else if (taxaResposta > 5) tentativaQueConverte = '4ª+';
 
-      // Performance com dados reais
-      const performance = [{
+      // Performance
+      const performance: FollowupPerformance[] = [{
         locationId: 'all',
         followUpType: 'multi-channel',
-        totalFollowups: leadsContacted,
-        pendentes: totalLeads - responderam,
+        totalFollowups: totalLeads,
+        pendentes: funnelCounts.novo + funnelCounts.emContato,
         responderam: responderam,
-        taxaResposta: taxaRespostaReal,
-        mediaTentativasResposta: followupsPerLeadReal > 0 ? parseFloat((1 / followupsPerLeadReal).toFixed(1)) : 0,
-        mediaHorasResposta: tempoMedioResposta !== '-' ? parseFloat(tempoMedioResposta.replace(/[^\d.]/g, '')) : 0
+        taxaResposta: taxaResposta,
+        mediaTentativasResposta: taxaResposta > 0 ? parseFloat((100 / taxaResposta).toFixed(1)) : 0,
+        mediaHorasResposta: 24 // Placeholder - calcular se tiver dados
       }];
 
-      const engagement = {
-        followupsPerLead: followupsPerLeadReal,
+      const engagement: EngagementMetrics = {
+        followupsPerLead: totalLeads > 0 ? parseFloat(((funnelCounts.emContato + responderam) / totalLeads).toFixed(1)) : 0,
         tentativaQueConverte,
-        taxaResposta: taxaRespostaReal,
-        tempoAteResposta: tempoMedioResposta
+        taxaResposta,
+        tempoAteResposta: '24h' // Placeholder
       };
+
+      console.log('Funil Final:', {
+        total: totalLeads,
+        responderam,
+        agendaram,
+        compareceram,
+        fecharam,
+        noShows: funnelCounts.noShow,
+        perdidos: funnelCounts.perdido
+      });
 
       setState({
         funnel: funnelData,
@@ -362,133 +307,5 @@ export const useFunnelMetrics = (period: Period = '30d') => {
     refetch: fetchMetrics
   };
 };
-
-// ============================================================================
-// FUNÇÕES DE PROCESSAMENTO
-// ============================================================================
-
-function calculateFunnelFromLeads(leads: any[], respondedIds: Set<any>): FunnelStage[] {
-  // Inicializar contadores
-  let leads_novos = leads.length;
-  let responderam = 0;
-  let agendaram = 0;
-  let compareceram = 0;
-  let fecharam = 0;
-
-  // Status mapeados por categoria (lowercase)
-  // MAPEAMENTO REAL baseado em socialfy_leads:
-  // available (99), in_cadence (4), responding (3), scheduled (2), lost (1), converted (1)
-  const STATUS_NOVOS = ['novo', 'new', 'available', 'new_lead', 'cold'];
-  const STATUS_RESPONDERAM = ['in_cadence', 'responding', 'replied', 'warm', 'hot', 'qualified', 'responded', 'engaged', 'interested'];
-  const STATUS_AGENDARAM = ['scheduled', 'call_booked', 'booked', 'appointment', 'proposal', 'agendado'];
-  const STATUS_COMPARECERAM = ['attended', 'showed_up', 'completed', 'showed', 'compareceu'];
-  const STATUS_FECHARAM = ['converted', 'won', 'closed', 'customer', 'sale'];
-
-  leads.forEach(lead => {
-    const status = (lead.status || '').toLowerCase().trim();
-    const hasResponse = respondedIds.has(lead.id);
-
-    // Lógica de Responderam:
-    // 1. Tem mensagem de usuário (via ai_factory_conversations) OU
-    // 2. Status indica engajamento direto OU
-    // 3. Status indica estágio mais avançado (implica que respondeu)
-    const isResponded = hasResponse ||
-      STATUS_RESPONDERAM.includes(status) ||
-      STATUS_AGENDARAM.includes(status) ||
-      STATUS_COMPARECERAM.includes(status) ||
-      STATUS_FECHARAM.includes(status);
-
-    if (isResponded) {
-      responderam++;
-    }
-
-    // Lógica de Agendaram:
-    // 1. Status explícito de agendamento OU
-    // 2. Status indica estágio mais avançado (implica que agendou)
-    const isScheduled = STATUS_AGENDARAM.includes(status) ||
-      STATUS_COMPARECERAM.includes(status) ||
-      STATUS_FECHARAM.includes(status);
-
-    if (isScheduled) {
-      agendaram++;
-    }
-
-    // Lógica de Compareceram:
-    // 1. Status indica que compareceu OU
-    // 2. Status indica fechamento (implica que compareceu)
-    const hasAttended = STATUS_COMPARECERAM.includes(status) ||
-      STATUS_FECHARAM.includes(status);
-
-    if (hasAttended) {
-      compareceram++;
-    }
-
-    // Lógica de Fecharam:
-    if (STATUS_FECHARAM.includes(status)) {
-      fecharam++;
-    }
-  });
-
-  return [
-    { stage: 'Leads Novos', count: leads_novos, color: '#3b82f6' },
-    { stage: 'Responderam', count: responderam, color: '#6366f1' },
-    { stage: 'Agendaram', count: agendaram, color: '#8b5cf6' },
-    { stage: 'Compareceram', count: compareceram, color: '#a855f7' },
-    { stage: 'Fecharam', count: fecharam, color: '#22c55e' }
-  ];
-}
-
-function calculateAlertsFromLeads(leads: any[]): UrgentAlerts {
-  const now = new Date();
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  // Status que indicam lead novo/sem resposta
-  const STATUS_SEM_RESPOSTA = ['novo', 'new', 'available', 'new_lead', 'cold'];
-
-  let leadsSemResposta24h = 0;
-  let leadsEsfriando = 0;
-  let noShows = 0;
-  let followupsFalhados = 0;
-
-  leads.forEach(lead => {
-    const created = new Date(lead.created_at);
-    const updated = new Date(lead.updated_at || lead.created_at);
-    const status = (lead.status || '').toLowerCase().trim();
-    const timeSinceCreated = now.getTime() - created.getTime();
-    const timeSinceUpdated = now.getTime() - updated.getTime();
-
-    // Leads novos > 24h sem resposta
-    if (timeSinceCreated > oneDayMs && STATUS_SEM_RESPOSTA.includes(status)) {
-      leadsSemResposta24h++;
-    }
-
-    // Leads esfriando: Status 'warm' ou 'interested' sem atualização há 3 dias
-    if (['warm', 'interested', 'engaged'].includes(status) && timeSinceUpdated > (3 * oneDayMs)) {
-      leadsEsfriando++;
-    }
-
-    // No Shows - incluir variações
-    if (['no_show', 'noshow', 'no-show', 'missed'].includes(status)) {
-      noShows++;
-    }
-
-    // Followups falhados: lead com outreach enviado mas sem resposta há mais de 7 dias
-    if (lead.outreach_sent_at && STATUS_SEM_RESPOSTA.includes(status)) {
-      const outreachSent = new Date(lead.outreach_sent_at);
-      const timeSinceOutreach = now.getTime() - outreachSent.getTime();
-      if (timeSinceOutreach > (7 * oneDayMs)) {
-        followupsFalhados++;
-      }
-    }
-  });
-
-  return {
-    leadsSemResposta24h,
-    followupsFalhados,
-    leadsEsfriando,
-    noShows
-  };
-}
-
 
 export default useFunnelMetrics;
