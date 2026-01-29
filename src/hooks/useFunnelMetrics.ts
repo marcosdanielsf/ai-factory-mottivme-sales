@@ -2,11 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 // ============================================================================
-// HOOK: useFunnelMetrics v2.0
+// HOOK: useFunnelMetrics v2.1
 // Usa dados REAIS de:
 // - app_dash_principal (histórico + atual - coluna status)
 // - n8n_schedule_tracking (etapa_funil - tempo real)
 // - appointments_log (agendamentos novos)
+// 
+// Suporta filtro por locationId (usuário/cliente)
 // ============================================================================
 
 export interface FunnelStage {
@@ -53,26 +55,18 @@ type Period = 'hoje' | '7d' | '30d' | '90d';
 
 // Mapeamento de status do app_dash_principal para etapas do funil
 const STATUS_MAP = {
-  // Novo
   novo: ['new_lead', 'new', 'available'],
-  // Em Contato (recebendo follow-ups)
   emContato: ['qualifying', 'in_cadence', 'contacted'],
-  // Respondeu
   respondeu: ['replied', 'responded', 'warm', 'hot'],
-  // Agendou
   agendou: ['booked', 'scheduled', 'appointment'],
-  // Compareceu
   compareceu: ['completed', 'showed', 'attended'],
-  // No-show
   noShow: ['no_show', 'noshow', 'missed'],
-  // Fechou
   fechou: ['won', 'converted', 'closed', 'customer'],
-  // Perdido
   perdido: ['lost', 'dead', 'unqualified']
 };
 
 // Mapeamento de etapa_funil do n8n_schedule_tracking
-const ETAPA_FUNIL_MAP = {
+const ETAPA_FUNIL_MAP: Record<string, string> = {
   'Novo': 'novo',
   'Em Contato': 'emContato',
   'Respondeu': 'respondeu',
@@ -83,7 +77,7 @@ const ETAPA_FUNIL_MAP = {
   'Perdido': 'perdido'
 };
 
-export const useFunnelMetrics = (period: Period = '30d') => {
+export const useFunnelMetrics = (period: Period = '30d', locationId?: string | null) => {
   const [state, setState] = useState<FunnelMetricsState>({
     funnel: [],
     alerts: {
@@ -139,10 +133,17 @@ export const useFunnelMetrics = (period: Period = '30d') => {
       // ========================================
       // FONTE 1: app_dash_principal (histórico)
       // ========================================
-      const { data: dashData, error: dashError } = await supabase
+      let dashQuery = supabase
         .from('app_dash_principal')
-        .select('status, data_criada, data_da_atualizacao')
+        .select('status, data_criada, data_da_atualizacao, location_id')
         .gte('data_criada', startDate.toISOString());
+      
+      // Filtrar por location_id se fornecido
+      if (locationId) {
+        dashQuery = dashQuery.eq('location_id', locationId);
+      }
+
+      const { data: dashData, error: dashError } = await dashQuery;
 
       if (dashError) {
         console.warn('Erro ao buscar app_dash_principal:', dashError);
@@ -150,7 +151,6 @@ export const useFunnelMetrics = (period: Period = '30d') => {
         dashData.forEach((lead: any) => {
           const status = (lead.status || '').toLowerCase().trim();
           
-          // Mapear status para etapa do funil
           for (const [etapa, statusList] of Object.entries(STATUS_MAP)) {
             if (statusList.includes(status)) {
               funnelCounts[etapa as keyof typeof funnelCounts]++;
@@ -158,24 +158,30 @@ export const useFunnelMetrics = (period: Period = '30d') => {
             }
           }
         });
-        console.log('app_dash_principal:', dashData.length, 'leads');
+        console.log('app_dash_principal:', dashData.length, 'leads', locationId ? `(location: ${locationId})` : '(todos)');
       }
 
       // ========================================
       // FONTE 2: n8n_schedule_tracking (tempo real)
       // ========================================
-      const { data: trackingData, error: trackingError } = await supabase
+      let trackingQuery = supabase
         .from('n8n_schedule_tracking')
-        .select('etapa_funil, created_at')
+        .select('etapa_funil, created_at, location_id')
         .not('etapa_funil', 'is', null)
         .gte('created_at', startDate.toISOString());
+      
+      if (locationId) {
+        trackingQuery = trackingQuery.eq('location_id', locationId);
+      }
+
+      const { data: trackingData, error: trackingError } = await trackingQuery;
 
       if (trackingError) {
         console.warn('Erro ao buscar n8n_schedule_tracking:', trackingError);
       } else if (trackingData) {
         trackingData.forEach((lead: any) => {
           const etapa = lead.etapa_funil;
-          const mappedEtapa = ETAPA_FUNIL_MAP[etapa as keyof typeof ETAPA_FUNIL_MAP];
+          const mappedEtapa = ETAPA_FUNIL_MAP[etapa];
           if (mappedEtapa && funnelCounts[mappedEtapa as keyof typeof funnelCounts] !== undefined) {
             funnelCounts[mappedEtapa as keyof typeof funnelCounts]++;
           }
@@ -186,20 +192,23 @@ export const useFunnelMetrics = (period: Period = '30d') => {
       // ========================================
       // FONTE 3: appointments_log (agendamentos reais)
       // ========================================
-      const { data: appointmentsData, error: appointmentsError } = await supabase
+      let appointmentsQuery = supabase
         .from('appointments_log')
-        .select('id, appointment_date, created_at')
+        .select('id, appointment_date, created_at, location_id')
         .gte('created_at', startDate.toISOString());
+      
+      if (locationId) {
+        appointmentsQuery = appointmentsQuery.eq('location_id', locationId);
+      }
+
+      const { data: appointmentsData, error: appointmentsError } = await appointmentsQuery;
 
       if (appointmentsError) {
         console.warn('Erro ao buscar appointments_log:', appointmentsError);
       } else if (appointmentsData && appointmentsData.length > 0) {
-        // Se temos dados de appointments_log, usar como fonte de verdade para agendamentos
-        // mas não duplicar se já contou de outras fontes
         const appointmentsCount = appointmentsData.length;
         console.log('appointments_log:', appointmentsCount, 'agendamentos');
         
-        // Se appointments_log tem mais que o contado, usar esse valor
         if (appointmentsCount > funnelCounts.agendou) {
           funnelCounts.agendou = appointmentsCount;
         }
@@ -212,15 +221,12 @@ export const useFunnelMetrics = (period: Period = '30d') => {
                          funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + 
                          funnelCounts.fechou + funnelCounts.perdido;
 
-      // Para o funil visual, usamos contagem cumulativa invertida
-      // (quem agendou também respondeu, quem compareceu também agendou, etc.)
       const responderam = funnelCounts.respondeu + funnelCounts.agendou + funnelCounts.compareceu + 
                           funnelCounts.noShow + funnelCounts.fechou;
       const agendaram = funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + funnelCounts.fechou;
       const compareceram = funnelCounts.compareceu + funnelCounts.fechou;
       const fecharam = funnelCounts.fechou;
 
-      // Montar funil visual
       const funnelData: FunnelStage[] = [
         { stage: 'Leads Novos', count: totalLeads, color: '#3b82f6' },
         { stage: 'Responderam', count: responderam, color: '#6366f1' },
@@ -229,7 +235,6 @@ export const useFunnelMetrics = (period: Period = '30d') => {
         { stage: 'Fecharam', count: fecharam, color: '#22c55e' }
       ];
 
-      // Alertas
       const alertsData: UrgentAlerts = {
         leadsSemResposta24h: funnelCounts.novo,
         followupsFalhados: funnelCounts.perdido,
@@ -237,36 +242,30 @@ export const useFunnelMetrics = (period: Period = '30d') => {
         noShows: funnelCounts.noShow
       };
 
-      // Métricas de engagement
       const taxaResposta = totalLeads > 0 ? Math.round((responderam / totalLeads) * 100) : 0;
-      const taxaAgendamento = responderam > 0 ? Math.round((agendaram / responderam) * 100) : 0;
-      const taxaComparecimento = agendaram > 0 ? Math.round((compareceram / agendaram) * 100) : 0;
-      const taxaFechamento = compareceram > 0 ? Math.round((fecharam / compareceram) * 100) : 0;
 
-      // Qual tentativa converte
       let tentativaQueConverte = '-';
       if (taxaResposta > 50) tentativaQueConverte = '1ª';
       else if (taxaResposta > 30) tentativaQueConverte = '2ª';
       else if (taxaResposta > 15) tentativaQueConverte = '3ª';
       else if (taxaResposta > 5) tentativaQueConverte = '4ª+';
 
-      // Performance
       const performance: FollowupPerformance[] = [{
-        locationId: 'all',
+        locationId: locationId || 'all',
         followUpType: 'multi-channel',
         totalFollowups: totalLeads,
         pendentes: funnelCounts.novo + funnelCounts.emContato,
         responderam: responderam,
         taxaResposta: taxaResposta,
         mediaTentativasResposta: taxaResposta > 0 ? parseFloat((100 / taxaResposta).toFixed(1)) : 0,
-        mediaHorasResposta: 24 // Placeholder - calcular se tiver dados
+        mediaHorasResposta: 24
       }];
 
       const engagement: EngagementMetrics = {
         followupsPerLead: totalLeads > 0 ? parseFloat(((funnelCounts.emContato + responderam) / totalLeads).toFixed(1)) : 0,
         tentativaQueConverte,
         taxaResposta,
-        tempoAteResposta: '24h' // Placeholder
+        tempoAteResposta: '24h'
       };
 
       console.log('Funil Final:', {
@@ -276,7 +275,8 @@ export const useFunnelMetrics = (period: Period = '30d') => {
         compareceram,
         fecharam,
         noShows: funnelCounts.noShow,
-        perdidos: funnelCounts.perdido
+        perdidos: funnelCounts.perdido,
+        locationId: locationId || 'todos'
       });
 
       setState({
@@ -296,7 +296,7 @@ export const useFunnelMetrics = (period: Period = '30d') => {
         error: error.message || 'Erro ao carregar métricas'
       }));
     }
-  }, [period]);
+  }, [period, locationId]);
 
   useEffect(() => {
     fetchMetrics();
