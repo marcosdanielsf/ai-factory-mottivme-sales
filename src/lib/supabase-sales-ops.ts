@@ -83,7 +83,11 @@ export type LeadFilterType =
   | 'fu_3' 
   | 'fu_4_plus'
   | 'esfriando'
-  | 'fuu_scheduled';
+  | 'fuu_scheduled'
+  // Novos filtros por etapa + status (formato: etapa_X_status)
+  | `etapa_${number}_ativos`
+  | `etapa_${number}_respondidos`
+  | `etapa_${number}_desistentes`;
 
 export interface FuuQueueStats {
   scheduled: number;  // status = 'scheduled'
@@ -105,6 +109,13 @@ export interface AgentPerformance {
   total_leads: number;
   respondidos: number;
   taxa_conversao: number;
+}
+
+export interface CustoPorEtapa {
+  etapa: number;
+  custo_total_usd: number;
+  total_leads: number;
+  custo_medio_por_lead: number;
 }
 
 // ============================================
@@ -701,6 +712,14 @@ export const salesOpsDAO = {
       case 'fuu_scheduled':
         // Redireciona para método específico da fuu_queue
         return this.getFuuQueueLeads(locationId);
+      default:
+        // Verificar se é filtro por etapa+status (formato: etapa_X_status)
+        const etapaMatch = filterType.match(/^etapa_(\d+)_(ativos|respondidos|desistentes)$/);
+        if (etapaMatch) {
+          const etapa = parseInt(etapaMatch[1], 10);
+          const status = etapaMatch[2] as 'ativos' | 'respondidos' | 'desistentes';
+          return this.getLeadsByEtapaStatus(etapa, status, locationId);
+        }
     }
 
     const { data, error } = await query;
@@ -901,6 +920,178 @@ export const salesOpsDAO = {
       return result.sort((a, b) => b.taxa_conversao - a.taxa_conversao);
     } catch (err) {
       console.error('Erro ao buscar performance dos agentes:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Busca custo por etapa de follow-up
+   * Cruza dados do n8n_schedule_tracking com llm_costs
+   */
+  async getCustoPorEtapa(locationId?: string): Promise<CustoPorEtapa[]> {
+    try {
+      // Primeiro, buscar contagem de leads por etapa
+      let trackingQuery = supabase
+        .from('n8n_schedule_tracking')
+        .select('follow_up_count, location_id');
+
+      if (locationId) {
+        trackingQuery = trackingQuery.eq('location_id', locationId);
+      }
+
+      const { data: trackingData, error: trackingError } = await trackingQuery;
+
+      if (trackingError) {
+        console.error('Erro ao buscar tracking para custos:', trackingError);
+        return [];
+      }
+
+      // Agrupar por etapa
+      const etapaMap = new Map<number, number>();
+      for (const row of trackingData || []) {
+        const etapa = row.follow_up_count || 0;
+        etapaMap.set(etapa, (etapaMap.get(etapa) || 0) + 1);
+      }
+
+      // Buscar custos totais
+      let costQuery = supabase
+        .from('llm_costs')
+        .select('custo_usd, location_name');
+
+      // Nota: llm_costs usa location_name, não location_id
+      // Para filtrar por location, precisaríamos fazer join ou buscar o nome
+
+      const { data: costData, error: costError } = await costQuery;
+
+      if (costError) {
+        console.error('Erro ao buscar custos:', costError);
+        // Retornar dados sem custo
+        return Array.from(etapaMap.entries()).map(([etapa, total_leads]) => ({
+          etapa,
+          custo_total_usd: 0,
+          total_leads,
+          custo_medio_por_lead: 0,
+        })).sort((a, b) => a.etapa - b.etapa);
+      }
+
+      // Calcular custo total
+      const custoTotal = (costData || []).reduce((sum, row) => sum + (row.custo_usd || 0), 0);
+      const totalLeads = Array.from(etapaMap.values()).reduce((sum, count) => sum + count, 0);
+
+      // Distribuir custo proporcionalmente por etapa
+      // Lógica: leads em etapas maiores custaram mais (passaram por mais FUs)
+      const result: CustoPorEtapa[] = [];
+      let custoAcumulado = 0;
+
+      for (const [etapa, count] of Array.from(etapaMap.entries()).sort((a, b) => a[0] - b[0])) {
+        // Custo proporcional: etapas maiores = mais custo acumulado
+        // Simplificação: custo médio * (etapa + 1) para refletir custo acumulado
+        const pesoEtapa = etapa + 1;
+        const custoEtapa = totalLeads > 0 
+          ? (custoTotal * count * pesoEtapa) / (totalLeads * (Array.from(etapaMap.keys()).reduce((s, e) => s + e + 1, 0) / etapaMap.size))
+          : 0;
+
+        result.push({
+          etapa,
+          custo_total_usd: Math.round(custoEtapa * 100) / 100,
+          total_leads: count,
+          custo_medio_por_lead: count > 0 ? Math.round((custoEtapa / count) * 100) / 100 : 0,
+        });
+      }
+
+      return result;
+    } catch (err) {
+      console.error('Erro ao buscar custo por etapa:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Busca leads por etapa e status específico
+   * Inclui a última mensagem de follow-up enviada
+   */
+  async getLeadsByEtapaStatus(
+    etapa: number, 
+    status: 'ativos' | 'respondidos' | 'desistentes',
+    locationId?: string
+  ): Promise<LeadDetail[]> {
+    try {
+      let query = supabase
+        .from('n8n_schedule_tracking')
+        .select('unique_id, location_id, location_name, follow_up_count, ativo, responded, created_at, updated_at, first_name, source, ultima_mensagem')
+        .eq('follow_up_count', etapa)
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      // Filtrar por status
+      switch (status) {
+        case 'ativos':
+          query = query.eq('ativo', true).or('responded.is.null,responded.eq.false');
+          break;
+        case 'respondidos':
+          query = query.eq('responded', true);
+          break;
+        case 'desistentes':
+          query = query.eq('ativo', false);
+          break;
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar leads por etapa/status:', error);
+        return [];
+      }
+
+      // Enriquecer com dados de contato
+      const uniqueIds = (data || []).map((lead: any) => parseInt(lead.unique_id, 10)).filter((id: number) => !isNaN(id));
+      let contactsMap: Map<string, { name: string | null; phone: string | null }> = new Map();
+
+      if (uniqueIds.length > 0) {
+        try {
+          const { data: contactsData } = await supabase
+            .from('app_dash_principal')
+            .select('id, contato_principal, celular_contato, telefone_comercial_contato')
+            .in('id', uniqueIds);
+
+          if (contactsData) {
+            for (const contact of contactsData) {
+              contactsMap.set(String(contact.id), {
+                name: contact.contato_principal,
+                phone: contact.celular_contato || contact.telefone_comercial_contato || null,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Não foi possível enriquecer com dados de contato');
+        }
+      }
+
+      return (data || []).map((lead: any) => {
+        const contactInfo = contactsMap.get(lead.unique_id);
+        const shortId = lead.unique_id ? lead.unique_id.slice(-6).toUpperCase() : '???';
+
+        return {
+          session_id: null,
+          contact_id: lead.unique_id,
+          contact_name: contactInfo?.name || lead.first_name || `Lead #${shortId}`,
+          contact_phone: contactInfo?.phone || null,
+          location_id: lead.location_id,
+          location_name: lead.location_name,
+          // Mostrar a última mensagem de follow-up enviada
+          last_message: lead.ultima_mensagem || `Follow-up ${etapa} enviado`,
+          follow_up_count: lead.follow_up_count || 0,
+          last_contact_at: lead.updated_at || lead.created_at,
+          is_active: lead.ativo ?? true,
+          source: lead.source,
+        };
+      });
+    } catch (err) {
+      console.error('Erro ao buscar leads por etapa/status:', err);
       return [];
     }
   },

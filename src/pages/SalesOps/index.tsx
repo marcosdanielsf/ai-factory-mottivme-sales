@@ -8,7 +8,8 @@ import { FuuQueueCard } from './components/FuuQueueCard';
 import { FunnelChart } from './components/FunnelChart';
 import { ActivityChart } from './components/ActivityChart';
 import { ConversionTable } from './components/ConversionTable';
-import { LeadsDrawer, type LeadFilterType } from './components/LeadsDrawer';
+import { LeadsDrawer } from './components/LeadsDrawer';
+import type { LeadFilterType } from '../../lib/supabase-sales-ops';
 import { AlertBanner } from './components/AlertBanner';
 import { PeriodFilter } from './components/PeriodFilter';
 import { AgentLeaderboard } from './components/AgentLeaderboard';
@@ -102,6 +103,13 @@ export const SalesOps = () => {
   const handleFuuQueueClick = useCallback(() => {
     setDrawerFilterType('fuu_scheduled');
     setDrawerTitle('📅 Follow-ups Agendados');
+    setDrawerOpen(true);
+  }, []);
+
+  // Handler para cliques na tabela de conversão (por etapa + status)
+  const handleConversionCellClick = useCallback((filterType: string, title: string) => {
+    setDrawerFilterType(filterType as LeadFilterType);
+    setDrawerTitle(title);
     setDrawerOpen(true);
   }, []);
 
@@ -250,7 +258,12 @@ export const SalesOps = () => {
           
           {/* Conversion Table */}
           <div className="lg:col-span-2">
-            <ConversionTable data={conversao} isLoading={isLoading} />
+            <ConversionTable 
+              data={conversao} 
+              isLoading={isLoading}
+              locationId={selectedLocationId}
+              onCellClick={handleConversionCellClick}
+            />
           </div>
         </div>
       </div>

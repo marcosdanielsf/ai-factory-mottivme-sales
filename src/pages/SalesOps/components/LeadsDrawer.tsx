@@ -1,18 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { X, Phone, MessageCircle, User, Clock, ExternalLink, Hash, Instagram, Check, Square, CheckSquare, Send, XCircle, AlertTriangle } from 'lucide-react';
-import { salesOpsDAO, updateLeadsBatch, scheduleFollowUpBatch, type LeadDetail } from '../../../lib/supabase-sales-ops';
+import { salesOpsDAO, updateLeadsBatch, scheduleFollowUpBatch, type LeadDetail, type LeadFilterType } from '../../../lib/supabase-sales-ops';
 
-export type LeadFilterType = 
-  | 'ativos' 
-  | 'inativos' 
-  | 'prontos_fu' 
-  | 'fu_0' 
-  | 'fu_1' 
-  | 'fu_2' 
-  | 'fu_3' 
-  | 'fu_4_plus'
-  | 'esfriando'
-  | 'fuu_scheduled';
+export type { LeadFilterType };
 
 type BatchAction = 'send_fu' | 'deactivate' | 'mark_responded' | null;
 
@@ -52,6 +42,11 @@ const truncateMessage = (msg: string | null, maxLength = 80) => {
   if (!msg) return 'Sem mensagens';
   if (msg.length <= maxLength) return msg;
   return msg.slice(0, maxLength) + '...';
+};
+
+// Detectar se o filtro é por etapa
+const isEtapaFilter = (filterType: LeadFilterType): boolean => {
+  return /^etapa_\d+_(ativos|respondidos|desistentes)$/.test(filterType);
 };
 
 // Modal de confirmação
@@ -456,11 +451,23 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Last Message */}
+                    {/* Last Message / Follow-up Message */}
                     <div className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3 ml-7 md:ml-8">
-                      <p className="text-xs md:text-sm text-gray-300">
-                        {truncateMessage(lead.last_message, 60)}
-                      </p>
+                      {isEtapaFilter(filterType) ? (
+                        <div>
+                          <p className="text-[10px] text-gray-500 mb-1 flex items-center gap-1">
+                            <MessageCircle size={10} />
+                            Mensagem de Follow-up Enviada:
+                          </p>
+                          <p className="text-xs md:text-sm text-gray-200 whitespace-pre-wrap">
+                            {lead.last_message || 'Mensagem não disponível'}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs md:text-sm text-gray-300">
+                          {truncateMessage(lead.last_message, 60)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Metrics */}
