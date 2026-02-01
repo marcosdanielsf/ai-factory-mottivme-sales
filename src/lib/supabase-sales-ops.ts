@@ -1008,7 +1008,7 @@ export const salesOpsDAO = {
 
   /**
    * Busca leads por etapa e status específico
-   * Inclui a última mensagem de follow-up enviada
+   * Inclui a última mensagem de follow-up enviada (da tabela n8n_historico_mensagens)
    */
   async getLeadsByEtapaStatus(
     etapa: number, 
@@ -1018,7 +1018,7 @@ export const salesOpsDAO = {
     try {
       let query = supabase
         .from('n8n_schedule_tracking')
-        .select('unique_id, location_id, location_name, follow_up_count, ativo, responded, created_at, updated_at, first_name, source, ultima_mensagem')
+        .select('unique_id, location_id, location_name, follow_up_count, ativo, responded, created_at, updated_at, first_name, source')
         .eq('follow_up_count', etapa)
         .order('updated_at', { ascending: false })
         .limit(100);
@@ -1047,8 +1047,45 @@ export const salesOpsDAO = {
         return [];
       }
 
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      // Buscar última mensagem de FU da tabela n8n_historico_mensagens
+      const sessionIds = data.map((lead: any) => lead.unique_id).filter(Boolean);
+      let messagesMap: Map<string, string> = new Map();
+
+      if (sessionIds.length > 0) {
+        try {
+          // Buscar últimas mensagens do tipo 'ai' (follow-up enviado)
+          const { data: messagesData } = await supabase
+            .from('n8n_historico_mensagens')
+            .select('session_id, message, created_at')
+            .in('session_id', sessionIds)
+            .order('created_at', { ascending: false });
+
+          if (messagesData) {
+            // Agrupar por session_id e pegar a última mensagem do tipo 'ai'
+            for (const msg of messagesData) {
+              if (!messagesMap.has(msg.session_id)) {
+                const messageObj = msg.message as any;
+                if (messageObj?.type === 'ai' && messageObj?.content) {
+                  // O content pode ser string ou array de strings
+                  const content = Array.isArray(messageObj.content) 
+                    ? messageObj.content.join('\n\n') 
+                    : messageObj.content;
+                  messagesMap.set(msg.session_id, content);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Não foi possível buscar mensagens de histórico:', e);
+        }
+      }
+
       // Enriquecer com dados de contato
-      const uniqueIds = (data || []).map((lead: any) => parseInt(lead.unique_id, 10)).filter((id: number) => !isNaN(id));
+      const uniqueIds = data.map((lead: any) => parseInt(lead.unique_id, 10)).filter((id: number) => !isNaN(id));
       let contactsMap: Map<string, { name: string | null; phone: string | null }> = new Map();
 
       if (uniqueIds.length > 0) {
@@ -1071,9 +1108,10 @@ export const salesOpsDAO = {
         }
       }
 
-      return (data || []).map((lead: any) => {
+      return data.map((lead: any) => {
         const contactInfo = contactsMap.get(lead.unique_id);
         const shortId = lead.unique_id ? lead.unique_id.slice(-6).toUpperCase() : '???';
+        const fuMessage = messagesMap.get(lead.unique_id);
 
         return {
           session_id: null,
@@ -1083,7 +1121,7 @@ export const salesOpsDAO = {
           location_id: lead.location_id,
           location_name: lead.location_name,
           // Mostrar a última mensagem de follow-up enviada
-          last_message: lead.ultima_mensagem || `Follow-up ${etapa} enviado`,
+          last_message: fuMessage || `Follow-up ${etapa} enviado (mensagem não disponível)`,
           follow_up_count: lead.follow_up_count || 0,
           last_contact_at: lead.updated_at || lead.created_at,
           is_active: lead.ativo ?? true,
