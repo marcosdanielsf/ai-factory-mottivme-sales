@@ -505,24 +505,27 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleBatchAction('send_fu')}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors min-h-[44px]"
+                title="Enviar Follow-up"
               >
-                <Send size={14} />
-                <span>Enviar FU</span>
+                <Send size={18} className="md:w-4 md:h-4" />
+                <span className="hidden md:inline">Enviar FU</span>
               </button>
               <button
                 onClick={() => handleBatchAction('deactivate')}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors border border-red-500/30"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 md:py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors border border-red-500/30 min-h-[44px]"
+                title="Desativar"
               >
-                <XCircle size={14} />
-                <span>Desativar</span>
+                <XCircle size={18} className="md:w-4 md:h-4" />
+                <span className="hidden md:inline">Desativar</span>
               </button>
               <button
                 onClick={() => handleBatchAction('mark_responded')}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm rounded-lg transition-colors border border-green-500/30"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-3 md:py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm rounded-lg transition-colors border border-green-500/30 min-h-[44px]"
+                title="Marcar Respondido"
               >
-                <Check size={14} />
-                <span>Respondido</span>
+                <Check size={18} className="md:w-4 md:h-4" />
+                <span className="hidden md:inline">Respondido</span>
               </button>
             </div>
           </div>

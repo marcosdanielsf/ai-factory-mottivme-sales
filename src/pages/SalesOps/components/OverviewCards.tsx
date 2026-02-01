@@ -77,7 +77,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     className={`
       bg-[#1a1a1a] border border-[#333] rounded-lg p-3 md:p-4 transition-all
       ${clickable 
-        ? 'cursor-pointer hover:bg-[#222] hover:border-[#444] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]' 
+        ? 'group cursor-pointer hover:bg-[#222] hover:border-[#444] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]' 
         : ''}
     `}
   >

@@ -622,7 +622,7 @@ export const salesOpsDAO = {
     try {
       let query = supabase
         .from('fuu_queue')
-        .select('contact_id, contact_name, location_id, status, scheduled_at, follow_up_type')
+        .select('contact_id, contact_name, location_id, status, scheduled_at, follow_up_type, context, phone')
         .order('scheduled_at', { ascending: true })
         .limit(100);
 
@@ -643,18 +643,27 @@ export const salesOpsDAO = {
                            lead.status === 'pending' ? '🟡' : 
                            lead.status === 'failed' ? '🔴' : '⚪';
         
+        // Extrair mensagem do context.ultimo_assunto
+        const context = lead.context as { ultimo_assunto?: string; etapa?: string; source?: string } | null;
+        const ultimoAssunto = context?.ultimo_assunto || null;
+        
+        // Se tem mensagem real, mostra ela. Senão, mostra info de agendamento
+        const displayMessage = ultimoAssunto 
+          ? `${statusLabel} ${ultimoAssunto}`
+          : `${statusLabel} ${lead.follow_up_type || 'Follow-up'} • Agendado: ${lead.scheduled_at ? new Date(lead.scheduled_at).toLocaleString('pt-BR') : 'N/A'}`;
+        
         return {
           session_id: null,
           contact_id: lead.contact_id,
           contact_name: lead.contact_name || `Lead #${lead.contact_id?.slice(-6).toUpperCase() || '???'}`,
-          contact_phone: null,
+          contact_phone: lead.phone || null,
           location_id: lead.location_id,
           location_name: null,
-          last_message: `${statusLabel} ${lead.follow_up_type || 'Follow-up'} • Agendado: ${lead.scheduled_at ? new Date(lead.scheduled_at).toLocaleString('pt-BR') : 'N/A'}`,
+          last_message: displayMessage,
           follow_up_count: 0,
           last_contact_at: lead.scheduled_at,
           is_active: lead.status === 'scheduled',
-          source: lead.follow_up_type,
+          source: context?.source || lead.follow_up_type,
         };
       });
     } catch (err) {
@@ -1062,18 +1071,20 @@ export const salesOpsDAO = {
       if (sessionIds.length > 0) {
         try {
           // Buscar últimas mensagens do tipo 'ai' (follow-up enviado)
+          // Usar filtro JSON no Supabase: message->>'type' = 'ai'
           const { data: messagesData } = await supabase
             .from('n8n_historico_mensagens')
             .select('session_id, message, created_at')
             .in('session_id', sessionIds)
+            .filter('message->>type', 'eq', 'ai')
             .order('created_at', { ascending: false });
 
           if (messagesData) {
-            // Agrupar por session_id e pegar a última mensagem do tipo 'ai'
+            // Agrupar por session_id e pegar a última mensagem (já filtrado por 'ai')
             for (const msg of messagesData) {
               if (!messagesMap.has(msg.session_id)) {
                 const messageObj = msg.message as any;
-                if (messageObj?.type === 'ai' && messageObj?.content) {
+                if (messageObj?.content) {
                   // O content pode ser string ou array de strings
                   const content = Array.isArray(messageObj.content) 
                     ? messageObj.content.join('\n\n') 
