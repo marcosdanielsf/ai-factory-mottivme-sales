@@ -90,9 +90,10 @@ export type LeadFilterType =
   | `etapa_${number}_desistentes`;
 
 export interface FuuQueueStats {
-  scheduled: number;  // status = 'scheduled'
-  pending: number;    // status = 'pending'  
-  failed: number;     // status = 'failed'
+  pending: number;      // status = 'pending' (aguardando na fila)
+  in_progress: number;  // status = 'in_progress' (sendo processado)
+  completed: number;    // status = 'completed' (enviado com sucesso)
+  failed: number;       // status = 'failed' (falhou)
 }
 
 export interface FuuQueueLead {
@@ -575,6 +576,7 @@ export const salesOpsDAO = {
 
   /**
    * Busca estatísticas da fila de follow-ups agendados (fuu_queue)
+   * Status: pending (na fila), in_progress (processando), completed (enviado), failed (falhou)
    */
   async getFuuQueueStats(locationId?: string): Promise<FuuQueueStats> {
     try {
@@ -591,24 +593,25 @@ export const salesOpsDAO = {
 
       if (error) {
         console.error('Erro ao buscar fuu_queue stats:', error);
-        return { scheduled: 0, pending: 0, failed: 0 };
+        return { pending: 0, in_progress: 0, completed: 0, failed: 0 };
       }
 
       // Contar por status
       const stats = (data || []).reduce(
         (acc, row) => {
-          if (row.status === 'scheduled') acc.scheduled++;
-          else if (row.status === 'pending') acc.pending++;
+          if (row.status === 'pending') acc.pending++;
+          else if (row.status === 'in_progress') acc.in_progress++;
+          else if (row.status === 'completed') acc.completed++;
           else if (row.status === 'failed') acc.failed++;
           return acc;
         },
-        { scheduled: 0, pending: 0, failed: 0 }
+        { pending: 0, in_progress: 0, completed: 0, failed: 0 }
       );
 
       return stats;
     } catch (err) {
       console.error('Erro ao buscar fuu_queue stats:', err);
-      return { scheduled: 0, pending: 0, failed: 0 };
+      return { pending: 0, in_progress: 0, completed: 0, failed: 0 };
     }
   },
 

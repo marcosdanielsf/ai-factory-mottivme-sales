@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { DollarSign } from 'lucide-react';
-import { salesOpsDAO, type ConversaoPorEtapa, type CustoPorEtapa } from '../../../lib/supabase-sales-ops';
+import React from 'react';
+import { salesOpsDAO, type ConversaoPorEtapa } from '../../../lib/supabase-sales-ops';
 
 interface ConversionTableProps {
   data: ConversaoPorEtapa[];
@@ -36,32 +35,6 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({
   locationId,
   onCellClick,
 }) => {
-  const [custos, setCustos] = useState<Map<number, CustoPorEtapa>>(new Map());
-  const [loadingCustos, setLoadingCustos] = useState(false);
-
-  // Carregar custos por etapa
-  useEffect(() => {
-    const loadCustos = async () => {
-      setLoadingCustos(true);
-      try {
-        const custosData = await salesOpsDAO.getCustoPorEtapa(locationId ?? undefined);
-        const custosMap = new Map<number, CustoPorEtapa>();
-        for (const c of custosData) {
-          custosMap.set(c.etapa, c);
-        }
-        setCustos(custosMap);
-      } catch (err) {
-        console.error('Erro ao carregar custos:', err);
-      } finally {
-        setLoadingCustos(false);
-      }
-    };
-
-    if (!isLoading) {
-      loadCustos();
-    }
-  }, [locationId, isLoading]);
-
   if (isLoading) {
     return (
       <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 md:p-6">
@@ -93,7 +66,6 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({
       ...row,
       taxaResposta: row.total > 0 ? ((row.respondidos / row.total) * 100).toFixed(1) : '0.0',
       taxaDesistencia: row.total > 0 ? ((row.desativados / row.total) * 100).toFixed(1) : '0.0',
-      custo: custos.get(row.etapa),
     }));
 
   // Handler para clique nas células
@@ -148,11 +120,6 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({
                 }`}>
                   {row.taxaResposta}% resp.
                 </span>
-                {row.custo && row.custo.custo_medio_por_lead > 0 && (
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400">
-                    ${row.custo.custo_medio_por_lead.toFixed(2)}
-                  </span>
-                )}
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 text-center">
@@ -203,12 +170,6 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({
               <th className="text-right py-3 px-2 text-gray-400 font-medium">Desistentes</th>
               <th className="text-right py-3 px-2 text-gray-400 font-medium">Total</th>
               <th className="text-right py-3 px-2 text-gray-400 font-medium">Taxa Resp.</th>
-              <th className="text-right py-3 px-2 text-gray-400 font-medium">
-                <div className="flex items-center justify-end gap-1">
-                  <DollarSign size={12} />
-                  <span>Custo/Lead</span>
-                </div>
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -245,13 +206,6 @@ export const ConversionTable: React.FC<ConversionTableProps> = ({
                   }`}>
                     {row.taxaResposta}%
                   </span>
-                </td>
-                <td className="py-3 px-2 text-right">
-                  {loadingCustos ? (
-                    <span className="inline-block w-12 h-4 bg-[#333] rounded animate-pulse" />
-                  ) : (
-                    formatCusto(row.custo)
-                  )}
                 </td>
               </tr>
             ))}
