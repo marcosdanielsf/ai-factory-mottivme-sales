@@ -65,14 +65,23 @@ export const FuuQueueCard: React.FC<FuuQueueCardProps> = ({
         </div>
       </div>
 
-      {/* Main Value */}
+      {/* Main Value - Total na fila (scheduled + pending) */}
       <div className="text-2xl md:text-3xl font-bold text-white mb-2 md:mb-3">
-        {stats.scheduled.toLocaleString()}
-        <span className="text-sm md:text-base font-normal text-gray-400 ml-2">agendados</span>
+        {(stats.scheduled + stats.pending).toLocaleString()}
+        <span className="text-sm md:text-base font-normal text-gray-400 ml-2">na fila</span>
       </div>
 
       {/* Sub-badges */}
       <div className="flex flex-wrap gap-2">
+        {stats.scheduled > 0 && (
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full">
+            <Calendar size={12} className="text-blue-400" />
+            <span className="text-xs text-blue-400 font-medium">
+              📅 {stats.scheduled} agendados
+            </span>
+          </div>
+        )}
+
         {stats.pending > 0 && (
           <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
             <Clock size={12} className="text-yellow-400" />
@@ -91,7 +100,7 @@ export const FuuQueueCard: React.FC<FuuQueueCardProps> = ({
           </div>
         )}
 
-        {stats.pending === 0 && stats.failed === 0 && total === 0 && (
+        {stats.pending === 0 && stats.scheduled === 0 && stats.failed === 0 && (
           <span className="text-xs text-gray-500">Nenhum follow-up na fila</span>
         )}
       </div>
