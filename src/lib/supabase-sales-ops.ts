@@ -1030,7 +1030,8 @@ export const salesOpsDAO = {
       // Filtrar por status
       switch (status) {
         case 'ativos':
-          query = query.eq('ativo', true).or('responded.is.null,responded.eq.false');
+          // Ativos = ativo=true E (responded é null OU responded=false)
+          query = query.eq('ativo', true).neq('responded', true);
           break;
         case 'respondidos':
           query = query.eq('responded', true);
