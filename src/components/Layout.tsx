@@ -12,10 +12,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Recuperar preferência do localStorage
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved === 'true';
+  });
   const navigate = useNavigate();
   const location = useLocation();
   const { agents } = useAgents();
   const isMobile = useIsMobile();
+
+  // Persistir preferência de sidebar collapsed
+  const handleToggleSidebarCollapse = () => {
+    setSidebarCollapsed(prev => {
+      const newValue = !prev;
+      localStorage.setItem('sidebar-collapsed', String(newValue));
+      return newValue;
+    });
+  };
 
   // Fechar sidebar ao mudar de página no mobile
   useEffect(() => {
@@ -88,11 +102,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         />
       )}
       
-      {/* Sidebar com props de mobile */}
+      {/* Sidebar com props de mobile e collapsed */}
       <Sidebar 
         isMobile={isMobile} 
         isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={!isMobile && sidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
       
       <main className="flex-1 flex flex-col min-w-0">

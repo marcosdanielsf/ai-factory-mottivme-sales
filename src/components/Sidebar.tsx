@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Settings,
   Box,
   Phone,
@@ -23,7 +24,9 @@ import {
   Eye,
   BarChart3,
   X,
-  Send
+  Send,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -31,6 +34,8 @@ interface SidebarProps {
   isMobile?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const SidebarItem = ({ 
@@ -42,7 +47,8 @@ const SidebarItem = ({
   onToggle,
   badge,
   indent = 0,
-  onNavigate
+  onNavigate,
+  isCollapsed = false
 }: any) => {
   const location = useLocation();
   const isActive = to ? location.pathname === to || location.pathname.startsWith(to + '/') : false;
@@ -52,6 +58,41 @@ const SidebarItem = ({
       onNavigate();
     }
   };
+  
+  // Collapsed state - show only icon with tooltip
+  if (isCollapsed) {
+    return (
+      <div className="select-none">
+        <div 
+          className={`
+            flex items-center justify-center p-2 mx-2 rounded-md cursor-pointer text-sm transition-colors relative group
+            ${isActive && !hasSubmenu ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+          `}
+          onClick={hasSubmenu ? onToggle : handleClick}
+          title={label}
+        >
+          {to && !hasSubmenu ? (
+            <NavLink to={to} className="flex items-center justify-center">
+              {Icon && <Icon size={18} />}
+            </NavLink>
+          ) : (
+            <div className="flex items-center justify-center">
+              {Icon && <Icon size={18} />}
+            </div>
+          )}
+          {badge && (
+            <span className="absolute -top-1 -right-1 bg-accent-primary text-white text-[8px] w-4 h-4 flex items-center justify-center rounded-full">
+              {badge}
+            </span>
+          )}
+          {/* Tooltip */}
+          <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+            {label}
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="select-none">
@@ -89,7 +130,7 @@ const SidebarItem = ({
   );
 };
 
-export const Sidebar = ({ isMobile = false, isOpen = false, onClose }: SidebarProps) => {
+export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed = false, onToggleCollapse }: SidebarProps) => {
   const [clientsOpen, setClientsOpen] = useState(true);
   const { user, signOut } = useAuth();
 
@@ -126,24 +167,24 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose }: SidebarPr
     return 'Usuário';
   };
 
-  // Classes condicionais para mobile/desktop
+  // Classes condicionais para mobile/desktop/collapsed
   const sidebarClasses = isMobile
     ? `fixed left-0 top-0 h-screen w-[280px] bg-bg-secondary border-r border-border-default flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`
-    : 'w-[260px] h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0';
+    : `${isCollapsed ? 'w-[68px]' : 'w-[260px]'} h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0 transition-all duration-300 ease-in-out`;
 
   return (
     <aside className={sidebarClasses}>
       {/* Header */}
-      <div className="h-[52px] flex items-center justify-between px-4 border-b border-border-default">
-        <div className="flex items-center gap-2 font-semibold text-text-primary">
-          <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center">
+      <div className={`h-[52px] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 border-b border-border-default`}>
+        <div className={`flex items-center gap-2 font-semibold text-text-primary ${isCollapsed ? '' : ''}`}>
+          <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center flex-shrink-0">
             <span className="text-bg-primary text-xs font-bold">M</span>
           </div>
-          <span>MOTTIV.ME</span>
+          {!isCollapsed && <span>MOTTIV.ME</span>}
         </div>
-        {isMobile && (
+        {isMobile ? (
           <button 
             onClick={onClose}
             className="p-1.5 hover:bg-bg-hover rounded-md transition-colors"
@@ -151,77 +192,146 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose }: SidebarPr
           >
             <X size={20} className="text-text-secondary" />
           </button>
+        ) : !isCollapsed && onToggleCollapse && (
+          <button 
+            onClick={onToggleCollapse}
+            className="p-1.5 hover:bg-bg-hover rounded-md transition-colors text-text-muted hover:text-text-primary"
+            aria-label="Recolher sidebar"
+            title="Recolher sidebar"
+          >
+            <PanelLeftClose size={18} />
+          </button>
         )}
       </div>
+      
+      {/* Expand button when collapsed */}
+      {isCollapsed && !isMobile && onToggleCollapse && (
+        <button 
+          onClick={onToggleCollapse}
+          className="mx-auto mt-2 p-2 hover:bg-bg-hover rounded-md transition-colors text-text-muted hover:text-text-primary"
+          aria-label="Expandir sidebar"
+          title="Expandir sidebar"
+        >
+          <PanelLeft size={18} />
+        </button>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-        <SidebarItem icon={Home} label="Control Tower" to="/" onNavigate={handleNavigate} />
-        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" onNavigate={handleNavigate} />
+        <SidebarItem icon={Home} label="Control Tower" to="/" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         
-        <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-          SALES OS
-        </div>
-        <SidebarItem icon={BarChart3} label="Sales Ops" to="/sales-ops" onNavigate={handleNavigate} />
-        <SidebarItem icon={Eye} label="Supervisao IA" to="/supervision" onNavigate={handleNavigate} />
-        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" onNavigate={handleNavigate} />
-        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" onNavigate={handleNavigate} />
-        <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" onNavigate={handleNavigate} />
+        {!isCollapsed && (
+          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
+            SALES OS
+          </div>
+        )}
+        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
+        <SidebarItem icon={BarChart3} label="Sales Ops" to="/sales-ops" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Eye} label="Supervisao IA" to="/supervision" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
 
-        <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-          AI FACTORY
-        </div>
-        <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} />
-        <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} />
-        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} />
-        <SidebarItem icon={Send} label="Follow-ups" to="/follow-ups" onNavigate={handleNavigate} />
-        <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} />
-        <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} />
+        {!isCollapsed && (
+          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
+            AI FACTORY
+          </div>
+        )}
+        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
+        <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Send} label="Follow-ups" to="/follow-ups" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         
-        <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-          GAMIFICATION
-        </div>
-        <SidebarItem icon={Users} label="Squads RPG" to="/team-rpg" onNavigate={handleNavigate} />
+        {!isCollapsed && (
+          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
+            GAMIFICATION
+          </div>
+        )}
+        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
+        <SidebarItem icon={Users} label="Squads RPG" to="/team-rpg" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         
-        <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-          SISTEMA
-        </div>
-        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" onNavigate={handleNavigate} />
-        <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" onNavigate={handleNavigate} />
-        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" onNavigate={handleNavigate} />
+        {!isCollapsed && (
+          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
+            SISTEMA
+          </div>
+        )}
+        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
+        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
 
         {/* Link externo para documentação */}
-        <a
-          href="https://docs-jet-delta.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-          onClick={handleNavigate}
-        >
-          <BookOpen size={16} />
-          <span>Documentação</span>
-          <ExternalLink size={12} className="ml-auto opacity-50" />
-        </a>
+        {isCollapsed ? (
+          <a
+            href="https://docs-jet-delta.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center p-2 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors relative group"
+            title="Documentação"
+          >
+            <BookOpen size={18} />
+            <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+              Documentação
+            </div>
+          </a>
+        ) : (
+          <a
+            href="https://docs-jet-delta.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            onClick={handleNavigate}
+          >
+            <BookOpen size={16} />
+            <span>Documentação</span>
+            <ExternalLink size={12} className="ml-auto opacity-50" />
+          </a>
+        )}
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border-default">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary">
-            {getUserInitials()}
+      <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-border-default`}>
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <div 
+              className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary cursor-pointer hover:bg-bg-tertiary transition-colors relative group"
+              title={getDisplayName()}
+            >
+              {getUserInitials()}
+              <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+                {getDisplayName()}
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-bg-hover rounded-md text-text-muted hover:text-accent-error transition-colors"
+              title="Sair"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-          <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-sm font-medium text-text-primary truncate">{getDisplayName()}</span>
-            <span className="text-xs text-text-muted truncate">{user?.email || 'user@example.com'}</span>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary">
+              {getUserInitials()}
+            </div>
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-sm font-medium text-text-primary truncate">{getDisplayName()}</span>
+              <span className="text-xs text-text-muted truncate">{user?.email || 'user@example.com'}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-bg-hover rounded-md text-text-muted hover:text-accent-error transition-colors"
+              title="Sair"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-2 hover:bg-bg-hover rounded-md text-text-muted hover:text-accent-error transition-colors"
-            title="Sair"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
+        )}
       </div>
     </aside>
   );
