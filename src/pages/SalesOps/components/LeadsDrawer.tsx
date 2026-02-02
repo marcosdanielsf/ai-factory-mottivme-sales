@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Phone, MessageCircle, User, Clock, ExternalLink, Hash, Instagram, Check, Square, CheckSquare, Send, XCircle, AlertTriangle } from 'lucide-react';
-import { salesOpsDAO, updateLeadsBatch, scheduleFollowUpBatch, type LeadDetail, type LeadFilterType } from '../../../lib/supabase-sales-ops';
+import { X, Phone, MessageCircle, User, Clock, ExternalLink, Hash, Instagram, Check, Square, CheckSquare, Send, XCircle, AlertTriangle, ArrowLeft, Bot, UserCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { salesOpsDAO, updateLeadsBatch, scheduleFollowUpBatch, getConversationMessages, type LeadDetail, type LeadFilterType, type ConversationMessage } from '../../../lib/supabase-sales-ops';
 
 export type { LeadFilterType };
 
@@ -47,6 +47,162 @@ const truncateMessage = (msg: string | null, maxLength = 80) => {
 // Detectar se o filtro é por etapa
 const isEtapaFilter = (filterType: LeadFilterType): boolean => {
   return /^etapa_\d+_(ativos|respondidos|desistentes)$/.test(filterType);
+};
+
+// Modal de Conversa
+const ConversationModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  lead: LeadDetail | null;
+}> = ({ isOpen, onClose, lead }) => {
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && lead?.contact_id) {
+      loadMessages();
+    }
+  }, [isOpen, lead?.contact_id]);
+
+  const loadMessages = async () => {
+    if (!lead?.contact_id) return;
+    setLoading(true);
+    try {
+      const data = await getConversationMessages(lead.contact_id);
+      setMessages(data);
+    } catch (err) {
+      console.error('Erro ao carregar mensagens:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !lead) return null;
+
+  const formatMessageDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-black/70 z-[60]"
+        onClick={onClose}
+      />
+      <div className="fixed right-0 top-0 h-full w-full md:max-w-2xl bg-[#0d0d0d] border-l border-[#333] z-[70] flex flex-col shadow-2xl animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-[#333] bg-[#1a1a1a]">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-[#333] transition-colors"
+          >
+            <ArrowLeft size={18} className="text-gray-400" />
+          </button>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            lead.source === 'instagram' ? 'bg-pink-500/20' :
+            lead.source === 'whatsapp' ? 'bg-green-500/20' : 'bg-blue-500/20'
+          }`}>
+            {lead.source === 'instagram' ? (
+              <Instagram size={18} className="text-pink-400" />
+            ) : lead.source === 'whatsapp' ? (
+              <MessageCircle size={18} className="text-green-400" />
+            ) : (
+              <User size={18} className="text-blue-400" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white truncate">{lead.contact_name || 'Sem nome'}</h3>
+            <p className="text-xs text-gray-400 truncate">
+              {lead.location_name || 'Sem cliente'} • {lead.follow_up_count} follow-ups
+            </p>
+          </div>
+          {lead.contact_phone && (
+            <button
+              onClick={() => {
+                const cleaned = (lead.contact_phone || '').replace(/\D/g, '');
+                window.open(`https://wa.me/${cleaned}`, '_blank');
+              }}
+              className="p-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 transition-colors"
+              title="Abrir WhatsApp"
+            >
+              <MessageCircle size={18} className="text-green-400" />
+            </button>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageCircle size={48} className="mx-auto text-gray-600 mb-4" />
+              <p className="text-gray-400">Nenhuma mensagem encontrada</p>
+              <p className="text-gray-500 text-sm mt-1">As mensagens da conversa aparecerão aqui</p>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isAI = msg.message?.type === 'ai';
+              const content = msg.message?.content || '';
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 ${isAI ? 'justify-start' : 'justify-end'}`}
+                >
+                  {isAI && (
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                      <Bot size={16} className="text-blue-400" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] ${isAI ? 'order-2' : 'order-1'}`}>
+                    <div
+                      className={`rounded-2xl px-4 py-2.5 ${
+                        isAI
+                          ? 'bg-[#1a1a1a] border border-[#333] text-gray-200'
+                          : 'bg-green-600 text-white'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{content}</p>
+                    </div>
+                    <p className={`text-[10px] text-gray-500 mt-1 ${isAI ? 'text-left' : 'text-right'}`}>
+                      {formatMessageDate(msg.created_at)}
+                    </p>
+                  </div>
+                  {!isAI && (
+                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 order-2">
+                      <UserCircle size={16} className="text-green-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[#333] bg-[#1a1a1a]">
+          <button
+            onClick={() => {
+              window.location.href = `#/supervision?search=${encodeURIComponent(lead.contact_phone || lead.contact_name || '')}`;
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+          >
+            <ExternalLink size={16} />
+            Abrir no Supervision (modo completo)
+          </button>
+        </div>
+      </div>
+    </>
+  );
 };
 
 // Modal de confirmação
@@ -152,14 +308,38 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Conversation modal state
+  const [selectedLead, setSelectedLead] = useState<LeadDetail | null>(null);
+  const [isConversationOpen, setIsConversationOpen] = useState(false);
+
+  // Expanded messages state
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (isOpen) {
       loadLeads();
       // Limpar seleção ao abrir
       setSelectedLeads([]);
       setActionResult(null);
+      setExpandedMessages(new Set());
     }
   }, [isOpen, filterType, locationId]);
+
+  // Toggle message expansion
+  const toggleMessageExpansion = (e: React.MouseEvent, contactId: string | null) => {
+    e.stopPropagation();
+    if (!contactId) return;
+    
+    setExpandedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(contactId)) {
+        next.delete(contactId);
+      } else {
+        next.add(contactId);
+      }
+      return next;
+    });
+  };
 
   const loadLeads = async () => {
     console.log('[LeadsDrawer] loadLeads called with:', { filterType, locationId });
@@ -178,9 +358,8 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   };
 
   const handleLeadClick = (lead: LeadDetail) => {
-    if (lead.session_id) {
-      window.location.href = `#/supervision?search=${encodeURIComponent(lead.contact_phone || lead.contact_name || '')}`;
-    }
+    setSelectedLead(lead);
+    setIsConversationOpen(true);
   };
 
   const handleWhatsAppClick = (e: React.MouseEvent, phone: string | null) => {
@@ -453,24 +632,57 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Last Message / Follow-up Message */}
-                    <div className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3 ml-7 md:ml-8">
-                      {isEtapaFilter(filterType) ? (
-                        <div>
-                          <p className="text-[10px] text-gray-500 mb-1 flex items-center gap-1">
-                            <MessageCircle size={10} />
-                            Mensagem de Follow-up Enviada:
-                          </p>
-                          <p className="text-xs md:text-sm text-gray-200 whitespace-pre-wrap">
-                            {lead.last_message || 'Mensagem não disponível'}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-xs md:text-sm text-gray-300">
-                          {truncateMessage(lead.last_message, 60)}
-                        </p>
-                      )}
-                    </div>
+                    {/* Last Message / Follow-up Message - Clicável para expandir */}
+                    {lead.last_message && (
+                      <div 
+                        onClick={(e) => toggleMessageExpansion(e, lead.contact_id)}
+                        className="bg-[#0d0d0d] rounded-lg p-2 md:p-3 mb-2 md:mb-3 ml-7 md:ml-8 cursor-pointer hover:bg-[#111] transition-colors group/msg"
+                      >
+                        {isEtapaFilter(filterType) ? (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                                <MessageCircle size={10} />
+                                Mensagem de Follow-up Enviada:
+                              </p>
+                              <span className="text-[10px] text-gray-500 flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                                {expandedMessages.has(lead.contact_id || '') ? (
+                                  <>Recolher <ChevronUp size={10} /></>
+                                ) : (
+                                  <>Expandir <ChevronDown size={10} /></>
+                                )}
+                              </span>
+                            </div>
+                            <p className={`text-xs md:text-sm text-gray-200 ${
+                              expandedMessages.has(lead.contact_id || '') 
+                                ? 'whitespace-pre-wrap' 
+                                : 'line-clamp-3'
+                            }`}>
+                              {lead.last_message}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-xs md:text-sm text-gray-300 flex-1 ${
+                              expandedMessages.has(lead.contact_id || '') 
+                                ? 'whitespace-pre-wrap' 
+                                : 'line-clamp-2'
+                            }`}>
+                              {lead.last_message}
+                            </p>
+                            {lead.last_message.length > 100 && (
+                              <span className="text-gray-500 flex-shrink-0">
+                                {expandedMessages.has(lead.contact_id || '') ? (
+                                  <ChevronUp size={14} />
+                                ) : (
+                                  <ChevronDown size={14} />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Metrics */}
                     <div className="flex items-center gap-3 md:gap-4 text-[10px] md:text-xs text-gray-500 ml-7 md:ml-8">
@@ -542,6 +754,16 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
         action={pendingAction}
         selectedCount={selectedLeads.length}
         isLoading={isActionLoading}
+      />
+
+      {/* Conversation Modal */}
+      <ConversationModal
+        isOpen={isConversationOpen}
+        onClose={() => {
+          setIsConversationOpen(false);
+          setSelectedLead(null);
+        }}
+        lead={selectedLead}
       />
 
       {/* Animation styles */}
