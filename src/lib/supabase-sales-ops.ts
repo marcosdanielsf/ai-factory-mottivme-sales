@@ -467,7 +467,7 @@ export const salesOpsDAO = {
       .from('n8n_schedule_tracking')
       .select('unique_id', { count: 'exact', head: true })
       .eq('ativo', true)
-      .lt('updated_at', cutoffDate.toISOString());
+      .lt('created_at', cutoffDate.toISOString());
 
     if (locationId) {
       query = query.eq('location_id', locationId);
@@ -719,7 +719,7 @@ export const salesOpsDAO = {
         // Leads ativos sem contato há mais de 48h
         const cutoffDate = new Date();
         cutoffDate.setHours(cutoffDate.getHours() - 48);
-        query = query.eq('ativo', true).lt('updated_at', cutoffDate.toISOString());
+        query = query.eq('ativo', true).lt('created_at', cutoffDate.toISOString());
         break;
       case 'fuu_scheduled':
         // Redireciona para método específico da fuu_queue
@@ -1034,9 +1034,9 @@ export const salesOpsDAO = {
     try {
       let query = supabase
         .from('n8n_schedule_tracking')
-        .select('unique_id, location_id, location_name, follow_up_count, ativo, responded, created_at, updated_at, first_name, source')
+        .select('unique_id, location_id, location_name, follow_up_count, ativo, responded, created_at, responded_at, first_name, source')
         .eq('follow_up_count', etapa)
-        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (locationId) {
@@ -1145,7 +1145,7 @@ export const salesOpsDAO = {
           // Mostrar a última mensagem de follow-up enviada
           last_message: fuMessage || `Follow-up ${etapa} enviado (mensagem não disponível)`,
           follow_up_count: lead.follow_up_count || 0,
-          last_contact_at: lead.updated_at || lead.created_at,
+          last_contact_at: lead.responded_at || lead.created_at,
           is_active: lead.ativo ?? true,
           source: lead.source,
         };
@@ -1192,7 +1192,7 @@ export async function updateLeadsBatch(
       .from('n8n_schedule_tracking')
       .update({
         ...updates,
-        updated_at: new Date().toISOString(),
+        // Nota: tabela não tem updated_at, timestamps são via trigger do banco
       })
       .in('unique_id', contactIds)
       .select('unique_id');
