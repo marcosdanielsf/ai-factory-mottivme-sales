@@ -1046,8 +1046,9 @@ export const salesOpsDAO = {
       // Filtrar por status
       switch (status) {
         case 'ativos':
-          // Ativos = ativo=true E (responded é null OU responded=false)
-          query = query.eq('ativo', true).neq('responded', true);
+          // Ativos = ativo=true E responded != true (inclui null e false)
+          // Usar .not() ao invés de .neq() pra evitar erro 400 do Supabase
+          query = query.eq('ativo', true).not('responded', 'eq', true);
           break;
         case 'respondidos':
           query = query.eq('responded', true);
