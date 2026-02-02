@@ -7,6 +7,9 @@ export interface AgendamentoStats {
   semana: number;
   mes: number;
   taxaComparecimento: number; // percentual
+  taxaConversao: number; // percentual (agendados / total leads)
+  totalLeads: number;
+  totalAgendados: number;
   totalCompleted: number;
   totalNoShow: number;
   totalBooked: number;
@@ -36,6 +39,7 @@ export const useAgendamentosStats = (
   periodDays: number = 30
 ): UseAgendamentosStatsReturn => {
   const [rawData, setRawData] = useState<any[]>([]);
+  const [totalLeads, setTotalLeads] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,29 +54,43 @@ export const useAgendamentosStats = (
       setLoading(true);
       setError(null);
 
-      // Calcular datas
-      const now = new Date();
-      const startDate = new Date();
-      startDate.setDate(now.getDate() - periodDays);
-      startDate.setHours(0, 0, 0, 0);
-
-      let query = supabase
+      // Query 1: Agendamentos (com scheduled_at)
+      let agendamentosQuery = supabase
         .from('app_dash_principal')
         .select('scheduled_at, status, fonte_do_lead_bposs, location_id')
         .not('scheduled_at', 'is', null);
 
       if (locationId) {
-        query = query.eq('location_id', locationId);
+        agendamentosQuery = agendamentosQuery.eq('location_id', locationId);
       }
 
-      const { data, error: queryError } = await query;
+      // Query 2: Total de leads (para calcular taxa de conversão)
+      let leadsCountQuery = supabase
+        .from('app_dash_principal')
+        .select('id', { count: 'exact', head: true });
 
-      if (queryError) {
-        console.error('Error fetching agendamentos stats:', queryError);
-        throw queryError;
+      if (locationId) {
+        leadsCountQuery = leadsCountQuery.eq('location_id', locationId);
       }
 
-      setRawData(data || []);
+      // Executar ambas queries em paralelo
+      const [agendamentosResult, leadsCountResult] = await Promise.all([
+        agendamentosQuery,
+        leadsCountQuery,
+      ]);
+
+      if (agendamentosResult.error) {
+        console.error('Error fetching agendamentos:', agendamentosResult.error);
+        throw agendamentosResult.error;
+      }
+
+      if (leadsCountResult.error) {
+        console.error('Error fetching leads count:', leadsCountResult.error);
+        // Não lançar erro, apenas logar - total leads é secundário
+      }
+
+      setRawData(agendamentosResult.data || []);
+      setTotalLeads(leadsCountResult.count || 0);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar estatísticas');
       console.error('Error fetching agendamentos stats:', err);
@@ -159,10 +177,18 @@ export const useAgendamentosStats = (
       }
     });
 
-    // Taxa de comparecimento
+    // Total de agendados
+    const totalAgendados = rawData.length;
+
+    // Taxa de comparecimento (compareceu / (compareceu + não compareceu))
     const totalWithStatus = totalCompleted + totalNoShow;
     const taxaComparecimento = totalWithStatus > 0 
       ? Math.round((totalCompleted / totalWithStatus) * 100) 
+      : 0;
+
+    // Taxa de conversão (agendados / total leads)
+    const taxaConversao = totalLeads > 0 
+      ? Math.round((totalAgendados / totalLeads) * 100) 
       : 0;
 
     // Converter mapa para array ordenado por data
@@ -181,6 +207,9 @@ export const useAgendamentosStats = (
         semana,
         mes,
         taxaComparecimento,
+        taxaConversao,
+        totalLeads,
+        totalAgendados,
         totalCompleted,
         totalNoShow,
         totalBooked,
@@ -188,7 +217,7 @@ export const useAgendamentosStats = (
       porDia: porDiaArr,
       porOrigem: porOrigemArr,
     };
-  }, [rawData]);
+  }, [rawData, totalLeads]);
 
   return { stats, porDia, porOrigem, loading, error, refetch: fetchData };
 };

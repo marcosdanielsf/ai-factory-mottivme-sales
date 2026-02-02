@@ -39,8 +39,27 @@ import { salesOpsDAO, type ClientInfo } from '../lib/supabase-sales-ops';
 // ==========================================
 // TYPES
 // ==========================================
-type MetricType = 'hoje' | 'semana' | 'mes' | 'comparecimento';
+type MetricType = 'hoje' | 'semana' | 'mes' | 'comparecimento' | 'conversao' | 'leads';
 type OrigemType = 'trafego' | 'social_selling' | null;
+
+// ==========================================
+// RATE HEALTH HELPERS
+// ==========================================
+// Taxa de Conversão: <20% crítico, 25% mínimo, 30% média, 35%+ ideal
+const getConversaoHealth = (rate: number): { color: string; label: string; bgClass: string } => {
+  if (rate >= 35) return { color: 'text-emerald-400', label: 'Ideal', bgClass: 'bg-emerald-500/10' };
+  if (rate >= 30) return { color: 'text-green-400', label: 'Bom', bgClass: 'bg-green-500/10' };
+  if (rate >= 25) return { color: 'text-yellow-400', label: 'Mínimo', bgClass: 'bg-yellow-500/10' };
+  if (rate >= 20) return { color: 'text-orange-400', label: 'Baixo', bgClass: 'bg-orange-500/10' };
+  return { color: 'text-red-400', label: 'Crítico', bgClass: 'bg-red-500/10' };
+};
+
+// Taxa de Comparecimento: <50% crítico, 50%+ OK
+const getComparecimentoHealth = (rate: number): { color: string; label: string; bgClass: string } => {
+  if (rate >= 70) return { color: 'text-emerald-400', label: 'Excelente', bgClass: 'bg-emerald-500/10' };
+  if (rate >= 50) return { color: 'text-green-400', label: 'OK', bgClass: 'bg-green-500/10' };
+  return { color: 'text-red-400', label: 'Crítico', bgClass: 'bg-red-500/10' };
+};
 
 // ==========================================
 // UTILITY FUNCTIONS
@@ -86,6 +105,9 @@ interface MetricCardProps {
   onClick?: () => void;
   isActive?: boolean;
   color?: string;
+  healthLabel?: string;
+  healthColor?: string;
+  subtitle?: string;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
@@ -97,12 +119,19 @@ const MetricCard: React.FC<MetricCardProps> = ({
   onClick,
   isActive,
   color = 'blue',
+  healthLabel,
+  healthColor,
+  subtitle,
 }) => {
   const colorClasses: Record<string, { bg: string; icon: string; active: string }> = {
     blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400', active: 'ring-blue-500' },
     green: { bg: 'bg-green-500/10', icon: 'text-green-400', active: 'ring-green-500' },
     orange: { bg: 'bg-orange-500/10', icon: 'text-orange-400', active: 'ring-orange-500' },
     purple: { bg: 'bg-purple-500/10', icon: 'text-purple-400', active: 'ring-purple-500' },
+    red: { bg: 'bg-red-500/10', icon: 'text-red-400', active: 'ring-red-500' },
+    yellow: { bg: 'bg-yellow-500/10', icon: 'text-yellow-400', active: 'ring-yellow-500' },
+    emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-400', active: 'ring-emerald-500' },
+    gray: { bg: 'bg-gray-500/10', icon: 'text-gray-400', active: 'ring-gray-500' },
   };
   const colors = colorClasses[color] || colorClasses.blue;
 
@@ -127,8 +156,14 @@ const MetricCard: React.FC<MetricCardProps> = ({
       <p className="text-2xl md:text-3xl font-bold text-text-primary mb-1">
         {value}
         {suffix && <span className="text-lg text-text-muted ml-1">{suffix}</span>}
+        {healthLabel && (
+          <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${healthColor || 'text-gray-400'} bg-current/10`}>
+            {healthLabel}
+          </span>
+        )}
       </p>
       <p className="text-sm text-text-muted">{title}</p>
+      {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
     </div>
   );
 };
@@ -563,8 +598,52 @@ export const Agendamentos: React.FC = () => {
 
       {/* Content */}
       <div className="p-4 md:p-6 space-y-6">
-        {/* Metric Cards */}
+        {/* Metric Cards - Row 1: Volumes */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            title="Total de Leads"
+            value={stats.totalLeads.toLocaleString()}
+            icon={<User size={20} />}
+            color="gray"
+            onClick={() => handleCardClick('leads')}
+            isActive={activeMetric === 'leads'}
+          />
+          <MetricCard
+            title="Total Agendados"
+            value={stats.totalAgendados.toLocaleString()}
+            icon={<CalendarCheck size={20} />}
+            color="blue"
+            onClick={() => handleCardClick('mes')}
+            isActive={activeMetric === 'mes'}
+          />
+          <MetricCard
+            title="Taxa de Conversão"
+            value={stats.taxaConversao}
+            suffix="%"
+            icon={<TrendingUp size={20} />}
+            color={stats.taxaConversao >= 35 ? 'emerald' : stats.taxaConversao >= 25 ? 'green' : stats.taxaConversao >= 20 ? 'yellow' : 'red'}
+            healthLabel={getConversaoHealth(stats.taxaConversao).label}
+            healthColor={getConversaoHealth(stats.taxaConversao).color}
+            subtitle="Meta: 25-35%"
+            onClick={() => handleCardClick('conversao')}
+            isActive={activeMetric === 'conversao'}
+          />
+          <MetricCard
+            title="Taxa de Comparecimento"
+            value={stats.taxaComparecimento}
+            suffix="%"
+            icon={<CheckCircle size={20} />}
+            color={stats.taxaComparecimento >= 50 ? 'green' : 'red'}
+            healthLabel={getComparecimentoHealth(stats.taxaComparecimento).label}
+            healthColor={getComparecimentoHealth(stats.taxaComparecimento).color}
+            subtitle="Meta: ≥50%"
+            onClick={() => handleCardClick('comparecimento')}
+            isActive={activeMetric === 'comparecimento'}
+          />
+        </div>
+
+        {/* Metric Cards - Row 2: Por Período */}
+        <div className="grid grid-cols-3 gap-4">
           <MetricCard
             title="Agendamentos Hoje"
             value={stats.hoje}
@@ -588,15 +667,6 @@ export const Agendamentos: React.FC = () => {
             color="orange"
             onClick={() => handleCardClick('mes')}
             isActive={activeMetric === 'mes'}
-          />
-          <MetricCard
-            title="Taxa de Comparecimento"
-            value={stats.taxaComparecimento}
-            suffix="%"
-            icon={<CheckCircle size={20} />}
-            color="green"
-            onClick={() => handleCardClick('comparecimento')}
-            isActive={activeMetric === 'comparecimento'}
           />
         </div>
 
