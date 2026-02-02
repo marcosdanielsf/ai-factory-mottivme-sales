@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 export interface Agendamento {
   id: string;
   scheduled_at: string | null;
-  appointment_status: 'completed' | 'no_show' | 'booked' | string | null;
+  status: 'completed' | 'no_show' | 'booked' | string | null;
   fonte_do_lead_bposs: string | null;
   location_id: string | null;
   location_name?: string | null;
@@ -87,7 +87,7 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
 
       // Filtro por status
       if (filters.status) {
-        query = query.eq('appointment_status', filters.status);
+        query = query.eq('status', filters.status);
       }
 
       // Filtro por origem

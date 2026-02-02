@@ -58,9 +58,8 @@ export const useAgendamentosStats = (
 
       let query = supabase
         .from('app_dash_principal')
-        .select('scheduled_at, appointment_status, fonte_do_lead_bposs, location_id')
-        .not('scheduled_at', 'is', null)
-        .gte('scheduled_at', startDate.toISOString());
+        .select('scheduled_at, status, fonte_do_lead_bposs, location_id')
+        .not('scheduled_at', 'is', null);
 
       if (locationId) {
         query = query.eq('location_id', locationId);
@@ -142,12 +141,12 @@ export const useAgendamentosStats = (
       }
 
       // Contagem por status
-      const status = item.appointment_status?.toLowerCase();
-      if (status === 'completed') {
+      const statusVal = item.status?.toLowerCase();
+      if (statusVal === 'completed') {
         totalCompleted++;
-      } else if (status === 'no_show') {
+      } else if (statusVal === 'no_show') {
         totalNoShow++;
-      } else if (status === 'booked') {
+      } else if (statusVal === 'booked') {
         totalBooked++;
       }
 

@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ChevronDown,
   MessageCircle,
+  Search,
 } from 'lucide-react';
 import {
   BarChart,
@@ -31,7 +32,8 @@ import {
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
 import { useAgendamentosStats } from '../hooks/useAgendamentosStats';
-import { useLocations } from '../hooks/useLocations';
+import { PeriodFilter } from './SalesOps/components/PeriodFilter';
+import { ClientSelector } from './SalesOps/components/ClientSelector';
 
 // ==========================================
 // TYPES
@@ -148,7 +150,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
     booked: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Agendado' },
   };
 
-  const status = lead.appointment_status?.toLowerCase() || 'booked';
+  const status = lead.status?.toLowerCase() || 'booked';
   const statusConfig = statusColors[status] || statusColors.booked;
   const origem = getOrigem(lead.fonte_do_lead_bposs);
 
@@ -314,7 +316,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
           ) : (
             <div className="space-y-3">
               {agendamentos.map((lead) => {
-                const status = lead.appointment_status?.toLowerCase() || 'booked';
+                const status = lead.status?.toLowerCase() || 'booked';
                 const statusConfig = statusColors[status] || statusColors.booked;
                 const origem = getOrigem(lead.fonte_do_lead_bposs);
 
@@ -378,69 +380,6 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 };
 
 // ==========================================
-// CLIENT SELECTOR
-// ==========================================
-interface ClientSelectorProps {
-  value: string | null;
-  onChange: (id: string | null) => void;
-}
-
-const ClientSelector: React.FC<ClientSelectorProps> = ({ value, onChange }) => {
-  const { locations, loading } = useLocations();
-  const [isOpen, setIsOpen] = useState(false);
-
-  const selectedName = value
-    ? locations.find((l) => l.location_id === value)?.location_name || 'Cliente'
-    : 'Todos os Clientes';
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={loading}
-        className="flex items-center gap-2 px-3 py-2 bg-bg-hover border border-border-default rounded-lg text-sm text-text-primary hover:bg-bg-tertiary transition-colors"
-      >
-        <span className="truncate max-w-[150px]">{selectedName}</span>
-        <ChevronDown size={16} className={`text-text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-64 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto">
-            <button
-              onClick={() => {
-                onChange(null);
-                setIsOpen(false);
-              }}
-              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-bg-hover transition-colors ${
-                !value ? 'text-accent-primary font-medium' : 'text-text-primary'
-              }`}
-            >
-              Todos os Clientes
-            </button>
-            {locations.map((loc) => (
-              <button
-                key={loc.location_id}
-                onClick={() => {
-                  onChange(loc.location_id);
-                  setIsOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-bg-hover transition-colors truncate ${
-                  value === loc.location_id ? 'text-accent-primary font-medium' : 'text-text-primary'
-                }`}
-              >
-                {loc.location_name}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// ==========================================
 // MAIN PAGE COMPONENT
 // ==========================================
 export const Agendamentos: React.FC = () => {
@@ -451,10 +390,11 @@ export const Agendamentos: React.FC = () => {
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
+  const [periodDays, setPeriodDays] = useState(30);
 
   const { stats, porDia, porOrigem, loading, error, refetch } = useAgendamentosStats(
     selectedLocationId,
-    30
+    periodDays
   );
 
   // Gerar filtros para drawer baseado no estado atual
@@ -582,8 +522,12 @@ export const Agendamentos: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <ClientSelector value={selectedLocationId} onChange={setSelectedLocationId} />
+            <div className="flex items-center gap-3 flex-wrap">
+              <PeriodFilter selected={periodDays} onChange={setPeriodDays} />
+              <ClientSelector 
+                locationId={selectedLocationId} 
+                onLocationChange={setSelectedLocationId} 
+              />
               <button
                 onClick={() => refetch()}
                 disabled={loading}
