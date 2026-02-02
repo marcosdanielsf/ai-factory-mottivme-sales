@@ -26,7 +26,8 @@ import {
   X,
   Send,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  CalendarCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -232,6 +233,7 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
         <SidebarItem icon={Users} label="Funil de Leads" to="/leads" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={CalendarCheck} label="Agendamentos" to="/agendamentos" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
 
         {!isCollapsed && (
           <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">

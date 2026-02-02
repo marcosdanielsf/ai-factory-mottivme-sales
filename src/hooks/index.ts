@@ -24,3 +24,5 @@ export * from './useDrilldownLeads';
 export * from './usePerformanceDrilldown';
 export * from './useFollowUpMetrics';
 export { useLocations } from './useLocations';
+export * from './useAgendamentos';
+export * from './useAgendamentosStats';

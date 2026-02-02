@@ -22,6 +22,7 @@ import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
 import { Supervision } from './pages/Supervision';
 import { SalesOps } from './pages/SalesOps';
+import { Agendamentos } from './pages/Agendamentos';
 import { Login } from './pages/Login';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
@@ -59,6 +60,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <SalesOps />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/agendamentos" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Agendamentos />
                 </Layout>
               </ProtectedRoute>
             } />
