@@ -213,12 +213,54 @@ export const salesOpsDAO = {
     totalLeads: number;
     mediaFollowUps: number;
   }> {
-    // Usar view para totais (já agregada no banco)
+    // Buscar diretamente da tabela base para garantir dados atualizados
+    // (views materializadas podem estar desatualizadas)
+    let query = supabase
+      .from('n8n_schedule_tracking')
+      .select('ativo, follow_up_count');
+
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Erro ao buscar totais:', error);
+      // Fallback para view se a query direta falhar
+      return this.getTotalsFromView(locationId);
+    }
+
+    const rows = data || [];
+    const totalLeads = rows.length;
+    const totalAtivos = rows.filter(r => r.ativo === true).length;
+    const totalInativos = rows.filter(r => r.ativo === false).length;
+    
+    // Calcular média de follow-ups
+    const totalFUs = rows.reduce((sum, r) => sum + (r.follow_up_count || 0), 0);
+    const mediaFollowUps = totalLeads > 0 
+      ? Math.round((totalFUs / totalLeads) * 100) / 100 
+      : 0;
+
+    return {
+      totalAtivos,
+      totalInativos,
+      totalLeads,
+      mediaFollowUps,
+    };
+  },
+
+  // Fallback usando views (caso a query direta falhe)
+  async getTotalsFromView(locationId?: string): Promise<{
+    totalAtivos: number;
+    totalInativos: number;
+    totalLeads: number;
+    mediaFollowUps: number;
+  }> {
     let overviewQuery = supabase
       .from('vw_sales_ops_overview')
       .select('leads_ativos, leads_inativos, total_leads, location_id');
 
-    // Aplicar filtro por location se especificado
     if (locationId) {
       overviewQuery = overviewQuery.eq('location_id', locationId);
     }
@@ -236,7 +278,7 @@ export const salesOpsDAO = {
       { totalAtivos: 0, totalInativos: 0, totalLeads: 0 }
     );
 
-    // Calcular média de FU usando o funil (já agregado)
+    // Calcular média de FU usando o funil
     let funnelQuery = supabase
       .from('vw_follow_up_funnel')
       .select('follow_up_count, quantidade, location_id');
