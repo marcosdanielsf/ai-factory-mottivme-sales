@@ -652,11 +652,40 @@ export const salesOpsDAO = {
           ? `${statusLabel} ${ultimoAssunto}`
           : `${statusLabel} ${lead.follow_up_type || 'Follow-up'} • Agendado: ${lead.scheduled_at ? new Date(lead.scheduled_at).toLocaleString('pt-BR') : 'N/A'}`;
         
+        const phone = lead.phone || null;
+        
+        // Formatar telefone para exibição
+        const formatPhoneForDisplay = (p: string | null): string | null => {
+          if (!p) return null;
+          const cleaned = p.replace(/\D/g, '');
+          if (cleaned.length === 11) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+          }
+          if (cleaned.length >= 10) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+          }
+          return p;
+        };
+        
+        // Resolver nome: prioridade > contact_name > telefone > "Lead sem identificação"
+        const resolveName = (): string => {
+          if (lead.contact_name && lead.contact_name.trim() && 
+              lead.contact_name.toLowerCase() !== 'null' && 
+              lead.contact_name.toLowerCase() !== 'sem nome') {
+            return lead.contact_name.trim();
+          }
+          const formattedPhone = formatPhoneForDisplay(phone);
+          if (formattedPhone) {
+            return formattedPhone;
+          }
+          return 'Lead sem identificação';
+        };
+        
         return {
           session_id: null,
           contact_id: lead.contact_id,
-          contact_name: lead.contact_name || `Lead #${lead.contact_id?.slice(-6).toUpperCase() || '???'}`,
-          contact_phone: lead.phone || null,
+          contact_name: resolveName(),
+          contact_phone: phone,
           location_id: lead.location_id,
           location_name: null,
           last_message: displayMessage,
@@ -779,17 +808,52 @@ export const salesOpsDAO = {
     // Mapear dados da n8n_schedule_tracking para formato LeadDetail, enriquecido com contatos
     return (data || []).map((lead: any) => {
       const contactInfo = contactsMap.get(lead.unique_id);
-      // Criar identificador amigável quando não tem nome
-      const shortId = lead.unique_id ? lead.unique_id.slice(-6).toUpperCase() : '???';
+      const phone = contactInfo?.phone || null;
+      
+      // Formatar telefone para exibição
+      const formatPhoneForDisplay = (p: string | null): string | null => {
+        if (!p) return null;
+        const cleaned = p.replace(/\D/g, '');
+        if (cleaned.length === 11) {
+          return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+        }
+        if (cleaned.length >= 10) {
+          return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+        }
+        return p;
+      };
+      
+      // Resolver nome: prioridade > app_dash nome > first_name > telefone > "Lead sem identificação"
+      const resolveName = (): string => {
+        // 1. Nome do app_dash_principal
+        if (contactInfo?.name && contactInfo.name.trim() && 
+            contactInfo.name.toLowerCase() !== 'null' && 
+            contactInfo.name.toLowerCase() !== 'sem nome') {
+          return contactInfo.name.trim();
+        }
+        // 2. first_name do tracking
+        if (lead.first_name && lead.first_name.trim() && 
+            lead.first_name.toLowerCase() !== 'null' &&
+            lead.first_name.toLowerCase() !== 'sem nome') {
+          return lead.first_name.trim();
+        }
+        // 3. Telefone formatado
+        const formattedPhone = formatPhoneForDisplay(phone);
+        if (formattedPhone) {
+          return formattedPhone;
+        }
+        // 4. Fallback final
+        return 'Lead sem identificação';
+      };
+      
       const sourceLabel = lead.source === 'instagram' ? '📸 IG' : lead.source === 'whatsapp' ? '💬 WA' : lead.source || '';
       
       return {
         session_id: null,
         contact_id: lead.unique_id,
-        // Prioridade: app_dash nome > first_name > "Lead #ID"
-        contact_name: contactInfo?.name || lead.first_name || `Lead #${shortId}`,
+        contact_name: resolveName(),
         // Usar telefone do app_dash_principal
-        contact_phone: contactInfo?.phone || null,
+        contact_phone: phone,
         location_id: lead.location_id,
         location_name: lead.location_name,
         // Mostrar source como badge + origem
@@ -1132,14 +1196,46 @@ export const salesOpsDAO = {
 
       return data.map((lead: any) => {
         const contactInfo = contactsMap.get(lead.unique_id);
-        const shortId = lead.unique_id ? lead.unique_id.slice(-6).toUpperCase() : '???';
+        const phone = contactInfo?.phone || null;
         const fuMessage = messagesMap.get(lead.unique_id);
+
+        // Formatar telefone para exibição
+        const formatPhoneForDisplay = (p: string | null): string | null => {
+          if (!p) return null;
+          const cleaned = p.replace(/\D/g, '');
+          if (cleaned.length === 11) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+          }
+          if (cleaned.length >= 10) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+          }
+          return p;
+        };
+
+        // Resolver nome: prioridade > app_dash nome > first_name > telefone > "Lead sem identificação"
+        const resolveName = (): string => {
+          if (contactInfo?.name && contactInfo.name.trim() && 
+              contactInfo.name.toLowerCase() !== 'null' && 
+              contactInfo.name.toLowerCase() !== 'sem nome') {
+            return contactInfo.name.trim();
+          }
+          if (lead.first_name && lead.first_name.trim() && 
+              lead.first_name.toLowerCase() !== 'null' &&
+              lead.first_name.toLowerCase() !== 'sem nome') {
+            return lead.first_name.trim();
+          }
+          const formattedPhone = formatPhoneForDisplay(phone);
+          if (formattedPhone) {
+            return formattedPhone;
+          }
+          return 'Lead sem identificação';
+        };
 
         return {
           session_id: null,
           contact_id: lead.unique_id,
-          contact_name: contactInfo?.name || lead.first_name || `Lead #${shortId}`,
-          contact_phone: contactInfo?.phone || null,
+          contact_name: resolveName(),
+          contact_phone: phone,
           location_id: lead.location_id,
           location_name: lead.location_name,
           // Mostrar a última mensagem de follow-up enviada
@@ -1242,15 +1338,27 @@ export async function scheduleFollowUpBatch(
     }
 
     // Criar registros na fuu_queue
-    const queueRecords = leads.map(lead => ({
-      contact_id: lead.unique_id,
-      contact_name: lead.first_name || `Lead #${lead.unique_id?.slice(-6).toUpperCase()}`,
-      location_id: lead.location_id,
-      status: 'scheduled',
-      scheduled_at: new Date().toISOString(),
-      follow_up_type: 'manual_batch',
-      created_at: new Date().toISOString(),
-    }));
+    const queueRecords = leads.map(lead => {
+      // Resolver nome: first_name ou fallback
+      const resolveName = (): string => {
+        if (lead.first_name && lead.first_name.trim() && 
+            lead.first_name.toLowerCase() !== 'null' &&
+            lead.first_name.toLowerCase() !== 'sem nome') {
+          return lead.first_name.trim();
+        }
+        return 'Lead sem identificação';
+      };
+      
+      return {
+        contact_id: lead.unique_id,
+        contact_name: resolveName(),
+        location_id: lead.location_id,
+        status: 'scheduled',
+        scheduled_at: new Date().toISOString(),
+        follow_up_type: 'manual_batch',
+        created_at: new Date().toISOString(),
+      };
+    });
 
     const { data: insertData, error: insertError } = await supabase
       .from('fuu_queue')
@@ -1270,6 +1378,51 @@ export async function scheduleFollowUpBatch(
       updated: 0, 
       error: err instanceof Error ? err.message : 'Erro desconhecido' 
     };
+  }
+}
+
+// ============================================
+// CONVERSATION MESSAGE TYPES
+// ============================================
+
+export interface ConversationMessage {
+  id: string;
+  session_id: string;
+  message: {
+    type: 'human' | 'ai';
+    content: string;
+  };
+  created_at: string;
+}
+
+/**
+ * Busca mensagens de uma conversa pelo session_id (unique_id do lead)
+ */
+export async function getConversationMessages(sessionId: string): Promise<ConversationMessage[]> {
+  if (!sessionId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('n8n_historico_mensagens')
+      .select('id, session_id, message, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    if (error) {
+      console.error('Erro ao buscar mensagens:', error);
+      return [];
+    }
+
+    return (data || []).map(msg => ({
+      id: msg.id,
+      session_id: msg.session_id,
+      message: msg.message as { type: 'human' | 'ai'; content: string },
+      created_at: msg.created_at,
+    }));
+  } catch (err) {
+    console.error('Erro ao buscar mensagens:', err);
+    return [];
   }
 }
 
