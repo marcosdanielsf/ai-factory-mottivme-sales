@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   CalendarCheck,
   RefreshCw,
@@ -34,6 +34,7 @@ import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters 
 import { useAgendamentosStats } from '../hooks/useAgendamentosStats';
 import { PeriodFilter } from './SalesOps/components/PeriodFilter';
 import { ClientSelector } from './SalesOps/components/ClientSelector';
+import { salesOpsDAO, type ClientInfo } from '../lib/supabase-sales-ops';
 
 // ==========================================
 // TYPES
@@ -391,6 +392,23 @@ export const Agendamentos: React.FC = () => {
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
   const [periodDays, setPeriodDays] = useState(30);
+  const [clients, setClients] = useState<ClientInfo[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(true);
+
+  // Fetch clients on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const data = await salesOpsDAO.getClients();
+        setClients(data);
+      } catch (err) {
+        console.error('Error fetching clients:', err);
+      } finally {
+        setClientsLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
 
   const { stats, porDia, porOrigem, loading, error, refetch } = useAgendamentosStats(
     selectedLocationId,
@@ -525,8 +543,10 @@ export const Agendamentos: React.FC = () => {
             <div className="flex items-center gap-3 flex-wrap">
               <PeriodFilter selected={periodDays} onChange={setPeriodDays} />
               <ClientSelector 
-                locationId={selectedLocationId} 
-                onLocationChange={setSelectedLocationId} 
+                clients={clients}
+                selectedId={selectedLocationId}
+                onChange={setSelectedLocationId}
+                isLoading={clientsLoading}
               />
               <button
                 onClick={() => refetch()}
