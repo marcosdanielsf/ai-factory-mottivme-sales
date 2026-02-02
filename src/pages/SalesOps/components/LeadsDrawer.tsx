@@ -162,10 +162,12 @@ export const LeadsDrawer: React.FC<LeadsDrawerProps> = ({
   }, [isOpen, filterType, locationId]);
 
   const loadLeads = async () => {
+    console.log('[LeadsDrawer] loadLeads called with:', { filterType, locationId });
     setLoading(true);
     setError(null);
     try {
       const data = await salesOpsDAO.getLeadsByFilter(filterType, locationId ?? undefined);
+      console.log('[LeadsDrawer] getLeadsByFilter returned:', data?.length, 'leads');
       setLeads(data);
     } catch (err) {
       console.error('Erro ao carregar leads:', err);

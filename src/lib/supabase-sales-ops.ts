@@ -726,10 +726,13 @@ export const salesOpsDAO = {
         return this.getFuuQueueLeads(locationId);
       default:
         // Verificar se é filtro por etapa+status (formato: etapa_X_status)
+        console.log('[getLeadsByFilter] filterType:', filterType);
         const etapaMatch = filterType.match(/^etapa_(\d+)_(ativos|respondidos|desistentes)$/);
+        console.log('[getLeadsByFilter] etapaMatch:', etapaMatch);
         if (etapaMatch) {
           const etapa = parseInt(etapaMatch[1], 10);
           const status = etapaMatch[2] as 'ativos' | 'respondidos' | 'desistentes';
+          console.log('[getLeadsByFilter] calling getLeadsByEtapaStatus:', etapa, status, locationId);
           return this.getLeadsByEtapaStatus(etapa, status, locationId);
         }
     }
@@ -1027,6 +1030,7 @@ export const salesOpsDAO = {
     status: 'ativos' | 'respondidos' | 'desistentes',
     locationId?: string
   ): Promise<LeadDetail[]> {
+    console.log('[getLeadsByEtapaStatus] START:', { etapa, status, locationId });
     try {
       let query = supabase
         .from('n8n_schedule_tracking')
@@ -1055,12 +1059,15 @@ export const salesOpsDAO = {
 
       const { data, error } = await query;
 
+      console.log('[getLeadsByEtapaStatus] query result:', { dataLength: data?.length, error });
+
       if (error) {
         console.error('Erro ao buscar leads por etapa/status:', error);
         return [];
       }
 
       if (!data || data.length === 0) {
+        console.log('[getLeadsByEtapaStatus] No data found');
         return [];
       }
 
