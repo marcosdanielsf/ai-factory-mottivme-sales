@@ -6,8 +6,8 @@ export interface AgendamentoStats {
   hoje: number;
   semana: number;
   mes: number;
-  taxaComparecimento: number; // percentual
-  taxaConversao: number; // percentual (agendados / total leads)
+  taxaComparecimento: number;
+  taxaConversao: number;
   totalLeads: number;
   totalAgendados: number;
   totalCompleted: number;
@@ -16,7 +16,7 @@ export interface AgendamentoStats {
 }
 
 export interface AgendamentosPorDia {
-  data: string; // YYYY-MM-DD
+  data: string;
   quantidade: number;
 }
 
@@ -25,21 +25,31 @@ export interface AgendamentosPorOrigem {
   quantidade: number;
 }
 
+export interface ResponsavelInfo {
+  name: string;
+  count: number;
+}
+
 interface UseAgendamentosStatsReturn {
   stats: AgendamentoStats;
   porDia: AgendamentosPorDia[];
   porOrigem: AgendamentosPorOrigem[];
+  responsaveis: ResponsavelInfo[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
+// Usa a VIEW unificada que combina histórico + realtime
+const AGENDAMENTOS_VIEW = 'vw_agendamentos_unified';
+
 export const useAgendamentosStats = (
-  locationId?: string | null,
+  responsavel?: string | null,
   periodDays: number = 30
 ): UseAgendamentosStatsReturn => {
   const [rawData, setRawData] = useState<any[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
+  const [responsaveis, setResponsaveis] = useState<ResponsavelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,29 +64,42 @@ export const useAgendamentosStats = (
       setLoading(true);
       setError(null);
 
-      // Query 1: Agendamentos (com scheduled_at)
-      let agendamentosQuery = supabase
-        .from('app_dash_principal')
-        .select('scheduled_at, status, fonte_do_lead_bposs, location_id')
-        .not('scheduled_at', 'is', null);
+      // Calcular data de início do período
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - periodDays);
+      startDate.setHours(0, 0, 0, 0);
 
-      if (locationId) {
-        agendamentosQuery = agendamentosQuery.eq('location_id', locationId);
+      // Query 1: Agendamentos da VIEW unificada (com filtro de período)
+      let agendamentosQuery = supabase
+        .from(AGENDAMENTOS_VIEW)
+        .select('agendamento_data, status, fonte, responsavel_nome')
+        .gte('agendamento_data', startDate.toISOString());
+
+      if (responsavel) {
+        agendamentosQuery = agendamentosQuery.eq('responsavel_nome', responsavel);
       }
 
-      // Query 2: Total de leads (para calcular taxa de conversão)
+      // Query 2: Total de leads no período (para taxa de conversão)
       let leadsCountQuery = supabase
         .from('app_dash_principal')
-        .select('id', { count: 'exact', head: true });
+        .select('id', { count: 'exact', head: true })
+        .gte('data_criada', startDate.toISOString());
 
-      if (locationId) {
-        leadsCountQuery = leadsCountQuery.eq('location_id', locationId);
+      if (responsavel) {
+        leadsCountQuery = leadsCountQuery.eq('lead_usuario_responsavel', responsavel);
       }
 
-      // Executar ambas queries em paralelo
-      const [agendamentosResult, leadsCountResult] = await Promise.all([
+      // Query 3: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
+      const responsaveisQuery = supabase
+        .from(AGENDAMENTOS_VIEW)
+        .select('responsavel_nome')
+        .not('responsavel_nome', 'is', null);
+
+      // Executar queries em paralelo
+      const [agendamentosResult, leadsCountResult, responsaveisResult] = await Promise.all([
         agendamentosQuery,
         leadsCountQuery,
+        responsaveisQuery,
       ]);
 
       if (agendamentosResult.error) {
@@ -86,18 +109,32 @@ export const useAgendamentosStats = (
 
       if (leadsCountResult.error) {
         console.error('Error fetching leads count:', leadsCountResult.error);
-        // Não lançar erro, apenas logar - total leads é secundário
       }
 
       setRawData(agendamentosResult.data || []);
       setTotalLeads(leadsCountResult.count || 0);
+
+      // Processar responsáveis únicos com contagem
+      if (responsaveisResult.data) {
+        const countMap: Record<string, number> = {};
+        for (const row of responsaveisResult.data) {
+          const name = row.responsavel_nome;
+          if (name && name !== 'unknown') {
+            countMap[name] = (countMap[name] || 0) + 1;
+          }
+        }
+        const responsaveisList = Object.entries(countMap)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+        setResponsaveis(responsaveisList);
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar estatísticas');
       console.error('Error fetching agendamentos stats:', err);
     } finally {
       setLoading(false);
     }
-  }, [locationId, periodDays]);
+  }, [responsavel, periodDays]);
 
   useEffect(() => {
     fetchData();
@@ -139,7 +176,10 @@ export const useAgendamentosStats = (
     }
 
     rawData.forEach((item) => {
-      const scheduledAt = new Date(item.scheduled_at);
+      const dateValue = item.agendamento_data;
+      if (!dateValue) return;
+
+      const scheduledAt = new Date(dateValue);
       const dateKey = scheduledAt.toISOString().split('T')[0];
 
       // Contagem por dia
@@ -160,16 +200,16 @@ export const useAgendamentosStats = (
 
       // Contagem por status
       const statusVal = item.status?.toLowerCase();
-      if (statusVal === 'completed') {
+      if (statusVal === 'completed' || statusVal === 'won') {
         totalCompleted++;
-      } else if (statusVal === 'no_show') {
+      } else if (statusVal === 'no_show' || statusVal === 'lost') {
         totalNoShow++;
       } else if (statusVal === 'booked') {
         totalBooked++;
       }
 
       // Contagem por origem
-      const origem = getOrigem(item.fonte_do_lead_bposs);
+      const origem = getOrigem(item.fonte);
       if (origem === 'trafego') {
         trafegoCount++;
       } else if (origem === 'social_selling') {
@@ -177,16 +217,16 @@ export const useAgendamentosStats = (
       }
     });
 
-    // Total de agendados
+    // Total de agendados no período
     const totalAgendados = rawData.length;
 
-    // Taxa de comparecimento (compareceu / (compareceu + não compareceu))
+    // Taxa de comparecimento
     const totalWithStatus = totalCompleted + totalNoShow;
     const taxaComparecimento = totalWithStatus > 0 
       ? Math.round((totalCompleted / totalWithStatus) * 100) 
       : 0;
 
-    // Taxa de conversão (agendados / total leads)
+    // Taxa de conversão
     const taxaConversao = totalLeads > 0 
       ? Math.round((totalAgendados / totalLeads) * 100) 
       : 0;
@@ -219,7 +259,7 @@ export const useAgendamentosStats = (
     };
   }, [rawData, totalLeads]);
 
-  return { stats, porDia, porOrigem, loading, error, refetch: fetchData };
+  return { stats, porDia, porOrigem, responsaveis, loading, error, refetch: fetchData };
 };
 
 export default useAgendamentosStats;

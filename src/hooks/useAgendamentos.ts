@@ -1,25 +1,38 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+// Usa a VIEW unificada que combina histórico + realtime
+const AGENDAMENTOS_VIEW = 'vw_agendamentos_unified';
+
 export interface Agendamento {
   id: string;
-  scheduled_at: string | null;
-  status: 'completed' | 'no_show' | 'booked' | string | null;
-  fonte_do_lead_bposs: string | null;
+  agendamento_data: string | null;
+  scheduled_at?: string | null; // alias para compatibilidade
+  status: 'completed' | 'no_show' | 'booked' | 'won' | 'lost' | string | null;
+  fonte: string | null;
+  fonte_do_lead_bposs?: string | null; // alias
   location_id: string | null;
-  location_name?: string | null;
-  contato_principal: string | null;
-  celular_contato: string | null;
-  created_at?: string;
+  responsavel_nome: string | null;
+  lead_usuario_responsavel?: string | null; // alias
+  contato_nome: string | null;
+  contato_principal?: string | null; // alias
+  contato_telefone: string | null;
+  celular_contato?: string | null; // alias
+  contato_email: string | null;
+  agendamento_tipo: string | null;
+  tipo_do_agendamento?: string | null; // alias
+  data_criacao?: string;
+  source: 'historico' | 'realtime';
 }
 
 export interface AgendamentosFilters {
   startDate?: Date;
   endDate?: Date;
+  responsavel?: string | null;
   locationId?: string | null;
   origem?: 'trafego' | 'social_selling' | null;
   status?: 'completed' | 'no_show' | 'booked' | null;
-  day?: string; // YYYY-MM-DD format for specific day filter
+  day?: string;
 }
 
 interface UseAgendamentosReturn {
@@ -30,7 +43,7 @@ interface UseAgendamentosReturn {
   refetch: () => Promise<void>;
 }
 
-// Determina a origem com base no campo fonte_do_lead_bposs
+// Determina a origem com base no campo fonte
 export const getOrigem = (fonte: string | null): 'trafego' | 'social_selling' | null => {
   if (!fonte) return null;
   const lower = fonte.toLowerCase();
@@ -57,16 +70,15 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
       setError(null);
 
       let query = supabase
-        .from('app_dash_principal')
-        .select('*', { count: 'exact' })
-        .not('scheduled_at', 'is', null);
+        .from(AGENDAMENTOS_VIEW)
+        .select('*', { count: 'exact' });
 
       // Filtro por período
       if (filters.startDate) {
-        query = query.gte('scheduled_at', filters.startDate.toISOString());
+        query = query.gte('agendamento_data', filters.startDate.toISOString());
       }
       if (filters.endDate) {
-        query = query.lte('scheduled_at', filters.endDate.toISOString());
+        query = query.lte('agendamento_data', filters.endDate.toISOString());
       }
 
       // Filtro por dia específico
@@ -76,13 +88,13 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
         const dayEnd = new Date(filters.day);
         dayEnd.setHours(23, 59, 59, 999);
         query = query
-          .gte('scheduled_at', dayStart.toISOString())
-          .lte('scheduled_at', dayEnd.toISOString());
+          .gte('agendamento_data', dayStart.toISOString())
+          .lte('agendamento_data', dayEnd.toISOString());
       }
 
-      // Filtro por cliente
-      if (filters.locationId) {
-        query = query.eq('location_id', filters.locationId);
+      // Filtro por responsável
+      if (filters.responsavel) {
+        query = query.eq('responsavel_nome', filters.responsavel);
       }
 
       // Filtro por status
@@ -92,13 +104,13 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
 
       // Filtro por origem
       if (filters.origem === 'trafego') {
-        query = query.or('fonte_do_lead_bposs.ilike.%tráfego%,fonte_do_lead_bposs.ilike.%trafego%');
+        query = query.or('fonte.ilike.%tráfego%,fonte.ilike.%trafego%');
       } else if (filters.origem === 'social_selling') {
-        query = query.or('fonte_do_lead_bposs.ilike.%prospecção%,fonte_do_lead_bposs.ilike.%prospeccao%,fonte_do_lead_bposs.ilike.%social%');
+        query = query.or('fonte.ilike.%prospecção%,fonte.ilike.%prospeccao%,fonte.ilike.%social%');
       }
 
       // Ordenação
-      query = query.order('scheduled_at', { ascending: false });
+      query = query.order('agendamento_data', { ascending: false });
 
       const { data, error: queryError, count } = await query;
 
@@ -107,7 +119,18 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
         throw queryError;
       }
 
-      setAgendamentos(data || []);
+      // Mapear dados para incluir aliases para compatibilidade
+      const mappedData = (data || []).map(item => ({
+        ...item,
+        scheduled_at: item.agendamento_data,
+        fonte_do_lead_bposs: item.fonte,
+        lead_usuario_responsavel: item.responsavel_nome,
+        contato_principal: item.contato_nome,
+        celular_contato: item.contato_telefone,
+        tipo_do_agendamento: item.agendamento_tipo,
+      }));
+
+      setAgendamentos(mappedData);
       setTotalCount(count || 0);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar agendamentos');
@@ -118,7 +141,7 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
   }, [
     filters.startDate?.getTime(),
     filters.endDate?.getTime(),
-    filters.locationId,
+    filters.responsavel,
     filters.origem,
     filters.status,
     filters.day,

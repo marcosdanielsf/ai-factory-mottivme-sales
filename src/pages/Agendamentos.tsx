@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   CalendarCheck,
   RefreshCw,
@@ -31,10 +31,8 @@ import {
   Legend,
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
-import { useAgendamentosStats } from '../hooks/useAgendamentosStats';
+import { useAgendamentosStats, type ResponsavelInfo } from '../hooks/useAgendamentosStats';
 import { PeriodFilter } from './SalesOps/components/PeriodFilter';
-import { ClientSelector } from './SalesOps/components/ClientSelector';
-import { salesOpsDAO, type ClientInfo } from '../lib/supabase-sales-ops';
 
 // ==========================================
 // TYPES
@@ -91,6 +89,124 @@ const formatPhone = (phone: string | null): string => {
 const formatDayLabel = (dateStr: string): string => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+// ==========================================
+// RESPONSAVEL SELECTOR COMPONENT
+// ==========================================
+interface ResponsavelSelectorProps {
+  responsaveis: ResponsavelInfo[];
+  selectedName: string | null;
+  onChange: (name: string | null) => void;
+  isLoading?: boolean;
+}
+
+const ResponsavelSelector: React.FC<ResponsavelSelectorProps> = ({
+  responsaveis,
+  selectedName,
+  onChange,
+  isLoading,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filteredResponsaveis = useMemo(() => {
+    if (!search) return responsaveis;
+    const lower = search.toLowerCase();
+    return responsaveis.filter((r) => r.name.toLowerCase().includes(lower));
+  }, [responsaveis, search]);
+
+  const selectedResponsavel = responsaveis.find((r) => r.name === selectedName);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isLoading}
+        className="flex items-center gap-2 px-3 py-2 bg-bg-hover border border-border-default rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors min-w-[180px] justify-between disabled:opacity-50"
+      >
+        <div className="flex items-center gap-2 truncate">
+          <User size={14} />
+          <span className="truncate">
+            {isLoading
+              ? 'Carregando...'
+              : selectedResponsavel
+                ? selectedResponsavel.name
+                : 'Todos os responsáveis'}
+          </span>
+        </div>
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 max-h-80 overflow-hidden">
+            {/* Search input */}
+            <div className="p-2 border-b border-border-default">
+              <div className="relative">
+                <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Buscar responsável..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-7 pr-3 py-1.5 bg-bg-tertiary border border-border-default rounded text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className="overflow-y-auto max-h-60">
+              {/* All option */}
+              <button
+                onClick={() => {
+                  onChange(null);
+                  setIsOpen(false);
+                  setSearch('');
+                }}
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-bg-hover transition-colors flex items-center justify-between ${
+                  !selectedName ? 'bg-accent-primary/10 text-accent-primary' : 'text-text-primary'
+                }`}
+              >
+                <span>Todos os responsáveis</span>
+                <span className="text-xs text-text-muted">
+                  {responsaveis.reduce((sum, r) => sum + r.count, 0)}
+                </span>
+              </button>
+
+              {/* Responsavel options */}
+              {filteredResponsaveis.map((responsavel) => (
+                <button
+                  key={responsavel.name}
+                  onClick={() => {
+                    onChange(responsavel.name);
+                    setIsOpen(false);
+                    setSearch('');
+                  }}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-bg-hover transition-colors flex items-center justify-between ${
+                    selectedName === responsavel.name
+                      ? 'bg-accent-primary/10 text-accent-primary'
+                      : 'text-text-primary'
+                  }`}
+                >
+                  <span className="truncate">{responsavel.name}</span>
+                  <span className="text-xs text-text-muted ml-2">{responsavel.count}</span>
+                </button>
+              ))}
+
+              {filteredResponsaveis.length === 0 && (
+                <div className="px-3 py-4 text-sm text-text-muted text-center">
+                  Nenhum responsável encontrado
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
 // ==========================================
@@ -182,13 +298,16 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
     completed: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Compareceu' },
+    won: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Ganho' },
     no_show: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Não compareceu' },
+    lost: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Perdido' },
     booked: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Agendado' },
   };
 
   const status = lead.status?.toLowerCase() || 'booked';
   const statusConfig = statusColors[status] || statusColors.booked;
   const origem = getOrigem(lead.fonte_do_lead_bposs);
+  const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
 
   return (
     <>
@@ -233,7 +352,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
                 <p className="text-xs text-text-muted mb-1">Data/Hora</p>
                 <div className="flex items-center gap-2">
                   <Clock size={14} className="text-text-secondary" />
-                  <span className="text-sm text-text-primary">{formatDate(lead.scheduled_at)}</span>
+                  <span className="text-sm text-text-primary">{formatDate(agendamentoDate)}</span>
                 </div>
               </div>
               <div className="bg-bg-tertiary rounded-lg p-3">
@@ -243,12 +362,20 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
                 </span>
               </div>
               <div className="bg-bg-tertiary rounded-lg p-3">
-                <p className="text-xs text-text-muted mb-1">Fonte</p>
+                <p className="text-xs text-text-muted mb-1">Responsável</p>
                 <span className="text-sm text-text-primary truncate">
-                  {lead.fonte_do_lead_bposs || 'N/A'}
+                  {lead.lead_usuario_responsavel || 'N/A'}
                 </span>
               </div>
             </div>
+
+            {/* Tipo do agendamento */}
+            {lead.tipo_do_agendamento && (
+              <div className="bg-bg-tertiary rounded-lg p-3">
+                <p className="text-xs text-text-muted mb-1">Tipo</p>
+                <span className="text-sm text-text-primary">{lead.tipo_do_agendamento}</span>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -304,7 +431,9 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
     completed: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Compareceu' },
+    won: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Ganho' },
     no_show: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Não compareceu' },
+    lost: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Perdido' },
     booked: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Agendado' },
   };
 
@@ -355,6 +484,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
                 const status = lead.status?.toLowerCase() || 'booked';
                 const statusConfig = statusColors[status] || statusColors.booked;
                 const origem = getOrigem(lead.fonte_do_lead_bposs);
+                const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
 
                 return (
                   <div
@@ -381,11 +511,16 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
                     <div className="flex items-center gap-4 text-xs text-text-muted ml-13">
                       <div className="flex items-center gap-1">
                         <Clock size={12} />
-                        <span>{formatDate(lead.scheduled_at)}</span>
+                        <span>{formatDate(agendamentoDate)}</span>
                       </div>
                       {origem && (
                         <span className={origem === 'trafego' ? 'text-orange-400' : 'text-pink-400'}>
                           {origem === 'trafego' ? '📣 Tráfego' : '🤝 Social'}
+                        </span>
+                      )}
+                      {lead.lead_usuario_responsavel && (
+                        <span className="text-text-secondary">
+                          👤 {lead.lead_usuario_responsavel}
                         </span>
                       )}
                     </div>
@@ -419,7 +554,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 // MAIN PAGE COMPONENT
 // ==========================================
 export const Agendamentos: React.FC = () => {
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
   const [selectedOrigem, setSelectedOrigem] = useState<OrigemType>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -427,33 +562,17 @@ export const Agendamentos: React.FC = () => {
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
   const [periodDays, setPeriodDays] = useState(30);
-  const [clients, setClients] = useState<ClientInfo[]>([]);
-  const [clientsLoading, setClientsLoading] = useState(true);
 
-  // Fetch clients on mount
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const data = await salesOpsDAO.getClients();
-        setClients(data);
-      } catch (err) {
-        console.error('Error fetching clients:', err);
-      } finally {
-        setClientsLoading(false);
-      }
-    };
-    fetchClients();
-  }, []);
-
-  const { stats, porDia, porOrigem, loading, error, refetch } = useAgendamentosStats(
-    selectedLocationId,
+  // O hook agora retorna a lista de responsáveis junto com as stats
+  const { stats, porDia, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
+    selectedResponsavel,
     periodDays
   );
 
   // Gerar filtros para drawer baseado no estado atual
   const buildFilters = useCallback((): AgendamentosFilters => {
     const filters: AgendamentosFilters = {
-      locationId: selectedLocationId,
+      responsavel: selectedResponsavel,
     };
 
     if (selectedOrigem) {
@@ -465,7 +584,7 @@ export const Agendamentos: React.FC = () => {
     }
 
     return filters;
-  }, [selectedLocationId, selectedOrigem, selectedDay]);
+  }, [selectedResponsavel, selectedOrigem, selectedDay]);
 
   // Handlers para clicks
   const handleCardClick = useCallback((metric: MetricType) => {
@@ -577,11 +696,11 @@ export const Agendamentos: React.FC = () => {
 
             <div className="flex items-center gap-3 flex-wrap">
               <PeriodFilter selected={periodDays} onChange={setPeriodDays} />
-              <ClientSelector 
-                clients={clients}
-                selectedId={selectedLocationId}
-                onChange={setSelectedLocationId}
-                isLoading={clientsLoading}
+              <ResponsavelSelector 
+                responsaveis={responsaveis}
+                selectedName={selectedResponsavel}
+                onChange={setSelectedResponsavel}
+                isLoading={loading && responsaveis.length === 0}
               />
               <button
                 onClick={() => refetch()}
@@ -760,14 +879,14 @@ export const Agendamentos: React.FC = () => {
               <CheckCircle size={20} className="text-green-400" />
             </div>
             <p className="text-2xl font-bold text-green-400">{stats.totalCompleted}</p>
-            <p className="text-sm text-text-muted">Compareceram</p>
+            <p className="text-sm text-text-muted">Compareceram / Ganhos</p>
           </div>
           <div className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
             <div className="w-10 h-10 rounded-full bg-red-500/20 mx-auto mb-3 flex items-center justify-center">
               <XCircle size={20} className="text-red-400" />
             </div>
             <p className="text-2xl font-bold text-red-400">{stats.totalNoShow}</p>
-            <p className="text-sm text-text-muted">Não Compareceram</p>
+            <p className="text-sm text-text-muted">Não Compareceram / Perdidos</p>
           </div>
           <div className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
             <div className="w-10 h-10 rounded-full bg-blue-500/20 mx-auto mb-3 flex items-center justify-center">
