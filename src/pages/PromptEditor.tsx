@@ -26,7 +26,7 @@ export const PromptEditor = () => {
   const [code, setCode] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'config' | 'modes'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business'>('prompt');
   const [selectedMode, setSelectedMode] = useState<string>('');
   const [config, setConfig] = useState('{}');
 
@@ -75,7 +75,7 @@ export const PromptEditor = () => {
     setIsDirty(false);
   };
 
-  const handleTabChange = (tab: 'prompt' | 'config' | 'modes') => {
+  const handleTabChange = (tab: 'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business') => {
     setActiveTab(tab);
     if (!activeVersion) return;
 
@@ -89,6 +89,16 @@ export const PromptEditor = () => {
       } else if (selectedMode) {
         setCode(activeVersion.prompts_por_modo?.[selectedMode] || '');
       }
+    } else if (tab === 'tools') {
+      setConfig(JSON.stringify(activeVersion.tools_config || {}, null, 2));
+    } else if (tab === 'compliance') {
+      setConfig(JSON.stringify(activeVersion.compliance_rules || {}, null, 2));
+    } else if (tab === 'personality') {
+      setConfig(JSON.stringify(activeVersion.personality_config || {}, null, 2));
+    } else if (tab === 'qualification') {
+      setConfig(JSON.stringify(activeVersion.qualification_config || {}, null, 2));
+    } else if (tab === 'business') {
+      setConfig(JSON.stringify(activeVersion.business_config || {}, null, 2));
     }
   };
 
@@ -391,7 +401,7 @@ export const PromptEditor = () => {
 
           <div className="h-4 w-px bg-border-default"></div>
 
-          {/* Tab Selector */}
+          {/* Tab Selector - Principal */}
           <div className="flex bg-bg-tertiary p-1 rounded-md">
             <button 
               onClick={() => handleTabChange('prompt')}
@@ -403,13 +413,52 @@ export const PromptEditor = () => {
               onClick={() => handleTabChange('modes')}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'modes' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
             >
-              Modos de Operação
+              Modos
             </button>
             <button 
               onClick={() => handleTabChange('config')}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'config' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
             >
               Hiperpersonalização
+            </button>
+          </div>
+
+          {/* Tab Selector - Configs do Agente */}
+          <div className="flex bg-bg-tertiary p-1 rounded-md">
+            <button 
+              onClick={() => handleTabChange('tools')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'tools' ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Tools Config"
+            >
+              <Code size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('compliance')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'compliance' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Compliance Rules"
+            >
+              <Shield size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('personality')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'personality' ? 'bg-purple-500/20 text-purple-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Personality Config"
+            >
+              <Brain size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('qualification')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'qualification' ? 'bg-green-500/20 text-green-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Qualification Config"
+            >
+              <Target size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('business')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'business' ? 'bg-orange-500/20 text-orange-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Business Config"
+            >
+              <Briefcase size={14} />
             </button>
           </div>
 
@@ -573,15 +622,26 @@ export const PromptEditor = () => {
             />
           ) : (
             <div className="flex-1 flex flex-col relative">
+              {/* Header com nome da config ativa */}
+              <div className="absolute top-4 left-14 z-20 flex items-center gap-2">
+                {activeTab === 'tools' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Code size={12} /> Tools Config</span>}
+                {activeTab === 'compliance' && <span className="text-xs text-red-400 font-medium flex items-center gap-1"><Shield size={12} /> Compliance Rules</span>}
+                {activeTab === 'personality' && <span className="text-xs text-purple-400 font-medium flex items-center gap-1"><Brain size={12} /> Personality Config</span>}
+                {activeTab === 'qualification' && <span className="text-xs text-green-400 font-medium flex items-center gap-1"><Target size={12} /> Qualification Config</span>}
+                {activeTab === 'business' && <span className="text-xs text-orange-400 font-medium flex items-center gap-1"><Briefcase size={12} /> Business Config</span>}
+                {activeTab === 'config' && <span className="text-xs text-pink-400 font-medium flex items-center gap-1"><Settings size={12} /> Hiperpersonalização</span>}
+              </div>
               <div className="absolute top-4 right-4 z-20">
-                <button 
-                  onClick={loadFromKnowledgeBase}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary hover:text-text-primary border border-border-default rounded-md transition-colors shadow-sm"
-                  title="Puxar dados do onboarding na Base de Conhecimento"
-                >
-                  <FileText size={14} />
-                  Carregar da Base de Conhecimento
-                </button>
+                {activeTab === 'config' && (
+                  <button 
+                    onClick={loadFromKnowledgeBase}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary hover:text-text-primary border border-border-default rounded-md transition-colors shadow-sm"
+                    title="Puxar dados do onboarding na Base de Conhecimento"
+                  >
+                    <FileText size={14} />
+                    Carregar da Base de Conhecimento
+                  </button>
+                )}
               </div>
               <textarea
                  value={config}
@@ -664,49 +724,6 @@ export const PromptEditor = () => {
                   <p className={`text-sm bg-bg-tertiary p-2 rounded border border-border-default min-h-[60px] whitespace-pre-wrap ${!activeVersion?.change_log ? "text-text-muted italic" : "text-text-secondary"}`}>
                     {activeVersion?.change_log || 'Nenhuma nota de implantacao registrada.'}
                   </p>
-                </div>
-
-                {/* 8 CAMPOS DE CONFIGURAÇÃO */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Configurações do Agente</label>
-                  <div className="space-y-1.5">
-                    {/* Tools Config */}
-                    <ConfigBadge 
-                      label="Tools Config" 
-                      data={activeVersion?.tools_config} 
-                      color="blue" 
-                    />
-                    {/* Compliance Rules */}
-                    <ConfigBadge 
-                      label="Compliance Rules" 
-                      data={activeVersion?.compliance_rules} 
-                      color="red" 
-                    />
-                    {/* Personality Config */}
-                    <ConfigBadge 
-                      label="Personality Config" 
-                      data={activeVersion?.personality_config} 
-                      color="purple" 
-                    />
-                    {/* Qualification Config */}
-                    <ConfigBadge 
-                      label="Qualification Config" 
-                      data={activeVersion?.qualification_config} 
-                      color="green" 
-                    />
-                    {/* Business Config */}
-                    <ConfigBadge 
-                      label="Business Config" 
-                      data={activeVersion?.business_config} 
-                      color="orange" 
-                    />
-                    {/* Followup Scripts */}
-                    <ConfigBadge 
-                      label="Followup Scripts" 
-                      data={activeVersion?.followup_scripts} 
-                      color="cyan" 
-                    />
-                  </div>
                 </div>
 
                 {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
