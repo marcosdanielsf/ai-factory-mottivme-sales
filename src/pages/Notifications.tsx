@@ -15,15 +15,17 @@ const useDebounce = <T,>(value: T, delay: number): T => {
   return debouncedValue;
 };
 
-const SeverityBadge = ({ severity }: { severity: string }) => {
-  const styles = {
+type Severity = 'critical' | 'high' | 'medium' | 'low';
+
+const SeverityBadge = ({ severity }: { severity: Severity }) => {
+  const styles: Record<Severity, string> = {
     critical: 'bg-accent-error/10 text-accent-error border-accent-error/20',
     high: 'bg-accent-warning/10 text-accent-warning border-accent-warning/20',
     medium: 'bg-accent-primary/10 text-accent-primary border-accent-primary/20',
     low: 'bg-bg-tertiary text-text-muted border-border-default'
   };
   return (
-    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${styles[severity as keyof typeof styles] || styles.low}`}>
+    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${styles[severity] || styles.low}`}>
       {severity}
     </span>
   );
@@ -35,6 +37,7 @@ export const Notifications = () => {
   const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
   // Click outside listener
@@ -71,10 +74,13 @@ export const Notifications = () => {
   }, [alerts, filter, debouncedSearch]);
 
   const handleMarkAllRead = useCallback(() => {
-    if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
-      markAllAsRead();
-      showToast('Todas as notificações foram limpas', 'info');
-    }
+    setShowConfirmModal(true);
+  }, []);
+
+  const confirmClearAll = useCallback(() => {
+    markAllAsRead();
+    showToast('Todas as notificações foram limpas', 'info');
+    setShowConfirmModal(false);
   }, [markAllAsRead, showToast]);
 
   const handleDeleteAlert = useCallback((id: string) => {
@@ -112,6 +118,19 @@ export const Notifications = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-8">
+      {/* Modal de Confirmação */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="bg-bg-secondary border border-border-default rounded-xl p-6 max-w-sm shadow-2xl">
+            <h3 id="confirm-title" className="font-bold text-text-primary mb-2">Confirmar ação</h3>
+            <p className="text-sm text-text-secondary mb-4">Tem certeza que deseja limpar todas as notificações?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowConfirmModal(false)} className="px-4 py-2 text-sm text-text-muted hover:text-text-primary transition-colors">Cancelar</button>
+              <button onClick={confirmClearAll} className="px-4 py-2 bg-accent-error text-white rounded text-sm hover:bg-accent-error/90 transition-colors">Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-default pb-6">
         <div>
@@ -208,7 +227,7 @@ export const Notifications = () => {
                 <p className="text-sm text-text-secondary mb-2">{alert.message}</p>
                 
                 <div className="flex items-center gap-3">
-                   <SeverityBadge severity={alert.severity} />
+                   <SeverityBadge severity={alert.severity as Severity} />
                    {alert.client_name && (
                      <span className="text-xs text-text-muted flex items-center gap-1">
                        👤 {alert.client_name}

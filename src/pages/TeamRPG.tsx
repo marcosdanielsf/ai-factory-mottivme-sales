@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { produce } from 'immer';
 import { createSquadFromConfig } from '../data/squads';
 import { Member, Squad } from '../types/rpg';
 import { Client } from '../types';
@@ -17,7 +18,7 @@ export const TeamRPG = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load Data
+  // Load Data com resiliência (Promise.allSettled)
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) showToast('Atualizando Squads...', 'info');
     setIsLoading(true);
@@ -25,7 +26,8 @@ export const TeamRPG = () => {
       const clientsData = await ClientService.getAll();
       setClients(clientsData);
 
-      const loadedSquads = await Promise.all(
+      // Promise.allSettled: não cancela tudo se um squad falhar
+      const results = await Promise.allSettled(
         clientsData.map(async (client) => {
           const config = await AgentService.getConfig(client.id);
           return createSquadFromConfig(
@@ -37,8 +39,24 @@ export const TeamRPG = () => {
           );
         })
       );
+
+      // Filtra squads carregados com sucesso
+      const loadedSquads = results
+        .filter((r): r is PromiseFulfilledResult<Squad> => r.status === 'fulfilled')
+        .map(r => r.value);
+
+      // Log/conta falhas
+      const failedCount = results.filter(r => r.status === 'rejected').length;
+      if (failedCount > 0) {
+        console.warn(`[TeamRPG] ${failedCount} squad(s) falharam ao carregar`);
+        results
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .forEach((r, i) => console.error(`Squad ${i} error:`, r.reason));
+        showToast(`${loadedSquads.length} squads carregados, ${failedCount} falharam`, 'warning');
+      }
+
       setSquads(loadedSquads);
-      if (isRefresh) showToast('Squads atualizados com sucesso', 'success');
+      if (isRefresh && failedCount === 0) showToast('Squads atualizados com sucesso', 'success');
     } catch (error) {
       console.error('Failed to load squads:', error);
       showToast('Erro ao carregar squads', 'error');
@@ -51,34 +69,33 @@ export const TeamRPG = () => {
     loadData();
   }, [loadData]);
 
-  const handleMemberClick = (member: Member) => {
-    setSelectedMember(selectedMember?.id === member.id ? null : member);
-  };
+  // Memoizado com useCallback para evitar re-renders desnecessários
+  const handleMemberClick = useCallback((member: Member) => {
+    setSelectedMember(prev => prev?.id === member.id ? null : member);
+  }, []);
 
-  const handleUpdatePrompt = (memberId: string, skillId: string, newContent: string) => {
-    setSquads(currentSquads => 
-      currentSquads.map(squad => ({
-        ...squad,
-        members: squad.members.map(member => {
-          if (member.id === memberId) {
-            return {
-              ...member,
-              skills: member.skills.map(skill => 
-                skill.id === skillId ? { ...skill, content: newContent } : skill
-              )
-            };
+  // Immer produce: mutação direta no draft, sem deep clone manual
+  const handleUpdatePrompt = useCallback((memberId: string, skillId: string, newContent: string) => {
+    setSquads(produce(draft => {
+      for (const squad of draft) {
+        const member = squad.members.find(m => m.id === memberId);
+        if (member) {
+          const skill = member.skills.find(s => s.id === skillId);
+          if (skill) {
+            skill.content = newContent;
+            return; // early exit após encontrar
           }
-          return member;
-        })
-      }))
-    );
-  };
+        }
+      }
+    }));
+  }, []);
 
-  const handleBackgroundClick = (e: React.MouseEvent) => {
+  // Memoizado com useCallback
+  const handleBackgroundClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       setSelectedMember(null);
     }
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -101,6 +118,7 @@ export const TeamRPG = () => {
              disabled={isLoading}
              className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50"
              title="Atualizar ranking e squads"
+             aria-label="Atualizar ranking e squads"
            >
              <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
            </button>
@@ -148,6 +166,7 @@ export const TeamRPG = () => {
           disabled={isLoading}
           className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
           title="Atualizar squad"
+          aria-label="Atualizar squad"
         >
           <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
         </button>
@@ -167,7 +186,7 @@ export const TeamRPG = () => {
                 </div>
 
                 {/* Área do Squad (Cenário) */}
-                <div className="bg-bg-primary/50 border border-border-default rounded-xl p-8 relative overflow-visible min-h-[300px] flex items-end gap-12 overflow-x-auto pb-12 shadow-inner">
+                <div className="bg-bg-primary/50 border border-border-default rounded-xl p-4 sm:p-6 lg:p-8 relative overflow-visible min-h-[300px] flex items-end gap-4 sm:gap-8 lg:gap-12 overflow-x-auto pb-12 shadow-inner">
                   {/* Grid Background Effect */}
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
                   
@@ -175,7 +194,7 @@ export const TeamRPG = () => {
                   <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
 
                   {squad.members.map((member) => (
-                    <div key={member.id} className="relative flex-shrink-0 group/avatar-container z-10">
+                    <div key={member.id} className="relative flex-shrink-0 group/avatar-container z-10 cursor-pointer hover:scale-105 transition-transform duration-200">
                       <Avatar 
                         member={member} 
                         onClick={(m) => {
@@ -210,8 +229,10 @@ export const TeamRPG = () => {
               </div>
             ))
           ) : (
-            <div className="py-20 text-center text-text-muted italic border border-dashed border-border-default rounded-xl">
-              Nenhum squad designado para este responsável ainda.
+            <div className="py-20 text-center text-text-muted border border-dashed border-border-default rounded-xl">
+              <Layers size={48} className="mx-auto mb-4 opacity-50" />
+              <p className="font-medium text-text-primary mb-1">Nenhum squad designado</p>
+              <p className="text-sm">Configure agentes para este cliente no painel admin.</p>
             </div>
           )}
       </div>
