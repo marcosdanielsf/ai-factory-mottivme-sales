@@ -43,6 +43,7 @@ export interface ScoreDimensions {
 export interface AgentVersion {
   id: string;
   agent_id: string;
+  agent_name?: string;
   version_number: string;
   version?: string; // Fallback se o banco usar 'version'
   system_prompt: string;
@@ -57,16 +58,36 @@ export interface AgentVersion {
   created_at: string;
   deployed_at?: string;
   is_active?: boolean;
+  
+  // Relacionamento com cliente
+  client_id?: string;
+  location_id?: string;
   clients?: {
-    nome: string;
-    empresa: string;
+    id?: string;
+    nome?: string;
+    empresa?: string;
+    telefone?: string;
+    email?: string;
+    vertical?: string;
+    status?: string;
   };
 
-  // Novo: Métricas agregadas de testes
-  avg_score_overall?: number; // Média de todos os testes
-  avg_score_dimensions?: ScoreDimensions; // Médias por dimensão
-  total_test_runs?: number; // Quantidade de testes executados
-  last_test_at?: string; // Timestamp do último teste
+  // 8 Campos de Configuração do Agente
+  tools_config?: Record<string, any>;
+  compliance_rules?: Record<string, any>;
+  personality_config?: Record<string, any>;
+  qualification_config?: Record<string, any>;
+  business_config?: Record<string, any>;
+  followup_scripts?: Record<string, any>;
+  deployment_notes?: string;
+
+  // Métricas agregadas de testes
+  avg_score_overall?: number;
+  avg_score_dimensions?: ScoreDimensions;
+  total_test_runs?: number;
+  last_test_at?: string;
+  validation_score?: number;
+  last_test_score?: number;
 }
 
 export interface AgentConversation {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAgents, useAgentVersions } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
-import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X } from 'lucide-react';
+import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase } from 'lucide-react';
 import { AgentVersion, Agent } from '../types';
 import { AdjustmentsChat } from '../components/AdjustmentsChat';
 
@@ -773,27 +773,84 @@ const BoxIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
 );
 
-// Componente para mostrar badge de configuração
+// Componente para mostrar badge de configuração (expandível)
 const ConfigBadge = ({ label, data, color }: { label: string; data: any; color: string }) => {
-  const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    red: 'bg-red-500/10 text-red-400 border-red-500/20',
-    green: 'bg-green-500/10 text-green-400 border-green-500/20',
-    purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-    gray: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  const [expanded, setExpanded] = React.useState(false);
+  
+  const colorClasses: Record<string, { base: string; hover: string; expanded: string }> = {
+    blue: { 
+      base: 'bg-blue-500/10 text-blue-400 border-blue-500/20', 
+      hover: 'hover:bg-blue-500/20 hover:border-blue-500/40',
+      expanded: 'bg-blue-500/15 border-blue-500/30'
+    },
+    red: { 
+      base: 'bg-red-500/10 text-red-400 border-red-500/20', 
+      hover: 'hover:bg-red-500/20 hover:border-red-500/40',
+      expanded: 'bg-red-500/15 border-red-500/30'
+    },
+    green: { 
+      base: 'bg-green-500/10 text-green-400 border-green-500/20', 
+      hover: 'hover:bg-green-500/20 hover:border-green-500/40',
+      expanded: 'bg-green-500/15 border-green-500/30'
+    },
+    purple: { 
+      base: 'bg-purple-500/10 text-purple-400 border-purple-500/20', 
+      hover: 'hover:bg-purple-500/20 hover:border-purple-500/40',
+      expanded: 'bg-purple-500/15 border-purple-500/30'
+    },
+    orange: { 
+      base: 'bg-orange-500/10 text-orange-400 border-orange-500/20', 
+      hover: 'hover:bg-orange-500/20 hover:border-orange-500/40',
+      expanded: 'bg-orange-500/15 border-orange-500/30'
+    },
+    cyan: { 
+      base: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', 
+      hover: 'hover:bg-cyan-500/20 hover:border-cyan-500/40',
+      expanded: 'bg-cyan-500/15 border-cyan-500/30'
+    },
   };
   
   const hasData = data && Object.keys(data).length > 0;
   const fieldCount = hasData ? Object.keys(data).length : 0;
+  const styles = colorClasses[color] || colorClasses.blue;
+  
+  if (!hasData) {
+    return (
+      <div 
+        className="text-xs px-2 py-1.5 rounded border flex justify-between items-center bg-bg-tertiary text-text-muted border-border-default opacity-50 cursor-not-allowed"
+        aria-label={`${label}: não configurado`}
+      >
+        <span>{label}</span>
+        <span className="text-[10px] uppercase font-medium">Vazio</span>
+      </div>
+    );
+  }
   
   return (
-    <div className={`text-xs px-2 py-1.5 rounded border flex justify-between items-center ${hasData ? colorClasses[color] : 'bg-bg-tertiary text-text-muted border-border-default opacity-50'}`}>
-      <span>{label}</span>
-      <span className="text-[10px] uppercase font-medium">
-        {hasData ? `${fieldCount} campos` : 'Vazio'}
-      </span>
+    <div className={`rounded border overflow-hidden transition-all duration-200 ${expanded ? styles.expanded : styles.base}`}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`w-full text-xs px-2 py-1.5 flex justify-between items-center cursor-pointer transition-colors duration-200 ${styles.hover} focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:ring-offset-1 focus:ring-offset-bg-secondary`}
+        aria-expanded={expanded}
+        aria-label={`${label}: ${fieldCount} campos. Clique para ${expanded ? 'recolher' : 'expandir'}`}
+      >
+        <span className="font-medium">{label}</span>
+        <span className="flex items-center gap-1">
+          <span className="text-[10px] uppercase">{fieldCount} campos</span>
+          <ChevronDown 
+            size={12} 
+            className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} 
+          />
+        </span>
+      </button>
+      
+      {expanded && (
+        <div className="px-2 pb-2 animate-in slide-in-from-top-2 duration-200">
+          <pre className="text-[10px] font-mono bg-black/30 p-2 rounded overflow-auto max-h-32 text-text-secondary leading-relaxed">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
