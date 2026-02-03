@@ -17,10 +17,21 @@ export const useAgentVersions = (agentId?: string) => {
     try {
       setLoading(true);
 
-      // Buscar versoes - tentar por client_id primeiro, depois por id se for um ID de versao
+      // Buscar versoes com JOIN na tabela clients pra trazer nome do cliente
       let query = supabase
         .from('agent_versions')
-        .select('*')
+        .select(`
+          *,
+          clients:client_id (
+            id,
+            nome,
+            empresa,
+            telefone,
+            email,
+            vertical,
+            status
+          )
+        `)
         .order('created_at', { ascending: false });
 
       // Tentar buscar por client_id OU por id (para casos onde client_id é null)

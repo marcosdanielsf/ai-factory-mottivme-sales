@@ -666,7 +666,50 @@ export const PromptEditor = () => {
                   </p>
                 </div>
 
-                {activeVersion?.prompts_por_modo && (
+                {/* 8 CAMPOS DE CONFIGURAÇÃO */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Configurações do Agente</label>
+                  <div className="space-y-1.5">
+                    {/* Tools Config */}
+                    <ConfigBadge 
+                      label="Tools Config" 
+                      data={activeVersion?.tools_config} 
+                      color="blue" 
+                    />
+                    {/* Compliance Rules */}
+                    <ConfigBadge 
+                      label="Compliance Rules" 
+                      data={activeVersion?.compliance_rules} 
+                      color="red" 
+                    />
+                    {/* Personality Config */}
+                    <ConfigBadge 
+                      label="Personality Config" 
+                      data={activeVersion?.personality_config} 
+                      color="purple" 
+                    />
+                    {/* Qualification Config */}
+                    <ConfigBadge 
+                      label="Qualification Config" 
+                      data={activeVersion?.qualification_config} 
+                      color="green" 
+                    />
+                    {/* Business Config */}
+                    <ConfigBadge 
+                      label="Business Config" 
+                      data={activeVersion?.business_config} 
+                      color="orange" 
+                    />
+                    {/* Followup Scripts */}
+                    <ConfigBadge 
+                      label="Followup Scripts" 
+                      data={activeVersion?.followup_scripts} 
+                      color="cyan" 
+                    />
+                  </div>
+                </div>
+
+                {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Modos Especificos</label>
                     <div className="space-y-1">
@@ -679,6 +722,25 @@ export const PromptEditor = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Location & Client Info */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Identificadores</label>
+                  <div className="text-xs text-text-secondary space-y-1">
+                    <div className="flex justify-between">
+                      <span>Location ID:</span>
+                      <span className="font-mono text-[10px] truncate max-w-[120px]" title={activeVersion?.location_id || ''}>
+                        {activeVersion?.location_id || '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Client ID:</span>
+                      <span className="font-mono text-[10px] truncate max-w-[120px]" title={activeVersion?.client_id || ''}>
+                        {activeVersion?.client_id || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Botao para abrir Chat CS */}
                 <button
@@ -710,3 +772,28 @@ export const PromptEditor = () => {
 const BoxIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
 );
+
+// Componente para mostrar badge de configuração
+const ConfigBadge = ({ label, data, color }: { label: string; data: any; color: string }) => {
+  const colorClasses: Record<string, string> = {
+    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    red: 'bg-red-500/10 text-red-400 border-red-500/20',
+    green: 'bg-green-500/10 text-green-400 border-green-500/20',
+    purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    gray: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  };
+  
+  const hasData = data && Object.keys(data).length > 0;
+  const fieldCount = hasData ? Object.keys(data).length : 0;
+  
+  return (
+    <div className={`text-xs px-2 py-1.5 rounded border flex justify-between items-center ${hasData ? colorClasses[color] : 'bg-bg-tertiary text-text-muted border-border-default opacity-50'}`}>
+      <span>{label}</span>
+      <span className="text-[10px] uppercase font-medium">
+        {hasData ? `${fieldCount} campos` : 'Vazio'}
+      </span>
+    </div>
+  );
+};
