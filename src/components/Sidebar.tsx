@@ -27,7 +27,8 @@ import {
   Send,
   PanelLeftClose,
   PanelLeft,
-  CalendarCheck
+  CalendarCheck,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -244,6 +245,7 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
         <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        <SidebarItem icon={Sparkles} label="Evolucao Agente" to="/evolution" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={Send} label="Follow-ups" to="/follow-ups" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
         <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} isCollapsed={isCollapsed} />

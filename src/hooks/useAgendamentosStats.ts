@@ -18,6 +18,7 @@ export interface AgendamentoStats {
 export interface AgendamentosPorDia {
   data: string;
   quantidade: number;
+  leads?: number; // Leads criados no mesmo dia (para gráfico de criação)
 }
 
 export interface AgendamentosPorOrigem {
@@ -32,7 +33,8 @@ export interface ResponsavelInfo {
 
 interface UseAgendamentosStatsReturn {
   stats: AgendamentoStats;
-  porDia: AgendamentosPorDia[];
+  porDia: AgendamentosPorDia[]; // Agendamentos PARA o dia (data do agendamento)
+  porDiaCriacao: AgendamentosPorDia[]; // Agendamentos CRIADOS no dia + leads
   porOrigem: AgendamentosPorOrigem[];
   responsaveis: ResponsavelInfo[];
   loading: boolean;
@@ -43,11 +45,18 @@ interface UseAgendamentosStatsReturn {
 // Usa a VIEW unificada que combina histórico + realtime
 const AGENDAMENTOS_VIEW = 'vw_agendamentos_unified';
 
+export interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
 export const useAgendamentosStats = (
   responsavel?: string | null,
-  periodDays: number = 30
+  dateRange?: DateRange | null
 ): UseAgendamentosStatsReturn => {
-  const [rawData, setRawData] = useState<any[]>([]);
+  const [agendamentosCriados, setAgendamentosCriados] = useState<any[]>([]); // Por data_criacao
+  const [agendamentosPara, setAgendamentosPara] = useState<any[]>([]); // Por agendamento_data
+  const [leadsData, setLeadsData] = useState<any[]>([]); // Leads com data_criada
   const [totalLeads, setTotalLeads] = useState(0);
   const [responsaveis, setResponsaveis] = useState<ResponsavelInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,55 +73,85 @@ export const useAgendamentosStats = (
       setLoading(true);
       setError(null);
 
-      // Calcular data de início do período
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - periodDays);
-      startDate.setHours(0, 0, 0, 0);
+      // Calcular datas do período
+      const startDate = dateRange?.startDate || (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })();
+      
+      const endDate = dateRange?.endDate || (() => {
+        const d = new Date();
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })();
 
-      // Query 1: Agendamentos da VIEW unificada (com filtro de período)
-      let agendamentosQuery = supabase
+      // Query 1: Agendamentos por DATA DE CRIAÇÃO (para gráfico "Criados no dia")
+      let agendamentosCriadosQuery = supabase
+        .from(AGENDAMENTOS_VIEW)
+        .select('data_criacao, status, fonte, responsavel_nome')
+        .gte('data_criacao', startDate.toISOString())
+        .lte('data_criacao', endDate.toISOString());
+
+      if (responsavel) {
+        agendamentosCriadosQuery = agendamentosCriadosQuery.eq('responsavel_nome', responsavel);
+      }
+
+      // Query 2: Agendamentos por DATA DO AGENDAMENTO (para gráfico "Para o dia")
+      let agendamentosParaQuery = supabase
         .from(AGENDAMENTOS_VIEW)
         .select('agendamento_data, status, fonte, responsavel_nome')
-        .gte('agendamento_data', startDate.toISOString());
+        .gte('agendamento_data', startDate.toISOString())
+        .lte('agendamento_data', endDate.toISOString());
 
       if (responsavel) {
-        agendamentosQuery = agendamentosQuery.eq('responsavel_nome', responsavel);
+        agendamentosParaQuery = agendamentosParaQuery.eq('responsavel_nome', responsavel);
       }
 
-      // Query 2: Total de leads no período (para taxa de conversão)
-      let leadsCountQuery = supabase
+      // Query 3: Leads do período (com data_criada para agrupar por dia)
+      let leadsQuery = supabase
         .from('app_dash_principal')
-        .select('id', { count: 'exact', head: true })
-        .gte('data_criada', startDate.toISOString());
+        .select('id, data_criada')
+        .gte('data_criada', startDate.toISOString())
+        .lte('data_criada', endDate.toISOString());
 
       if (responsavel) {
-        leadsCountQuery = leadsCountQuery.eq('lead_usuario_responsavel', responsavel);
+        leadsQuery = leadsQuery.eq('lead_usuario_responsavel', responsavel);
       }
 
-      // Query 3: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
+      // Query 4: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
       const responsaveisQuery = supabase
         .from(AGENDAMENTOS_VIEW)
         .select('responsavel_nome')
         .not('responsavel_nome', 'is', null);
 
       // Executar queries em paralelo
-      const [agendamentosResult, leadsCountResult, responsaveisResult] = await Promise.all([
-        agendamentosQuery,
-        leadsCountQuery,
+      const [agendamentosCriadosResult, agendamentosParaResult, leadsResult, responsaveisResult] = await Promise.all([
+        agendamentosCriadosQuery,
+        agendamentosParaQuery,
+        leadsQuery,
         responsaveisQuery,
       ]);
 
-      if (agendamentosResult.error) {
-        console.error('Error fetching agendamentos:', agendamentosResult.error);
-        throw agendamentosResult.error;
+      if (agendamentosCriadosResult.error) {
+        console.error('Error fetching agendamentos criados:', agendamentosCriadosResult.error);
+        throw agendamentosCriadosResult.error;
       }
 
-      if (leadsCountResult.error) {
-        console.error('Error fetching leads count:', leadsCountResult.error);
+      if (agendamentosParaResult.error) {
+        console.error('Error fetching agendamentos para:', agendamentosParaResult.error);
+        throw agendamentosParaResult.error;
       }
 
-      setRawData(agendamentosResult.data || []);
-      setTotalLeads(leadsCountResult.count || 0);
+      if (leadsResult.error) {
+        console.error('Error fetching leads:', leadsResult.error);
+      }
+
+      setAgendamentosCriados(agendamentosCriadosResult.data || []);
+      setAgendamentosPara(agendamentosParaResult.data || []);
+      setLeadsData(leadsResult.data || []);
+      setTotalLeads(leadsResult.data?.length || 0);
 
       // Processar responsáveis únicos com contagem
       if (responsaveisResult.data) {
@@ -134,14 +173,14 @@ export const useAgendamentosStats = (
     } finally {
       setLoading(false);
     }
-  }, [responsavel, periodDays]);
+  }, [responsavel, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Calcular estatísticas a partir dos dados brutos
-  const { stats, porDia, porOrigem } = useMemo(() => {
+  // Calcular estatísticas a partir dos dados
+  const { stats, porDia, porDiaCriacao, porOrigem } = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
@@ -165,36 +204,55 @@ export const useAgendamentosStats = (
     let trafegoCount = 0;
     let socialSellingCount = 0;
 
-    const porDiaMap: Record<string, number> = {};
+    // Mapas para os dois gráficos
+    const porDiaMap: Record<string, number> = {}; // Agendamentos PARA o dia
+    const porDiaCriacaoMap: Record<string, number> = {}; // Agendamentos CRIADOS no dia
+    const leadsPorDiaMap: Record<string, number> = {}; // Leads criados por dia
 
-    // Inicializar últimos 30 dias com 0
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    // Inicializar todos os dias do período selecionado com 0
+    const rangeStart = dateRange?.startDate || monthStart;
+    const rangeEnd = dateRange?.endDate || todayEnd;
+    const daysDiff = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    for (let i = 0; i < daysDiff; i++) {
+      const d = new Date(rangeStart);
+      d.setDate(rangeStart.getDate() + i);
       const dateKey = d.toISOString().split('T')[0];
       porDiaMap[dateKey] = 0;
+      porDiaCriacaoMap[dateKey] = 0;
+      leadsPorDiaMap[dateKey] = 0;
     }
 
-    rawData.forEach((item) => {
-      const dateValue = item.agendamento_data;
-      if (!dateValue) return;
+    // Processar leads por dia
+    leadsData.forEach((lead) => {
+      const dataCriada = lead.data_criada;
+      if (!dataCriada) return;
+      const dateKey = new Date(dataCriada).toISOString().split('T')[0];
+      if (leadsPorDiaMap[dateKey] !== undefined) {
+        leadsPorDiaMap[dateKey]++;
+      }
+    });
 
-      const scheduledAt = new Date(dateValue);
+    // Processar agendamentos PARA o dia (por agendamento_data)
+    agendamentosPara.forEach((item) => {
+      const agendamentoData = item.agendamento_data;
+      if (!agendamentoData) return;
+
+      const scheduledAt = new Date(agendamentoData);
       const dateKey = scheduledAt.toISOString().split('T')[0];
 
-      // Contagem por dia
       if (porDiaMap[dateKey] !== undefined) {
         porDiaMap[dateKey]++;
       }
 
-      // Contagem por período
+      // Contagem por período (apenas datas passadas/presentes)
       if (scheduledAt >= todayStart && scheduledAt <= todayEnd) {
         hoje++;
       }
-      if (scheduledAt >= weekStart) {
+      if (scheduledAt >= weekStart && scheduledAt <= todayEnd) {
         semana++;
       }
-      if (scheduledAt >= monthStart) {
+      if (scheduledAt >= monthStart && scheduledAt <= todayEnd) {
         mes++;
       }
 
@@ -217,8 +275,21 @@ export const useAgendamentosStats = (
       }
     });
 
-    // Total de agendados no período
-    const totalAgendados = rawData.length;
+    // Processar agendamentos CRIADOS no dia (por data_criacao)
+    agendamentosCriados.forEach((item) => {
+      const dataCriacao = item.data_criacao;
+      if (!dataCriacao) return;
+
+      const createdAt = new Date(dataCriacao);
+      const dateKey = createdAt.toISOString().split('T')[0];
+      
+      if (porDiaCriacaoMap[dateKey] !== undefined) {
+        porDiaCriacaoMap[dateKey]++;
+      }
+    });
+
+    // Total de agendados no período (PARA o dia)
+    const totalAgendados = agendamentosPara.length;
 
     // Taxa de comparecimento
     const totalWithStatus = totalCompleted + totalNoShow;
@@ -231,9 +302,18 @@ export const useAgendamentosStats = (
       ? Math.round((totalAgendados / totalLeads) * 100) 
       : 0;
 
-    // Converter mapa para array ordenado por data
+    // Converter mapa para array ordenado - Agendamentos PARA o dia
     const porDiaArr: AgendamentosPorDia[] = Object.entries(porDiaMap)
       .map(([data, quantidade]) => ({ data, quantidade }))
+      .sort((a, b) => a.data.localeCompare(b.data));
+
+    // Converter mapa para array ordenado - Agendamentos CRIADOS no dia (com leads)
+    const porDiaCriacaoArr: AgendamentosPorDia[] = Object.entries(porDiaCriacaoMap)
+      .map(([data, quantidade]) => ({ 
+        data, 
+        quantidade,
+        leads: leadsPorDiaMap[data] || 0
+      }))
       .sort((a, b) => a.data.localeCompare(b.data));
 
     const porOrigemArr: AgendamentosPorOrigem[] = [
@@ -255,11 +335,12 @@ export const useAgendamentosStats = (
         totalBooked,
       },
       porDia: porDiaArr,
+      porDiaCriacao: porDiaCriacaoArr,
       porOrigem: porOrigemArr,
     };
-  }, [rawData, totalLeads]);
+  }, [agendamentosCriados, agendamentosPara, leadsData, totalLeads, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
-  return { stats, porDia, porOrigem, responsaveis, loading, error, refetch: fetchData };
+  return { stats, porDia, porDiaCriacao, porOrigem, responsaveis, loading, error, refetch: fetchData };
 };
 
 export default useAgendamentosStats;

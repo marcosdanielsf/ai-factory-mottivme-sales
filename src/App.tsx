@@ -17,6 +17,7 @@ import { CallsRealizadas } from './pages/CallsRealizadas';
 import { Configuracoes } from './pages/Configuracoes';
 import { AgentDetail } from './pages/AgentDetail';
 import { ReflectionLoop } from './pages/ReflectionLoop';
+import { Evolution } from './pages/Evolution';
 import OnboardingWizard from './pages/OnboardingWizard';
 import { ClientCosts } from './pages/ClientCosts';
 import { Performance } from './pages/Performance';
@@ -97,6 +98,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <ReflectionLoop />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/evolution" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Evolution />
                 </Layout>
               </ProtectedRoute>
             } />

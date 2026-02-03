@@ -83,17 +83,25 @@ export const AdjustmentsChat: React.FC<AdjustmentsChatProps> = ({
     {
       id: '1',
       role: 'system',
-      content: `Olá! Sou o assistente de ajustes do agente **${agentName}**.
+      content: `🛠️ **Engenheiro de Prompts** ativo para **${agentName}**.
 
-Posso ajudar você a modificar:
-- **Guardrails**: Regras de comportamento
-- **Hiperpersonalização**: Contexto do cliente
-- **Few-Shot**: Exemplos de conversas
-- **Ferramentas**: Configurações de tools
+Eu **entendo a estrutura completa** deste agente e posso fazer alterações precisas em:
 
-Descreva em linguagem natural o que você quer alterar. Por exemplo:
-_"Adicione uma regra para nunca mencionar concorrentes"_
-_"Inclua o horário de funcionamento: seg-sex 9h-18h"_`,
+**Zonas Editáveis:**
+- 🛡️ **Guardrails** - Regras, limites, anti-patterns
+- ✨ **Hiperpersonalização** - Contexto, tom, dados do cliente
+- 💬 **Few-Shot** - Exemplos de conversas modelo
+- ⚙️ **Ferramentas** - Tools e integrações
+
+**Como funciona:**
+1. Você descreve o ajuste em linguagem natural
+2. Eu analiso o prompt atual e proponho a alteração
+3. Você aprova → eu aplico automaticamente
+
+**Exemplos:**
+_"Adicione regra: nunca falar de preço antes de qualificar"_
+_"O tom deve ser mais consultivo, menos vendedor"_
+_"Inclua exemplo de objeção 'tá caro' com tratamento"_`,
       timestamp: new Date(),
     },
   ]);
@@ -387,16 +395,16 @@ Uma nova versão do prompt foi criada.
   };
 
   return (
-    <div className="flex flex-col h-full bg-bg-primary">
+    <div className="flex flex-col h-full bg-bg-primary relative z-50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-default bg-bg-secondary">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-accent-primary/20 rounded-lg">
-            <Bot className="text-accent-primary" size={20} />
+          <div className="p-2 bg-gradient-to-br from-accent-primary/30 to-purple-500/30 rounded-lg">
+            <Zap className="text-accent-primary" size={20} />
           </div>
           <div>
             <h3 className="font-semibold text-text-primary flex items-center gap-2">
-              Chat de Ajustes
+              Engenheiro de Prompts
               <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full">
                 <Brain size={10} />
                 RAG
@@ -406,21 +414,34 @@ Uma nova versão do prompt foi criada.
           </div>
         </div>
 
-        {/* Editable Zones Indicator */}
-        <div className="flex gap-1">
-          {Object.entries(EDITABLE_ZONES).map(([key, zone]) => {
-            const Icon = zone.icon;
-            return (
-              <div
-                key={key}
-                className={`p-1.5 rounded ${zone.bgColor}`}
-                title={`${zone.label}: ${zone.description}`}
-              >
-                <Icon size={14} className={zone.color} />
-              </div>
-            );
-          })}
-        </div>
+        {/* Close button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-bg-tertiary rounded transition-colors text-text-muted hover:text-text-primary"
+            title="Fechar"
+          >
+            <XCircle size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* Editable Zones Bar */}
+      <div className="flex items-center justify-center gap-2 px-4 py-2 bg-bg-tertiary/50 border-b border-border-default">
+        <span className="text-xs text-text-muted">Zonas:</span>
+        {Object.entries(EDITABLE_ZONES).map(([key, zone]) => {
+          const Icon = zone.icon;
+          return (
+            <div
+              key={key}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${zone.bgColor}`}
+              title={zone.description}
+            >
+              <Icon size={12} className={zone.color} />
+              <span className={zone.color}>{zone.label}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Messages */}
@@ -579,13 +600,13 @@ Uma nova versão do prompt foi criada.
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-border-default bg-bg-secondary">
+      <div className="p-4 border-t border-border-default bg-bg-secondary pb-6">
         <div className="flex gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Descreva o ajuste que você quer fazer..."
+            placeholder="Descreva o ajuste: 'Adicione regra para...'"
             disabled={isProcessing || !!pendingPreview}
             className="flex-1 bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary resize-none disabled:opacity-50"
             rows={2}
@@ -598,8 +619,8 @@ Uma nova versão do prompt foi criada.
             <Send size={18} />
           </button>
         </div>
-        <p className="text-xs text-text-muted mt-2 text-center">
-          Zonas protegidas (Modos de Operação, Estrutura do Prompt) não são editáveis via chat.
+        <p className="text-[10px] text-text-muted mt-2 text-center opacity-70">
+          ⚠️ Modos de Operação e Estrutura Core são protegidos
         </p>
       </div>
     </div>

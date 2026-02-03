@@ -28,11 +28,13 @@ import {
   PieChart,
   Pie,
   Cell,
+  ComposedChart,
+  Line,
   Legend,
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
-import { useAgendamentosStats, type ResponsavelInfo } from '../hooks/useAgendamentosStats';
-import { PeriodFilter } from './SalesOps/components/PeriodFilter';
+import { useAgendamentosStats, type ResponsavelInfo, type DateRange } from '../hooks/useAgendamentosStats';
+import { DateRangePicker } from '../components/DateRangePicker';
 
 // ==========================================
 // TYPES
@@ -561,12 +563,21 @@ export const Agendamentos: React.FC = () => {
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
-  const [periodDays, setPeriodDays] = useState(30);
+  
+  // Date range state - default últimos 30 dias
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    return { startDate: start, endDate: end };
+  });
 
   // O hook agora retorna a lista de responsáveis junto com as stats
-  const { stats, porDia, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
+  const { stats, porDia, porDiaCriacao, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
     selectedResponsavel,
-    periodDays
+    dateRange
   );
 
   // Gerar filtros para drawer baseado no estado atual
@@ -695,7 +706,7 @@ export const Agendamentos: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              <PeriodFilter selected={periodDays} onChange={setPeriodDays} />
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
               <ResponsavelSelector 
                 responsaveis={responsaveis}
                 selectedName={selectedResponsavel}
@@ -789,20 +800,37 @@ export const Agendamentos: React.FC = () => {
           />
         </div>
 
-        {/* Charts Row */}
+        {/* Charts Row 1 - Agendamentos CRIADOS no dia + Leads */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Bar Chart - Agendamentos por Dia */}
           <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Agendamentos por Dia (últimos 30 dias)
+            <h3 className="text-lg font-semibold text-text-primary mb-1">
+              Agendamentos Criados no Dia
             </h3>
+            <p className="text-xs text-text-muted mb-4">
+              Quantos agendamentos foram feitos em cada dia
+              {dateRange.startDate && dateRange.endDate && (
+                <span className="ml-1">
+                  ({dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})
+                </span>
+              )}
+            </p>
+            <div className="flex items-center gap-4 mb-2 text-xs">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-blue-500" />
+                <span className="text-text-muted">Agendamentos</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 bg-emerald-400" />
+                <span className="text-text-muted">Leads</span>
+              </div>
+            </div>
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <RefreshCw size={24} className="animate-spin text-text-muted" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={porDia} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={porDiaCriacao} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <XAxis
                     dataKey="data"
                     tickFormatter={formatDayLabel}
@@ -810,15 +838,23 @@ export const Agendamentos: React.FC = () => {
                     interval="preserveStartEnd"
                   />
                   <YAxis tick={{ fontSize: 10, fill: '#888' }} />
-                  <Tooltip content={<CustomBarTooltip />} />
-                  <Bar
-                    dataKey="quantidade"
-                    fill="#8b5cf6"
-                    radius={[4, 4, 0, 0]}
-                    cursor="pointer"
-                    onClick={handleBarClick}
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-bg-secondary border border-border-default rounded-lg px-3 py-2 shadow-lg">
+                            <p className="text-sm font-medium text-text-primary">{formatDayLabel(label)}</p>
+                            <p className="text-sm text-blue-400">{payload[0]?.value} agendamentos criados</p>
+                            <p className="text-sm text-emerald-400">{payload[1]?.value} leads</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
-                </BarChart>
+                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Agendamentos" />
+                  <Line type="monotone" dataKey="leads" stroke="#34d399" strokeWidth={2} dot={false} name="Leads" />
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -870,6 +906,46 @@ export const Agendamentos: React.FC = () => {
               </ResponsiveContainer>
             )}
           </div>
+        </div>
+
+        {/* Chart Row 2 - Agendamentos PARA o dia */}
+        <div className="bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-1">
+            Agendamentos Para o Dia
+          </h3>
+          <p className="text-xs text-text-muted mb-4">
+            Quantos agendamentos estão marcados para acontecer em cada dia
+            {dateRange.startDate && dateRange.endDate && (
+              <span className="ml-1">
+                ({dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})
+              </span>
+            )}
+          </p>
+          {loading ? (
+            <div className="h-64 flex items-center justify-center">
+              <RefreshCw size={24} className="animate-spin text-text-muted" />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={porDia} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis
+                  dataKey="data"
+                  tickFormatter={formatDayLabel}
+                  tick={{ fontSize: 10, fill: '#888' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tick={{ fontSize: 10, fill: '#888' }} />
+                <Tooltip content={<CustomBarTooltip />} />
+                <Bar
+                  dataKey="quantidade"
+                  fill="#8b5cf6"
+                  radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={handleBarClick}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Status Cards */}
