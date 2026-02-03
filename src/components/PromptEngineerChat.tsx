@@ -258,7 +258,7 @@ interface PromptEngineerChatProps {
   onClose?: () => void;
 }
 
-const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_PROMPT_ENGINEER || 'https://mottivme.app.n8n.cloud/webhook/prompt-engineer';
+const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_PROMPT_ENGINEER || 'https://cliente-a1.mentorfy.io/webhook/engenheiro-prompt';
 
 export const PromptEngineerChat: React.FC<PromptEngineerChatProps> = ({
   agentId,
@@ -332,19 +332,21 @@ _"Atualize o valor do curso de nails para $950"_`,
     return sections;
   };
 
-  // Processar pedido via webhook
+  // Processar pedido via webhook n8n (Engenheiro de Prompt)
   const processRequest = async (userMessage: string): Promise<Message> => {
     try {
-      const context = prepareAgentContext();
-      
+      // Formato esperado pelo workflow n8n:
+      // { comando: "editar", cliente: "Nome", instrucao: "..." }
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...context,
-          userMessage,
-          selectedZone,
-          engineerPrompt: ENGINEER_SYSTEM_PROMPT,
+          comando: 'editar',
+          cliente: agentName,
+          instrucao: userMessage,
+          // Dados extras para contexto
+          zone: selectedZone,
+          agent_id: agentId,
         }),
       });
 
@@ -354,33 +356,62 @@ _"Atualize o valor do curso de nails para $950"_`,
 
       const data = await response.json();
       
-      // Validar zona retornada
-      const zone = data.result?.zone as EditableZone;
-      if (!zone || !ZONES[zone]) {
-        return createClarificationMessage(userMessage);
+      // Workflow retorna: { success, message, data: { version_id, versao }, comando }
+      if (data.success && data.data?.version_id) {
+        // Edição foi processada pelo workflow
+        const detectedZone = selectedZone || detectZoneFromMessage(userMessage);
+        const zoneInfo = ZONES[detectedZone];
+        
+        const preview: PromptPreview = {
+          zone: detectedZone,
+          zone_label: zoneInfo.label,
+          field_path: detectedZone,
+          operation: 'update',
+          before: '[Processado pelo Engenheiro n8n]',
+          after: userMessage,
+          diff_summary: `Nova versão ${data.data.versao} criada`,
+          reasoning: data.message || 'Mudança aplicada via workflow n8n',
+        };
+
+        return {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `✅ **Mudança processada pelo Engenheiro!**
+
+**Agente:** ${agentName}
+**Nova versão:** ${data.data.versao}
+**Status:** pending_approval
+
+**ID para aprovar:** \`${data.data.version_id}\`
+
+${data.message || ''}
+
+A versão foi criada mas ainda precisa de aprovação.
+Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
+          timestamp: new Date(),
+          preview,
+          status: 'approved', // Já foi aplicado pelo workflow
+          zone: detectedZone,
+          confidence: 1,
+        };
+      }
+      
+      // Se não teve sucesso ou é outro tipo de resposta
+      if (!data.success) {
+        return {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `⚠️ **Resposta do Engenheiro:**\n\n${data.message || 'Não foi possível processar a solicitação.'}`,
+          timestamp: new Date(),
+        };
       }
 
-      const zoneInfo = ZONES[zone];
-      const preview: PromptPreview = {
-        zone,
-        zone_label: zoneInfo.label,
-        field_path: data.result?.field_path || zone,
-        operation: data.result?.operation || 'update',
-        before: data.result?.before || '[Valor atual]',
-        after: data.result?.after || userMessage,
-        diff_summary: data.result?.diff_summary || `Alteração em ${zoneInfo.label}`,
-        reasoning: data.result?.reasoning || 'Baseado na sua solicitação.',
-      };
-
+      // Fallback para respostas de outros comandos (listar, ver, etc)
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        content: formatPreviewMessage(preview, zoneInfo),
+        content: data.message || 'Comando processado.',
         timestamp: new Date(),
-        preview,
-        status: 'pending',
-        zone,
-        confidence: data.result?.confidence || 0.8,
       };
 
     } catch (error) {
