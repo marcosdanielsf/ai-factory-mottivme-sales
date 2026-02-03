@@ -4,7 +4,7 @@ import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
 import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles } from 'lucide-react';
 import { AgentVersion, Agent } from '../types';
-import { AdjustmentsChat } from '../components/AdjustmentsChat';
+import { PromptEngineerChat } from '../components/PromptEngineerChat';
 
 export const PromptEditor = () => {
   const { showToast } = useToast();
@@ -276,7 +276,7 @@ export const PromptEditor = () => {
     }, 1500);
   };
 
-  const handleApplyAdjustment = async (zone: string, newContent: string) => {
+  const handleApplyAdjustment = async (zone: string, newContent: any, fieldPath?: string) => {
     if (!selectedAgent || !activeVersionId) return;
 
     try {
@@ -284,32 +284,139 @@ export const PromptEditor = () => {
       const currentVersionStr = activeVersion?.version_number || activeVersion?.version || 'v1.0';
       const nextVersion = `v${(parseFloat(currentVersionStr.replace('v', '')) + 0.1).toFixed(1)}`;
 
+      // Copiar dados atuais
       const updateData: any = {
         client_id: selectedAgentId,
         version_number: nextVersion,
         system_prompt: activeVersion?.system_prompt || '',
-        prompts_por_modo: activeVersion?.prompts_por_modo || {},
+        prompts_by_mode: activeVersion?.prompts_by_mode || {},
         hyperpersonalization: activeVersion?.hyperpersonalization || {},
+        compliance_rules: activeVersion?.compliance_rules || {},
+        personality_config: activeVersion?.personality_config || {},
+        business_config: activeVersion?.business_config || {},
+        tools_config: activeVersion?.tools_config || {},
         validation_status: 'draft',
         is_active: false,
-        change_log: `Ajuste via Chat CS na zona: ${zone}`
+        change_log: `[Engenheiro de Prompts] Ajuste em ${zone}${fieldPath ? ` (${fieldPath})` : ''}`
       };
 
       // Aplicar mudanca baseada na zona
-      if (zone === 'hyperpersonalization') {
-        try {
-          const currentConfig = activeVersion?.hyperpersonalization || {};
-          updateData.hyperpersonalization = {
-            ...currentConfig,
-            cs_adjustment: newContent,
-            adjusted_at: new Date().toISOString()
-          };
-        } catch (e) {
-          updateData.hyperpersonalization = { cs_adjustment: newContent };
-        }
-      } else if (zone === 'guardrails' || zone === 'few_shot') {
-        // Adicionar ao system prompt
-        updateData.system_prompt = `${activeVersion?.system_prompt || ''}\n\n<!-- CS Adjustment (${zone}) -->\n${newContent}`;
+      switch (zone) {
+        case 'system_prompt':
+          // Se tem fieldPath, adicionar na seção específica
+          if (fieldPath && fieldPath !== 'system_prompt') {
+            const sectionTag = fieldPath.replace('system_prompt.', '');
+            const sectionRegex = new RegExp(`(<${sectionTag}>)([\\s\\S]*?)(<\\/${sectionTag}>)`);
+            if (sectionRegex.test(updateData.system_prompt)) {
+              // Adicionar ao final da seção existente
+              updateData.system_prompt = updateData.system_prompt.replace(
+                sectionRegex,
+                `$1$2\n\n${newContent}\n$3`
+              );
+            } else {
+              // Seção não existe, adicionar ao final
+              updateData.system_prompt += `\n\n<${sectionTag}>\n${newContent}\n</${sectionTag}>`;
+            }
+          } else {
+            // Adicionar ao final do prompt
+            updateData.system_prompt += `\n\n<!-- Engenheiro de Prompts -->\n${newContent}`;
+          }
+          break;
+
+        case 'compliance_rules':
+          const currentCompliance = { ...(activeVersion?.compliance_rules || {}) };
+          if (fieldPath?.includes('.')) {
+            const [, subField] = fieldPath.split('.');
+            if (Array.isArray(currentCompliance[subField])) {
+              currentCompliance[subField] = [...currentCompliance[subField], newContent];
+            } else {
+              currentCompliance[subField] = newContent;
+            }
+          } else {
+            currentCompliance.adjustments = currentCompliance.adjustments || [];
+            currentCompliance.adjustments.push({ content: newContent, timestamp: new Date().toISOString() });
+          }
+          updateData.compliance_rules = currentCompliance;
+          break;
+
+        case 'personality_config':
+          const currentPersonality = { ...(activeVersion?.personality_config || {}) };
+          if (fieldPath?.includes('.')) {
+            const pathParts = fieldPath.split('.');
+            let target = currentPersonality;
+            for (let i = 1; i < pathParts.length - 1; i++) {
+              target[pathParts[i]] = target[pathParts[i]] || {};
+              target = target[pathParts[i]];
+            }
+            target[pathParts[pathParts.length - 1]] = newContent;
+          } else {
+            Object.assign(currentPersonality, typeof newContent === 'object' ? newContent : { tom_voz: newContent });
+          }
+          updateData.personality_config = currentPersonality;
+          break;
+
+        case 'business_config':
+          const currentBusiness = { ...(activeVersion?.business_config || {}) };
+          if (fieldPath?.includes('.')) {
+            const pathParts = fieldPath.split('.');
+            let target = currentBusiness;
+            for (let i = 1; i < pathParts.length - 1; i++) {
+              target[pathParts[i]] = target[pathParts[i]] || {};
+              target = target[pathParts[i]];
+            }
+            target[pathParts[pathParts.length - 1]] = newContent;
+          } else {
+            Object.assign(currentBusiness, typeof newContent === 'object' ? newContent : {});
+          }
+          updateData.business_config = currentBusiness;
+          break;
+
+        case 'tools_config':
+          const currentTools = { ...(activeVersion?.tools_config || {}) };
+          if (fieldPath?.includes('.')) {
+            const pathParts = fieldPath.split('.');
+            let target = currentTools;
+            for (let i = 1; i < pathParts.length - 1; i++) {
+              target[pathParts[i]] = target[pathParts[i]] || {};
+              target = target[pathParts[i]];
+            }
+            target[pathParts[pathParts.length - 1]] = newContent;
+          } else {
+            Object.assign(currentTools, typeof newContent === 'object' ? newContent : {});
+          }
+          updateData.tools_config = currentTools;
+          break;
+
+        case 'hyperpersonalization':
+          const currentHyper = { ...(activeVersion?.hyperpersonalization || {}) };
+          if (fieldPath?.includes('.')) {
+            const pathParts = fieldPath.split('.');
+            let target = currentHyper;
+            for (let i = 1; i < pathParts.length - 1; i++) {
+              target[pathParts[i]] = target[pathParts[i]] || {};
+              target = target[pathParts[i]];
+            }
+            target[pathParts[pathParts.length - 1]] = newContent;
+          } else {
+            Object.assign(currentHyper, typeof newContent === 'object' ? newContent : {});
+          }
+          updateData.hyperpersonalization = currentHyper;
+          break;
+
+        case 'prompts_by_mode':
+          const currentModes = { ...(activeVersion?.prompts_by_mode || {}) };
+          if (fieldPath?.includes('.')) {
+            const modeName = fieldPath.split('.')[1];
+            currentModes[modeName] = newContent;
+          } else {
+            Object.assign(currentModes, typeof newContent === 'object' ? newContent : {});
+          }
+          updateData.prompts_by_mode = currentModes;
+          break;
+
+        default:
+          // Fallback: adicionar ao system prompt
+          updateData.system_prompt += `\n\n<!-- Ajuste (${zone}) -->\n${newContent}`;
       }
 
       const { data, error } = await supabase
@@ -320,11 +427,11 @@ export const PromptEditor = () => {
 
       if (error) throw error;
 
-      showToast(`Ajuste aplicado! Nova versao ${nextVersion} criada.`, 'success');
+      showToast(`✅ Ajuste aplicado! Nova versão ${nextVersion} criada.`, 'success');
       refetchVersions();
       setActiveVersionId(data.id);
     } catch (err: any) {
-      showToast('Erro ao aplicar ajuste: ' + err.message, 'error');
+      showToast('❌ Erro ao aplicar ajuste: ' + err.message, 'error');
       throw err;
     }
   };
@@ -735,11 +842,19 @@ export const PromptEditor = () => {
         {/* Configuration Sidebar (Right) - Shows Chat or Details */}
         <div className={`${showAdjustmentsChat ? 'w-96' : 'w-72'} border-l border-border-default bg-bg-secondary flex flex-col overflow-hidden transition-all`}>
           {showAdjustmentsChat ? (
-            /* Chat de Ajustes */
-            <AdjustmentsChat
+            /* Engenheiro de Prompts */
+            <PromptEngineerChat
               agentId={selectedAgentId}
               agentName={selectedAgent?.name || 'Agente'}
               currentPrompt={code}
+              currentConfigs={{
+                hyperpersonalization: activeVersion?.hyperpersonalization,
+                compliance_rules: activeVersion?.compliance_rules,
+                personality_config: activeVersion?.personality_config,
+                business_config: activeVersion?.business_config,
+                tools_config: activeVersion?.tools_config,
+                prompts_by_mode: activeVersion?.prompts_by_mode,
+              }}
               onApplyChanges={handleApplyAdjustment}
               onClose={() => setShowAdjustmentsChat(false)}
             />
