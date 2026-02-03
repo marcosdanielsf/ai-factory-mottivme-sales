@@ -1,7 +1,19 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Bell, AlertTriangle, CheckCircle2, Clock, Filter, Check, MoreVertical, X, Trash2, Search, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Bell, AlertTriangle, CheckCircle2, Filter, Check, X, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import { useSystemAlerts } from '../hooks/useSystemAlerts';
 import { useToast } from '../hooks/useToast';
+
+// Debounce hook para evitar recálculos a cada keystroke
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  
+  return debouncedValue;
+};
 
 const SeverityBadge = ({ severity }: { severity: string }) => {
   const styles = {
@@ -36,6 +48,9 @@ export const Notifications = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Debounce no search para evitar recálculos a cada keystroke
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredAlerts = useMemo(() => {
     let result = alerts;
     
@@ -43,8 +58,8 @@ export const Notifications = () => {
       result = result.filter(a => a.severity === filter);
     }
     
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (debouncedSearch) {
+      const term = debouncedSearch.toLowerCase();
       result = result.filter(a => 
         a.title.toLowerCase().includes(term) ||
         a.message.toLowerCase().includes(term) ||
@@ -53,19 +68,19 @@ export const Notifications = () => {
     }
     
     return result;
-  }, [alerts, filter, searchTerm]);
+  }, [alerts, filter, debouncedSearch]);
 
-  const handleMarkAllRead = () => {
+  const handleMarkAllRead = useCallback(() => {
     if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
       markAllAsRead();
       showToast('Todas as notificações foram limpas', 'info');
     }
-  };
+  }, [markAllAsRead, showToast]);
 
-  const handleDeleteAlert = (id: string) => {
+  const handleDeleteAlert = useCallback((id: string) => {
     deleteAlert(id);
     showToast('Notificação removida', 'info');
-  };
+  }, [deleteAlert, showToast]);
 
   if (loading) {
     return (
@@ -158,17 +173,6 @@ export const Notifications = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => {
-                showToast('Atualizando notificações...', 'info');
-                refetch().then(() => showToast('Notificações atualizadas', 'success'));
-              }}
-              disabled={loading}
-              className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50 h-[38px] w-[38px] flex items-center justify-center"
-              title="Atualizar notificações"
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
             <button 
               onClick={handleMarkAllRead}
               disabled={alerts.length === 0}

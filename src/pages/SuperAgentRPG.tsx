@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { superAgent as initialAgent, trainers } from '../data/superAgent';
 import { Member, Trainer } from '../types/rpg';
 import { User, Sparkles, Zap, ScrollText, Calendar, Dumbbell, Gavel, GraduationCap, ArrowRight } from 'lucide-react';
+
+// Constante fora do componente - evita recriação a cada render
+const AURA_CLASSES: Record<string, string> = {
+  blue: 'shadow-[0_0_50px_rgba(59,130,246,0.6)] ring-4 ring-blue-500 animate-pulse',
+  yellow: 'shadow-[0_0_50px_rgba(234,179,8,0.6)] ring-4 ring-yellow-500 animate-pulse',
+  red: 'shadow-[0_0_50px_rgba(239,68,68,0.6)] ring-4 ring-red-500 animate-pulse',
+};
+
+const getAuraClass = (aura?: string) => AURA_CLASSES[aura ?? ''] ?? '';
 
 export const SuperAgentRPG = () => {
   const [agent, setAgent] = useState<Member>(initialAgent);
@@ -9,17 +18,18 @@ export const SuperAgentRPG = () => {
   const [showContractModal, setShowContractModal] = useState(false);
   const [contractData, setContractData] = useState({ clientName: '', value: '' });
 
-  // Efeito de evolução quando um treinador é ativado
+  // Efeito de aura quando um treinador é ativado (FIX: removido incremento de level)
   useEffect(() => {
     if (activeTrainer) {
-      let aura: 'blue' | 'yellow' | 'red' = 'blue';
-      if (activeTrainer.specialization === 'Law') aura = 'blue';
-      if (activeTrainer.specialization === 'Coaching') aura = 'yellow';
-      if (activeTrainer.specialization === 'Fitness') aura = 'red';
+      const auraMap: Record<string, 'blue' | 'yellow' | 'red'> = {
+        Law: 'blue',
+        Coaching: 'yellow',
+        Fitness: 'red'
+      };
+      const aura = auraMap[activeTrainer.specialization] || 'blue';
 
       setAgent(prev => ({
         ...prev,
-        level: prev.level + 1,
         avatarStyle: { ...prev.avatarStyle, aura }
       }));
     } else {
@@ -30,21 +40,25 @@ export const SuperAgentRPG = () => {
     }
   }, [activeTrainer]);
 
-  const handleAction = (action: string) => {
-    console.log(`Action triggered: ${action}`);
+  const handleAction = useCallback((action: string) => {
     if (action === 'contract') {
       setShowContractModal(true);
     }
-  };
+  }, []);
 
-  const getAuraClass = (aura?: string) => {
-    switch (aura) {
-      case 'blue': return 'shadow-[0_0_50px_rgba(59,130,246,0.6)] ring-4 ring-blue-500 animate-pulse';
-      case 'yellow': return 'shadow-[0_0_50px_rgba(234,179,8,0.6)] ring-4 ring-yellow-500 animate-pulse';
-      case 'red': return 'shadow-[0_0_50px_rgba(239,68,68,0.6)] ring-4 ring-red-500 animate-pulse';
-      default: return '';
-    }
-  };
+  // Memoizar posições dos trainers (cálculo trigonométrico)
+  const trainerPositions = useMemo(() => {
+    const radius = 250;
+    return trainers.map((trainer, index) => {
+      const angle = (index * 360) / trainers.length;
+      const radians = (angle * Math.PI) / 180;
+      return {
+        trainer,
+        x: Math.cos(radians) * radius,
+        y: Math.sin(radians) * radius,
+      };
+    });
+  }, []);
 
   return (
     <div className="min-h-full bg-bg-primary text-text-primary p-8 relative overflow-hidden">
@@ -82,24 +96,24 @@ export const SuperAgentRPG = () => {
             </div>
           </div>
 
-          {/* Trainers (Orbiting) */}
-          {trainers.map((trainer, index) => {
-            const angle = (index * 360) / trainers.length;
-            const radius = 250; // Distance from center
-            const x = Math.cos((angle * Math.PI) / 180) * radius;
-            const y = Math.sin((angle * Math.PI) / 180) * radius;
-
+          {/* Trainers (Orbiting) - Posições memoizadas */}
+          {trainerPositions.map(({ trainer, x, y }) => {
             const isActive = activeTrainer?.id === trainer.id;
 
             return (
               <div 
                 key={trainer.id}
-                className={`absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110 border-2 ${isActive ? 'border-accent-primary scale-110 shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'border-border-default bg-bg-secondary'}`}
+                role="button"
+                aria-label={`Ativar ${trainer.name} - ${trainer.specialization}`}
+                aria-pressed={isActive}
+                className={`absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110 border-2 focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 ${isActive ? 'border-accent-primary scale-110 shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'border-border-default bg-bg-secondary'}`}
                 style={{ 
                   transform: `translate(${x}px, ${y}px)`,
                   backgroundColor: trainer.avatarStyle.color
                 }}
                 onClick={() => setActiveTrainer(isActive ? null : trainer)}
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setActiveTrainer(isActive ? null : trainer)}
               >
                 {trainer.specialization === 'Law' && <Gavel className="text-white" />}
                 {trainer.specialization === 'Fitness' && <Dumbbell className="text-white" />}

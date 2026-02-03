@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createSquadFromConfig } from '../data/squads';
 import { Member, Squad } from '../types/rpg';
 import { Client } from '../types';
@@ -113,8 +113,11 @@ export const TeamRPG = () => {
     );
   }
 
-  // View de Detalhes do Cliente (Squads)
-  const clientSquads = squads.filter(s => s.clientId === selectedClient.id);
+  // View de Detalhes do Cliente (Squads) - Memoizado
+  const clientSquads = useMemo(
+    () => squads.filter(s => s.clientId === selectedClient.id),
+    [squads, selectedClient.id]
+  );
 
   return (
     <div 
@@ -126,7 +129,8 @@ export const TeamRPG = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setSelectedClient(null)}
-            className="p-2 hover:bg-bg-secondary rounded-full transition-colors border border-transparent hover:border-border-default text-text-muted hover:text-text-primary"
+            aria-label="Voltar para lista de clientes"
+            className="p-2 hover:bg-bg-secondary rounded-full transition-colors border border-transparent hover:border-border-default text-text-muted hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-primary"
           >
             <ArrowLeft size={24} />
           </button>
