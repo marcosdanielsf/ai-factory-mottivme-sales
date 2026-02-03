@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAgents, useAgentVersions } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
-import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles } from 'lucide-react';
+import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, Power } from 'lucide-react';
 import { AgentVersion, Agent } from '../types';
 import { PromptEngineerChat } from '../components/PromptEngineerChat';
 
@@ -120,6 +120,50 @@ export const PromptEditor = () => {
   };
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isTogglingActive, setIsTogglingActive] = useState(false);
+
+  const handleToggleActive = async () => {
+    if (!activeVersionId || !activeVersion) return;
+    
+    setIsTogglingActive(true);
+    try {
+      const newIsActive = !activeVersion.is_active;
+      const newStatus = newIsActive ? 'active' : 'inactive';
+      
+      // Se estamos ativando, precisamos desativar outras versões deste cliente
+      if (newIsActive) {
+        await supabase
+          .from('agent_versions')
+          .update({ is_active: false, validation_status: 'inactive' })
+          .eq('client_id', selectedAgentId)
+          .neq('id', activeVersionId);
+      }
+      
+      const { error } = await supabase
+        .from('agent_versions')
+        .update({ 
+          is_active: newIsActive, 
+          validation_status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeVersionId);
+
+      if (error) throw error;
+      
+      showToast(
+        newIsActive 
+          ? `✅ Agente ativado! Versão ${activeVersion?.version_number || activeVersion?.version} agora está em produção.`
+          : `⏸️ Agente desativado. Versão ${activeVersion?.version_number || activeVersion?.version} pausada.`,
+        newIsActive ? 'success' : 'info'
+      );
+      refetchVersions();
+    } catch (err: any) {
+      console.error('Error toggling active status:', err);
+      showToast('Erro ao alterar status: ' + err.message, 'error');
+    } finally {
+      setIsTogglingActive(false);
+    }
+  };
 
   const handlePublish = async () => {
     if (!selectedAgent || !activeVersionId) return;
@@ -877,13 +921,91 @@ export const PromptEditor = () => {
 
                  <div className="space-y-2">
                   <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Status & Validacao</label>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${
-                        (activeVersion?.validation_status || activeVersion?.status) === 'production' || (activeVersion?.validation_status || activeVersion?.status) === 'active' ? 'bg-accent-success' : 'bg-accent-warning'
-                        }`}></span>
-                        <span className="text-sm font-medium capitalize">{activeVersion?.validation_status || activeVersion?.status || 'Draft'}</span>
+                  <div className="flex flex-col gap-3">
+                    {/* Toggle Ativar/Desativar */}
+                    <button
+                      onClick={handleToggleActive}
+                      disabled={isTogglingActive || !activeVersionId}
+                      className={`
+                        flex items-center justify-between w-full px-3 py-2.5 rounded-lg border transition-all duration-200
+                        ${activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                          ? 'bg-accent-success/10 border-accent-success/30 hover:bg-accent-success/20' 
+                          : 'bg-bg-tertiary border-border-default hover:bg-bg-hover'
+                        }
+                        ${isTogglingActive ? 'opacity-70 cursor-wait' : 'cursor-pointer'}
+                        ${!activeVersionId ? 'opacity-50 cursor-not-allowed' : ''}
+                      `}
+                      title={activeVersion?.is_active ? 'Clique para desativar o agente' : 'Clique para ativar o agente'}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Power 
+                          size={16} 
+                          className={`${isTogglingActive ? 'animate-pulse' : ''} ${
+                            activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                              ? 'text-accent-success' 
+                              : 'text-text-muted'
+                          }`} 
+                        />
+                        <span className={`text-sm font-medium ${
+                          activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                            ? 'text-accent-success' 
+                            : 'text-text-secondary'
+                        }`}>
+                          {isTogglingActive 
+                            ? 'Alterando...' 
+                            : activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                              ? 'Ativo em Produção'
+                              : 'Inativo'
+                          }
+                        </span>
+                      </div>
+                      
+                      {/* Toggle Switch Visual */}
+                      <div className={`
+                        relative w-10 h-5 rounded-full transition-colors duration-200
+                        ${activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                          ? 'bg-accent-success' 
+                          : 'bg-bg-hover border border-border-default'
+                        }
+                      `}>
+                        <div className={`
+                          absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200
+                          ${activeVersion?.is_active && (activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production')
+                            ? 'translate-x-5' 
+                            : 'translate-x-0.5'
+                          }
+                        `}></div>
+                      </div>
+                    </button>
+                    
+                    {/* Info: ambos campos precisam estar ativos */}
+                    <div className="text-[10px] text-text-muted bg-bg-tertiary/50 px-2 py-1.5 rounded flex items-start gap-1.5">
+                      <span className="shrink-0">ℹ️</span>
+                      <span>
+                        Requer <code className="bg-bg-hover px-1 rounded">is_active=TRUE</code> e <code className="bg-bg-hover px-1 rounded">status=active</code> para funcionar no fluxo IA.
+                      </span>
                     </div>
+                    
+                    {/* Status atual dos campos */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className={`px-2 py-1.5 rounded border ${
+                        activeVersion?.is_active 
+                          ? 'bg-accent-success/10 border-accent-success/30 text-accent-success' 
+                          : 'bg-bg-tertiary border-border-default text-text-muted'
+                      }`}>
+                        <div className="text-[10px] opacity-70">is_active</div>
+                        <div className="font-mono font-medium">{activeVersion?.is_active ? 'TRUE' : 'FALSE'}</div>
+                      </div>
+                      <div className={`px-2 py-1.5 rounded border ${
+                        activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production'
+                          ? 'bg-accent-success/10 border-accent-success/30 text-accent-success' 
+                          : 'bg-bg-tertiary border-border-default text-text-muted'
+                      }`}>
+                        <div className="text-[10px] opacity-70">status</div>
+                        <div className="font-mono font-medium">{activeVersion?.validation_status || activeVersion?.status || 'draft'}</div>
+                      </div>
+                    </div>
+                    
                     {activeVersion?.avg_score_overall !== undefined && (
                         <div className="text-xs flex justify-between items-center bg-bg-tertiary p-1.5 rounded">
                             <span>Score Geral:</span>
