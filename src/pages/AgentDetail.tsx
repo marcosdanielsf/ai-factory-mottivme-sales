@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle2, AlertCircle, Edit, Play, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle2, AlertCircle, Edit, Play, Clock, TrendingUp, Power, PowerOff, ChevronDown, ChevronUp, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AgentPerformanceRadar, ScoreAreaChart } from '../components/charts';
 
@@ -20,6 +20,19 @@ interface AgentVersion {
   last_test_at: string | null;
   created_at: string;
   updated_at: string;
+  // 8 campos de configuração
+  tools_config: Record<string, any> | null;
+  compliance_rules: Record<string, any> | null;
+  personality_config: Record<string, any> | null;
+  qualification_config: Record<string, any> | null;
+  business_config: Record<string, any> | null;
+  // Extras
+  prompts_by_mode: Record<string, any> | null;
+  deployment_notes: string | null;
+  hyperpersonalization: Record<string, any> | null;
+  location_id: string | null;
+  client_id: string | null;
+  avg_score_overall: number | null;
 }
 
 interface TestResult {
@@ -95,6 +108,84 @@ export const AgentDetail = () => {
       setTesting(false);
       fetchAgent(); // Refresh data
     }, 3000);
+  };
+
+  // Toggle is_active
+  const handleToggleActive = async () => {
+    if (!agent) return;
+    try {
+      const { error } = await supabase
+        .from('agent_versions')
+        .update({ is_active: !agent.is_active })
+        .eq('id', agent.id);
+      
+      if (error) throw error;
+      fetchAgent();
+    } catch (err: any) {
+      console.error('Error toggling active:', err);
+    }
+  };
+
+  // Change status
+  const handleChangeStatus = async (newStatus: string) => {
+    if (!agent) return;
+    try {
+      const { error } = await supabase
+        .from('agent_versions')
+        .update({ status: newStatus })
+        .eq('id', agent.id);
+      
+      if (error) throw error;
+      fetchAgent();
+    } catch (err: any) {
+      console.error('Error changing status:', err);
+    }
+  };
+
+  // Componente para mostrar JSONB expandível
+  const JsonSection = ({ title, icon: Icon, data, color = 'blue' }: { title: string; icon: any; data: any; color?: string }) => {
+    const [expanded, setExpanded] = useState(false);
+    const colorClasses: Record<string, string> = {
+      blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+      green: 'text-green-400 bg-green-500/10 border-green-500/20',
+      yellow: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+      purple: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+      pink: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+      orange: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+    };
+    
+    if (!data || Object.keys(data).length === 0) {
+      return (
+        <div className={`p-4 rounded-lg border ${colorClasses[color]} opacity-50`}>
+          <div className="flex items-center gap-2">
+            <Icon size={18} />
+            <span className="font-medium">{title}</span>
+            <span className="text-xs ml-auto">Não configurado</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`rounded-lg border ${colorClasses[color]}`}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full p-4 flex items-center gap-2 hover:bg-white/5 transition-colors"
+        >
+          <Icon size={18} />
+          <span className="font-medium">{title}</span>
+          <span className="text-xs ml-auto mr-2">{Object.keys(data).length} campos</span>
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {expanded && (
+          <div className="px-4 pb-4 border-t border-current/10">
+            <pre className="text-xs overflow-auto max-h-80 mt-3 p-3 bg-black/20 rounded">
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -196,7 +287,33 @@ export const AgentDetail = () => {
               : 'Nunca testado'}
           </p>
 
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
+            {/* Toggle Ativo/Inativo */}
+            <button
+              onClick={handleToggleActive}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                agent.is_active 
+                  ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                  : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+              }`}
+            >
+              {agent.is_active ? <Power size={16} /> : <PowerOff size={16} />}
+              {agent.is_active ? 'Ativo' : 'Inativo'}
+            </button>
+
+            {/* Status Dropdown */}
+            <select
+              value={agent.status}
+              onChange={(e) => handleChangeStatus(e.target.value)}
+              className="px-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-text-primary cursor-pointer hover:bg-bg-tertiary transition-colors"
+            >
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="production">Production</option>
+              <option value="deprecated">Deprecated</option>
+              <option value="archived">Archived</option>
+            </select>
+
             <button
               onClick={() => navigate('/prompt-studio')}
               className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default rounded-lg hover:bg-bg-tertiary transition-colors"
@@ -225,6 +342,82 @@ export const AgentDetail = () => {
             <TrendingUp size={12} />
             {agent.total_test_runs} testes realizados
           </div>
+        </div>
+      </div>
+
+      {/* System Prompt */}
+      {agent.system_prompt && (
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="text-accent-primary" size={20} />
+            <h3 className="text-lg font-semibold text-text-primary">System Prompt</h3>
+            <span className="text-xs text-text-muted ml-auto">{agent.system_prompt.length} caracteres</span>
+          </div>
+          <pre className="text-sm text-text-secondary whitespace-pre-wrap bg-bg-tertiary p-4 rounded-lg max-h-60 overflow-auto">
+            {agent.system_prompt}
+          </pre>
+        </div>
+      )}
+
+      {/* 8 Campos de Configuração */}
+      <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Settings className="text-accent-primary" size={20} />
+          <h3 className="text-lg font-semibold text-text-primary">Configurações do Agente</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <JsonSection title="Tools Config" icon={Code} data={agent.tools_config} color="blue" />
+          <JsonSection title="Compliance Rules" icon={Shield} data={agent.compliance_rules} color="red" />
+          <JsonSection title="Personality Config" icon={Brain} data={agent.personality_config} color="purple" />
+          <JsonSection title="Qualification Config" icon={Target} data={agent.qualification_config} color="green" />
+          <JsonSection title="Business Config" icon={Briefcase} data={agent.business_config} color="orange" />
+          <JsonSection title="Prompts by Mode" icon={BookOpen} data={agent.prompts_by_mode} color="pink" />
+        </div>
+      </div>
+
+      {/* Extras */}
+      {(agent.hyperpersonalization || agent.deployment_notes) && (
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Sparkles className="text-accent-primary" size={20} />
+            <h3 className="text-lg font-semibold text-text-primary">Extras</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <JsonSection title="Hyperpersonalization" icon={Sparkles} data={agent.hyperpersonalization} color="pink" />
+            {agent.deployment_notes && (
+              <div className="p-4 rounded-lg border border-gray-500/20 bg-gray-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText size={18} className="text-gray-400" />
+                  <span className="font-medium text-gray-400">Deployment Notes</span>
+                </div>
+                <p className="text-sm text-text-secondary">{agent.deployment_notes}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Info Adicional */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+          <p className="text-xs text-text-muted mb-1">Location ID</p>
+          <p className="text-sm text-text-primary font-mono truncate">{agent.location_id || '-'}</p>
+        </div>
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+          <p className="text-xs text-text-muted mb-1">Client ID</p>
+          <p className="text-sm text-text-primary font-mono truncate">{agent.client_id || '-'}</p>
+        </div>
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+          <p className="text-xs text-text-muted mb-1">Validation Score</p>
+          <p className={`text-sm font-bold ${getScoreColor(agent.validation_score || 0)}`}>
+            {agent.validation_score?.toFixed(1) || '-'}
+          </p>
+        </div>
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
+          <p className="text-xs text-text-muted mb-1">Avg Score Overall</p>
+          <p className={`text-sm font-bold ${getScoreColor(agent.avg_score_overall || 0)}`}>
+            {agent.avg_score_overall?.toFixed(1) || '-'}
+          </p>
         </div>
       </div>
 
