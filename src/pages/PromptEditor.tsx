@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAgents, useAgentVersions } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
-import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase } from 'lucide-react';
+import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles } from 'lucide-react';
 import { AgentVersion, Agent } from '../types';
 import { AdjustmentsChat } from '../components/AdjustmentsChat';
 
@@ -401,65 +401,74 @@ export const PromptEditor = () => {
 
           <div className="h-4 w-px bg-border-default"></div>
 
-          {/* Tab Selector - Principal */}
-          <div className="flex bg-bg-tertiary p-1 rounded-md">
-            <button 
-              onClick={() => handleTabChange('prompt')}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'prompt' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-            >
-              System Prompt
-            </button>
-            <button 
-              onClick={() => handleTabChange('modes')}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'modes' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-            >
-              Modos
-            </button>
-            <button 
-              onClick={() => handleTabChange('config')}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'config' ? 'bg-bg-secondary text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-            >
-              Hiperpersonalização
-            </button>
+          {/* Tab Selector - Conteúdo */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">Conteúdo</span>
+            <div className="flex bg-bg-tertiary p-1 rounded-md">
+              <button 
+                onClick={() => handleTabChange('prompt')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'prompt' ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="System Prompt"
+              >
+                <FileText size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('modes')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'modes' ? 'bg-violet-500/20 text-violet-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Modos de Operação"
+              >
+                <GitBranch size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('config')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'config' ? 'bg-pink-500/20 text-pink-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Hiperpersonalização"
+              >
+                <Sparkles size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Tab Selector - Configs do Agente */}
-          <div className="flex bg-bg-tertiary p-1 rounded-md">
-            <button 
-              onClick={() => handleTabChange('tools')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'tools' ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-              title="Tools Config"
-            >
-              <Code size={14} />
-            </button>
-            <button 
-              onClick={() => handleTabChange('compliance')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'compliance' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-              title="Compliance Rules"
-            >
-              <Shield size={14} />
-            </button>
-            <button 
-              onClick={() => handleTabChange('personality')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'personality' ? 'bg-purple-500/20 text-purple-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-              title="Personality Config"
-            >
-              <Brain size={14} />
-            </button>
-            <button 
-              onClick={() => handleTabChange('qualification')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'qualification' ? 'bg-green-500/20 text-green-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-              title="Qualification Config"
-            >
-              <Target size={14} />
-            </button>
-            <button 
-              onClick={() => handleTabChange('business')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'business' ? 'bg-orange-500/20 text-orange-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-              title="Business Config"
-            >
-              <Briefcase size={14} />
-            </button>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">Configs</span>
+            <div className="flex bg-bg-tertiary p-1 rounded-md">
+              <button 
+                onClick={() => handleTabChange('tools')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'tools' ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Tools Config"
+              >
+                <Code size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('compliance')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'compliance' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Compliance Rules"
+              >
+                <Shield size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('personality')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'personality' ? 'bg-purple-500/20 text-purple-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Personality Config"
+              >
+                <Brain size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('qualification')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'qualification' ? 'bg-green-500/20 text-green-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Qualification Config"
+              >
+                <Target size={14} />
+              </button>
+              <button 
+                onClick={() => handleTabChange('business')}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'business' ? 'bg-orange-500/20 text-orange-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
+                title="Business Config"
+              >
+                <Briefcase size={14} />
+              </button>
+            </div>
           </div>
 
           <div className="h-4 w-px bg-border-default"></div>
@@ -624,12 +633,12 @@ export const PromptEditor = () => {
             <div className="flex-1 flex flex-col relative">
               {/* Header com nome da config ativa */}
               <div className="absolute top-4 left-14 z-20 flex items-center gap-2">
+                {activeTab === 'config' && <span className="text-xs text-pink-400 font-medium flex items-center gap-1"><Sparkles size={12} /> Hiperpersonalização</span>}
                 {activeTab === 'tools' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Code size={12} /> Tools Config</span>}
                 {activeTab === 'compliance' && <span className="text-xs text-red-400 font-medium flex items-center gap-1"><Shield size={12} /> Compliance Rules</span>}
                 {activeTab === 'personality' && <span className="text-xs text-purple-400 font-medium flex items-center gap-1"><Brain size={12} /> Personality Config</span>}
                 {activeTab === 'qualification' && <span className="text-xs text-green-400 font-medium flex items-center gap-1"><Target size={12} /> Qualification Config</span>}
                 {activeTab === 'business' && <span className="text-xs text-orange-400 font-medium flex items-center gap-1"><Briefcase size={12} /> Business Config</span>}
-                {activeTab === 'config' && <span className="text-xs text-pink-400 font-medium flex items-center gap-1"><Settings size={12} /> Hiperpersonalização</span>}
               </div>
               <div className="absolute top-4 right-4 z-20">
                 {activeTab === 'config' && (
