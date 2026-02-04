@@ -1,7 +1,52 @@
-docs/node_modules/
-Self_Improving_System_Starter_Kit/A nali
-.vercel
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# Credenciais (nunca commitar)
-docs/estrategico/CREDENCIAIS-MASTER.md
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel/
+
+# Testing
+coverage/
+.vitest/
+
+# Credentials (NEVER commit)
 **/CREDENCIAIS*.md
+*.pem
+*.key
+
+# Archive
+9_archive/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

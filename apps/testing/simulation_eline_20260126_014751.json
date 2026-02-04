@@ -1,0 +1,625 @@
+{
+  "timestamp": "2026-01-26 01:47:51",
+  "prompt_version": "v3.0.0",
+  "location": "Dra. Eline Lobo - HormoSafe",
+  "overall_score": 92.5,
+  "outcomes": {
+    "scheduled": 0,
+    "interested": 0,
+    "pending": 5,
+    "lost": 0
+  },
+  "simulations": [
+    {
+      "persona": "joao_curioso",
+      "persona_name": "Dr. João",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 92.5,
+      "metrics": {
+        "final_score": 92.5,
+        "breakdown": {
+          "colega_usage": 100,
+          "single_question": 100,
+          "data_collection": 100,
+          "flow_respect": 100,
+          "name_usage": 50,
+          "outcome_bonus": 0
+        },
+        "colega_count": 0,
+        "double_questions": 0,
+        "asked_email": false,
+        "asked_phone": false,
+        "name_mentions": 0
+      },
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Oi! Quero saber mais sobre a mentoria HormoSafe"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        }
+      ]
+    },
+    {
+      "persona": "carla_cetica",
+      "persona_name": "Dra. Carla",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 92.5,
+      "metrics": {
+        "final_score": 92.5,
+        "breakdown": {
+          "colega_usage": 100,
+          "single_question": 100,
+          "data_collection": 100,
+          "flow_respect": 100,
+          "name_usage": 50,
+          "outcome_bonus": 0
+        },
+        "colega_count": 0,
+        "double_questions": 0,
+        "asked_email": false,
+        "asked_phone": false,
+        "name_mentions": 0
+      },
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Boa tarde. Vi sobre o HormoSafe. Já fiz outros cursos de hormônios, o que vocês têm de diferente?"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        }
+      ]
+    },
+    {
+      "persona": "pedro_ocupado",
+      "persona_name": "Dr. Pedro",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 92.5,
+      "metrics": {
+        "final_score": 92.5,
+        "breakdown": {
+          "colega_usage": 100,
+          "single_question": 100,
+          "data_collection": 100,
+          "flow_respect": 100,
+          "name_usage": 50,
+          "outcome_bonus": 0
+        },
+        "colega_count": 0,
+        "double_questions": 0,
+        "asked_email": false,
+        "asked_phone": false,
+        "name_mentions": 0
+      },
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Oi, quero saber sobre a mentoria"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        }
+      ]
+    },
+    {
+      "persona": "fernanda_medo",
+      "persona_name": "Dra. Fernanda",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 92.5,
+      "metrics": {
+        "final_score": 92.5,
+        "breakdown": {
+          "colega_usage": 100,
+          "single_question": 100,
+          "data_collection": 100,
+          "flow_respect": 100,
+          "name_usage": 50,
+          "outcome_bonus": 0
+        },
+        "colega_count": 0,
+        "double_questions": 0,
+        "asked_email": false,
+        "asked_phone": false,
+        "name_mentions": 0
+      },
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Olá! Tenho interesse na mentoria mas tenho algumas dúvidas sobre segurança..."
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        }
+      ]
+    },
+    {
+      "persona": "lucas_pronto",
+      "persona_name": "Dr. Lucas",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 92.5,
+      "metrics": {
+        "final_score": 92.5,
+        "breakdown": {
+          "colega_usage": 100,
+          "single_question": 100,
+          "data_collection": 100,
+          "flow_respect": 100,
+          "name_usage": 50,
+          "outcome_bonus": 0
+        },
+        "colega_count": 0,
+        "double_questions": 0,
+        "asked_email": false,
+        "asked_phone": false,
+        "name_mentions": 0
+      },
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Oi! Vi sobre a mentoria HormoSafe. Quero agendar uma call."
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        },
+        {
+          "role": "lead",
+          "content": "Erro na API"
+        },
+        {
+          "role": "sdr",
+          "content": "Erro na API"
+        }
+      ]
+    }
+  ],
+  "aggregate_metrics": {
+    "total_colega_usage": 0,
+    "total_double_questions": 0,
+    "asked_email_count": 0,
+    "asked_phone_count": 0
+  }
+}

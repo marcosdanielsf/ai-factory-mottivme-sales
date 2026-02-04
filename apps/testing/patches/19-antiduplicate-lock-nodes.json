@@ -1,0 +1,120 @@
+{
+  "name": "Patch 19 - Anti-Duplicate Lock Nodes",
+  "description": "Nodes para adicionar ao workflow SDR para evitar duplicação de mensagens",
+  "instructions": "Adicionar estes nodes LOGO APÓS o webhook de entrada e ANTES do processamento",
+
+  "nodes_to_add": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT try_acquire_processing_lock(\n  $1,\n  $2,\n  $3,\n  5\n) as lock_acquired;",
+        "options": {
+          "queryReplacement": "={{ [$json.contact?.id || $json.contactId, $execution.id, $json.message?.id || null].join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [30584, 27776],
+      "id": "lock-acquire-antiduplicate",
+      "name": "🔒 Acquire Lock",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Tenta adquirir lock para processar. Se retornar false, é duplicata."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-lock-acquired",
+              "leftValue": "={{ $json.lock_acquired }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [30784, 27776],
+      "id": "check-lock-acquired",
+      "name": "🔒 Lock OK?",
+      "notes": "Se false, é duplicata - PARAR execução"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT release_processing_lock($1, $2) as released;",
+        "options": {
+          "queryReplacement": "={{ [$json.contact?.id || $json.contactId, $execution.id].join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [38656, 27776],
+      "id": "lock-release",
+      "name": "🔓 Release Lock",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Liberar lock após enviar resposta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log de duplicata detectada\nconst contact = $input.first().json.contact || {};\nconst message = $input.first().json.message || {};\n\nconsole.log('[ANTIDUPLICATE] Mensagem duplicada detectada', {\n  contact_id: contact.id,\n  message_id: message.id,\n  execution_id: $execution.id,\n  timestamp: new Date().toISOString()\n});\n\nreturn [{ json: { status: 'DUPLICATE_BLOCKED', reason: 'Lock não adquirido' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [30784, 27976],
+      "id": "log-duplicate-blocked",
+      "name": "📛 Log Duplicata",
+      "notes": "Logar quando duplicata é bloqueada (branch false do IF)"
+    }
+  ],
+
+  "connections_to_add": {
+    "Mensagem recebida": {
+      "main": [[{ "node": "🔒 Acquire Lock", "type": "main", "index": 0 }]]
+    },
+    "🔒 Acquire Lock": {
+      "main": [[{ "node": "🔒 Lock OK?", "type": "main", "index": 0 }]]
+    },
+    "🔒 Lock OK?": {
+      "main": [
+        [{ "node": "📛 Log Duplicata", "type": "main", "index": 0 }],
+        [{ "node": "PROXIMO_NODE_ATUAL", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+
+  "implementation_steps": [
+    "1. Rodar migration 19-add-processing-lock-antiduplicate.sql no Supabase",
+    "2. No n8n, abrir workflow 'SDR Julia Amare'",
+    "3. Após o node 'Mensagem recebida', adicionar '🔒 Acquire Lock'",
+    "4. Adicionar '🔒 Lock OK?' após o Acquire Lock",
+    "5. Branch TRUE do IF vai para o fluxo normal",
+    "6. Branch FALSE do IF vai para '📛 Log Duplicata' (e termina)",
+    "7. No FINAL do workflow (após enviar mensagem), adicionar '🔓 Release Lock'",
+    "8. Testar enviando 2 mensagens rápidas do mesmo contato"
+  ]
+}

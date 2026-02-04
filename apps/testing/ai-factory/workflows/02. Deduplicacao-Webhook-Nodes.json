@@ -1,0 +1,126 @@
+{
+  "name": "Deduplicação Webhook - Importar no Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// DEDUPLICAÇÃO v1.0 - Evita processar mesma mensagem 2x\n// Adicionar LOGO APÓS o webhook, ANTES de qualquer processamento\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst items = $input.all();\nconst input = items[0].json;\n\n// Criar chave única para esta mensagem\nconst contactId = input.body?.contact_id || input.body?.customData?.ID || '';\nconst messageBody = input.body?.message?.body || input.body?.customData?.message || '';\nconst messageType = input.body?.message?.type || '';\nconst timestamp = Date.now();\n\n// Chave de deduplicação: contact_id + primeiros 50 chars da mensagem + tipo\nconst msgHash = messageBody.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '_');\nconst dedupeKey = `${contactId}_${msgHash}_${messageType}`;\n\n// Usar staticData do workflow para persistir entre execuções\nconst staticData = $getWorkflowStaticData('global');\nconst lastMessages = staticData.lastMessages || {};\n\n// Limpar mensagens antigas (mais de 5 minutos)\nconst fiveMinutesAgo = timestamp - (5 * 60 * 1000);\nfor (const key in lastMessages) {\n  if (lastMessages[key] < fiveMinutesAgo) {\n    delete lastMessages[key];\n  }\n}\n\n// Verificar se é duplicação (mesma mensagem nos últimos 60 segundos)\nconst DEBOUNCE_MS = 60000; // 60 segundos\n\nif (lastMessages[dedupeKey]) {\n  const timeSinceLast = timestamp - lastMessages[dedupeKey];\n  \n  if (timeSinceLast < DEBOUNCE_MS) {\n    // DUPLICADA - abortar processamento\n    console.log(`[DEDUPE] Mensagem duplicada ignorada: ${dedupeKey} (${Math.round(timeSinceLast/1000)}s atrás)`);\n    \n    return [{\n      json: {\n        abort: true,\n        reason: 'duplicate_message',\n        contact_id: contactId,\n        dedupe_key: dedupeKey,\n        time_since_last_seconds: Math.round(timeSinceLast / 1000)\n      }\n    }];\n  }\n}\n\n// Registrar esta mensagem como processada\nlastMessages[dedupeKey] = timestamp;\nstaticData.lastMessages = lastMessages;\n\nconsole.log(`[DEDUPE] Nova mensagem processada: ${dedupeKey}`);\n\n// Passar dados originais adiante\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    _dedupe: {\n      key: dedupeKey,\n      timestamp: timestamp,\n      is_new: true\n    }\n  }\n}));"
+      },
+      "id": "dedupe-check-001",
+      "name": "Deduplicação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Verifica se a mensagem já foi processada nos últimos 60s. Se sim, marca abort=true."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "dedupe-condition-001",
+              "leftValue": "={{ $json.abort }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dedupe-if-001",
+      "name": "É Duplicada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        680,
+        300
+      ],
+      "notes": "Se abort=true, vai para Stop. Se não, continua o fluxo normal."
+    },
+    {
+      "parameters": {},
+      "id": "dedupe-stop-001",
+      "name": "Stop (Duplicada)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "notes": "Mensagem duplicada - não faz nada"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "dedupe-continue-001",
+      "name": "Continuar (Nova)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "notes": "Mensagem nova - conecte à próxima etapa do seu workflow (ex: node Info)"
+    }
+  ],
+  "connections": {
+    "Deduplicação": {
+      "main": [
+        [
+          {
+            "node": "É Duplicada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Duplicada?": {
+      "main": [
+        [
+          {
+            "node": "Stop (Duplicada)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continuar (Nova)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Deduplicação"
+    },
+    {
+      "name": "Utility"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-25T21:30:00.000Z",
+  "versionId": "1.0.0"
+}

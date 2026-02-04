@@ -1,0 +1,108 @@
+# AI Factory Agents - Configuration
+# =================================
+
+# Anthropic API
+anthropic:
+  api_key: ${ANTHROPIC_API_KEY}
+  models:
+    orchestrator: claude-opus-4-20250514      # Para orquestração
+    agents: claude-sonnet-4-20250514          # Para agentes individuais
+    fast: claude-3-5-haiku-20241022           # Para tarefas simples
+  default_max_tokens: 4000
+  default_temperature: 0.7
+
+# Supabase
+supabase:
+  url: ${SUPABASE_URL}
+  key: ${SUPABASE_KEY}
+
+# GoHighLevel
+gohighlevel:
+  api_key: ${GHL_API_KEY}
+  location_id: ${GHL_LOCATION_ID}
+  base_url: https://services.leadconnectorhq.com
+
+# n8n (para comparação)
+n8n:
+  url: ${N8N_URL}
+  api_key: ${N8N_API_KEY}
+
+# Pipelines
+pipelines:
+  full:
+    name: "Pipeline Completo"
+    description: "Executa todos os agentes em sequência"
+    agents:
+      - agent_01_extractor
+      - agent_02_analyzer
+      - agent_03_generator
+      - agent_04_validator
+
+  analysis_only:
+    name: "Apenas Análise"
+    description: "Extrai e analisa, sem gerar prompt"
+    agents:
+      - agent_01_extractor
+      - agent_02_analyzer
+
+  prompt_only:
+    name: "Apenas Prompt"
+    description: "Gera prompt a partir de dados existentes"
+    agents:
+      - agent_03_generator
+
+# Agent Configurations
+agents:
+  agent_01_extractor:
+    name: "Extrator de Dados"
+    description: "Extrai dados de contato e conversa do GHL"
+    model: claude-sonnet-4-20250514
+    temperature: 0.3
+    max_tokens: 2000
+    timeout_seconds: 60
+
+  agent_02_analyzer:
+    name: "Head de Vendas"
+    description: "Analisa conversa e classifica lead (BANT)"
+    model: claude-opus-4-20250514
+    temperature: 0.5
+    max_tokens: 4000
+    timeout_seconds: 120
+
+  agent_03_generator:
+    name: "Prompt Factory"
+    description: "Gera system prompt otimizado para agente"
+    model: claude-opus-4-20250514
+    temperature: 0.7
+    max_tokens: 8000
+    timeout_seconds: 180
+
+  agent_04_validator:
+    name: "Validador"
+    description: "Testa e valida agentes gerados"
+    model: claude-opus-4-20250514
+    temperature: 0.3
+    max_tokens: 4000
+    timeout_seconds: 120
+
+# Memory
+memory:
+  type: supabase  # supabase, local_json, redis
+  table: agent_execution_memory
+  ttl_hours: 24
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ./logs/agents.log
+
+# Comparison (n8n vs Claude)
+comparison:
+  enabled: true
+  metrics:
+    - execution_time
+    - token_usage
+    - output_similarity
+    - classification_match
+    - score_difference

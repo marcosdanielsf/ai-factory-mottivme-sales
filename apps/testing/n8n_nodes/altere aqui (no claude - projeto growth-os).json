@@ -1,0 +1,139 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Set mensagens - Mapeia campos do workflow Info para formato interno\nconst setMensagensData = $('Set mensagens').first().json;\n\nconst input = $input.item.json;\n\n// Pegar dados do Info diretamente para garantir calendários\nconst infoData = $('Info').first().json;\n\n// Extrair source baseado no agente\nlet source = 'whatsapp';\nif (input.agente_ia === 'social_seller_instagram' || input.source === 'instagram') {\n  source = 'instagram';\n}\n\n// Extrair etiquetas (pode ser string ou array)\nlet etiquetas = [];\nif (input.etiquetas) {\n  etiquetas = typeof input.etiquetas === 'string' \n    ? input.etiquetas.split(',').map(t => t.trim()).filter(t => t) \n    : input.etiquetas;\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// DADOS DO FORMULÁRIO DE TRÁFEGO (Facebook/Instagram Ads)\n// ─────────────────────────────────────────────────────────────────────────────\nconst formularioTrafego = {\n  origem_campanha: infoData.utm_campaign || input.utm_source || '',\n  sintomas_atuais: infoData.form_sintomas_atualmente || '',\n  procurou_ajuda: infoData.form_procurou_ajuda_medica || '',\n  mudanca_corpo: infoData.form_mudanca_no_corpo || '',\n  preferencia_consulta: infoData.form_tipo_de_consulta || '',\n  pronto_investir: infoData.form_interessado_em_investir || ''\n};\n\n// Verificar se é lead de tráfego (tem dados do formulário)\nconst isLeadTrafego = !!(formularioTrafego.sintomas_atuais || formularioTrafego.preferencia_consulta || formularioTrafego.origem_campanha || formularioTrafego.procurou_ajuda);\n\nreturn {\n  json: {\n    // IDs\n    location_id: infoData.location_id || input.owner_origin || '',\n    contact_id: infoData.lead_id || '',\n    conversation_id: infoData.id_conversa_alerta || infoData.lead_id || '',\n    \n    // Dados do contato\n    phone: infoData.telefone || '',\n    full_name: infoData.full_name || infoData.first_name || 'Visitante',\n    \n    // Mensagem\nmessage: setMensagensData.mensagem || infoData.mensagem || input.resposta_ia || '',\n    source: source,\n    \n    // Contexto do lead\n    historico: input.historico || [],\n    etiquetas: etiquetas,\n    status_pagamento: infoData.status_cobranca || 'nenhum',\n    preferencia_audio_texto: infoData.tipo_mensagem_original || 'texto',\n    \n    // Modo do agente\n    modo_agente: infoData.agente_ia || 'sdr_inbound',\n    \n    // Calendários do GHL - AGORA PEGANDO DO INFO DIRETAMENTE\n    calendarios_ghl: {\n      sao_paulo: infoData.agenda_consultorio_sao_paulo || '',\n      presidente_prudente: infoData.agenda_presidente_prudente || '',\n      online: infoData.agenda_consulta_online || ''\n    },\n    \n    // API Key\n    ghl_api_key: infoData.api_key || '',\n    \n    // Dados extras do lead\n    objetivo: infoData.objetivo_do_lead || '',\n    is_primeira_mensagem: infoData.is_primeira_mensagem || false,\n    tipo_lead: infoData.tipo_lead || 'NAO_IDENTIFICADO',\n    \n    // Dados do formulário de tráfego\n    formulario_trafego: formularioTrafego,\n    is_lead_trafego: isLeadTrafego\n  }\n};"
+      },
+      "id": "ab5fbed1-f402-439c-87dd-0b0d573062d5",
+      "name": "Set mensagens2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        36656,
+        27760
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.*, l.api_key as location_api_key\nFROM agent_versions av\nLEFT JOIN locations l ON av.location_id = l.location_id\nWHERE av.location_id = '{{ $('Set mensagens').first().json.location_id }}'\n  AND av.is_active = true\n  AND av.status = 'active'\nORDER BY av.deployed_at DESC NULLS LAST, av.created_at DESC\nLIMIT 1",
+        "options": {}
+      },
+      "id": "a9e74cbf-e4e4-4e44-a58e-155de42512ce",
+      "name": "Buscar Agente Ativo2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        36880,
+        27760
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// FORMATAR CALENDÁRIOS\n// Usa calendários do GHL (customData) com fallback para scheduling_config\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst prev = $input.item.json;\nconst schedulingConfig = prev.scheduling_config || {};\nconst calendariosGHL = prev.calendarios_ghl || {};\n\n// Mapear calendários - prioridade para GHL, fallback para config do agente\nconst calendarios = [];\n\nconst calSP = calendariosGHL.sao_paulo || schedulingConfig.agenda_consultorio_sao_paulo;\nconst calPP = calendariosGHL.presidente_prudente || schedulingConfig.agenda_presidente_prudente;\nconst calOnline = calendariosGHL.online || schedulingConfig.agenda_consulta_online;\n\nif (calSP) {\n  calendarios.push(`• Consultório São Paulo (Moema): ID ${calSP}`);\n}\n\nif (calPP) {\n  calendarios.push(`• Unidade Presidente Prudente: ID ${calPP}`);\n}\n\nif (calOnline) {\n  calendarios.push(`• Consulta Online (Telemedicina): ID ${calOnline}`);\n}\n\n// Se não houver calendários configurados\nif (calendarios.length === 0) {\n  calendarios.push('• Calendários não configurados');\n}\n\nconst calendariosFormatados = calendarios.join('\\n');\n\n// Informações de agendamento\nconst agendamentoInfo = [\n  `Horários: Segunda a Sexta, 9h-18h | Sábado 8h-12h`,\n  `Duração consulta: 1h a 1h30`,\n  `Antecedência mínima: 24 horas`,\n  `Cancelamento: Até 24h antes sem custo`\n].join('\\n');\n\nreturn {\n  json: {\n    ...prev,\n    calendarios_formatados: calendariosFormatados,\n    agendamento_info: agendamentoInfo,\n    // IDs para usar nas tools de agendamento\n    calendar_ids: {\n      sao_paulo: calSP || '',\n      presidente_prudente: calPP || '',\n      online: calOnline || ''\n    },\n    // Garantir que dados do formulário passam adiante\n    formulario_trafego: prev.formulario_trafego || {},\n    is_lead_trafego: prev.is_lead_trafego || false\n  }\n};"
+      },
+      "id": "d81ccc44-cb46-41c1-b1dc-b1522e4d3784",
+      "name": "Formatar Calendários1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        37312,
+        27760
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// MONTAR PROMPTS FINAIS v6.6 - VERSÃO SUPABASE\n// Pega prompts modulares do campo prompts_by_mode do Supabase\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst prev = $input.item.json;\n\n// ─────────────────────────────────────────────────────────────────────────────\n// FUNÇÃO PARA SUBSTITUIR VARIÁVEIS MUSTACHE\n// ─────────────────────────────────────────────────────────────────────────────\nfunction replaceVars(template, vars) {\n  if (!template) return '';\n  let result = template;\n\n  for (const [key, value] of Object.entries(vars)) {\n    const pattern = new RegExp(`\\\\{\\\\{\\\\s*${key}\\\\s*\\\\}\\\\}`, 'g');\n    result = result.replace(pattern, value || '');\n  }\n\n  return result;\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// VARIÁVEIS PARA SUBSTITUIÇÃO\n// ─────────────────────────────────────────────────────────────────────────────\nconst variaveis = {\n  modo_agente: prev.agent_type || 'sdr_inbound',\n  source: prev.source || 'instagram',\n  full_name: prev.full_name || 'Visitante',\n  timezone: 'America/Sao_Paulo',\n  agente: prev.agent_name || 'Agente',\n  data_hora: prev.data_hora,\n  status_pagamento: prev.status_pagamento || 'nenhum',\n  preferencia_audio_texto: prev.preferencia_audio_texto || 'texto'\n};\n\n// ─────────────────────────────────────────────────────────────────────────────\n// DETECTAR MODO ATIVO (agente_ia)\n// ─────────────────────────────────────────────────────────────────────────────\nconst modoAtivo = prev.agente_ia || prev.agent_type || 'sdr_inbound';\n\n// ─────────────────────────────────────────────────────────────────────────────\n// PEGAR PROMPTS DO SUPABASE (prompts_by_mode)\n// ─────────────────────────────────────────────────────────────────────────────\nconst promptsDoAgente = prev.prompts_by_mode || {};\n\n// Normalizar o modo para encontrar no JSON\nfunction normalizarModo(modo) {\n  const modoLower = (modo || '').toLowerCase().trim();\n\n  const aliases = {\n    'sdr': 'sdr_inbound',\n    'inbound': 'sdr_inbound',\n    'social_seller': 'social_seller_instagram',\n    'instagram': 'social_seller_instagram',\n    'agendamento': 'scheduler',\n    'followup': 'followuper',\n    'objecao': 'objection_handler',\n    'objecoes': 'objection_handler',\n    'reativador': 'reativador_base'\n  };\n\n  return aliases[modoLower] || modoLower;\n}\n\nconst modoNormalizado = normalizarModo(modoAtivo);\n\n// Pegar o prompt do modo ativo (ou fallback para sdr_inbound)\nconst promptModoAtivo = promptsDoAgente[modoNormalizado]\n  || promptsDoAgente['sdr_inbound']\n  || '';\n\n// Prompt base vem do system_prompt do agente\nconst promptBase = prev.system_prompt || '';\n\n// ─────────────────────────────────────────────────────────────────────────────\n// MONTAR SYSTEM PROMPT FINAL\n// ─────────────────────────────────────────────────────────────────────────────\nlet systemPrompt = promptBase + '\\n\\n' + promptModoAtivo;\n\n// Substituir variáveis\nsystemPrompt = replaceVars(systemPrompt, variaveis);\n\n// ─────────────────────────────────────────────────────────────────────────────\n// REGRA DINÂMICA DE SAUDAÇÃO\n// ─────────────────────────────────────────────────────────────────────────────\nlet regraSaudacao = '';\nconst hora = prev.hora_numero;\nconst historicoExiste = prev.historico_existe;\n\nif (!historicoExiste) {\n  if (hora >= 5 && hora < 12) {\n    regraSaudacao = '\\n\\n<regra_saudacao>\\nÉ a PRIMEIRA mensagem. Inicie com \"Bom dia\" de forma calorosa.\\n</regra_saudacao>';\n  } else if (hora >= 12 && hora < 18) {\n    regraSaudacao = '\\n\\n<regra_saudacao>\\nÉ a PRIMEIRA mensagem. Inicie com \"Boa tarde\" de forma calorosa.\\n</regra_saudacao>';\n  } else {\n    regraSaudacao = '\\n\\n<regra_saudacao>\\nÉ a PRIMEIRA mensagem. Inicie com \"Boa noite\" de forma calorosa.\\n</regra_saudacao>';\n  }\n} else {\n  regraSaudacao = '\\n\\n<regra_saudacao>\\nConversa já iniciada. NÃO repita saudação. Continue naturalmente.\\n</regra_saudacao>';\n}\n\nsystemPrompt += regraSaudacao;\n\n// ─────────────────────────────────────────────────────────────────────────────\n// MONTAR BLOCO DE RESPOSTAS DO FORMULÁRIO DE TRÁFEGO\n// ─────────────────────────────────────────────────────────────────────────────\nlet blocoFormularioTrafego = '';\nconst form = prev.formulario_trafego || {};\nconst isLeadTrafego = prev.is_lead_trafego || false;\n\nif (isLeadTrafego) {\n  const linhas = [];\n  if (form.origem_campanha) linhas.push(`VEIO POR CAMPANHA: ${form.origem_campanha}`);\n  if (form.procurou_ajuda) linhas.push(`PROCUROU AJUDA ANTES: ${form.procurou_ajuda}`);\n  if (form.sintomas_atuais) linhas.push(`SINTOMAS ATUAIS: ${form.sintomas_atuais}`);\n  if (form.mudanca_corpo) linhas.push(`MUDANÇA NO CORPO: ${form.mudanca_corpo}`);\n  if (form.preferencia_consulta) linhas.push(`PREFERÊNCIA CONSULTA: ${form.preferencia_consulta}`);\n  if (form.pronto_investir) linhas.push(`PRONTO PRA INVESTIR: ${form.pronto_investir}`);\n\n  if (linhas.length > 0) {\n    blocoFormularioTrafego = `\\n<respostas_formulario_trafego>\\n${linhas.join('\\n')}\\n</respostas_formulario_trafego>\\n`;\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// MONTAR USER PROMPT\n// ─────────────────────────────────────────────────────────────────────────────\nconst etiquetasStr = Array.isArray(prev.etiquetas)\n  ? prev.etiquetas.join(', ')\n  : (prev.etiquetas || 'nenhuma');\n\nlet userPrompt = `\n<contexto_conversa>\nLEAD: ${prev.full_name}\nCANAL: ${prev.source}\nDDD: ${prev.ddd || 'não identificado'}\nDATA/HORA: ${prev.data_hora}\nETIQUETAS: ${etiquetasStr}\nSTATUS PAGAMENTO: ${prev.status_pagamento}\nMODO ATIVO: ${modoAtivo}\n</contexto_conversa>\n`;\n\nif (blocoFormularioTrafego) {\n  userPrompt += blocoFormularioTrafego;\n}\n\nuserPrompt += `\n<hiperpersonalizacao>\n${prev.contexto_hiperpersonalizado}\n</hiperpersonalizacao>\n\n<calendarios_disponiveis>\n${prev.calendarios_formatados || ''}\n\n${prev.agendamento_info || ''}\n</calendarios_disponiveis>\n`;\n\nif (prev.historico_formatado) {\n  userPrompt += `\n<historico_conversa>\n${prev.historico_formatado}\n</historico_conversa>\n`;\n}\n\nuserPrompt += `\n<mensagem_atual>\nLEAD: ${prev.message}\n</mensagem_atual>\n\nResponda à mensagem acima como ${variaveis.agente}, seguindo as instruções do MODO ATIVO: ${modoAtivo}.`;\n\n// ─────────────────────────────────────────────────────────────────────────────\n// OUTPUT FINAL\n// ─────────────────────────────────────────────────────────────────────────────\nreturn {\n  json: {\n    system_prompt: systemPrompt,\n    user_prompt: userPrompt,\n    _meta: {\n      agent_name: prev.agent_name || 'Agente',\n      agent_version: prev.version || 'v6.6',\n      modo_ativo: modoAtivo,\n      modo_normalizado: modoNormalizado,\n      prompt_modo_encontrado: !!promptsDoAgente[modoNormalizado],\n      contact_id: prev.contact_id,\n      conversation_id: prev.conversation_id,\n      historico_mensagens: prev.historico_existe ? 'sim' : 'não',\n      hora_execucao: prev.data_hora,\n      is_lead_trafego: isLeadTrafego,\n      prompt_size: systemPrompt.length,\n      modos_disponiveis: Object.keys(promptsDoAgente)\n    }\n  }\n};"
+      },
+      "id": "c46dec94-2a4f-4274-986e-1f7007f69aef",
+      "name": "Montar Prompts Finais1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        37536,
+        27760
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// PREPARAR EXECUÇÃO + IDENTIFICAR CONTEXTO v6.6 - VERSÃO SUPABASE\n// Passa prompts_by_mode do Supabase para o próximo nó\n// ═══════════════════════════════════════════════════════════════════════════\n\n// Pegar dados do agente (vem do node anterior - Buscar Agente Ativo)\nconst agent = $input.item.json;\n\n// Pegar dados das mensagens dos nodes Set mensagens\nconst mensagens = $('Set mensagens2').first().json;\nconst setMensagens = $('Set mensagens').first().json;\n\n// Pegar customData do webhook original\nconst customData = $('Mensagem recebida').first().json.body?.customData || {};\n\n// Pegar agente_ia direto do Info (fonte mais confiável)\nconst infoData = $('Info').first().json;\n\n// ─────────────────────────────────────────────────────────────────────────────\n// PARSE SEGURO DE JSON\n// ─────────────────────────────────────────────────────────────────────────────\nfunction safeParseJSON(value, fallback = {}) {\n  if (!value) return fallback;\n  if (typeof value === 'object') return value;\n  try {\n    return JSON.parse(value);\n  } catch (e) {\n    console.log('Erro parsing JSON:', e.message);\n    return fallback;\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// EXTRAIR DDD DO TELEFONE\n// ─────────────────────────────────────────────────────────────────────────────\nfunction extrairDDD(telefone) {\n  if (!telefone) return null;\n  const limpo = telefone.replace(/\\D/g, '');\n\n  if (limpo.startsWith('55') && limpo.length >= 12) {\n    return limpo.substring(2, 4);\n  }\n  if (limpo.length >= 10 && limpo.length <= 11) {\n    return limpo.substring(0, 2);\n  }\n  return null;\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// DETERMINAR PERÍODO DO DIA\n// ─────────────────────────────────────────────────────────────────────────────\nfunction getPeriodoHorario() {\n  const agora = new Date();\n  const hora = agora.getHours();\n\n  if (hora >= 5 && hora < 12) return 'manha';\n  if (hora >= 12 && hora < 18) return 'tarde';\n  return 'noite';\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// GERAR CONTEXTO HIPERPERSONALIZADO\n// ─────────────────────────────────────────────────────────────────────────────\nfunction gerarContextoHiperpersonalizado(ddd, periodo, hyperConfig) {\n  const contextos = [];\n\n  if (hyperConfig.personalizacao_por_ddd && ddd) {\n    const dddConfig = hyperConfig.personalizacao_por_ddd[ddd];\n    if (dddConfig) {\n      contextos.push(`[REGIÃO ${ddd}] ${dddConfig.contexto || ''}`);\n      if (dddConfig.unidade_proxima) {\n        contextos.push(`Unidade mais próxima: ${dddConfig.unidade_proxima}`);\n      }\n    }\n  }\n\n  if (hyperConfig.saudacoes_por_horario) {\n    const saudacao = hyperConfig.saudacoes_por_horario[periodo];\n    if (saudacao) {\n      contextos.push(`Saudação recomendada: \"${saudacao}\"`);\n    }\n  }\n\n  return contextos.length > 0\n    ? contextos.join('\\n')\n    : 'Usar abordagem padrão empática e acolhedora';\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// PARSEAR CONFIGURAÇÕES DO AGENTE\n// ─────────────────────────────────────────────────────────────────────────────\nconst toolsConfig = safeParseJSON(agent.tools_config, {});\nconst businessConfig = safeParseJSON(agent.business_config, {});\nconst hyperpersonalization = safeParseJSON(agent.hyperpersonalization, {});\nconst qualificationConfig = safeParseJSON(agent.qualification_config, {});\nconst schedulingConfig = safeParseJSON(agent.scheduling_config, {});\nconst complianceConfig = safeParseJSON(agent.compliance_config, {});\nconst escalationConfig = safeParseJSON(agent.escalation_config, {});\nconst metricsConfig = safeParseJSON(agent.metrics_config, {});\nconst integrationConfig = safeParseJSON(agent.integration_config, {});\nconst knowledgeBase = safeParseJSON(agent.knowledge_base, []);\n\n// ⚠️ NOVO v6.6: Parsear prompts_by_mode do Supabase\nconst promptsByMode = safeParseJSON(agent.prompts_by_mode, {});\n\n// ─────────────────────────────────────────────────────────────────────────────\n// DADOS CONTEXTUAIS\n// ─────────────────────────────────────────────────────────────────────────────\nconst ddd = extrairDDD(mensagens.phone);\nconst periodo = getPeriodoHorario();\nconst agora = new Date();\nconst dataHora = agora.toLocaleString('pt-BR', {\n  timeZone: 'America/Sao_Paulo',\n  dateStyle: 'full',\n  timeStyle: 'short'\n});\n\nconst contextoHiper = gerarContextoHiperpersonalizado(ddd, periodo, hyperpersonalization);\n\n// ─────────────────────────────────────────────────────────────────────────────\n// FORMATAR HISTÓRICO\n// ─────────────────────────────────────────────────────────────────────────────\nlet historicoFormatado = '';\nif (mensagens.historico && mensagens.historico.length > 0) {\n  historicoFormatado = mensagens.historico\n    .slice(-10)\n    .map(m => `${m.role === 'user' ? 'LEAD' : 'ASSISTENTE'}: ${m.content}`)\n    .join('\\n');\n}\n\n// ─────────────────────────────────────────────────────────────────────────────\n// DETECTAR MODO ATIVO (agente_ia)\n// ─────────────────────────────────────────────────────────────────────────────\nconst agenteIA = infoData.agente_ia\n  || customData.agente_ia\n  || customData.agente_IA\n  || setMensagens.source\n  || mensagens.modo_agente\n  || agent.agent_type\n  || 'sdr_inbound';\n\nconsole.log('>>> MODO ATIVO DETECTADO:', agenteIA);\nconsole.log('>>> PROMPTS DISPONÍVEIS:', Object.keys(promptsByMode));\n\n// ─────────────────────────────────────────────────────────────────────────────\n// OUTPUT\n// ─────────────────────────────────────────────────────────────────────────────\nreturn {\n  json: {\n    agent_id: agent.id,\n    agent_name: agent.agent_name || 'Agente',\n    agent_type: agent.agent_type,\n    version: agent.version,\n    system_prompt: agent.system_prompt,\n    user_prompt_template: agent.user_prompt_template,\n    location_api_key: agent.location_api_key,\n    agente_ia: agenteIA,\n    prompts_by_mode: promptsByMode,\n    tools_config: toolsConfig,\n    business_config: businessConfig,\n    hyperpersonalization: hyperpersonalization,\n    qualification_config: qualificationConfig,\n    scheduling_config: schedulingConfig,\n    compliance_config: complianceConfig,\n    escalation_config: escalationConfig,\n    metrics_config: metricsConfig,\n    integration_config: integrationConfig,\n    knowledge_base: knowledgeBase,\n    contact_id: mensagens.contact_id,\n    phone: mensagens.phone,\n    full_name: mensagens.full_name,\n    source: mensagens.source,\n    message: mensagens.message,\n    conversation_id: mensagens.conversation_id,\n    etiquetas: mensagens.etiquetas,\n    status_pagamento: mensagens.status_pagamento,\n    preferencia_audio_texto: mensagens.preferencia_audio_texto,\n    ddd: ddd,\n    periodo: periodo,\n    data_hora: dataHora,\n    contexto_hiperpersonalizado: contextoHiper,\n    historico_formatado: historicoFormatado,\n    historico_existe: mensagens.historico && mensagens.historico.length > 0,\n    hora_numero: agora.getHours(),\n    calendarios_ghl: mensagens.calendarios_ghl || {},\n    ghl_api_key: mensagens.ghl_api_key || '',\n    formulario_trafego: mensagens.formulario_trafego || {},\n    is_lead_trafego: mensagens.is_lead_trafego || false\n  }\n};"
+      },
+      "id": "40bd39f3-2831-44c7-b59f-8e0fed789e46",
+      "name": "Preparar Execução + Identificar Contexto3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        37104,
+        27760
+      ]
+    }
+  ],
+  "connections": {
+    "Set mensagens2": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agente Ativo2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agente Ativo2": {
+      "main": [
+        [
+          {
+            "node": "Preparar Execução + Identificar Contexto3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Calendários1": {
+      "main": [
+        [
+          {
+            "node": "Montar Prompts Finais1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Prompts Finais1": {
+      "main": [
+        []
+      ]
+    },
+    "Preparar Execução + Identificar Contexto3": {
+      "main": [
+        [
+          {
+            "node": "Formatar Calendários1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "description": "Nó para buscar cadência de follow-up (intervalo, tipo de mensagem, tag)",
+    "version": "1.0",
+    "instructions": "Adicionar DEPOIS do nó 'Config Agente' e ANTES do nó de decisão"
+  },
+  "node_postgres": {
+    "parameters": {
+      "operation": "executeQuery",
+      "query": "SELECT \n  c.interval_minutes,\n  c.channel_max_hours,\n  c.message_type,\n  c.tag_to_add,\n  c.max_attempts,\n  c.allowed_hours_start,\n  c.allowed_hours_end,\n  r.max_hours_after_last_interaction as channel_limit\nFROM fuu_cadences c\nLEFT JOIN fuu_channel_rules r ON r.channel = c.channel\nWHERE c.location_id = '{{ $json.location_id }}'\n  AND c.follow_up_type = '{{ $('Config Agente').item.json.follow_up_type }}'\n  AND c.channel = '{{ $json.source }}'\n  AND c.attempt_number = {{ $json.proxima_tentativa }}\n  AND c.is_active = true\nLIMIT 1",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.postgres",
+    "typeVersion": 2.6,
+    "position": [-4400, 816],
+    "id": "buscar-cadencia-001",
+    "name": "Buscar Cadencia",
+    "credentials": {
+      "postgres": {
+        "id": "w2mBaRwhZ3tM4FUw",
+        "name": "Postgres Marcos Daniels."
+      }
+    },
+    "onError": "continueRegularOutput",
+    "continueOnFail": true
+  },
+  "node_set_cadencia": {
+    "parameters": {
+      "assignments": {
+        "assignments": [
+          {
+            "id": "msg-type-001",
+            "name": "message_type",
+            "value": "={{ $('Buscar Cadencia')?.item?.json?.message_type || 'ai_text' }}",
+            "type": "string"
+          },
+          {
+            "id": "tag-add-001",
+            "name": "tag_to_add",
+            "value": "={{ $('Buscar Cadencia')?.item?.json?.tag_to_add || '' }}",
+            "type": "string"
+          },
+          {
+            "id": "channel-limit-001",
+            "name": "channel_max_hours",
+            "value": "={{ $('Buscar Cadencia')?.item?.json?.channel_max_hours || $('Buscar Cadencia')?.item?.json?.channel_limit || null }}",
+            "type": "number"
+          },
+          {
+            "id": "max-attempts-001",
+            "name": "max_attempts",
+            "value": "={{ $('Buscar Cadencia')?.item?.json?.max_attempts || 5 }}",
+            "type": "number"
+          },
+          {
+            "id": "interval-001",
+            "name": "interval_minutes",
+            "value": "={{ $('Buscar Cadencia')?.item?.json?.interval_minutes || 35 }}",
+            "type": "number"
+          }
+        ]
+      },
+      "options": {}
+    },
+    "type": "n8n-nodes-base.set",
+    "typeVersion": 3.4,
+    "position": [-4200, 816],
+    "id": "config-cadencia-001",
+    "name": "Config Cadencia"
+  },
+  "node_switch_message_type": {
+    "parameters": {
+      "rules": {
+        "rules": [
+          {
+            "value": "tag",
+            "operation": "equals",
+            "outputKey": "Adicionar Tag"
+          },
+          {
+            "value": "template",
+            "operation": "equals",
+            "outputKey": "Usar Template"
+          }
+        ],
+        "fallbackOutput": "Gerar com IA"
+      },
+      "dataType": "string",
+      "value": "={{ $('Config Cadencia').item.json.message_type }}"
+    },
+    "type": "n8n-nodes-base.switch",
+    "typeVersion": 3.2,
+    "position": [-4000, 816],
+    "id": "switch-msg-type-001",
+    "name": "Tipo de Mensagem"
+  },
+  "node_verificar_limite_canal": {
+    "parameters": {
+      "conditions": {
+        "options": {
+          "caseSensitive": true,
+          "leftValue": "",
+          "typeValidation": "strict"
+        },
+        "conditions": [
+          {
+            "id": "check-instagram-limit",
+            "leftValue": "={{ $json.source }}",
+            "rightValue": "instagram",
+            "operator": {
+              "type": "string",
+              "operation": "equals"
+            }
+          },
+          {
+            "id": "check-hours",
+            "leftValue": "={{ $now.diff($json.ultima_interacao_lead).hours }}",
+            "rightValue": "={{ $('Config Cadencia').item.json.channel_max_hours || 24 }}",
+            "operator": {
+              "type": "number",
+              "operation": "gt"
+            }
+          }
+        ],
+        "combinator": "and"
+      }
+    },
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [-4200, 600],
+    "id": "verificar-limite-001",
+    "name": "Verificar Limite Canal",
+    "notes": "Se Instagram E passou de 24h desde última interação do lead, não envia"
+  },
+  "node_adicionar_tag_ghl": {
+    "parameters": {
+      "resource": "contact",
+      "operation": "update",
+      "contactId": "={{ $('Sem Resposta1').item.json.unique_id }}",
+      "updateFields": {
+        "tags": "={{ $('Config Cadencia').item.json.tag_to_add }}"
+      }
+    },
+    "type": "n8n-nodes-base.highLevel",
+    "typeVersion": 1,
+    "position": [-3800, 700],
+    "id": "add-tag-ghl-001",
+    "name": "Adicionar Tag GHL",
+    "credentials": {
+      "highLevelOAuth2Api": {
+        "id": "YOUR_CREDENTIAL_ID",
+        "name": "HighLevel OAuth2"
+      }
+    },
+    "notes": "Adiciona tag no contato para disparar áudio via workflow GHL"
+  },
+  "example_flow": {
+    "description": "Fluxo sugerido com os nós acima",
+    "flow": [
+      "Trigger (15 min)",
+      "Buscar leads elegíveis",
+      "Config Agente",
+      "Buscar Cadencia",
+      "Config Cadencia",
+      "Verificar Limite Canal → SE passou limite → Skip",
+      "Tipo de Mensagem (Switch):",
+      "  ├─ tag → Adicionar Tag GHL → Fim (GHL dispara áudio)",
+      "  ├─ template → Enviar Template → Fim",
+      "  └─ ai_text → Gerar com IA → Enviar mensagem"
+    ]
+  }
+}

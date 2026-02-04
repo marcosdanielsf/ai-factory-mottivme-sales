@@ -1,0 +1,158 @@
+{
+  "name": "07. Criar ou Buscar Cobranca (node extraído)",
+  "source": "0.1 - Fluxo Principal de Conversasão - GHL - Versionado",
+  "type": "node_group",
+  "nodes": [
+    {
+      "parameters": {
+        "description": "Utilize essa ferramenta para criar uma nova cobrança para o usuário, ou para consultar os dados de uma cobrança já existente.\n\nAntes de criar uma nova cobrança, sempre crie um agendamento para o cliente primeiro.",
+        "workflowId": {
+          "__rl": true,
+          "value": "45POrWnyU2UR7HjQ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/45POrWnyU2UR7HjQ",
+          "cachedResultName": "06.1 Integração Asaas"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cobranca_valor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cobranca_valor', `Valor exato da cobrança em reais (ex: 600.00). Consulte sempre a tabela de preços no contexto do negócio/prompt antes de preencher.`, 'number') }}",
+            "cobranca_vencimento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cobranca_vencimento', `Data do vencimento no format YYYY-MM-DD. Informar como o dia do agendamento + 7 dias.`, 'string') }}",
+            "telefone": "={{ $('Info').first().json.telefone }}",
+            "nome": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('nome', ``, 'string') }}",
+            "cpf": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cpf', ``, 'string') }}",
+            "id_conta": "={{ $('Info').first().json.location_id}}",
+            "id_contato": "={{ $('Info').first().json.lead_id }}",
+            "asaas_id_cliente": "={{ $('Info').first().json.atributos_contato.asaas_id_cliente }}",
+            "asaas_id_cobranca": "={{ $('Info').first().json.atributos_contato.asaas_id_cobranca }}",
+            "url_asaas": "={{ $('Info').first().json.url_asaas }}",
+            "api_key": "={{ $('Info').first().json.api_key }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "cobranca_valor",
+              "displayName": "cobranca_valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "cobranca_vencimento",
+              "displayName": "cobranca_vencimento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nome",
+              "displayName": "nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "cpf",
+              "displayName": "cpf",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_conta",
+              "displayName": "id_conta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_contato",
+              "displayName": "id_contato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asaas_id_cliente",
+              "displayName": "asaas_id_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asaas_id_cobranca",
+              "displayName": "asaas_id_cobranca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "url_chatwoot",
+              "displayName": "url_chatwoot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "url_asaas",
+              "displayName": "url_asaas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "api_key",
+              "displayName": "api_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        38560,
+        28144
+      ],
+      "id": "54c7b9ff-669c-403d-88d0-023004cec8cf",
+      "name": "Criar ou buscar cobranca"
+    }
+  ]
+}

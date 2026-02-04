@@ -1,0 +1,898 @@
+{
+  "updatedAt": "2025-12-23T09:43:57.067Z",
+  "createdAt": "2025-12-03T03:04:55.149Z",
+  "id": "GWKl5KuXAdeu4BLr",
+  "name": "[TOOL] Registrar Custo IA",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "date"
+            },
+            {
+              "name": "model"
+            },
+            {
+              "name": "input_tokens",
+              "type": "number"
+            },
+            {
+              "name": "output_tokens",
+              "type": "number"
+            },
+            {
+              "name": "total_tokens",
+              "type": "number"
+            },
+            {
+              "name": "workflowId"
+            },
+            {
+              "name": "executionId"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "location_name"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "contact_name"
+            },
+            {
+              "name": "canal"
+            },
+            {
+              "name": "tipo_acao"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        48
+      ],
+      "id": "c01fff46-fc99-411c-9f1c-ec0c2cc2f450",
+      "name": "Quando Chamado"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 23 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        -272
+      ],
+      "id": "347f528c-4363-40fc-b0e4-39ea1a6f6321",
+      "name": "Todo dia às 23h"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Buscar custos não consolidados do dia\nWITH custos_dia AS (\n  SELECT\n    DATE(created_at) as data,\n    COUNT(*) as execucoes,\n    SUM(tokens_input + tokens_output) as total_tokens,\n    SUM(custo_usd) as custo_usd\n  FROM llm_costs\n  WHERE \n    consolidado = false\n    AND DATE(created_at) < CURRENT_DATE -- Só consolida dias completos\n  GROUP BY DATE(created_at)\n)\nSELECT \n  data,\n  execucoes,\n  total_tokens,\n  custo_usd,\n  ROUND(custo_usd * 6.0, 2) as custo_brl -- Taxa aproximada USD->BRL\nFROM custos_dia\nWHERE custo_usd > 0\nORDER BY data;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -16,
+        -272
+      ],
+      "id": "0f14e636-13b2-430a-89da-36d1a8724190",
+      "name": "Buscar Custos Pendentes",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        -272
+      ],
+      "id": "ebd6a416-f630-4c48-95b1-86e0c2361f55",
+      "name": "Tem Custos?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Buscar ID da categoria 'Custos de IA'\nSELECT id FROM fin_categorias WHERE nome = 'Custos de IA' AND tipo = 'despesa' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        -368
+      ],
+      "id": "a5834208-0734-4990-97bf-eb5dc9fc0fe2",
+      "name": "Buscar Categoria IA",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar dados para inserção\nconst custos = $('Buscar Custos Pendentes').all();\nconst categoriaResult = $('Buscar Categoria IA').first();\nconst categoriaId = categoriaResult?.json?.id || null;\n\nconst resultado = custos.map(item => {\n  const data = item.json.data;\n  const dataFormatada = new Date(data).toLocaleDateString('pt-BR');\n  \n  return {\n    json: {\n      data: data,\n      descricao: `Custos de IA - ${dataFormatada} (${item.json.execucoes} execuções, ${item.json.total_tokens} tokens)`,\n      valor_brl: parseFloat(item.json.custo_brl) || 0,\n      categoria_id: categoriaId,\n      execucoes: item.json.execucoes,\n      custo_usd: item.json.custo_usd\n    }\n  };\n});\n\nreturn resultado;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -368
+      ],
+      "id": "0b60bde8-6011-4291-a992-ed4a95b618bb",
+      "name": "Preparar Dados"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Inserir despesa consolidada\nINSERT INTO fin_movimentacoes (\n  tipo,\n  descricao,\n  valor_previsto,\n  valor_realizado,\n  data_vencimento,\n  categoria_id,\n  quitado,\n  observacao\n)\nVALUES (\n  'despesa',\n  '{{ $json.descricao.replace(/'/g, \"''\") }}',\n  {{ $json.valor_brl }},\n  {{ $json.valor_brl }},\n  '{{ $json.data }}'::date,\n  {{ $json.categoria_id ? \"'\" + $json.categoria_id + \"'::uuid\" : 'NULL' }},\n  true,\n  'Consolidado automaticamente. USD: ${{ $json.custo_usd }}'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        -368
+      ],
+      "id": "7684a0da-63c2-4e61-913d-f965e6f21899",
+      "name": "Criar Despesa",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Marcar custos como consolidados\nUPDATE llm_costs\nSET \n  consolidado = true,\n  consolidado_em = NOW()\nWHERE \n  DATE(created_at) = '{{ $('Preparar Dados').item.json.data }}'::date\n  AND consolidado = false;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1104,
+        -368
+      ],
+      "id": "7914e8be-8b12-4a17-a839-da4e7d37e73e",
+      "name": "Marcar Consolidados",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -176
+      ],
+      "id": "1adcfb40-bb97-49aa-a955-c3c0c0e52448",
+      "name": "Sem Custos Pendentes"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO llm_costs (\n  workflow_id,\n  workflow_name,\n  execution_id,\n  location_id,\n  location_name,\n  contact_id,\n  contact_name,\n  canal,\n  tipo_acao,\n  modelo_ia,\n  tokens_input,\n  tokens_output,\n  custo_usd,\n  mensagem_entrada,\n  mensagem_saida\n)\nVALUES (\n  {{ $json.workflow_id ? \"'\" + $json.workflow_id + \"'\" : 'NULL' }},\n  {{ $json.workflow_name ? \"'\" + $json.workflow_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.execution_id ? \"'\" + $json.execution_id + \"'\" : 'NULL' }},\n  {{ $json.location_id ? \"'\" + $json.location_id + \"'\" : 'NULL' }},\n  {{ $json.location_name ? \"'\" + $json.location_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.contact_id ? \"'\" + $json.contact_id + \"'\" : 'NULL' }},\n  {{ $json.contact_name ? \"'\" + $json.contact_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.canal }}',\n  '{{ $json.tipo_acao }}',\n  '{{ $json.modelo_ia }}',\n  {{ $json.tokens_input }},\n  {{ $json.tokens_output }},\n  {{ $json.custo_usd }},\n  {{ $json.mensagem_entrada ? \"'\" + $json.mensagem_entrada.replace(/'/g, \"''\").replace(/\\n/g, ' ') + \"'\" : 'NULL' }},\n  {{ $json.mensagem_saida ? \"'\" + $json.mensagem_saida.replace(/'/g, \"''\").replace(/\\n/g, ' ') + \"'\" : 'NULL' }}\n)\nRETURNING id, custo_usd;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        48
+      ],
+      "id": "2de220d2-7ecf-4bc1-b4ed-a64d425e0437",
+      "name": "Inserir em llm_costs",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Tabela de preços por modelo (USD por 1M tokens)\nconst precos = {\n  // Google Gemini 2.5\n  'gemini-2.5-pro': { input: 1.25, output: 5.00 },\n  'gemini-2.5-flash': { input: 0.15, output: 0.60 },\n  'gemini-2.5-pro+flash': { input: 1.40, output: 5.60 }, // Combinado\n  // Google Gemini 2.0\n  'gemini-2.0-flash': { input: 0.10, output: 0.40 },\n  'gemini-1.5-flash': { input: 0.075, output: 0.30 },\n  'gemini-1.5-pro': { input: 1.25, output: 5.00 },\n  // OpenAI\n  'gpt-4o': { input: 2.50, output: 10.00 },\n  'gpt-4o-mini': { input: 0.15, output: 0.60 },\n  'gpt-4-turbo': { input: 10.00, output: 30.00 },\n  'gpt-3.5-turbo': { input: 0.50, output: 1.50 },\n  // Anthropic\n  'claude-3-opus': { input: 15.00, output: 75.00 },\n  'claude-3-sonnet': { input: 3.00, output: 15.00 },\n  'claude-3-haiku': { input: 0.25, output: 1.25 },\n  'claude-3.5-sonnet': { input: 3.00, output: 15.00 },\n  // Groq\n  'groq-llama3-70b': { input: 0.59, output: 0.79 },\n  'groq-llama3-8b': { input: 0.05, output: 0.08 },\n  'groq-mixtral-8x7b': { input: 0.24, output: 0.24 },\n  // Default\n  'default': { input: 0.10, output: 0.40 }\n};\n\n// Normalizar nome do modelo (aceita model OU modelo_ia)\nlet modelo = (input.model || input.modelo_ia || 'gemini-2.0-flash').toLowerCase();\n\n// Tentar encontrar modelo na tabela\nlet preco = precos[modelo];\nif (!preco) {\n  for (const [key, val] of Object.entries(precos)) {\n    if (modelo.includes(key) || key.includes(modelo)) {\n      preco = val;\n      modelo = key;\n      break;\n    }\n  }\n}\nif (!preco) preco = precos['default'];\n\n// Tokens (aceita input_tokens OU tokens_input)\nconst tokens_input = parseInt(input.input_tokens || input.tokens_input) || 0;\nconst tokens_output = parseInt(input.output_tokens || input.tokens_output) || 0;\nconst tokens_total = parseInt(input.total_tokens) || (tokens_input + tokens_output);\n\n// Calcular custo\nconst custo_input = (tokens_input / 1000000) * preco.input;\nconst custo_output = (tokens_output / 1000000) * preco.output;\nconst custo_total = custo_input + custo_output;\n\nreturn {\n  json: {\n    date: input.date || new Date().toISOString(),\n    modelo_ia: modelo,\n    tokens_input: tokens_input,\n    tokens_output: tokens_output,\n    tokens_total: tokens_total,\n    custo_usd: parseFloat(custo_total.toFixed(6)),\n    workflow_id: input.workflowId || $workflow.id,\n    execution_id: input.executionId || $execution.id,\n    location_id: input.location_id || null,\n    location_name: input.location_name || null,\n    contact_id: input.contact_id || null,\n    contact_name: input.contact_name || null,\n    canal: input.canal || 'api',\n    tipo_acao: input.tipo_acao || 'llm_call'\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        48
+      ],
+      "id": "4c830324-3006-4d53-a366-36687875543f",
+      "name": "Calcular Custo1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "custo",
+              "name": "custo_usd",
+              "value": "={{ $json.custo_usd }}",
+              "type": "number"
+            },
+            {
+              "id": "id",
+              "name": "registro_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        48
+      ],
+      "id": "1296913f-dcda-4560-9c69-7302b358e229",
+      "name": "Resposta1"
+    }
+  ],
+  "connections": {
+    "Quando Chamado": {
+      "main": [
+        [
+          {
+            "node": "Calcular Custo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todo dia às 23h": {
+      "main": [
+        [
+          {
+            "node": "Buscar Custos Pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Custos Pendentes": {
+      "main": [
+        [
+          {
+            "node": "Tem Custos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Custos?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Categoria IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Custos Pendentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Categoria IA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados": {
+      "main": [
+        [
+          {
+            "node": "Criar Despesa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Despesa": {
+      "main": [
+        [
+          {
+            "node": "Marcar Consolidados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir em llm_costs": {
+      "main": [
+        [
+          {
+            "node": "Resposta1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Custo1": {
+      "main": [
+        [
+          {
+            "node": "Inserir em llm_costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Todo dia às 23h": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "f830fe59-3668-4216-9aba-7e08c4fad8bf",
+  "activeVersionId": "f830fe59-3668-4216-9aba-7e08c4fad8bf",
+  "versionCounter": 30,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2025-12-03T03:04:55.156Z",
+      "createdAt": "2025-12-03T03:04:55.156Z",
+      "role": "workflow:owner",
+      "workflowId": "GWKl5KuXAdeu4BLr",
+      "projectId": "VAjodPr5Fy7WALLy",
+      "project": {
+        "updatedAt": "2025-06-18T03:44:57.988Z",
+        "createdAt": "2025-06-18T03:36:54.736Z",
+        "id": "VAjodPr5Fy7WALLy",
+        "name": "Alan Jones Rios <alan@mentorfy.io>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-06-18T03:36:54.737Z",
+            "createdAt": "2025-06-18T03:36:54.737Z",
+            "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+            "projectId": "VAjodPr5Fy7WALLy",
+            "user": {
+              "updatedAt": "2026-01-26T04:01:50.000Z",
+              "createdAt": "2025-06-18T03:36:53.786Z",
+              "id": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+              "email": "alan@mentorfy.io",
+              "firstName": "Alan Jones",
+              "lastName": "Rios",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-06-18T03:45:05.123Z",
+                "personalization_survey_n8n_version": "1.98.1"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "ccHBfcfeKrXwUhIA",
+                "userActivatedAt": 1750223854201,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1768854304461
+                },
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true,
+                  "ragStarterCallout": true
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-01-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2025-12-23T09:43:58.000Z",
+    "createdAt": "2025-12-11T09:24:28.012Z",
+    "versionId": "f830fe59-3668-4216-9aba-7e08c4fad8bf",
+    "workflowId": "GWKl5KuXAdeu4BLr",
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "date"
+              },
+              {
+                "name": "model"
+              },
+              {
+                "name": "input_tokens",
+                "type": "number"
+              },
+              {
+                "name": "output_tokens",
+                "type": "number"
+              },
+              {
+                "name": "total_tokens",
+                "type": "number"
+              },
+              {
+                "name": "workflowId"
+              },
+              {
+                "name": "executionId"
+              },
+              {
+                "name": "location_id"
+              },
+              {
+                "name": "location_name"
+              },
+              {
+                "name": "contact_id"
+              },
+              {
+                "name": "contact_name"
+              },
+              {
+                "name": "canal"
+              },
+              {
+                "name": "tipo_acao"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -240,
+          48
+        ],
+        "id": "c01fff46-fc99-411c-9f1c-ec0c2cc2f450",
+        "name": "Quando Chamado"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 23 * * *"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -240,
+          -272
+        ],
+        "id": "347f528c-4363-40fc-b0e4-39ea1a6f6321",
+        "name": "Todo dia às 23h"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Buscar custos não consolidados do dia\nWITH custos_dia AS (\n  SELECT\n    DATE(created_at) as data,\n    COUNT(*) as execucoes,\n    SUM(tokens_input + tokens_output) as total_tokens,\n    SUM(custo_usd) as custo_usd\n  FROM llm_costs\n  WHERE \n    consolidado = false\n    AND DATE(created_at) < CURRENT_DATE -- Só consolida dias completos\n  GROUP BY DATE(created_at)\n)\nSELECT \n  data,\n  execucoes,\n  total_tokens,\n  custo_usd,\n  ROUND(custo_usd * 6.0, 2) as custo_brl -- Taxa aproximada USD->BRL\nFROM custos_dia\nWHERE custo_usd > 0\nORDER BY data;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -16,
+          -272
+        ],
+        "id": "0f14e636-13b2-430a-89da-36d1a8724190",
+        "name": "Buscar Custos Pendentes",
+        "credentials": {
+          "postgres": {
+            "id": "w2mBaRwhZ3tM4FUw",
+            "name": "Postgres Marcos Daniels."
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "has-data",
+                "leftValue": "={{ $json.data }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          208,
+          -272
+        ],
+        "id": "ebd6a416-f630-4c48-95b1-86e0c2361f55",
+        "name": "Tem Custos?"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=-- Buscar ID da categoria 'Custos de IA'\nSELECT id FROM fin_categorias WHERE nome = 'Custos de IA' AND tipo = 'despesa' LIMIT 1;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          432,
+          -368
+        ],
+        "id": "a5834208-0734-4990-97bf-eb5dc9fc0fe2",
+        "name": "Buscar Categoria IA",
+        "credentials": {
+          "postgres": {
+            "id": "w2mBaRwhZ3tM4FUw",
+            "name": "Postgres Marcos Daniels."
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Preparar dados para inserção\nconst custos = $('Buscar Custos Pendentes').all();\nconst categoriaResult = $('Buscar Categoria IA').first();\nconst categoriaId = categoriaResult?.json?.id || null;\n\nconst resultado = custos.map(item => {\n  const data = item.json.data;\n  const dataFormatada = new Date(data).toLocaleDateString('pt-BR');\n  \n  return {\n    json: {\n      data: data,\n      descricao: `Custos de IA - ${dataFormatada} (${item.json.execucoes} execuções, ${item.json.total_tokens} tokens)`,\n      valor_brl: parseFloat(item.json.custo_brl) || 0,\n      categoria_id: categoriaId,\n      execucoes: item.json.execucoes,\n      custo_usd: item.json.custo_usd\n    }\n  };\n});\n\nreturn resultado;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          656,
+          -368
+        ],
+        "id": "0b60bde8-6011-4291-a992-ed4a95b618bb",
+        "name": "Preparar Dados"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=-- Inserir despesa consolidada\nINSERT INTO fin_movimentacoes (\n  tipo,\n  descricao,\n  valor_previsto,\n  valor_realizado,\n  data_vencimento,\n  categoria_id,\n  quitado,\n  observacao\n)\nVALUES (\n  'despesa',\n  '{{ $json.descricao.replace(/'/g, \"''\") }}',\n  {{ $json.valor_brl }},\n  {{ $json.valor_brl }},\n  '{{ $json.data }}'::date,\n  {{ $json.categoria_id ? \"'\" + $json.categoria_id + \"'::uuid\" : 'NULL' }},\n  true,\n  'Consolidado automaticamente. USD: ${{ $json.custo_usd }}'\n)\nRETURNING id;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          880,
+          -368
+        ],
+        "id": "7684a0da-63c2-4e61-913d-f965e6f21899",
+        "name": "Criar Despesa",
+        "credentials": {
+          "postgres": {
+            "id": "w2mBaRwhZ3tM4FUw",
+            "name": "Postgres Marcos Daniels."
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=-- Marcar custos como consolidados\nUPDATE llm_costs\nSET \n  consolidado = true,\n  consolidado_em = NOW()\nWHERE \n  DATE(created_at) = '{{ $('Preparar Dados').item.json.data }}'::date\n  AND consolidado = false;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1104,
+          -368
+        ],
+        "id": "7914e8be-8b12-4a17-a839-da4e7d37e73e",
+        "name": "Marcar Consolidados",
+        "credentials": {
+          "postgres": {
+            "id": "w2mBaRwhZ3tM4FUw",
+            "name": "Postgres Marcos Daniels."
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          432,
+          -176
+        ],
+        "id": "1adcfb40-bb97-49aa-a955-c3c0c0e52448",
+        "name": "Sem Custos Pendentes"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO llm_costs (\n  workflow_id,\n  workflow_name,\n  execution_id,\n  location_id,\n  location_name,\n  contact_id,\n  contact_name,\n  canal,\n  tipo_acao,\n  modelo_ia,\n  tokens_input,\n  tokens_output,\n  custo_usd,\n  mensagem_entrada,\n  mensagem_saida\n)\nVALUES (\n  {{ $json.workflow_id ? \"'\" + $json.workflow_id + \"'\" : 'NULL' }},\n  {{ $json.workflow_name ? \"'\" + $json.workflow_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.execution_id ? \"'\" + $json.execution_id + \"'\" : 'NULL' }},\n  {{ $json.location_id ? \"'\" + $json.location_id + \"'\" : 'NULL' }},\n  {{ $json.location_name ? \"'\" + $json.location_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.contact_id ? \"'\" + $json.contact_id + \"'\" : 'NULL' }},\n  {{ $json.contact_name ? \"'\" + $json.contact_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.canal }}',\n  '{{ $json.tipo_acao }}',\n  '{{ $json.modelo_ia }}',\n  {{ $json.tokens_input }},\n  {{ $json.tokens_output }},\n  {{ $json.custo_usd }},\n  {{ $json.mensagem_entrada ? \"'\" + $json.mensagem_entrada.replace(/'/g, \"''\").replace(/\\n/g, ' ') + \"'\" : 'NULL' }},\n  {{ $json.mensagem_saida ? \"'\" + $json.mensagem_saida.replace(/'/g, \"''\").replace(/\\n/g, ' ') + \"'\" : 'NULL' }}\n)\nRETURNING id, custo_usd;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          208,
+          48
+        ],
+        "id": "2de220d2-7ecf-4bc1-b4ed-a64d425e0437",
+        "name": "Inserir em llm_costs",
+        "credentials": {
+          "postgres": {
+            "id": "w2mBaRwhZ3tM4FUw",
+            "name": "Postgres Marcos Daniels."
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\n\n// Tabela de preços por modelo (USD por 1M tokens)\nconst precos = {\n  // Google Gemini 2.5\n  'gemini-2.5-pro': { input: 1.25, output: 5.00 },\n  'gemini-2.5-flash': { input: 0.15, output: 0.60 },\n  'gemini-2.5-pro+flash': { input: 1.40, output: 5.60 }, // Combinado\n  // Google Gemini 2.0\n  'gemini-2.0-flash': { input: 0.10, output: 0.40 },\n  'gemini-1.5-flash': { input: 0.075, output: 0.30 },\n  'gemini-1.5-pro': { input: 1.25, output: 5.00 },\n  // OpenAI\n  'gpt-4o': { input: 2.50, output: 10.00 },\n  'gpt-4o-mini': { input: 0.15, output: 0.60 },\n  'gpt-4-turbo': { input: 10.00, output: 30.00 },\n  'gpt-3.5-turbo': { input: 0.50, output: 1.50 },\n  // Anthropic\n  'claude-3-opus': { input: 15.00, output: 75.00 },\n  'claude-3-sonnet': { input: 3.00, output: 15.00 },\n  'claude-3-haiku': { input: 0.25, output: 1.25 },\n  'claude-3.5-sonnet': { input: 3.00, output: 15.00 },\n  // Groq\n  'groq-llama3-70b': { input: 0.59, output: 0.79 },\n  'groq-llama3-8b': { input: 0.05, output: 0.08 },\n  'groq-mixtral-8x7b': { input: 0.24, output: 0.24 },\n  // Default\n  'default': { input: 0.10, output: 0.40 }\n};\n\n// Normalizar nome do modelo (aceita model OU modelo_ia)\nlet modelo = (input.model || input.modelo_ia || 'gemini-2.0-flash').toLowerCase();\n\n// Tentar encontrar modelo na tabela\nlet preco = precos[modelo];\nif (!preco) {\n  for (const [key, val] of Object.entries(precos)) {\n    if (modelo.includes(key) || key.includes(modelo)) {\n      preco = val;\n      modelo = key;\n      break;\n    }\n  }\n}\nif (!preco) preco = precos['default'];\n\n// Tokens (aceita input_tokens OU tokens_input)\nconst tokens_input = parseInt(input.input_tokens || input.tokens_input) || 0;\nconst tokens_output = parseInt(input.output_tokens || input.tokens_output) || 0;\nconst tokens_total = parseInt(input.total_tokens) || (tokens_input + tokens_output);\n\n// Calcular custo\nconst custo_input = (tokens_input / 1000000) * preco.input;\nconst custo_output = (tokens_output / 1000000) * preco.output;\nconst custo_total = custo_input + custo_output;\n\nreturn {\n  json: {\n    date: input.date || new Date().toISOString(),\n    modelo_ia: modelo,\n    tokens_input: tokens_input,\n    tokens_output: tokens_output,\n    tokens_total: tokens_total,\n    custo_usd: parseFloat(custo_total.toFixed(6)),\n    workflow_id: input.workflowId || $workflow.id,\n    execution_id: input.executionId || $execution.id,\n    location_id: input.location_id || null,\n    location_name: input.location_name || null,\n    contact_id: input.contact_id || null,\n    contact_name: input.contact_name || null,\n    canal: input.canal || 'api',\n    tipo_acao: input.tipo_acao || 'llm_call'\n  }\n};\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -16,
+          48
+        ],
+        "id": "4c830324-3006-4d53-a366-36687875543f",
+        "name": "Calcular Custo1"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "success",
+                "name": "success",
+                "value": true,
+                "type": "boolean"
+              },
+              {
+                "id": "custo",
+                "name": "custo_usd",
+                "value": "={{ $json.custo_usd }}",
+                "type": "number"
+              },
+              {
+                "id": "id",
+                "name": "registro_id",
+                "value": "={{ $json.id }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          432,
+          48
+        ],
+        "id": "1296913f-dcda-4560-9c69-7302b358e229",
+        "name": "Resposta1"
+      }
+    ],
+    "connections": {
+      "Quando Chamado": {
+        "main": [
+          [
+            {
+              "node": "Calcular Custo1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Todo dia às 23h": {
+        "main": [
+          [
+            {
+              "node": "Buscar Custos Pendentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar Custos Pendentes": {
+        "main": [
+          [
+            {
+              "node": "Tem Custos?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tem Custos?": {
+        "main": [
+          [
+            {
+              "node": "Buscar Categoria IA",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Sem Custos Pendentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar Categoria IA": {
+        "main": [
+          [
+            {
+              "node": "Preparar Dados",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar Dados": {
+        "main": [
+          [
+            {
+              "node": "Criar Despesa",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Criar Despesa": {
+        "main": [
+          [
+            {
+              "node": "Marcar Consolidados",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Inserir em llm_costs": {
+        "main": [
+          [
+            {
+              "node": "Resposta1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Calcular Custo1": {
+        "main": [
+          [
+            {
+              "node": "Inserir em llm_costs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Alan Jones Rios",
+    "name": "Version f830fe59",
+    "description": "",
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2025-12-23T09:43:58.847Z",
+        "id": 307,
+        "workflowId": "GWKl5KuXAdeu4BLr",
+        "versionId": "f830fe59-3668-4216-9aba-7e08c4fad8bf",
+        "event": "activated",
+        "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOTTIVME | Infraestrutura de Atendimento Autônomo</title>
+    <meta name="description" content="A fábrica de agentes de IA que substitui times inteiros. Resposta em 3 segundos, 24/7, com 96%+ de precisão.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0b;
+            --bg-secondary: #111113;
+            --bg-card: #18181b;
+            --bg-card-hover: #1f1f23;
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #27272a;
+            --gradient-1: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+            --gradient-2: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== UTILITIES ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .section {
+            padding: 120px 0;
+        }
+
+        .section-dark {
+            background: var(--bg-secondary);
+        }
+
+        .text-gradient {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .text-accent {
+            color: var(--accent);
+        }
+
+        .text-muted {
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+
+        .badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 24px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--text-muted);
+        }
+
+        .btn-lg {
+            padding: 20px 40px;
+            font-size: 18px;
+        }
+
+        /* ===== NAVIGATION ===== */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 20px 0;
+            background: rgba(10, 10, 11, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .nav.scrolled {
+            border-bottom-color: var(--border);
+        }
+
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+            animation: float 20s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-2%, 2%); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: clamp(40px, 6vw, 72px);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(18px, 2.5vw, 24px);
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 60px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 48px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 48px;
+            font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ===== PROBLEM SECTION ===== */
+        .problem {
+            position: relative;
+        }
+
+        .problem-header {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 80px;
+        }
+
+        .problem-header h2 {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .problem-scenario {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+            margin-bottom: 48px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .problem-scenario::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--error), var(--warning));
+        }
+
+        .scenario-time {
+            font-family: monospace;
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .scenario-text {
+            font-size: 20px;
+            line-height: 1.8;
+        }
+
+        .scenario-text strong {
+            color: var(--error);
+        }
+
+        .problem-costs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .cost-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s ease;
+        }
+
+        .cost-card:hover {
+            border-color: var(--error);
+            transform: translateY(-4px);
+        }
+
+        .cost-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .cost-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .cost-desc {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        /* ===== TRUTH SECTION ===== */
+        .truth-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .truth-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .truth-content h2 {
+            font-size: clamp(32px, 4vw, 44px);
+            font-weight: 700;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+
+        .truth-content p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            margin-bottom: 32px;
+        }
+
+        .truth-list {
+            list-style: none;
+        }
+
+        .truth-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .truth-list li:last-child {
+            border-bottom: none;
+        }
+
+        .truth-icon {
+            width: 24px;
+            height: 24px;
+            background: rgba(239, 68, 68, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .truth-icon::before {
+            content: '✕';
+            color: var(--error);
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .truth-visual {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+            text-align: center;
+        }
+
+        .truth-visual h3 {
+            font-size: 24px;
+            margin-bottom: 32px;
+        }
+
+        .comparison-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .comparison-label {
+            font-weight: 500;
+        }
+
+        .comparison-values {
+            display: flex;
+            gap: 24px;
+        }
+
+        .comparison-bad {
+            color: var(--error);
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+
+        .comparison-good {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        /* ===== CATEGORY SECTION ===== */
+        .category {
+            text-align: center;
+        }
+
+        .category h2 {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 800;
+            margin-bottom: 24px;
+            letter-spacing: -2px;
+        }
+
+        .category-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 60px;
+        }
+
+        .analogy-box {
+            background: var(--bg-card);
+            border: 2px solid var(--accent);
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 800px;
+            margin: 0 auto 60px;
+            position: relative;
+        }
+
+        .analogy-box::before {
+            content: '"';
+            position: absolute;
+            top: -20px;
+            left: 40px;
+            font-size: 120px;
+            color: var(--accent);
+            opacity: 0.2;
+            font-family: Georgia, serif;
+            line-height: 1;
+        }
+
+        .analogy-text {
+            font-size: 28px;
+            font-weight: 600;
+            line-height: 1.4;
+            position: relative;
+            z-index: 1;
+        }
+
+        .diff-table {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .diff-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .diff-header-cell {
+            padding: 24px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .diff-header-cell:first-child {
+            color: var(--text-muted);
+            border-right: 1px solid var(--border);
+        }
+
+        .diff-header-cell:last-child {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        }
+
+        .diff-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .diff-row:last-child {
+            border-bottom: none;
+        }
+
+        .diff-cell {
+            padding: 20px 24px;
+            font-size: 15px;
+        }
+
+        .diff-cell:first-child {
+            color: var(--text-secondary);
+            border-right: 1px solid var(--border);
+        }
+
+        .diff-cell:last-child {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* ===== HOW IT WORKS ===== */
+        .how-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 80px;
+        }
+
+        .how-header h2 {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .how-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+        }
+
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .step-number {
+            position: absolute;
+            top: -16px;
+            left: 32px;
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .step-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 16px 0 12px;
+        }
+
+        .step-card p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .step-features {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .step-feature {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .step-feature::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        /* ===== RESULTS ===== */
+        .results-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .results-header h2 {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .result-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            border-color: var(--success);
+        }
+
+        .result-before {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-decoration: line-through;
+            margin-bottom: 8px;
+        }
+
+        .result-after {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--success);
+            margin-bottom: 8px;
+        }
+
+        .result-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== VERTICALS ===== */
+        .verticals-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 80px;
+        }
+
+        .verticals-header h2 {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .vertical-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+            flex-wrap: wrap;
+        }
+
+        .vertical-tab {
+            padding: 16px 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+        }
+
+        .vertical-tab:hover,
+        .vertical-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .vertical-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .vertical-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .vertical-card {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px;
+        }
+
+        @media (max-width: 768px) {
+            .vertical-card {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .vertical-problems h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--error);
+        }
+
+        .vertical-solutions h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--success);
+        }
+
+        .vertical-list {
+            list-style: none;
+        }
+
+        .vertical-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .vertical-result {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .vertical-result strong {
+            color: var(--success);
+            font-size: 18px;
+        }
+
+        /* ===== CTA SECTION ===== */
+        .cta-section {
+            text-align: center;
+            padding: 120px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .cta-content h2 {
+            font-size: clamp(36px, 5vw, 52px);
+            font-weight: 800;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+
+        .cta-content p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-note {
+            margin-top: 24px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ===== NOT FOR ===== */
+        .not-for {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px;
+            max-width: 600px;
+            margin: 80px auto 0;
+        }
+
+        .not-for h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .not-for-list {
+            list-style: none;
+            display: grid;
+            gap: 12px;
+        }
+
+        .not-for-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .not-for-list li::before {
+            content: '✕';
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .footer-tagline {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 32px;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-copy {
+            width: 100%;
+            text-align: center;
+            padding-top: 40px;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ===== MOBILE MENU ===== */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links,
+            .nav-cta {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .hero h1 {
+                letter-spacing: -1px;
+            }
+
+            .hero-stats {
+                gap: 32px;
+            }
+
+            .stat-value {
+                font-size: 36px;
+            }
+
+            .section {
+                padding: 80px 0;
+            }
+
+            .problem-scenario {
+                padding: 32px;
+            }
+
+            .analogy-text {
+                font-size: 22px;
+            }
+
+            .diff-cell {
+                padding: 16px;
+                font-size: 14px;
+            }
+        }
+
+        /* ===== ANIMATIONS ===== */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== SCROLL INDICATOR ===== */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(10px); }
+        }
+
+        .scroll-indicator::after {
+            content: '↓';
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav" id="nav">
+        <div class="container nav-container">
+            <div class="logo">MOTTIV<span class="text-gradient">ME</span></div>
+            <ul class="nav-links">
+                <li><a href="#problema">O Problema</a></li>
+                <li><a href="#solucao">A Solução</a></li>
+                <li><a href="#como-funciona">Como Funciona</a></li>
+                <li><a href="#verticais">Verticais</a></li>
+            </ul>
+            <div class="nav-cta">
+                <a href="#cta" class="btn btn-primary">Quero Saber Mais</a>
+            </div>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content fade-in">
+                <span class="badge">Infraestrutura de Atendimento Autônomo</span>
+                <h1>O time de 50 pessoas que <span class="text-gradient">cabe num chip</span></h1>
+                <p class="hero-subtitle">
+                    Agentes de IA que respondem em 3 segundos, 24/7, com 96%+ de precisão.
+                    Não é chatbot. É infraestrutura que faz sua empresa parecer gigante.
+                </p>
+                <div class="hero-cta">
+                    <a href="#cta" class="btn btn-primary btn-lg">Quero essa infraestrutura</a>
+                    <a href="#como-funciona" class="btn btn-secondary btn-lg">Ver como funciona</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-value">&lt;3s</div>
+                        <div class="stat-label">Tempo de resposta</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">96%+</div>
+                        <div class="stat-label">Precisão</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">24/7</div>
+                        <div class="stat-label">Disponibilidade</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">300</div>
+                        <div class="stat-label">Empresas na meta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator">Scroll</div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="section problem" id="problema">
+        <div class="container">
+            <div class="problem-header fade-in">
+                <span class="badge">O Problema</span>
+                <h2>Você está perdendo dinheiro <span class="text-gradient">enquanto dorme</span></h2>
+            </div>
+
+            <div class="problem-scenario fade-in">
+                <div class="scenario-time">23:47</div>
+                <p class="scenario-text">
+                    Um lead entra no seu WhatsApp. Ele viu seu anúncio, ficou interessado, mandou mensagem.
+                    <br><br>
+                    <strong>O que acontece? Silêncio.</strong>
+                    <br><br>
+                    Às 8h da manhã, quando você acorda e vê a mensagem, ele já conversou com 3 concorrentes.
+                    Fechou com o segundo. Você nunca vai saber.
+                </p>
+            </div>
+
+            <div class="problem-costs fade-in">
+                <div class="cost-card">
+                    <div class="cost-icon">⏰</div>
+                    <h3 class="cost-title">400% menos chance</h3>
+                    <p class="cost-desc">Cada hora de atraso no primeiro contato reduz drasticamente a conversão</p>
+                </div>
+                <div class="cost-card">
+                    <div class="cost-icon">💸</div>
+                    <h3 class="cost-title">Tráfego jogado fora</h3>
+                    <p class="cost-desc">Você paga pelo lead, mas perde na velocidade do atendimento</p>
+                </div>
+                <div class="cost-card">
+                    <div class="cost-icon">🔄</div>
+                    <h3 class="cost-title">Follow-up inexistente</h3>
+                    <p class="cost-desc">Cada "vou pensar" sem acompanhamento é uma venda perdida</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Truth Section -->
+    <section class="section section-dark" id="verdade">
+        <div class="container">
+            <div class="truth-grid">
+                <div class="truth-content fade-in">
+                    <span class="badge">A Verdade Incômoda</span>
+                    <h2>Por que 97% dos chatbots <span class="text-gradient">falham</span></h2>
+                    <p>Você já tentou. Comprou ferramenta, contratou agência, pagou consultoria. E o resultado?</p>
+                    <ul class="truth-list">
+                        <li>
+                            <span class="truth-icon"></span>
+                            <span>Respostas robóticas que espantam cliente</span>
+                        </li>
+                        <li>
+                            <span class="truth-icon"></span>
+                            <span>Fluxos que quebram no segundo "e se?"</span>
+                        </li>
+                        <li>
+                            <span class="truth-icon"></span>
+                            <span>Integração que nunca funciona direito</span>
+                        </li>
+                        <li>
+                            <span class="truth-icon"></span>
+                            <span>"Vou transferir para um atendente" — derrota</span>
+                        </li>
+                        <li>
+                            <span class="truth-icon"></span>
+                            <span>Cliente reclamando que "não tem gente"</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="truth-visual fade-in">
+                    <h3>Chatbot vs Agente MOTTIVME</h3>
+                    <div class="comparison-row">
+                        <span class="comparison-label">Precisão</span>
+                        <div class="comparison-values">
+                            <span class="comparison-bad">40%</span>
+                            <span class="comparison-good">96%+</span>
+                        </div>
+                    </div>
+                    <div class="comparison-row">
+                        <span class="comparison-label">Objeções</span>
+                        <div class="comparison-values">
+                            <span class="comparison-bad">Trava</span>
+                            <span class="comparison-good">Trata</span>
+                        </div>
+                    </div>
+                    <div class="comparison-row">
+                        <span class="comparison-label">Configuração</span>
+                        <div class="comparison-values">
+                            <span class="comparison-bad">Você faz</span>
+                            <span class="comparison-good">Nós fazemos</span>
+                        </div>
+                    </div>
+                    <div class="comparison-row">
+                        <span class="comparison-label">Risco</span>
+                        <div class="comparison-values">
+                            <span class="comparison-bad">Seu</span>
+                            <span class="comparison-good">Nosso</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Category Section -->
+    <section class="section category" id="solucao">
+        <div class="container">
+            <div class="fade-in">
+                <span class="badge">A Nova Categoria</span>
+                <h2>Infraestrutura de<br><span class="text-gradient">Atendimento Autônomo</span></h2>
+                <p class="category-subtitle">
+                    Não é chatbot. Não é ferramenta. Não é consultoria.<br>
+                    É infraestrutura que você pluga e funciona.
+                </p>
+            </div>
+
+            <div class="analogy-box fade-in">
+                <p class="analogy-text">
+                    "A MOTTIVME é para atendimento o que a <span class="text-gradient">AWS é para servidores</span>."
+                </p>
+            </div>
+
+            <div class="diff-table fade-in">
+                <div class="diff-header">
+                    <div class="diff-header-cell">Chatbot Tradicional</div>
+                    <div class="diff-header-cell">Agente MOTTIVME</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">Fluxos fixos</div>
+                    <div class="diff-cell">Conversa adaptativa</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">Trava em objeções</div>
+                    <div class="diff-cell">Trata objeções com técnica</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">"Vou transferir"</div>
+                    <div class="diff-cell">Resolve sozinho</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">Você configura</div>
+                    <div class="diff-cell">Nós operamos</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">Resposta genérica</div>
+                    <div class="diff-cell">Personalizado pro seu negócio</div>
+                </div>
+                <div class="diff-row">
+                    <div class="diff-cell">40% de precisão</div>
+                    <div class="diff-cell">96%+ de precisão</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works Section -->
+    <section class="section section-dark" id="como-funciona">
+        <div class="container">
+            <div class="how-header fade-in">
+                <span class="badge">Como Funciona</span>
+                <h2>O motor por trás da <span class="text-gradient">mágica</span></h2>
+                <p class="text-muted">5 pilares que fazem seu atendimento funcionar no automático</p>
+            </div>
+
+            <div class="how-steps">
+                <div class="step-card fade-in">
+                    <span class="step-number">1</span>
+                    <h3>Agente Treinado</h3>
+                    <p>Não é template genérico. É um agente que conhece seu produto, preços, objeções e tom de voz.</p>
+                    <div class="step-features">
+                        <div class="step-feature">Conhece seu produto em profundidade</div>
+                        <div class="step-feature">Fala no tom da sua marca</div>
+                        <div class="step-feature">Segue seu processo de vendas</div>
+                    </div>
+                </div>
+
+                <div class="step-card fade-in">
+                    <span class="step-number">2</span>
+                    <h3>Metodologia de Vendas</h3>
+                    <p>NEPQ, No-Go Sales, tratamento de objeções. Seu agente vende melhor que 90% dos SDRs.</p>
+                    <div class="step-features">
+                        <div class="step-feature">Perguntas que vendem sem pressionar</div>
+                        <div class="step-feature">Trata "vou pensar", preço, timing</div>
+                        <div class="step-feature">Fechamento OU/OU</div>
+                    </div>
+                </div>
+
+                <div class="step-card fade-in">
+                    <span class="step-number">3</span>
+                    <h3>Operação Completa</h3>
+                    <p>Você não configura nada. Nós fazemos tudo. Você só vê resultado.</p>
+                    <div class="step-features">
+                        <div class="step-feature">Zero configuração do seu lado</div>
+                        <div class="step-feature">Relatório semanal de performance</div>
+                        <div class="step-feature">Leads qualificados no seu CRM</div>
+                    </div>
+                </div>
+
+                <div class="step-card fade-in">
+                    <span class="step-number">4</span>
+                    <h3>Melhoria Contínua</h3>
+                    <p>O agente aprende com cada conversa. Quanto mais roda, melhor fica.</p>
+                    <div class="step-features">
+                        <div class="step-feature">Aprende com cada interação</div>
+                        <div class="step-feature">Ajusta tom baseado em feedback</div>
+                        <div class="step-feature">Evolui com seu negócio</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="section">
+        <div class="container">
+            <div class="results-header fade-in">
+                <span class="badge">Resultados Reais</span>
+                <h2>Números que <span class="text-gradient">importam</span></h2>
+            </div>
+
+            <div class="results-grid fade-in">
+                <div class="result-card">
+                    <div class="result-before">2-4 horas</div>
+                    <div class="result-after">&lt;3s</div>
+                    <div class="result-label">Tempo de resposta</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-before">40%</div>
+                    <div class="result-after">98%</div>
+                    <div class="result-label">Taxa de resposta</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-before">60%</div>
+                    <div class="result-after">8%</div>
+                    <div class="result-label">Leads que esfriam</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-before">10%</div>
+                    <div class="result-after">45%</div>
+                    <div class="result-label">No-shows recuperados</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-before">2-5%</div>
+                    <div class="result-after">8-15%</div>
+                    <div class="result-label">Conversão de leads</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Verticals Section -->
+    <section class="section section-dark" id="verticais">
+        <div class="container">
+            <div class="verticals-header fade-in">
+                <span class="badge">Para Quem</span>
+                <h2>Os 3 mercados que <span class="text-gradient">dominamos</span></h2>
+            </div>
+
+            <div class="vertical-tabs fade-in">
+                <button class="vertical-tab active" data-vertical="clinicas">🏥 Clínicas</button>
+                <button class="vertical-tab" data-vertical="financeiro">💰 Financeiro</button>
+                <button class="vertical-tab" data-vertical="mentores">🎓 Mentores</button>
+            </div>
+
+            <!-- Clínicas -->
+            <div class="vertical-content active" id="clinicas">
+                <div class="vertical-card fade-in">
+                    <div class="vertical-problems">
+                        <h3>❌ O problema</h3>
+                        <ul class="vertical-list">
+                            <li>Recepcionista atende 40 ligações/dia no máximo</li>
+                            <li>WhatsApp lotado, paciente esperando</li>
+                            <li>No-show de 25-35% queima agenda</li>
+                            <li>Fim de semana = lead perdido</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-solutions">
+                        <h3>✅ A solução</h3>
+                        <ul class="vertical-list">
+                            <li>Agente responde 400 conversas simultâneas</li>
+                            <li>Agenda diretamente no sistema</li>
+                            <li>Confirma e recupera no-shows</li>
+                            <li>Funciona sábado, domingo, feriado, 3h da manhã</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-result">
+                        <strong>+30% de agendamentos, -50% de no-shows</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financeiro -->
+            <div class="vertical-content" id="financeiro">
+                <div class="vertical-card fade-in">
+                    <div class="vertical-problems">
+                        <h3>❌ O problema</h3>
+                        <ul class="vertical-list">
+                            <li>Lead de tráfego pago esfria em horas</li>
+                            <li>SDR caro (R$ 4-6k/mês) e ineficiente</li>
+                            <li>Qualificação inconsistente</li>
+                            <li>Closer recebe lead frio</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-solutions">
+                        <h3>✅ A solução</h3>
+                        <ul class="vertical-list">
+                            <li>Agente qualifica com metodologia BANT/NEPQ</li>
+                            <li>Aquece lead antes do call</li>
+                            <li>Envia proposta e faz follow-up</li>
+                            <li>Passa só lead PRONTO pra fechar</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-result">
+                        <strong>2x mais calls qualificados, -40% no ciclo de vendas</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mentores -->
+            <div class="vertical-content" id="mentores">
+                <div class="vertical-card fade-in">
+                    <div class="vertical-problems">
+                        <h3>❌ O problema</h3>
+                        <ul class="vertical-list">
+                            <li>Caixa de entrada explodindo</li>
+                            <li>Mesmo DM 500 vezes por dia</li>
+                            <li>Não consegue escalar atendimento</li>
+                            <li>Perde venda por não responder</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-solutions">
+                        <h3>✅ A solução</h3>
+                        <ul class="vertical-list">
+                            <li>Agente responde DMs automaticamente</li>
+                            <li>Qualifica interesse real vs curioso</li>
+                            <li>Agenda calls de vendas</li>
+                            <li>Faz follow-up pós-evento/live</li>
+                        </ul>
+                    </div>
+                    <div class="vertical-result">
+                        <strong>3x mais calls agendados, atendimento 24/7</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section" id="cta">
+        <div class="container">
+            <div class="cta-content fade-in">
+                <h2>Pronto para ter um <span class="text-gradient">time de 50 pessoas</span>?</h2>
+                <p>
+                    Não é ferramenta. Não é agência. É infraestrutura que funciona.
+                    Você pluga, a gente opera, você vê resultado.
+                </p>
+                <div class="cta-buttons">
+                    <a href="https://wa.me/5511936180422?text=Quero%20saber%20mais%20sobre%20a%20MOTTIVME" class="btn btn-primary btn-lg" target="_blank">
+                        Falar com especialista →
+                    </a>
+                </div>
+                <p class="cta-note">Resposta em menos de 3 segundos. Irônico, né?</p>
+            </div>
+
+            <div class="not-for fade-in">
+                <h3>Para quem NÃO é</h3>
+                <ul class="not-for-list">
+                    <li>Você quer fazer você mesmo (DIY)</li>
+                    <li>Você não tem produto validado ainda</li>
+                    <li>Você quer "testar" sem compromisso</li>
+                    <li>Você acha que R$ 2-4k/mês é caro (mas paga R$ 6k em SDR)</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div>
+                    <div class="footer-logo">MOTTIV<span class="text-gradient">ME</span></div>
+                    <p class="footer-tagline">Atendimento como infraestrutura.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#problema">O Problema</a>
+                    <a href="#solucao">A Solução</a>
+                    <a href="#como-funciona">Como Funciona</a>
+                    <a href="#verticais">Verticais</a>
+                </div>
+            </div>
+            <p class="footer-copy">© 2026 MOTTIVME. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Navigation scroll effect
+        const nav = document.getElementById('nav');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+
+        // Vertical tabs
+        const tabs = document.querySelectorAll('.vertical-tab');
+        const contents = document.querySelectorAll('.vertical-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const vertical = tab.dataset.vertical;
+
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(vertical).classList.add('active');
+            });
+        });
+
+        // Fade in on scroll
+        const fadeElements = document.querySelectorAll('.fade-in');
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        });
+
+        fadeElements.forEach(el => observer.observe(el));
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

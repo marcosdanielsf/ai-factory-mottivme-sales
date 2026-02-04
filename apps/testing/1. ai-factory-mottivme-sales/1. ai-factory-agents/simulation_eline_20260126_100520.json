@@ -1,0 +1,246 @@
+{
+  "version": "v3.2.0",
+  "timestamp": "20260126_100520",
+  "summary": {
+    "avg_score": 100.0,
+    "total_issues": 0,
+    "agendamentos": "0/5"
+  },
+  "results": [
+    {
+      "persona_id": "social_selling_gestora",
+      "nome": "Fernanda Oliveira",
+      "mode": "social_seller_instagram",
+      "exchanges": [
+        {
+          "user": "Oi, tudo bem?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Sou gestora de uma clínica aqui em SP",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Sim, temos médicos que trabalham com hormônios",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Interessante. Qual o investimento?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Entendo, mas como gestora preciso ter noção do valor antes de comprometer a agenda",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Uma faixa de valor já me ajudaria",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        }
+      ],
+      "total_score": 600,
+      "issues_count": 0,
+      "agendamento": false,
+      "avg_score": 100.0
+    },
+    {
+      "persona_id": "social_selling_medica",
+      "nome": "Dra. Carolina Mendes",
+      "mode": "social_seller_instagram",
+      "exchanges": [
+        {
+          "user": "Oi! Prazer",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Sou dermato, não trabalho com hormônios ainda",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Já pensei sim, mas tenho medo de prescrever errado",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Como assim ensina a pensar?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Faz sentido. Como funciona essa mentoria?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Topa sim, vamos marcar",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        }
+      ],
+      "total_score": 600,
+      "issues_count": 0,
+      "agendamento": false,
+      "avg_score": 100.0
+    },
+    {
+      "persona_id": "inbound_interessado",
+      "nome": "Dr. Ricardo Almeida",
+      "mode": "sdr_inbound",
+      "exchanges": [
+        {
+          "user": "Oi Dra. Eline! Vi sobre o HormoSafe e tenho interesse",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Já trabalho com hormônios há 2 anos, mas sinto que prescrevo no escuro",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Exatamente! Quero aprender a pensar, não decorar protocolo",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Quero sim, vamos agendar",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "ricardo@clinica.com",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "11988776655",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        }
+      ],
+      "total_score": 600,
+      "issues_count": 0,
+      "agendamento": false,
+      "avg_score": 100.0
+    },
+    {
+      "persona_id": "social_selling_resistente",
+      "nome": "Dra. Amanda Costa",
+      "mode": "social_seller_instagram",
+      "exchanges": [
+        {
+          "user": "Oi",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Já fiz vários cursos de hormônios, não preciso de mais um",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Eram protocolos prontos sim, mas funcionavam",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "E qual a diferença do seu?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Hmm, interessante. Mas quanto custa?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Vou pensar",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        }
+      ],
+      "total_score": 600,
+      "issues_count": 0,
+      "agendamento": false,
+      "avg_score": 100.0
+    },
+    {
+      "persona_id": "inbound_apressado",
+      "nome": "Dr. Felipe Souza",
+      "mode": "sdr_inbound",
+      "exchanges": [
+        {
+          "user": "Oi, um colega me indicou. Quero saber sobre a mentoria",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Já sei que é sobre prescrição segura. Quanto custa?",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Ok, mas preciso saber pelo menos uma faixa",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Tá, agenda a call então",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "felipe@email.com e 21999887766",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        },
+        {
+          "user": "Qualquer horário essa semana",
+          "assistant": "[ERRO API: 401]",
+          "score": 100,
+          "issues": []
+        }
+      ],
+      "total_score": 600,
+      "issues_count": 0,
+      "agendamento": false,
+      "avg_score": 100.0
+    }
+  ]
+}

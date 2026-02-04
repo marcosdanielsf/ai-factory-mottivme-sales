@@ -1,0 +1,1984 @@
+{
+  "name": "follow up eterno ARQUIVO BASE - KOMMO",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1968,
+        -1840
+      ],
+      "id": "4dd49d93-7b6f-4f67-9990-1e9088c93a20",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "resource": "leads",
+        "filter": {
+          "id": "={{ $json.unique_id }}"
+        },
+        "options": {
+          "with": [
+            "contacts"
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        2496,
+        -1696
+      ],
+      "id": "80b08eca-340f-4685-a402-8b3c80389ea3",
+      "name": "Retonar o Lead",
+      "retryOnFail": true,
+      "credentials": {
+        "kommoOAuth2Api": {
+          "id": "FoQopIcfFleo2ymy",
+          "name": "MottivmeAI - NV1 - Apex Pro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM n8n_schedule_tracking\nWHERE ativo = true\n  AND field = 'etapa'\n  AND (last_execution IS NULL OR last_execution < NOW() - INTERVAL '1 hour')\n  AND (\n    (next_event IS NOT NULL AND next_event >= created_at AND next_event < NOW())\n    OR\n    (next_event IS NULL OR next_event < created_at) AND created_at < NOW() - INTERVAL '30 minute'\n  )\n  AND value !~ '[0]'\nLIMIT 50;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1648,
+        -1840
+      ],
+      "id": "fa5fe1ec-0dca-4c65-be17-bc01b19a5788",
+      "name": "Sem Resposta",
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_schedule_tracking (\n  unique_id,\n  ativo,\n  last_execution\n) VALUES (\n  $1, $2, NOW()\n)\nON CONFLICT (unique_id) DO UPDATE\nSET \n  ativo = EXCLUDED.ativo,\n  last_execution = NOW(),\n  next_event = NULL;",
+        "options": {
+          "queryReplacement": "={{ $json._embedded.leads.first().id.toString() }},{{ $('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values?.find(item => item.field_name === 'ativar/desativar IA')?.values[0]?.value ?? false }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2656,
+        -1984
+      ],
+      "id": "89b66187-209e-41d2-b27c-efff85857646",
+      "name": "Atualiza status IA",
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2208,
+        -1856
+      ],
+      "id": "814781dd-e81b-4314-a9a2-e982d6d90376",
+      "name": "Fim"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "97f84d0c-fa78-4c19-a490-e2ca78373501",
+              "name": "Horário do agendamento",
+              "value": "={{ new DateTime($('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'Data e hora do agendamento - BPOSS').values[0].value) }}",
+              "type": "string"
+            },
+            {
+              "id": "a30c9893-5f86-429b-a901-1fce91088cb8",
+              "name": "Tipo de comunicação",
+              "value": "={{ $('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'controle-fup').values[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "48cf4ae1-ba13-4731-88ab-9c1c8c397df6",
+              "name": "Última atualização",
+              "value": "={{ new DateTime( $('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'controle-fup-datahora').values[0].value) }}",
+              "type": "string"
+            },
+            {
+              "id": "ec4e2895-3647-439d-a418-30ad9d66a70e",
+              "name": "Lead Id",
+              "value": "={{ $('Retonar o Lead').item.json._embedded.leads.first().id}}",
+              "type": "number"
+            },
+            {
+              "id": "d3a27bdd-cb2a-4762-83ad-dd3a717a2a7d",
+              "name": "ultima_etapa",
+              "value": "={{ $json.value }}",
+              "type": "string"
+            },
+            {
+              "id": "65dd86be-3834-40c5-968b-d4f9e6f14dbd",
+              "name": "data_criação",
+              "value": "={{ $json.created_at }}",
+              "type": "string"
+            },
+            {
+              "id": "e6bedfbb-6cfc-4e5e-8571-66893f3d8ad1",
+              "name": "ultimo_follow_up",
+              "value": "={{ $json.next_event }}",
+              "type": "string"
+            },
+            {
+              "id": "55ef44e9-fa86-439c-bf7f-af7eb8eeafc3",
+              "name": "name",
+              "value": "={{ $('Formatacao').first().json.data.name }}",
+              "type": "string"
+            },
+            {
+              "id": "1eeae277-fbd6-4124-b9b6-06a93411e30d",
+              "name": "responsavel",
+              "value": "={{ $('Retonar o Lead').item.json._embedded.leads[0].responsible_user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "80792e0c-ec04-4852-a3e2-35f74666e669",
+              "name": "pipeline",
+              "value": "={{ $('Retonar o Lead').item.json._embedded.leads[0].pipeline_id }}",
+              "type": "string"
+            },
+            {
+              "id": "cf12fcd4-00d5-4e1d-b2a0-9c04a86fc2b2",
+              "name": "Pergunta 0",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.pergunta_0 }}",
+              "type": "string"
+            },
+            {
+              "id": "34133cdf-4d43-49aa-b5db-c9435005d7d5",
+              "name": "Pergunta 1",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.pergunta_1 }}",
+              "type": "string"
+            },
+            {
+              "id": "10d3df80-e313-4db2-a4f8-dc771e885267",
+              "name": "Pergunta 2",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.pergunta_2 }}",
+              "type": "string"
+            },
+            {
+              "id": "bb8aeb7a-3558-40e8-8e94-f7c98e8893aa",
+              "name": "Pergunta 3",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.pergunta_3 }}",
+              "type": "string"
+            },
+            {
+              "id": "4ec8931b-eee8-4ce8-a78a-b655c04106b8",
+              "name": "Pergunta 4",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.pergunta_4 }}",
+              "type": "string"
+            },
+            {
+              "id": "332512a8-c6ae-496d-8895-c1804abdfb68",
+              "name": "fonte_do_lead_bposs",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.fonte_do_lead_bposs }}",
+              "type": "object"
+            },
+            {
+              "id": "a3cc2deb-ed56-46d4-8e9b-14934ba991b0",
+              "name": "funil",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.funil.value }}",
+              "type": "string"
+            },
+            {
+              "id": "41bd138a-b2de-48e4-8fec-39828fa33ae9",
+              "name": "fluxo_vs",
+              "value": "={{ $('Formatacao').first().json.data.custom_fields.fluxo_vs.value }}",
+              "type": "string"
+            },
+            {
+              "id": "add48960-039c-4232-a998-a16d916fb341",
+              "name": "historico_mensagens",
+              "value": "={{ $('Mensagem anteriores').all().filter(item => !item.json.message.content?.includes('espond')).map(item => `${item.json.message.type === 'human' ? 'Humano' : 'IA'} [${new Date(item.json.created_at).toLocaleString('pt-BR')}]: ${item.json.message.content}`).join('\\n') }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3536,
+        -1744
+      ],
+      "id": "d8e8947e-a4f8-4924-ae67-09a27e285f8f",
+      "name": "Informações Relevantes - FUP"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "https://cliente-a1.mentorfy.io/mcp/04ebfb45-5c60-4cf3-9baa-b5a87ffc479f/sse",
+        "include": "selected",
+        "includeTools": [
+          "Atualizar_lead_perdido"
+        ],
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        4256,
+        -1488
+      ],
+      "id": "99e41280-86dc-429d-8278-ebcf2b38bb4e",
+      "name": "Atualizar Lead",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "https://cliente-a1.mentorfy.io/mcp/204838be-eb1a-4142-a7ea-b1718648fbcb/sse",
+        "include": "selected",
+        "includeTools": [
+          "Busca_disponibilidade"
+        ],
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        4368,
+        -1488
+      ],
+      "id": "ee3d70e5-3c39-468d-b914-d28df03ea229",
+      "name": "API Agendafy"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_schedule_tracking",
+          "mode": "list",
+          "cachedResultName": "n8n_schedule_tracking"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "unique_id",
+              "value": "={{ $('Formatacao').first().json.data.id.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3376,
+        -1744
+      ],
+      "id": "0ef20ae7-35ff-45ce-9bb8-4cf6fdb10358",
+      "name": "Busca Rastreio",
+      "retryOnFail": true,
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Função para mapear os campos customizados\nfunction mapCustomFields(customFields) {\n  const mapped = {};\n  \n  if (!customFields || !Array.isArray(customFields)) {\n    return mapped;\n  }\n  \n  customFields.forEach(field => {\n    const fieldName = field.field_name || field.field_code || `field_${field.field_id}`;\n    const normalizedName = fieldName\n      .toLowerCase()\n      .replace(/\\s+/g, '_')\n      .replace(/[^\\w_]/g, '');\n    \n    // Extrai o valor baseado no tipo do campo\n    if (field.values && field.values.length > 0) {\n      const firstValue = field.values[0];\n      \n      // Para campos de data/hora, converte para ISO string\n      if (field.field_type === 'date_time' && firstValue.value) {\n        mapped[normalizedName] = new Date(firstValue.value * 1000).toISOString();\n      } \n      // Para campos select, pega o valor e o enum_id\n      else if (field.field_type === 'select') {\n        mapped[normalizedName] = {\n          value: firstValue.value || null,\n          enum_id: firstValue.enum_id || null\n        };\n      }\n      // Para checkbox\n      else if (field.field_type === 'checkbox') {\n        mapped[normalizedName] = firstValue.value || false;\n      }\n      // Para outros campos, pega apenas o valor\n      else {\n        mapped[normalizedName] = firstValue.value || null;\n      }\n    } else {\n      mapped[normalizedName] = null;\n    }\n  });\n  \n  return mapped;\n}\n\n// Função principal para processar o JSON\nfunction processLeadData(leads) {\n  try {\n    // Verifica se leads existe e é um array\n    if (!leads || !Array.isArray(leads) || leads.length === 0) {\n      return {\n        success: false,\n        message: \"Nenhum lead encontrado\",\n        data: null\n      };\n    }\n    \n    // Pega o primeiro lead (ou você pode mapear todos)\n    const lead = leads[0];\n    \n    // Verifica se o lead existe\n    if (!lead) {\n      return {\n        success: false,\n        message: \"Lead inválido\",\n        data: null\n      };\n    }\n    \n    // Mapeia as tags\n    const tags = (lead._embedded?.tags || []).map(tag => ({\n      id: tag.id || null,\n      name: tag.name || null,\n      color: tag.color || null\n    }));\n    \n    // Cria o objeto simplificado\n    const simplified = {\n      // Informações básicas\n      id: lead.id || null,\n      name: lead.name && lead.name.trim() ? lead.name.trim().charAt(0).toUpperCase() + lead.name.trim().slice(1).toLowerCase() : null,\n      price: lead.price || 0,\n      responsible_user_id: lead.responsible_user_id || null,\n      status_id: lead.status_id || null,\n      pipeline_id: lead.pipeline_id || null,\n      loss_reason_id: lead.loss_reason_id || null,\n      \n      // Datas\n      created_at: lead.created_at ? new Date(lead.created_at * 1000).toISOString() : null,\n      updated_at: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString() : null,\n      closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toISOString() : null,\n      closest_task_at: lead.closest_task_at ? new Date(lead.closest_task_at * 1000).toISOString() : null,\n      \n      // Usuários\n      created_by: lead.created_by || null,\n      updated_by: lead.updated_by || null,\n      \n      // Status\n      is_deleted: lead.is_deleted || false,\n      is_price_computed: lead.is_price_computed || false,\n      \n      // Campos customizados mapeados\n      custom_fields: mapCustomFields(lead.custom_fields_values),\n      \n      // Tags\n      tags: tags,\n      tag_names: tags.map(t => t.name).filter(name => name !== null), // Array apenas com os nomes das tags\n      \n      // Informações adicionais\n      account_id: lead.account_id || null,\n      group_id: lead.group_id || null,\n      labor_cost: lead.labor_cost || null,\n      score: lead.score || null,\n      \n      // Companies\n      companies: lead._embedded?.companies || [],\n      \n      // Links\n      api_link: lead._links?.self?.href || null\n    };\n    \n    return {\n      success: true,\n      data: simplified\n    };\n    \n  } catch (error) {\n    return {\n      success: false,\n      message: `Erro ao processar dados: ${error.message}`,\n      error: error.toString(),\n      data: null\n    };\n  }\n}\n\n// Executa a função com os dados do item do n8n\nconst result = processLeadData($('Retonar o Lead').first().json?._embedded?.leads);\n\n// Retorna o resultado\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        -1600
+      ],
+      "id": "89744dd4-c2a1-424f-9c85-cb4284617283",
+      "name": "Formatacao",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ ($('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'ativar/desativar IA')?.values[0]?.value ?? false) &&\n\n!$('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'Mensagem FUP')?.values[0]?.value \n&& \n\nnew Date() > new Date(((($('Retonar o Lead').item.json._embedded.leads[0].custom_fields_values.find(item => item.field_name === 'Data e hora do agendamento - BPOSS')?.values?.[0]?.value) || 0) * 1000) + (15 * 60 * 1000))\n\n&&\n\n$('Ultima Atualizacao').item.json.ativo\n\n&&\n\n$json.data?.custom_fields?.fonte?.value[0] === 'WhatsApp'\n\n}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "f833be81-d1fb-4c04-9382-52f491742ef7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Envia mensagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "45c341a1-5b59-49a6-9fb6-a78f56170e35",
+                    "leftValue": true,
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ignora"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3040,
+        -1648
+      ],
+      "id": "faf35fd2-0e88-41d4-9f3e-b062848ca20a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2880,
+        -1648
+      ],
+      "id": "024ece7f-6e39-4ab8-bf64-3e4e1057a82f",
+      "name": "Merge",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ff19cb21-f08f-4c45-9e0c-bf15cc3a8c63",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "json",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "6495fa85-2af7-493f-bf75-e3d46220f622",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "{{",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "1a3f003d-7c63-4458-b21c-077df3110d65",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "{",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "9862c89d-b15e-4ca9-819b-1d78ce50969e",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "output",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "221b46a6-b8e2-4876-91e5-1e63c832c3ec",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "parsed",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "1ca62833-b23f-46d8-99dd-c885bc588a55",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "6954d9c3-7eaf-42e6-a165-4deb8ae9a253",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "error",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "f8382da6-9a42-43e7-98f4-266722d55a1d",
+              "leftValue": "={{ !$('Ultima Atualizacao1').item.json.ativo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5504,
+        -1232
+      ],
+      "id": "37d8f5bb-b1ac-477c-8ff3-03d49307c44e",
+      "name": "If",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b2fec19b-b1ac-4abf-9728-5824525a7866",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1472,
+        -1440
+      ],
+      "id": "e84f36b2-bf3f-4fbb-a89e-ec83fe5ca004",
+      "name": "Webhook",
+      "webhookId": "b2fec19b-b1ac-4abf-9728-5824525a7866"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2f65fbdb-8bb1-4d20-8437-fbaffcad8b13",
+              "leftValue": "={{ $now.diffTo($json.last_execution, 'hour') > 1 || !$json.last_execution }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2320,
+        -1680
+      ],
+      "id": "de14a76b-8df8-43c4-b1ee-244afd792651",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_schedule_tracking",
+          "mode": "list",
+          "cachedResultName": "n8n_schedule_tracking"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "unique_id",
+              "value": "={{ $json.unique_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2128,
+        -1680
+      ],
+      "id": "5ffce47e-b57d-4167-bf07-c6f6cb261f17",
+      "name": "Ultima Atualizacao",
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b5a31f90-9b34-46f8-9cde-2faadea015d7",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "tools",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "c5f9a2ad-fe84-4187-8375-7774b7d145e0",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "lead",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "29c988ab-9dea-4345-ab2d-8903cfd5c4e3",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "next_event",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "2fbd0b30-fe51-49fa-974c-855867549da4",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "agent",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "1a1fee2a-75cd-4125-95b4-0b5d944fa119",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "iterations",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "89a20331-1690-4bd0-8690-4a7c42a95802",
+              "leftValue": "={{ $('Formatar texto').first().json.text.parseJson().messages.join() }}",
+              "rightValue": "stopped",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        5680,
+        -1248
+      ],
+      "id": "f514b1d9-ac4d-4997-80d0-fdf6a53bdc03",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[Lead ainda não respondeu...]",
+        "options": {
+          "systemMessage": "=## 1. 🎯 CONTEXTO E PAPEL\n\nVocê é um especialista em **reativação de leads e vendas consultivas**.\nSua missão é:\n\n* Retomar conversas de forma **natural e personalizada**.\n* **Sempre agendar follow-up** com `Agendar_follow_up` após cada mensagem.\n* Adaptar a cadência com base na **última interação**.\n* Avançar o lead no funil de forma leve, incentivando a marcar reuniões.\n\n📌 Data/hora atual: `{{ $now.format('FFFF') }}`\n📌 Fuso: America/New_York (NY)\n\n[INFORMAÇÕES DO LEAD]\n\n* Nome: {{ $('Informações Relevantes - FUP').first().json.name }}\n* Lead_id: {{ $('Informações Relevantes - FUP').first().json['Lead Id'] }}\n* Responsável: {{ $('Informações Relevantes - FUP').first().json.responsavel }}\n* Fluxo atual: {{ $('Informações Relevantes - FUP').first().json.fluxo_vs }}\n* Última etapa: {{ $('Informações Relevantes - FUP').first().json.ultima_etapa }}\n* Última reunião: {{ $('Informações Relevantes - FUP').first().json['Horário do agendamento'] }}\n* Última msg recebida: {{ $('Informações Relevantes - FUP').first().json['data_criação'] }}\n* Último follow-up: {{ $('Informações Relevantes - FUP').first().json.ultimo_follow_up ?? \"Ainda não agendado\" }}\n\n---\n\n## 2. 🧠 PERSONALIDADE E ESTILO\n\n* Tom: **casual, leve, direto**.\n* Use o nome do lead de forma natural, mas **não sempre na primeira frase**.\n* Frases curtas, mas **sem limite rígido de caracteres**. Clareza > tamanho.\n* Pode usar conectores normais (vírgula, dois pontos), desde que soe humano.\n* Nunca use termos técnicos (lead, funil, etapa, IA, sistema).\n* Evite repetições óbvias e mensagens genéricas.\n\n---\n\n## 3. ⚡ FLUXO DE AÇÃO\n\n### Etapa 1 — Entender cenário\n\n* Analise: `fonte_do_lead_bposs`, `funil`, `fluxo_vs`, `ultima_etapa`, `data_criação`, histórico.\n* Identifique se é:\n\n  1. **Lead ativo** (respondeu recentemente).\n  2. **Lead frio** (dias/semana sem resposta).\n  3. **Pós-reunião** (já teve call).\n\n### Etapa 2 — Definir próximo passo\n\n* Se ativo → continue a conversa.\n* Se frio → retome de forma leve e objetiva.\n* Se pós-reunião → confirmar materiais ou propor nova agenda.\n\nEtapa 3 — Criar mensagem (ajustado)\n\nUse as respostas anteriores (P0–P4) e histórico.\nNunca repita mensagens anteriores.\nNunca use termos vagos como “aquilo”, “aquele interesse”, \"aquele assunto\", “sobre isso”, se o assunto não é claro, não mencionamos.\n\nMencione de forma clara o assunto em aberto se houver (ex.: proposta, operação, estratégia nos EUA, agendamento da call, etc.).\n\nSe não houver contexto, faça pergunta simples para reabrir contato, mas sempre com algum tema relacionado ao histórico do lead.\n\n### Etapa 4 — Follow-up\n\n* Após cada mensagem, sempre agende novo contato:\n\n```js\nAgendar_follow_up(data, hora, \"msg sugerida para próxima tentativa\")\n```\n\n* Apenas **uma chamada por mensagem**.\n\n### Etapa 5 — Escalonar para humano\n\n* Encaminhar se:\n\n  * 3 recusas seguidas\n  * Pedido fora do escopo\n  * Questão legal/contratual\n  * Contexto confuso\n\n---\n\n## 4. 🛠️ FERRAMENTAS\n\n| Ferramenta                 | Função                            |\n| -------------------------- | --------------------------------- |\n| **Busca_disponibilidade**  | Verificar horários p/ reuniões    |\n| **Agendar_follow_up**      | Agendar novo contato              |\n| **Atualizar_lead_perdido** | Marcar como perdido após cadência |\n\n---\n\n## 5. 📅 AGENDAMENTO DE REUNIÕES\n\n* Só ofereça reunião se lead estiver em etapa de agendamento ou reagendamento.\n* Antes de sugerir horário → use `Busca_disponibilidade`.\n* Convite sempre em tom leve, ex:\n\n  > “Quer q eu veja uns horários pra gente conversar rapidinho?”\n\n---\n\n## 6. ✅ REGRAS ESSENCIAIS\n\n* Sempre personalize.\n* Sempre agende follow-up.\n* Nunca repita mensagens.\n* Clareza e naturalidade acima de tudo.\n* Na mensagem foque apenas no conteúdo do histórico de conversa para criar a mensagem de reativação de lead.\n* Mensagens curtas\n\n---\n# 7. Exemplos mais genéricos\n1. Olá [Nome], tudo bem?\nVocê ainda gostaria de continuar nossa conversa?\n\n2. Oi [Nome]! Faz um tempinho que não falamos, gostaria de retomar nosso papo?\n\n3. Olá [Nome], tudo certo?\nAinda faz sentido seguirmos com nossa conversa?\n\n4. Oi [Nome], espero que esteja bem 🙂\nPodemos continuar de onde paramos?\n\n---\n\n## 8. 🎯 SAÍDA FINAL\n\n* Apenas a **mensagem para o lead**.\n* Um `Agendar_follow_up` obrigatório com data/hora e msg de próxima tentativa.\n* Nada de explicações extras.\n* Não usar texto com \"(\", \")\" ou \"[\", \"]\".\n\n# 9. HISTÓRICO DE CONVERSA (LEAD E ASSISTENTE)\n{{ $('Informações Relevantes - FUP').first().json.historico_mensagens }}",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        4112,
+        -1744
+      ],
+      "id": "9585a108-8d4e-4467-930b-9aa67dd1acf2",
+      "name": "Assistente de follow up eterno",
+      "retryOnFail": false,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "a_lead_id",
+              "value": "={{ $('Retonar o Lead').item.json._embedded.leads.first().id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        3216,
+        -1744
+      ],
+      "id": "23a3f685-b62e-4107-b6b7-fc22efeafe15",
+      "name": "Execution Data",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[Lead ainda não respondeu...]",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=[CONTEXTO/PAPEL]\nVocê é um especialista em vendas e reativação de leads, responsável por retomar conversas e aumentar a conversão em reuniões qualificadas. Sua tarefa é reativar leads por meio de follow-ups personalizados, aplicando técnicas de persuasão, gestão de cadência e engajamento para avançar conversas, reduzir no-show e agendar reuniões B2B. Sempre que o lead não responder, utilize a ferramenta Agendar_follow_up para definir o próximo contato, sem informar o horário ao cliente.\n\nData/hora atual: {{ $now.format('FFFF') }}\nFUSO: America/New_York (NY)\n\n## REGRA BÁSICA\n- Responda apenas com a mensagem final para o cliente.\n- Não fale nada sobre \"lead\" ou termos técnico, o cliente não precisa saber que ele é um lead, queremos apenas mandar uma mensagem para continuar a conversa.\n- A próxima cadência é baseada no tempo que se passou desde a Data da última mensagem do lead.\n\n## PERSONALIDADE\n\n- Máx 100 caracteres (exceto dúvidas específicas)\n- Tom casual: vc, tá, pra, tô, q, tb\n- Sem dois pontos (:), sem emojis\n- Use nome do lead (sem repetir sempre)\n- AM/PM para horários\n- Não se identifique como IA\n- Nunca diga que retornará/avisará depois\n- O fuso abreviamos para NY apenas para deixar mais natural.\n\n[INFORMAÇÕES DO LEAD]\nNome: {{ $json.name }}\nLead_id: {{ $json['Lead Id'] }}\nfunil: {{ $json.funil }}\nresponsável: {{ $json.responsavel }}\nfonte do lead bposs: {{ $json.fonte_do_lead_bposs }}\nfluxovs: {{ $json.fluxo_vs }}\nhorario do agendamento: {{ $json['Horário do agendamento'] }}\n\n\nRespostas antigas:\nP0: {{ $json['Pergunta 0'] }}\nP1: {{ $json['Pergunta 1'] }}\nP2: {{ $json['Pergunta 2'] }}\nP3: {{ $json['Pergunta 3'] }}\nP4: {{ $json['Pergunta 4'] }}\n\n[Informações do último follow-up]\nUltima etapa registrada: {{ $json.ultima_etapa }}\nData da última mensagem do lead: {{ $json['data_criação'] }}\nUltimo follow up agendado: {{ $json.ultimo_follow_up ?? \"Ainda não agendado\" }}\n\n[IMPORTANTE]\n- Sempre vamos criar um novo followup com Agendar_follow_up antes de enviar a mensagem ao lead.\n- Se o contexto for confuso ou incompleto, envie uma mensagem mais simples para evitarmos confusão.\n- Não mande mensagem identicas ou repetidas. Tente seguir a conversa de forma fluida.\n- Deve ser uma mensagem inteira e não separada.\n- Todo lead DEVE ter um Agendar_follow_up programado!\n\n[INSTRUÇÕES DETALHADAS]\nProcesso Principal:\n\nIdentificar último followup e salva a data do proximo com Agendar_follow_up.\nIdentificar o estado do lead (FU-1 a FU-6 ou Descartado)\nAplicar a estratégia correspondente ao nível de follow-up\nEnviar mensagem personalizada seguindo o ângulo apropriado\nProgramar próximo follow-up conforme cadência nas regras.\n\n[FORMATO DE SAÍDA]\nEstrutura das Mensagens:\n\nTamanho: Máximo 100-140 caracteres (micro-mensagens)\nLinhas: 1-2 linhas por mensagem\nTom: Casual, educado e direto\nIdioma: PT-BR (padrão), espelhar idioma do lead se usar EN/ES\nCTA: Sempre finalizar com pergunta ou call-to-action clara\nEmojis: Usar com moderação (👀, 👍) em FU-1/FU-2\n\nEscalonamento para Humano:\nConflitos recorrentes\nPedidos fora do escopo\nDúvidas legais/contratuais\n3 recusas seguidas\n\n\n[EXEMPLOS]\n** Para conseguir o dia e horario buscar na ferramenta Busca_disponibilidade antes para confirmar o que ainda temos disponível**\n- Os exemplos a seguir devem servir como embasamento não como copia. Podemos usar para iniciar, mas depois é necessário ser flexivel e mandar mensagens diferentes e continuar de uma forma que mantenha a conexão.\n\nMensagens de exemplo para a primeira mensagem de follow-up:\n{first_name}, {responsavel}, {fuso-NY}, {dia}, {h1}, {h2}\nFU-1 (Micro-pings iniciais):\nCopy1. \"{first_name}?\"\n2. \"👀 tudo certo por aí?\"\n3. \"Te peguei na correria? posso te escrever depois?\"\nFU-2 (Retomar e oferecer):\nCopy1. \"{first_name}, seguimos? tenho {dia} {h1} ou {dia} {h2} ({fuso-NY}). qual fica melhor?\"\n2. \"Pra te ajudar já {dia} {h1}/{h2}. Confirmo pra você?\"\nFU-3 (Fala e fecha):\nCopy1. \"Fechando a agenda e lembrei de vc. {dia} {h1} ou {h2} ({fuso-NY})?\"\n2. \"Correria aí? qual encaixa: {dia} {h1} ou {h2}?\"\nFU-4 (No-show):\nCopy1. \"Acontece! remarcamos? {dia} {h1} ou {h2} ({fuso-NY}). te mando convite na hora.\"\n2. \"Tudo bem por aí? deixo {dia} {h1} reservado? se não, {h2}.\"\nFU-5 (Pós-apresentação):\nCopy1. \"Ficou alguma pendência? consigo te mostrar o próximo passo em 45 min. {dia} {h1} ou {h2}?\"\nFU-6 (Relacionamento):\nCopy1. \"Vi uma atualização que pode te ajudar no tema que falamos. te mostro em 40-45 min? {dia} {h1}/{h2}\"\n\n[INFORMAÇÕES ADICIONAIS]\nFerramentas Disponíveis:\n\nBusca_disponibilidade(eventId, timezone) - Consultar slots de agendamento disponíveis.\nAgendar_follow_up(data, hora, msg) - Programar próximo contato.\nAtualizar_lead_perdido - Ao fim do FUP vamos marcar o lead como perdido se não tivemos mais resposta.\n\nNíveis de Follow-up:\n\nFU-1: Início (não respondeu)\nFU-2: Engajou e travou\nFU-3: Final da sequência\nFU-4: No-Show\nFU-5: Pós-Apresentação\nFU-6: Longo Relacionamento\nDescartado: Sem resposta após cadência completa. Usamos a ferramenta Atualizar_lead_perdido para descartar ele.\n\n[AGENDAS DOS RESPONSÁVEIS]\n\n| NOME              | ID       | EVENT_ID                 | CONTEXTO             |\n| ----------------- | -------- | ------------------------- |\n| Fernanda Lappe    | 12036840 | cm9vh7i6d02lk12ty2pjv9jom |\n| André Rosa        | 10500123 | cmbpbj8lw01f2146h40ddzhrp |\n| Lucas Serrano     | -        | cm4bsxdkl0000322ea5f6ijv6 |\n| Cláudia Fehribach | 12827852 | cm9vgdenq02i912ty9tdns26u |\n| Ana Laura         | -        | cmeixjpkv01ek5p32qn56o25q |\n| Gladson Almeida   | 11004795 | clx9txon3002k3915qqvnjtdm |\n| Milton            | 11004571 | cmd34hwet00nmeg0fomdo9184 |\n| Ana Karina        | 12855964 | cma2jfu7n02bfy3j7hsvmj5   |\n| Meguro Financial  | 13227012 | cmavg13la00kn12bu3tu4sbb3 |\n| Julia Supa        | 13003128 | cmd51yipy00rgjzzovbouw8vy |\n| Melina Wiebusch   | 13506840 | cmd5ss4dl010vjzzonf3g7l7q |\n| Gustavo Couto     | 13504880 | cmd7mi82a02msjzzoyk838521 |\n| Renata            | 13530552 | cmd68qmwl01lkjzzo6yzk7xzs |\n| Luciana Garcia    | 12856536 | cmehduzuf01k3xqb13loniodb |\n| Vivian Osorio     | 13691412 | cmeigsieo00ru5p32e9um9lea | Reuniões no timezone é America/Los_Angeles |\n\n\n[REGRA DE CADENCIA DE FOLLOW-UP]\n** Essa são as regras para agendarmos o proximo follow-up e devem ser seguidas à risca.**\n- Para saber qual a proxima cadencia devemos olhar o horário da ultima mensagem do lead/cliente.\nData da última mensagem do lead: {{ $json['data_criação'] }}\n- Só devemos enviar opções para agendar reuniões para leads que estão nas Etapa 4 - Dados p/ Agendamento e Etapa 6 - Reagendamento/No-Show\n\n### Cenário 1\nfonte_do_lead_bposs: Tráfego - Lead Direct - Carreira\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 – Ativação → 15min, 1h, 3h, D+1 10h, D+2 15h, D+4 18h, D+7 11h, D+10 16h, D+13 9h, D+16 19h, D+19 14h\nEtapa 2 – Qualificação → 30min, 2h, 4h, D+1 16h, D+2 11h, D+4 19h, D+7 10h, D+10 18h, D+13 15h, D+16 9h, D+19 17h\nEtapa 3 – Sondagem → 15min, 2h, 6h, D+1 9h, D+2 14h, D+4 11h, D+7 17h, D+10 10h, D+13 19h, D+16 13h, D+19 18h\nEtapa 4 – Dados p/ Agendamento → 15min, 1h, 3h, D+1 18h, D+2 16h, D+4 9h, D+7 14h, D+10 19h, D+13 11h, D+16 17h, D+19 10h\nEtapa 5 – Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) → T+15min, T+2h, D+1 10h, D+3 10h, D+7 10h, D+14 11h, D+30 15h\nEtapa 6 – Reagendamento/No-Show → 15min, 1h, 4h, D+1 11h, D+2 15h, D+4 19h, D+7 9h, D+10 16h, D+13 14h, D+16 18h, D+19 10h\n\n### Cenário 2\nfonte_do_lead_bposs: Tráfego - Lead Direct - Consultoria\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 – Ativação → 15min, 1h, 3h, D+1 10h, D+2 15h, D+4 18h, D+7 11h, D+10 16h, D+13 9h, D+16 19h, D+19 14h\nEtapa 2 – Qualificação → 30min, 2h, 4h, D+1 16h, D+2 11h, D+4 19h, D+7 10h, D+10 18h, D+13 15h, D+16 9h, D+19 17h\nEtapa 3 – Sondagem → 15min, 2h, 6h, D+1 9h, D+2 14h, D+4 11h, D+7 17h, D+10 10h, D+13 19h, D+16 13h, D+19 18h\nEtapa 4 – Dados p/ Agendamento → 15min, 1h, 3h, D+1 18h, D+2 16h, D+4 9h, D+7 14h, D+10 19h, D+13 11h, D+16 17h, D+19 10h\nEtapa 5 – Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) → T+15min, T+2h, D+1 10h, D+3 10h, D+7 10h, D+14 11h, D+30 15h\nEtapa 6 – Reagendamento/No-Show → 15min, 1h, 4h, D+1 11h, D+2 15h, D+4 19h, D+7 9h, D+10 16h, D+13 14h, D+16 18h, D+19 10h\n\n### Cenário 3\nfonte_do_lead_bposs: Prospecção / Novo Seguidor (BPO Social Selling)\nfunil: F1 - BPO do Social Selling - EUA\nfluxo_vs:\nEtapa 1 – Ativação → 24h, 48h, 72h, D+5 10h, D+7 15h, D+10 11h, D+13 18h, D+16 14h, D+19 9h, D+25 16h, D+30 10h, D+45 15h, D+60 11h\nEtapa 2 – Qualificação → 24h, 72h, D+5 15h, D+7 18h, D+10 9h, D+13 16h, D+19 11h, D+25 19h, D+30 14h, D+45 10h, D+60 15h\nEtapa 3 – Sondagem → 48h, 72h, D+5 11h, D+7 14h, D+10 17h, D+13 10h, D+16 18h, D+19 13h, D+25 9h, D+30 17h, D+45 11h, D+60 16h\nEtapa 4 – Dados p/ Agendamento → 48h, 72h, D+5 14h, D+7 17h, D+10 10h, D+13 19h, D+16 15h, D+19 18h, D+25 11h, D+30 16h, D+45 14h, D+60 18h\nEtapa 5 – Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) → T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h, D+14 11h, D+30 15h, D+60 15h\nEtapa 6 – Reagendamento/No-Show → 24h, 48h, 72h, D+5 11h, D+7 15h, D+10 14h, D+13 9h, D+16 17h, D+19 11h, D+25 15h, D+30 19h, D+45 13h, D+60 10h",
+          "maxIterations": 20
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        4016,
+        -2112
+      ],
+      "id": "2aee4617-45a9-42ce-b00b-9849cb11942c",
+      "name": "Assistente de follow up eterno1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "content": "v1 - 31/08/2025",
+        "height": 368,
+        "width": 448
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3936,
+        -2192
+      ],
+      "typeVersion": 1,
+      "id": "b5a29b35-6ceb-4871-b509-f9effcf5d178",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Atualiza quando deverá ser o próximo FollowUp(próximo contato) do cliente. unique_id é o lead_id. Sempre será chamado.",
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_schedule_tracking",
+          "mode": "list",
+          "cachedResultName": "n8n_schedule_tracking"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "next_event": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('next_event', `Formato: 2025-08-29 15:00:00+00`, 'string') }}",
+            "unique_id": "={{ $('Informações Relevantes - FUP').first().json['Lead Id'].toString() }}"
+          },
+          "matchingColumns": [
+            "unique_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "field",
+              "displayName": "field",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "unique_id",
+              "displayName": "unique_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ativo",
+              "displayName": "ativo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "next_event",
+              "displayName": "next_event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        4960,
+        -1280
+      ],
+      "id": "87c7a482-a2b5-4036-bb41-b1104fcee84a",
+      "name": "Agendar_follow_up_tool",
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Ferramenta de agente de follow-up. Responsável por agendar o proximo follow-up. Só pode ser chamado uma única vez e não mais.",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=Você é um assistente de agendamento de follow-up, sua missão é identificar a cadencia atual que o lead está e agendar para a próxima cadência.\n\n📌 **Data/hora atual:** `{{ $now.format('FFFF') }}`  \n📌 **Fuso:** America/New_York (NY)\n\n[INFORMAÇÕES DO LEAD] \nNome: {{ $('Informações Relevantes - FUP').first().json.name }} \nLead_id: {{ $('Informações Relevantes - FUP').first().json['Lead Id'] }} \nfunil: {{ $('Informações Relevantes - FUP').first().json.funil }} \nresponsável: {{ $('Informações Relevantes - FUP').first().json.responsavel }} \nfonte do lead bposs: {{ $('Informações Relevantes - FUP').first().json.fonte_do_lead_bposs }} \nfluxovs: {{ $('Informações Relevantes - FUP').first().json.fluxo_vs }} \nÚltima reunião agendada: {{ $('Informações Relevantes - FUP').first().json['Horário do agendamento'] }}\nUltima etapa registrada: {{ $('Informações Relevantes - FUP').first().json.ultima_etapa }} \nData da última mensagem do lead: {{ $('Informações Relevantes - FUP').first().json['data_criação'] }} \nUltimo follow up agendado: {{ $('Informações Relevantes - FUP').first().json.ultimo_follow_up ?? \"Ainda não agendado\" }}\n\n\n**Obs: mesmo que não tenha tido follow up anteriormente, precisamos considerar o tempo que se passou, por exemplo, se passou 1h desde a ultima mensagem do lead, significa que a cadecia atual seria a mais próxima do tempo atual e precisamos saber e agendar a cadência seguinte. Nesse exemplo, se passou 1h, se tivermos cadencia de 1h, 2h e 3h, a cadecia futura será a de 3h, pois 2h é a atual.**\n\n**Obs 2: Se na última cadêcia agora então não precisamos agendar a futura. Mas se já não estamos perto de uma cadência atualmente(já ultrapassamos o máximo) então chamamos a ferramenta \"Fim_de_cadencia\" para não enviarmos mensagem agora e encerrar. Porém se já agendamento o próximo follow up então não precisamos fazer nada, deixamos assim.**\n\n**Obs 3: só podemos chamar o Agendar_follow_up_tool ou o Fim_de_cadencia apenas uma unica vez.\n\n--\n\n## FERRAMENTAS:\n- Refletir_cadencia: para raciocinar a cadencia correta. Sempre devemos usar.\n- Agendar_follow_up_tool: para agendar o proximo follow-up.\n- Fim_de_cadencia: encerrar conversa com lead.\n\n---\n\n# 📌 TABELA DE CADÊNCIAS — POR CENÁRIO\n\n## **Cenário 1**  \n`fonte_do_lead_bposs: Tráfego - Lead Direct - Carreira`  \n`funil: F2 - Funil Tráfego Direto`\n\n| Etapa | Cadência |\n|-------|----------|\n| 1. Ativação | 15min, 1h, 3h, D+1 10h, D+2 15h, D+4 18h, D+7 11h, D+10 16h, D+13 9h, D+16 19h, D+19 14h |\n| 2. Qualificação | 30min, 2h, 4h, D+1 16h, D+2 11h, D+4 19h, D+7 10h, D+10 18h, D+13 15h, D+16 9h, D+19 17h |\n| 3. Sondagem | 15min, 2h, 6h, D+1 9h, D+2 14h, D+4 11h, D+7 17h, D+10 10h, D+13 19h, D+16 13h, D+19 18h |\n| 4. Dados p/ Agendamento | 15min, 1h, 3h, D+1 18h, D+2 16h, D+4 9h, D+7 14h, D+10 19h, D+13 11h, D+16 17h, D+19 10h |\n| 5. Pós-Reunião | T+15min, T+2h, D+1 10h, D+3 10h, D+7 10h, D+14 11h, D+30 15h |\n| 6. Reagendamento | 15min, 1h, 4h, D+1 11h, D+2 15h, D+4 19h, D+7 9h, D+10 16h, D+13 14h, D+16 18h, D+19 10h |\n\n---\n\n## **Cenário 2**  \n`fonte_do_lead_bposs: Tráfego - Lead Direct - Consultoria`  \n`funil: F2 - Funil Tráfego Direto`  \n\n*(Segue a mesma cadência do Cenário 1)*\n\n---\n\n## **Cenário 3**  \n`fonte_do_lead_bposs: Prospecção / Novo Seguidor (BPO Social Selling)`  \n`funil: F1 - BPO do Social Selling - EUA`\n\n| Etapa | Cadência |\n|-------|----------|\n| 1. Ativação | 24h, 48h, 72h, D+5 10h, D+7 15h, D+10 11h, D+13 18h, D+16 14h, D+19 9h, D+25 16h, D+30 10h, D+45 15h, D+60 11h |\n| 2. Qualificação | 24h, 72h, D+5 15h, D+7 18h, D+10 9h, D+13 16h, D+19 11h, D+25 19h, D+30 14h, D+45 10h, D+60 15h |\n| 3. Sondagem | 48h, 72h, D+5 11h, D+7 14h, D+10 17h, D+13 10h, D+16 18h, D+19 13h, D+25 9h, D+30 17h, D+45 11h, D+60 16h |\n| 4. Dados p/ Agendamento | 48h, 72h, D+5 14h, D+7 17h, D+10 10h, D+13 19h, D+16 15h, D+19 18h, D+25 11h, D+30 16h, D+45 14h, D+60 18h |\n| 5. Pós-Reunião | T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h, D+14 11h, D+30 15h, D+60 15h |\n| 6. Reagendamento | 24h, 48h, 72h, D+5 11h, D+7 15h, D+10 14h, D+13 9h, D+16 17h, D+19 11h, D+25 15h, D+30 19h, D+45 13h, D+60 10h |\n\nEXEMPLO DE EXECUÇÃO COMPLETA DE CADÊNCIA\n\n**Exemplo prático — Cenário 1 — Etapa 1 (Ativação)**\n📍 **Última mensagem do lead:** 10:00 (NY)  \n📍 **Data atual:** 10:15 (NY)  \n📍 **Cadência:** 15min → 1h → 3h → D+1 10h...\n\n\nAo final responda se o agendamento foi concluido com sucesso explicando o porque essa cadencia foi escolhida."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        4512,
+        -1488
+      ],
+      "id": "c795d102-649c-4621-b006-5205a452206a",
+      "name": "Agendar_follow_up",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "description": "Use a ferramenta para pensar sobre algo. Ela não obterá novas informações nem alterará o banco de dados, apenas anexará o pensamento ao registro. Use-a quando for necessário raciocínio complexo ou alguma memória cache."
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        4656,
+        -1280
+      ],
+      "id": "5afe77ba-dbed-4bbe-8ca8-d40ee54d78ea",
+      "name": "Refletir_cadencia"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Execute a SQL query in Postgres",
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_schedule_tracking (\n  unique_id,\n  ativo\n) VALUES (\n  $1, FALSE\n)\nON CONFLICT (unique_id) DO UPDATE\nSET \n  ativo = FALSE,\n  next_event = NULL;",
+        "options": {
+          "queryReplacement": "={{ $('Informações Relevantes - FUP').first().json['Lead Id'] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        4800,
+        -1280
+      ],
+      "id": "cfe22848-357b-4018-b731-368187d13a2e",
+      "name": "Fim de cadencia",
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_schedule_tracking",
+          "mode": "list",
+          "cachedResultName": "n8n_schedule_tracking"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "unique_id",
+              "value": "={{ $('Informações Relevantes - FUP').first().json['Lead Id'].toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5184,
+        -1744
+      ],
+      "id": "8345afe1-2f1a-436e-87e3-fd348ec4da3b",
+      "name": "Ultima Atualizacao1",
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4512,
+        -1280
+      ],
+      "id": "13edf709-369b-417d-976b-b439023fed59",
+      "name": "Modelo",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4ut0CD80SN7lbITM",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_historico_mensagens",
+          "mode": "list",
+          "cachedResultName": "n8n_historico_mensagens"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $json._embedded.leads[0].id.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2656,
+        -1744
+      ],
+      "id": "02477712-becb-4ef2-af65-68188c3be8db",
+      "name": "Mensagem anteriores",
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ce11f02d-1cb3-42d0-bde8-6388cf1ab4da",
+              "name": "messages",
+              "value": "={{ $('Formatar texto').first().json.text.parseJson().messages }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6000,
+        -1248
+      ],
+      "id": "5328bacd-d7e6-45b3-8be7-bf494d4782d9",
+      "name": "resposta"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"messages\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"messages\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        4896,
+        -1600
+      ],
+      "id": "67277161-078a-494e-83b3-0df53c62eb8c",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_historico_mensagens",
+          "mode": "list",
+          "cachedResultName": "n8n_historico_mensagens"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message": "={\n  \"type\": \"ai\",\n  \"content\": \"{{ $('Formatar texto').first().json.text.parseJson().messages.join() }}\",\n  \"tool_calls\": [],\n  \"additional_kwargs\": {},\n  \"response_metadata\": {},\n  \"invalid_tool_calls\": []\n}",
+            "session_id": "={{ $('Informações Relevantes - FUP').item.json['Lead Id'].toString() }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5856,
+        -1248
+      ],
+      "id": "a3ab425e-e1f1-474b-90ea-beded3777f80",
+      "name": "Atualiza status IA1",
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "B0fAAM3acruSSuiz",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "O6GLUDJqywz2UWy1",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/O6GLUDJqywz2UWy1",
+          "cachedResultName": "[ Kommo ] Split and Delivery Message"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "messages": "={{ $json.messages }}",
+            "lead_id": "={{ $('Informações Relevantes - FUP').item.json['Lead Id'].toString() }}"
+          },
+          "matchingColumns": [
+            "_embedded_leads_lastItem"
+          ],
+          "schema": [
+            {
+              "id": "messages",
+              "displayName": "messages",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        6384,
+        -1136
+      ],
+      "name": "Call SendToKommoSplitted",
+      "id": "e1cd0064-871e-4570-9e51-3438f4774b19"
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.historico_mensagens }}",
+        "options": {
+          "categories": "Positive, Neutral, Negative",
+          "includeDetailedResults": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.sentimentAnalysis",
+      "typeVersion": 1.1,
+      "position": [
+        3728,
+        -1760
+      ],
+      "id": "a33faacd-c4ab-4ce2-ac06-ce2d34b33aad",
+      "name": "Sentiment Analysis",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensagem que será enviada: {{$('Assistente de follow up eterno').first().json.output}}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é um assistente cuja única função é REVISAR a mensagem antes de ela ser enviada para o usuário.\n\n## Contexto\n- Você recebe como entrada o [histórico] de mensagens já trocadas e a [nova mensagem] que o sistema quer enviar.\n- Sua missão é garantir que a resposta seja clara, curta, sem repetições e natural.\n- Se a resposta tiver várias perguntas, simplifique para apenas UMA pergunta por vez, escolhendo a mais relevante ou necessária para continuar a conversa.\n- Evite frases longas, blocos de texto pesados ou repetir o que já foi dito no histórico.\n- A conversa deve parecer leve, guiada e natural, como em um diálogo humano.\n\n## Instruções\n1. Leia o [histórico] para entender o que já foi falado.\n2. Analise a [nova mensagem].\n3. Reescreva a [nova mensagem] de forma mais curta e natural.\n4. Caso haja várias perguntas, mantenha só a principal.\n5. Não invente informações novas e não mude o sentido.\n6. Responda apenas com a mensagem revisada, sem comentários extras.\n7. Se tiver algum trexo com underline \"_\" devemos remover essa parte em diante.\n8. se tiver texto com \"(\", \")\", \"[\" ou \"]\" vamos remover.\n\n## Formato de saída\nRetorne apenas a versão revisada da mensagem final.\n\n## SENTIMENTO DA CONVERSA\n{{ $('Sentiment Analysis').item.json.sentimentAnalysis.category }}\n\n## HISTÓRICO\n{{ $('Informações Relevantes - FUP').first().json.historico_mensagens }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        4464,
+        -1744
+      ],
+      "id": "696cfbb8-166c-485a-9c5d-1ad3d2831f0a",
+      "name": "QA"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4112,
+        -1488
+      ],
+      "id": "bdd892d3-2247-43f8-b564-a2cff84c9d80",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4ut0CD80SN7lbITM",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3888,
+        -1488
+      ],
+      "id": "fc394a53-f03e-4a46-a511-2e9f84f4f98c",
+      "name": "OpenRouter2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "sfkNv3IS1mwYy1mQ",
+          "name": "OpenRouter Alan"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensagem a ser formatada: {{ $json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é especialista em formatação de mensagem para WhatsApp, trabalhando somente na formatação e não alterando o conteúdo da menssagem. Responda apenas com o texto final, não comente nada e não fale 'sua mensagem formatada', apenas o texto final. Não comente e nem fale por conta própria, apenas pegue a mensagem do usuário e formate.\n\n- Substitua ** por *\n- Remova #\n- Remova emojis\n- remova \\n e quebra de linhas\n- Substitua aspas duplas por aspas simples \" > '\n\n* remova partes do texto que não fazem parte da conversa como:\n- Mensão a tools ou \"Agendar_follow_up\" ou partes que não parecem fazer sentido na frase que é uma resposta de uma conversa.\n\nPor favor, gere a saída no seguinte formato JSON:\n{\n  \"messages\": [\n    \"splitedMessage\",\n    \"splitedMessage\",\n    \"splitedMessage\"\n  ]\n}\n\nRecomendado: ideal entre 2 mensagens e no max 3. Pode usar como referencia exclamações ou ponto."
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        4832,
+        -1744
+      ],
+      "id": "2b40e218-d15a-4388-8703-3b04e453d6e9",
+      "name": "Formatar texto",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "maxTries": 5,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Retonar o Lead').item.json._embedded.leads[0]._embedded.tags }}",
+                    "rightValue": "=whatsapp",
+                    "operator": {
+                      "type": "array",
+                      "operation": "contains",
+                      "rightType": "any"
+                    },
+                    "id": "9edc79d1-c851-4904-b307-336a60473bac"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        6208,
+        -1248
+      ],
+      "id": "8adc8db5-2997-4a61-9d1a-7b32b0e1d408",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Responda apenas com a mensagem final para o lead.",
+        "options": {
+          "systemMessage": "=[CONTEXTO/PAPEL]\nVocê é um especialista em vendas e reativação de leads, responsável por retomar conversas e aumentar a conversão em reuniões qualificadas. Sua tarefa é reativar leads por meio de follow-ups personalizados, aplicando técnicas de persuasão, gestão de cadência e engajamento para avançar conversas, reduzir no-show e agendar reuniões B2B. Sempre que o lead não responder, utilize a ferramenta Agendar_follow_up para definir o próximo contato, sem informar o horário ao cliente.\n\nData/hora atual: {{ $now.format('FFFF') }}\nFUSO: America/New_York (NY)\n\n## REGRA BÁSICA\n- Responda apenas com a mensagem final para o cliente.\n- Não fale nada sobre \"lead\" ou termos técnico, o cliente não precisa saber que ele é um lead, queremos apenas mandar uma mensagem para continuar a conversa.\n\n## PERSONALIDADE\n\n- Máx 100 caracteres (exceto dúvidas específicas)\n- Tom casual: vc, tá, pra, tô, q, tb\n- Sem dois pontos (:), sem emojis\n- Use nome do lead (sem repetir sempre)\n- AM/PM para horários\n- Não se identifique como IA\n- Nunca diga que retornará/avisará depois\n- O fuso abreviamos para NY apenas para deixar mais natural.\n\n[INFORMAÇÕES DO LEAD]\nNome: {{ $json.name }}\nLead_id: {{ $json['Lead Id'] }}\nfunil: {{ $json.funil }}\nresponsável: {{ $json.responsavel }}\nfonte do lead bposs: {{ $json.fonte_do_lead_bposs }}\nfluxovs: {{ $json.fluxo_vs }}\nhorario do agendamento: {{ $json['Horário do agendamento'] }}\n\n\nRespostas antigas:\nP0: {{ $json['Pergunta 0'] }}\nP1: {{ $json['Pergunta 1'] }}\nP2: {{ $json['Pergunta 2'] }}\nP3: {{ $json['Pergunta 3'] }}\nP4: {{ $json['Pergunta 4'] }}\n\n[Informações do último follow-up]\nUltima etapa registrada: {{ $json.ultima_etapa }}\nData da última mensagem do lead: {{ $json['data_criação'] }}\nUltimo follow up agendado: {{ $json.ultimo_follow_up ?? \"Ainda não agendado\" }}\n\n[IMPORTANTE]\n- Sempre vamos criar um novo followup com Agendar_follow_up antes de enviar a mensagem ao lead.\n- Se o contexto for confuso ou incompleto, envie uma mensagem mais simples para evitarmos confusão.\n- Não mande mensagem identicas ou repetidas. Tente seguir a conversa de forma fluida.\n- Deve ser uma mensagem inteira e não separada.\n- Todo lead DEVE ter um Agendar_follow_up programado!\n\n[INSTRUÇÕES DETALHADAS]\nProcesso Principal:\n\nIdentificar último followup e salva a data do proximo com Agendar_follow_up.\nIdentificar o estado do lead (FU-1 a FU-6 ou Descartado)\nAplicar a estratégia correspondente ao nível de follow-up\nEnviar mensagem personalizada seguindo o ângulo apropriado\nProgramar próximo follow-up conforme cadência nas regras.\n\n[FORMATO DE SAÍDA]\nEstrutura das Mensagens:\n\nTamanho: Máximo 100-140 caracteres (micro-mensagens)\nLinhas: 1-2 linhas por mensagem\nTom: Casual, educado e direto\nIdioma: PT-BR (padrão), espelhar idioma do lead se usar EN/ES\nCTA: Sempre finalizar com pergunta ou call-to-action clara\nEmojis: Usar com moderação (👀, 👍) em FU-1/FU-2\n\nEscalonamento para Humano:\nConflitos recorrentes\nPedidos fora do escopo\nDúvidas legais/contratuais\n3 recusas seguidas\n\n\n[EXEMPLOS]\n** Para conseguir o dia e horario buscar na ferramenta Busca_disponibilidade antes para confirmar o que ainda temos disponível**\n- Os exemplos a seguir devem servir como embasamento não como copia. Podemos usar para iniciar, mas depois é necessário ser flexivel e mandar mensagens diferentes e continuar de uma forma que mantenha a conexão.\n\nMensagens de exemplo para a primeira mensagem de follow-up:\n{first_name}, {responsavel}, {fuso-NY}, {dia}, {h1}, {h2}\nFU-1 (Micro-pings iniciais):\nCopy1. \"{first_name}?\"\n2. \"👀 tudo certo por aí?\"\n3. \"Te peguei na correria? posso te escrever depois?\"\nFU-2 (Retomar e oferecer):\nCopy1. \"{first_name}, seguimos? tenho {dia} {h1} ou {dia} {h2} ({fuso-NY}). qual fica melhor?\"\n2. \"Pra te ajudar já {dia} {h1}/{h2}. Confirmo pra você?\"\nFU-3 (Fala e fecha):\nCopy1. \"Fechando a agenda e lembrei de vc. {dia} {h1} ou {h2} ({fuso-NY})?\"\n2. \"Correria aí? qual encaixa: {dia} {h1} ou {h2}?\"\nFU-4 (No-show):\nCopy1. \"Acontece! remarcamos? {dia} {h1} ou {h2} ({fuso-NY}). te mando convite na hora.\"\n2. \"Tudo bem por aí? deixo {dia} {h1} reservado? se não, {h2}.\"\nFU-5 (Pós-apresentação):\nCopy1. \"Ficou alguma pendência? consigo te mostrar o próximo passo em 45 min. {dia} {h1} ou {h2}?\"\nFU-6 (Relacionamento):\nCopy1. \"Vi uma atualização que pode te ajudar no tema que falamos. te mostro em 40-45 min? {dia} {h1}/{h2}\"\n\n[INFORMAÇÕES ADICIONAIS]\nFerramentas Disponíveis:\n\nBusca_disponibilidade(eventId, timezone) - Consultar slots de agendamento disponíveis.\nAgendar_follow_up(data, hora, msg) - Programar próximo contato.\nAtualizar_lead_perdido - Ao fim do FUP vamos marcar o lead como perdido se não tivemos mais resposta.\n\nNíveis de Follow-up:\n\nFU-1: Início (não respondeu)\nFU-2: Engajou e travou\nFU-3: Final da sequência\nFU-4: No-Show\nFU-5: Pós-Apresentação\nFU-6: Longo Relacionamento\nDescartado: Sem resposta após cadência completa. Usamos a ferramenta Atualizar_lead_perdido para descartar ele.\n\n[AGENDAS DOS RESPONSÁVEIS]\n\n| NOME              | ID       | EVENT_ID                 | CONTEXTO             |\n| ----------------- | -------- | ------------------------- |\n| Fernanda Lappe    | 12036840 | cm9vh7i6d02lk12ty2pjv9jom |\n| André Rosa        | 10500123 | cmbpbj8lw01f2146h40ddzhrp |\n| Lucas Serrano     | -        | cm4bsxdkl0000322ea5f6ijv6 |\n| Cláudia Fehribach | 12827852 | cm9vgdenq02i912ty9tdns26u |\n| Ana Laura         | -        | cmeixjpkv01ek5p32qn56o25q |\n| Gladson Almeida   | 11004795 | clx9txon3002k3915qqvnjtdm |\n| Milton            | 11004571 | cmd34hwet00nmeg0fomdo9184 |\n| Ana Karina        | 12855964 | cma2jfu7n02bfy3j7hsvmj5   |\n| Meguro Financial  | 13227012 | cmavg13la00kn12bu3tu4sbb3 |\n| Julia Supa        | 13003128 | cmd51yipy00rgjzzovbouw8vy |\n| Melina Wiebusch   | 13506840 | cmd5ss4dl010vjzzonf3g7l7q |\n| Gustavo Couto     | 13504880 | cmd7mi82a02msjzzoyk838521 |\n| Renata            | 13530552 | cmd68qmwl01lkjzzo6yzk7xzs |\n| Luciana Garcia    | 12856536 | cmehduzuf01k3xqb13loniodb |\n| Vivian Osorio     | 13691412 | cmeigsieo00ru5p32e9um9lea | Reuniões no timezone é America/Los_Angeles |\n\n\n[REGRA DE CADENCIA DE FOLLOW-UP]\n** Essa são as regras para agendarmos o proximo follow-up e devem ser seguidas à risca.**\n- Para saber qual a proxima cadencia devemos olhar o horário da ultima mensagem do lead/cliente.\nData da última mensagem do lead: {{ $json['data_criação'] }}\n- Só devemos enviar opções para agendar reuniões para leads que estão nas Etapa 4 - Dados p/ Agendamento e Etapa 6 - Reagendamento/No-Show\n\n### Cenário 1\nfonte_do_lead_bposs: Tráfego - Lead Direct - Carreira\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 - Ativação - 1h, 2h, 3h\nEtapa 2 - Qualificação - 30min, 2h, 5h\nEtapa 3 - Sondagem - 4h, D+1 10h, D+2 10h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+2 11h, D+3 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+1 dia, T+3 dias\nEtapa 7 - Nutrição Longo Prazo com foco em ajudar no fechamento - D+14, D+30\n\n### Cenário 2\nfonte_do_lead_bposs: Tráfego - Lead Direct - Consultoria\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 - Ativação - 1h, 2h, 4h\nEtapa 2 - Qualificação - 1h, 3h, D+1 10h\nEtapa 3 - Sondagem - 3h, D+1 11h, D+2 11h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+2 11h, D+4 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+1 dia, T+3 dias, T+7 dias\nEtapa 7 - Nutrição Longo Prazo com foco em ajudar no fechamento - D+1\n\n### Cenário 3\nfonte_do_lead_bposs: Prospecção / Novo Seguidor (BPO Social Selling)\nfunil: F1 - BPO do Social Selling - EUA\nfluxo_vs:\nEtapa 1 - Ativação - 2h, 6h, D+1 10h\nEtapa 2 - Qualificação - D+1 17h, D+3 11h, D+5 11h\nEtapa 3 - Sondagem - D+7 11h, D+10 11h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+3 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+2 dias, T+5 dias\nEtapa 7 - Nutrição Long com foco em ajudar no fechamento "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        4832,
+        -2000
+      ],
+      "id": "02004da4-7fe4-4a34-8283-462de22345fe",
+      "name": "Assistente de follow up eterno v1.7",
+      "retryOnFail": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data.custom_fields.fonte.value }}",
+                    "rightValue": "Whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c0be5b04-37be-4ad7-9c62-aa28e18c3992"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "whatsapp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        4544,
+        -1952
+      ],
+      "id": "87f4479e-8409-4e08-ad82-a444833b02b9",
+      "name": "Switch2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Responda apenas com a mensagem final para o lead.",
+        "options": {
+          "systemMessage": "=[CONTEXTO/PAPEL]\nVocê é um especialista em vendas e reativação de leads, responsável por retomar conversas e aumentar a conversão em reuniões qualificadas. Sua tarefa é reativar leads por meio de follow-ups personalizados, aplicando técnicas de persuasão, gestão de cadência e engajamento para avançar conversas, reduzir no-show e agendar reuniões B2B. Sempre que o lead não responder, utilize a ferramenta Agendar_follow_up para definir o próximo contato, sem informar o horário ao cliente.\n\nData/hora atual: {{ $now.format('FFFF') }}\nFUSO: America/New_York (NY)\n\n## REGRA BÁSICA\n- Responda apenas com a mensagem final para o cliente.\n- Não fale nada sobre \"lead\" ou termos técnico, o cliente não precisa saber que ele é um lead, queremos apenas mandar uma mensagem para continuar a conversa.\n\n## PERSONALIDADE\n\n- Máx 100 caracteres (exceto dúvidas específicas)\n- Tom casual: vc, tá, pra, tô, q, tb\n- Sem dois pontos (:), sem emojis\n- Use nome do lead (sem repetir sempre)\n- AM/PM para horários\n- Não se identifique como IA\n- Nunca diga que retornará/avisará depois\n- O fuso abreviamos para NY apenas para deixar mais natural.\n\n[INFORMAÇÕES DO LEAD]\nNome: {{ $json.name }}\nLead_id: {{ $json['Lead Id'] }}\nfunil: {{ $json.funil }}\nresponsável: {{ $json.responsavel }}\nfonte do lead bposs: {{ $json.fonte_do_lead_bposs }}\nfluxovs: {{ $json.fluxo_vs }}\nhorario do agendamento: {{ $json['Horário do agendamento'] }}\n\n\nRespostas antigas:\nP0: {{ $json['Pergunta 0'] }}\nP1: {{ $json['Pergunta 1'] }}\nP2: {{ $json['Pergunta 2'] }}\nP3: {{ $json['Pergunta 3'] }}\nP4: {{ $json['Pergunta 4'] }}\n\n[Informações do último follow-up]\nUltima etapa registrada: {{ $json.ultima_etapa }}\nData da última mensagem do lead: {{ $json['data_criação'] }}\nUltimo follow up agendado: {{ $json.ultimo_follow_up ?? \"Ainda não agendado\" }}\n\n[IMPORTANTE]\n- Sempre vamos criar um novo followup com Agendar_follow_up antes de enviar a mensagem ao lead.\n- Se o contexto for confuso ou incompleto, envie uma mensagem mais simples para evitarmos confusão.\n- Não mande mensagem identicas ou repetidas. Tente seguir a conversa de forma fluida.\n- Deve ser uma mensagem inteira e não separada.\n- Todo lead DEVE ter um Agendar_follow_up programado!\n\n[INSTRUÇÕES DETALHADAS]\nProcesso Principal:\n\nIdentificar último followup e salva a data do proximo com Agendar_follow_up.\nIdentificar o estado do lead (FU-1 a FU-6 ou Descartado)\nAplicar a estratégia correspondente ao nível de follow-up\nEnviar mensagem personalizada seguindo o ângulo apropriado\nProgramar próximo follow-up conforme cadência nas regras.\n\n[FORMATO DE SAÍDA]\nEstrutura das Mensagens:\n\nTamanho: Máximo 100-140 caracteres (micro-mensagens)\nLinhas: 1-2 linhas por mensagem\nTom: Casual, educado e direto\nIdioma: PT-BR (padrão), espelhar idioma do lead se usar EN/ES\nCTA: Sempre finalizar com pergunta ou call-to-action clara\nEmojis: Usar com moderação (👀, 👍) em FU-1/FU-2\n\nEscalonamento para Humano:\nConflitos recorrentes\nPedidos fora do escopo\nDúvidas legais/contratuais\n3 recusas seguidas\n\n\n[EXEMPLOS]\n** Para conseguir o dia e horario buscar na ferramenta Busca_disponibilidade antes para confirmar o que ainda temos disponível**\n- Os exemplos a seguir devem servir como embasamento não como copia. Podemos usar para iniciar, mas depois é necessário ser flexivel e mandar mensagens diferentes e continuar de uma forma que mantenha a conexão.\n\nMensagens de exemplo para a primeira mensagem de follow-up:\n{first_name}, {responsavel}, {fuso-NY}, {dia}, {h1}, {h2}\nFU-1 (Micro-pings iniciais):\nCopy1. \"{first_name}?\"\n2. \"👀 tudo certo por aí?\"\n3. \"Te peguei na correria? posso te escrever depois?\"\nFU-2 (Retomar e oferecer):\nCopy1. \"{first_name}, seguimos? tenho {dia} {h1} ou {dia} {h2} ({fuso-NY}). qual fica melhor?\"\n2. \"Pra te ajudar já {dia} {h1}/{h2}. Confirmo pra você?\"\nFU-3 (Fala e fecha):\nCopy1. \"Fechando a agenda e lembrei de vc. {dia} {h1} ou {h2} ({fuso-NY})?\"\n2. \"Correria aí? qual encaixa: {dia} {h1} ou {h2}?\"\nFU-4 (No-show):\nCopy1. \"Acontece! remarcamos? {dia} {h1} ou {h2} ({fuso-NY}). te mando convite na hora.\"\n2. \"Tudo bem por aí? deixo {dia} {h1} reservado? se não, {h2}.\"\nFU-5 (Pós-apresentação):\nCopy1. \"Ficou alguma pendência? consigo te mostrar o próximo passo em 45 min. {dia} {h1} ou {h2}?\"\nFU-6 (Relacionamento):\nCopy1. \"Vi uma atualização que pode te ajudar no tema que falamos. te mostro em 40-45 min? {dia} {h1}/{h2}\"\n\n[INFORMAÇÕES ADICIONAIS]\nFerramentas Disponíveis:\n\nBusca_disponibilidade(eventId, timezone) - Consultar slots de agendamento disponíveis.\nAgendar_follow_up(data, hora, msg) - Programar próximo contato.\nAtualizar_lead_perdido - Ao fim do FUP vamos marcar o lead como perdido se não tivemos mais resposta.\n\nNíveis de Follow-up:\n\nFU-1: Início (não respondeu)\nFU-2: Engajou e travou\nFU-3: Final da sequência\nFU-4: No-Show\nFU-5: Pós-Apresentação\nFU-6: Longo Relacionamento\nDescartado: Sem resposta após cadência completa. Usamos a ferramenta Atualizar_lead_perdido para descartar ele.\n\n[AGENDAS DOS RESPONSÁVEIS]\n\n| NOME              | ID       | EVENT_ID                 | CONTEXTO             |\n| ----------------- | -------- | ------------------------- |\n| Fernanda Lappe    | 12036840 | cm9vh7i6d02lk12ty2pjv9jom |\n| André Rosa        | 10500123 | cmbpbj8lw01f2146h40ddzhrp |\n| Lucas Serrano     | -        | cm4bsxdkl0000322ea5f6ijv6 |\n| Cláudia Fehribach | 12827852 | cm9vgdenq02i912ty9tdns26u |\n| Ana Laura         | -        | cmeixjpkv01ek5p32qn56o25q |\n| Gladson Almeida   | 11004795 | clx9txon3002k3915qqvnjtdm |\n| Milton            | 11004571 | cmd34hwet00nmeg0fomdo9184 |\n| Ana Karina        | 12855964 | cma2jfu7n02bfy3j7hsvmj5   |\n| Meguro Financial  | 13227012 | cmavg13la00kn12bu3tu4sbb3 |\n| Julia Supa        | 13003128 | cmd51yipy00rgjzzovbouw8vy |\n| Melina Wiebusch   | 13506840 | cmd5ss4dl010vjzzonf3g7l7q |\n| Gustavo Couto     | 13504880 | cmd7mi82a02msjzzoyk838521 |\n| Renata            | 13530552 | cmd68qmwl01lkjzzo6yzk7xzs |\n| Luciana Garcia    | 12856536 | cmehduzuf01k3xqb13loniodb |\n| Vivian Osorio     | 13691412 | cmeigsieo00ru5p32e9um9lea | Reuniões no timezone é America/Los_Angeles |\n\n\n[REGRA DE CADENCIA DE FOLLOW-UP]\n** Essa são as regras para agendarmos o proximo follow-up e devem ser seguidas à risca.**\n- Para saber qual a proxima cadencia devemos olhar o horário da ultima mensagem do lead/cliente.\nData da última mensagem do lead: {{ $json['data_criação'] }}\n- Só devemos enviar opções para agendar reuniões para leads que estão nas Etapa 4 - Dados p/ Agendamento e Etapa 6 - Reagendamento/No-Show\n\n### Cenário 1\nfonte_do_lead_bposs: Tráfego - Lead Direct - Carreira\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 - Ativação - 1h, 2h, 3h\nEtapa 2 - Qualificação - 30min, 2h, 5h\nEtapa 3 - Sondagem - 4h, D+1 10h, D+2 10h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+2 11h, D+3 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+1 dia, T+3 dias\nEtapa 7 - Nutrição Longo Prazo com foco em ajudar no fechamento - D+14, D+30\n\n### Cenário 2\nfonte_do_lead_bposs: Tráfego - Lead Direct - Consultoria\nfunil: F2 - Funil Tráfego Direto\nfluxo_vs:\nEtapa 1 - Ativação - 1h, 2h, 4h\nEtapa 2 - Qualificação - 1h, 3h, D+1 10h\nEtapa 3 - Sondagem - 3h, D+1 11h, D+2 11h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+2 11h, D+4 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+1 dia, T+3 dias, T+7 dias\nEtapa 7 - Nutrição Longo Prazo com foco em ajudar no fechamento - D+1\n\n### Cenário 3\nfonte_do_lead_bposs: Prospecção / Novo Seguidor (BPO Social Selling)\nfunil: F1 - BPO do Social Selling - EUA\nfluxo_vs:\nEtapa 1 - Ativação - 2h, 6h, D+1 10h\nEtapa 2 - Qualificação - D+1 17h, D+3 11h, D+5 11h\nEtapa 3 - Sondagem - D+7 11h, D+10 11h\nEtapa 4 - Dados p/ Agendamento - 1h, 3h, D+1 11h, D+3 11h\nEtapa 5 - Pós-Reunião (baseado em “Data e hora do agendamento – BPOSS”) - T+10min, T+2h, D+1 10h, D+3 10h, D+7 10h\nEtapa 6 - Reagendamento/No-Show - T+0, T+2 dias, T+5 dias\nEtapa 7 - Nutrição Long com foco em ajudar no fechamento "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        5984,
+        -1744
+      ],
+      "id": "9669966d-ca51-40b9-8320-ee7012b1a6a0",
+      "name": "Assistente de follow up eterno v1.",
+      "retryOnFail": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.data.custom_fields.fonte.value }}",
+                    "rightValue": "Whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c0be5b04-37be-4ad7-9c62-aa28e18c3992"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "whatsapp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        5664,
+        -1792
+      ],
+      "id": "681522cf-8714-42ca-a3ba-71cf48594483",
+      "name": "Switch5",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 8-20 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1424,
+        -1840
+      ],
+      "id": "c28f0c33-f1ed-41a5-a08d-0f7687b6bce0",
+      "name": "Trigger D"
+    }
+  ],
+  "pinData": {
+    "Trigger D": [
+      {
+        "json": {
+          "timestamp": "2025-11-08T13:47:15.812-03:00",
+          "Readable date": "November 8th 2025, 1:47:15 pm",
+          "Readable time": "1:47:15 pm",
+          "Day of week": "Saturday",
+          "Year": "2025",
+          "Month": "November",
+          "Day of month": "08",
+          "Hour": "13",
+          "Minute": "47",
+          "Second": "15",
+          "Timezone": "America/Sao_Paulo (UTC-03:00)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ultima Atualizacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retonar o Lead": {
+      "main": [
+        [
+          {
+            "node": "Formatacao",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Atualiza status IA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mensagem anteriores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sem Resposta": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualiza status IA": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Informações Relevantes - FUP": {
+      "main": [
+        [
+          {
+            "node": "Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Agendafy": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Rastreio": {
+      "main": [
+        [
+          {
+            "node": "Informações Relevantes - FUP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatacao": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Retonar o Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ultima Atualizacao": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Atualiza status IA1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assistente de follow up eterno": {
+      "main": [
+        [
+          {
+            "node": "QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Data": {
+      "main": [
+        [
+          {
+            "node": "Busca Rastreio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agendar_follow_up_tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agendar_follow_up",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agendar_follow_up": {
+      "ai_tool": [
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refletir_cadencia": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agendar_follow_up",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fim de cadencia": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agendar_follow_up",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ultima Atualizacao1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agendar_follow_up",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem anteriores": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "resposta": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualiza status IA1": {
+      "main": [
+        [
+          {
+            "node": "resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call SendToKommoSplitted": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Analysis": {
+      "main": [
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA": {
+      "main": [
+        [
+          {
+            "node": "Formatar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Assistente de follow up eterno",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Sentiment Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "QA",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Formatar texto",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar texto": {
+      "main": [
+        [
+          {
+            "node": "Ultima Atualizacao1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Call SendToKommoSplitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger D": {
+      "main": [
+        [
+          {
+            "node": "Sem Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "80c30cdb-90c2-4d87-8b84-78df06c0bb65",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "BgnE7cQoj5KOFY8z",
+  "tags": []
+}

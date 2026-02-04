@@ -1,0 +1,5 @@
+{
+  "name": "MOTTIV.ME Dashboard",
+  "description": "A Notion-style dashboard for managing AI agents, prompts, and client workspaces.",
+  "requestFramePermissions": []
+}

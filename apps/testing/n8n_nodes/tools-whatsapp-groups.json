@@ -1,0 +1,299 @@
+{
+  "name": "Tools WhatsApp Groups - Comandos Stevo",
+  "description": "5 tools usando comandos Stevo via texto. Conectar ao AI Agent.",
+  "nodes": [
+    {
+      "parameters": {
+        "toolDescription": "Cria grupo de WhatsApp para handoff SDR→Closer. Use SEMPRE que agendar uma call de apresentacao. O nome do grupo deve seguir o padrao: 'Consultoria {horario} - {nome_lead}'. Envia comando #criargrupo via GHL.",
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{$env.GHL_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"{contact_id}\",\n  \"message\": \"#criargrupo {group_name}|Grupo de apresentacao comercial|https://i.imgur.com/mottivme.png|{lead_phone}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_id",
+              "description": "ID do contato no GHL",
+              "type": "string"
+            },
+            {
+              "name": "group_name",
+              "description": "Nome do grupo no formato 'Consultoria 18h - Nome'. Use o horario da call e primeiro nome do lead.",
+              "type": "string"
+            },
+            {
+              "name": "lead_phone",
+              "description": "Telefone do lead com DDI (ex: +5511999999999)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "id": "tool-criar-grupo",
+      "name": "Criar_grupo_whatsapp"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Adiciona um participante a um grupo WhatsApp existente. Use para adicionar o Closer, socios, ou outros participantes ao grupo da call. Envia comando #addnogrupo.",
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{$env.GHL_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"{contact_id}\",\n  \"message\": \"#addnogrupo {group_name}|{phone}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_id",
+              "description": "ID do contato no GHL",
+              "type": "string"
+            },
+            {
+              "name": "group_name",
+              "description": "Nome exato do grupo (ex: Consultoria 18h - João)",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "description": "Telefone do participante com DDI (ex: +5511999999999)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [300, 0],
+      "id": "tool-adicionar-participante",
+      "name": "Adicionar_participante_grupo"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Envia link do grupo WhatsApp para um numero. Use apos criar o grupo para enviar o link de convite ao closer ou lead.",
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{$env.GHL_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"{contact_id}\",\n  \"message\": \"#linkgrupo {group_name}|{phone}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_id",
+              "description": "ID do contato no GHL",
+              "type": "string"
+            },
+            {
+              "name": "group_name",
+              "description": "Nome exato do grupo",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "description": "Telefone que vai receber o link (com DDI)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [600, 0],
+      "id": "tool-enviar-link-grupo",
+      "name": "Enviar_link_grupo"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Remove um participante do grupo WhatsApp. Use quando precisar remover alguem que nao deveria estar no grupo.",
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{$env.GHL_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"{contact_id}\",\n  \"message\": \"#removerdogrupo {group_name}|{phone}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_id",
+              "description": "ID do contato no GHL",
+              "type": "string"
+            },
+            {
+              "name": "group_name",
+              "description": "Nome exato do grupo",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "description": "Telefone do participante a remover (com DDI)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [0, 200],
+      "id": "tool-remover-participante",
+      "name": "Remover_participante_grupo"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Promove um participante a administrador do grupo. Use para dar permissoes de admin ao closer ou responsavel pelo grupo.",
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Authorization",
+              "valueProvider": "fieldValue",
+              "value": "Bearer {{$env.GHL_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "valueProvider": "fieldValue",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"{contact_id}\",\n  \"message\": \"#promoveradmin {group_name}|{phone}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "contact_id",
+              "description": "ID do contato no GHL",
+              "type": "string"
+            },
+            {
+              "name": "group_name",
+              "description": "Nome exato do grupo",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "description": "Telefone do participante a promover (com DDI)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [300, 200],
+      "id": "tool-promover-admin",
+      "name": "Promover_admin_grupo"
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "ai-factory-mottivme"
+  },
+  "pinData": {},
+  "versionId": "2.0.0",
+  "triggerCount": 0,
+  "tags": [
+    {"name": "tools"},
+    {"name": "whatsapp"},
+    {"name": "groups"},
+    {"name": "stevo-commands"}
+  ],
+  "notes": [
+    {
+      "content": "## COMO USAR\n\n1. Importe este arquivo no n8n\n2. Copie os 5 nodes de tools\n3. Cole no workflow principal\n4. Conecte cada tool ao AI Agent\n\n## COMANDOS STEVO\n\n| Comando | Funcao |\n|---------|--------|\n| #criargrupo | Cria grupo |\n| #addnogrupo | Adiciona participante |\n| #removerdogrupo | Remove participante |\n| #promoveradmin | Promove a admin |\n| #linkgrupo | Envia link do grupo |\n\n## IMPORTANTE\n\nOs comandos sao enviados como mensagem normal via GHL.\nO Stevo intercepta e executa automaticamente.",
+      "position": [-200, -100]
+    }
+  ]
+}

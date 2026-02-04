@@ -1,0 +1,529 @@
+{
+  "updatedAt": "2025-11-19T13:05:11.000Z",
+  "createdAt": "2025-10-16T17:47:39.282Z",
+  "id": "09ZHRuV3TZdL27M0",
+  "name": "[ GHL ] Agendar - BASE",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -768,
+        -16
+      ],
+      "id": "c9f5cc12-6751-4f8e-9ad5-481a87f445fd",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "db1a4173-dc6a-4d5e-895e-610a97e01570",
+              "name": "contact_id",
+              "value": "={{ $('Search Contact').item?.json?.contacts?.[0]?.id ?? $('Create contact').first().json.contact.id }}",
+              "type": "string"
+            },
+            {
+              "id": "449fd8cd-c042-4267-8b3f-5d1ca0822ad6",
+              "name": "location_id",
+              "value": "={{ $('Start').first().json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "52c150ad-47f8-4129-bf5b-010150511607",
+              "name": "calendar_id",
+              "value": "={{ $('Start').first().json.calendar_id }}",
+              "type": "string"
+            },
+            {
+              "id": "86e46826-8215-4c1a-9404-4a5858ce2e6e",
+              "name": "startTime",
+              "value": "={{ $('Start').item.json.startTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -64,
+        -32
+      ],
+      "id": "a26466ac-d33b-4eed-a515-fae9f1a0405d",
+      "name": "contact"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "calendar_id"
+            },
+            {
+              "name": "startTime"
+            },
+            {
+              "name": "firstName"
+            },
+            {
+              "name": "lastName"
+            }
+          ]
+        }
+      },
+      "id": "65f6c789-c162-4221-bb37-4e3b455e3631",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1248,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/calendars/events/appointments",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "calendarId",
+              "value": "={{$json[\"calendar_id\"]}}"
+            },
+            {
+              "name": "locationId",
+              "value": "={{$json[\"location_id\"]}}"
+            },
+            {
+              "name": "startTime",
+              "value": "={{ $json.startTime }}"
+            },
+            {
+              "name": "contactId",
+              "value": "={{$json[\"contact_id\"]}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        }
+      },
+      "name": "Agendar_reuniao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -32
+      ],
+      "id": "4c0a8785-2dd1-488d-bcc8-1549d7f646bf",
+      "notes": "Agendar uma nova reunião. startTime segue o padrão ISO 8601 (ex: 2021-06-23T03:30:00+05:30)."
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{$json[\"location_id\"]}}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        -16
+      ],
+      "id": "90c6defb-7e79-4e58-bc9f-0adbaa66af65"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Start').item.json.location_id }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Start').item.json.email }}"
+            },
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Start').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Create contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        64
+      ],
+      "id": "8b1e2ba1-9fd2-405c-a489-d18b8b34f98d"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contacts[0].id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName != $('Start').item.json.firstName ? $('Start').item.json.lastName : \"\"}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Atualizar Contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        -336
+      ],
+      "id": "42de8664-6696-491c-b9b2-6f55e5cc8b34"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "trocar",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "7556fef1-4d29-429b-a1e3-26b655b98e84",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -544,
+        -176
+      ],
+      "id": "e968960b-9153-4fb4-bb7a-662af02c3606",
+      "name": "Verifica Nome"
+    }
+  ],
+  "connections": {
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Verifica Nome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contact": {
+      "main": [
+        [
+          {
+            "node": "Agendar_reuniao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Search Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Contact": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact": {
+      "main": [
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Contato": {
+      "main": [
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Nome": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "API_KEY": "pit-da757200-941e-41eb-83f2-10d5b89ad789",
+          "email": "teka.villarinho@gmail.com",
+          "telefone": "+18136180818",
+          "location_id": "Bgi2hFMgiLLoRlOO0K5b",
+          "calendar_id": "LvZWMISiyYnF8p7TrY7q",
+          "startTime": "2025-10-13T15:00:00-04:00",
+          "firstName": "Teresa",
+          "lastName": "Villarinho",
+          "Info_estado_onde_mora_firstItem": null,
+          "work_permit_firstItem": null
+        }
+      }
+    ]
+  },
+  "versionId": "0f299849-daf6-4f29-8f87-0815f7d92266",
+  "activeVersionId": null,
+  "versionCounter": 5,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-10-16T17:47:39.313Z",
+      "createdAt": "2025-10-16T17:47:39.313Z",
+      "role": "workflow:owner",
+      "workflowId": "09ZHRuV3TZdL27M0",
+      "projectId": "VAjodPr5Fy7WALLy",
+      "project": {
+        "updatedAt": "2025-06-18T03:44:57.988Z",
+        "createdAt": "2025-06-18T03:36:54.736Z",
+        "id": "VAjodPr5Fy7WALLy",
+        "name": "Alan Jones Rios <alan@mentorfy.io>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-06-18T03:36:54.737Z",
+            "createdAt": "2025-06-18T03:36:54.737Z",
+            "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+            "projectId": "VAjodPr5Fy7WALLy",
+            "user": {
+              "updatedAt": "2026-01-26T04:01:50.000Z",
+              "createdAt": "2025-06-18T03:36:53.786Z",
+              "id": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+              "email": "alan@mentorfy.io",
+              "firstName": "Alan Jones",
+              "lastName": "Rios",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-06-18T03:45:05.123Z",
+                "personalization_survey_n8n_version": "1.98.1"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "ccHBfcfeKrXwUhIA",
+                "userActivatedAt": 1750223854201,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1768854304461
+                },
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true,
+                  "ragStarterCallout": true
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-01-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

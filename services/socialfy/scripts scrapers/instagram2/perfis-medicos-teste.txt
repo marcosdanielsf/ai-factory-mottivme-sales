@@ -1,0 +1,8 @@
+# Lista de perfis de médicos para scraping
+# Formato: um username por linha (com ou sem @)
+
+drarobertacostapalmeira
+drfelipefragoso
+drpedropinheiro
+dricarodornelas
+dralucianasalomao

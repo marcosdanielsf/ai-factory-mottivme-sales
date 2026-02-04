@@ -1,0 +1,469 @@
+{
+  "name": "17-Agent-Creator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-creator",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2200, 400],
+      "id": "webhook-briefing",
+      "name": "1.0 Webhook Briefing",
+      "webhookId": "agent-creator-briefing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1.1 Validar Briefing - Campos obrigatórios + Multi-Modo\nconst briefing = $input.first().json;\n\nconst erros = [];\n\n// Modos válidos\nconst MODOS_VALIDOS = ['sdr_inbound', 'social_seller', 'scheduler', 'objection_handler', 'followuper', 'concierge', 'reativador'];\n\n// Campos críticos\nif (!briefing.nome_negocio) erros.push('nome_negocio obrigatório');\nif (!briefing.vertical) erros.push('vertical obrigatório (clinica, imobiliaria, educacao, saas)');\nif (!briefing.location_id) erros.push('location_id obrigatório');\n\n// Validar modos\nlet modos = briefing.modos || ['sdr_inbound'];\nif (!Array.isArray(modos)) modos = [modos];\nconst modosInvalidos = modos.filter(m => !MODOS_VALIDOS.includes(m));\nif (modosInvalidos.length > 0) {\n  erros.push(`Modos inválidos: ${modosInvalidos.join(', ')}. Válidos: ${MODOS_VALIDOS.join(', ')}`);\n}\n\n// Campos importantes\nconst avisos = [];\nif (!briefing.cnpj) avisos.push('cnpj não informado');\nif (!briefing.horario) avisos.push('horário não informado');\nif (!briefing.valores) avisos.push('valores não informados');\nif (!briefing.tom_voz) avisos.push('tom_voz não informado, usando \"acolhedor\"');\n\nif (erros.length > 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'BRIEFING_INVALIDO',\n      detalhes: erros,\n      avisos: avisos\n    }\n  }];\n}\n\n// Normalizar dados\nconst briefingNormalizado = {\n  // Dados do negócio\n  nome_negocio: briefing.nome_negocio,\n  vertical: briefing.vertical.toLowerCase(),\n  cnpj: briefing.cnpj || null,\n  razao_social: briefing.razao_social || briefing.nome_negocio,\n  horario: briefing.horario || 'Seg-Sex 9h-18h',\n  \n  // Localização\n  location_id: briefing.location_id,\n  ceps: briefing.ceps || [],\n  cidade: briefing.cidade || 'São Paulo',\n  estado: briefing.estado || 'SP',\n  \n  // Valores\n  valores: briefing.valores || {},\n  parcelamento: briefing.parcelamento || { max_parcelas: 12 },\n  \n  // Personalidade\n  tom_voz: briefing.tom_voz || 'acolhedor',\n  nivel_formalidade: briefing.nivel_formalidade || 6,\n  uso_emojis: briefing.uso_emojis !== false,\n  \n  // Agente\n  nome_agente: briefing.nome_agente || 'Assistente ' + briefing.nome_negocio,\n  \n  // MODOS SELECIONADOS (MULTI-MODO)\n  modos: modos.filter(m => MODOS_VALIDOS.includes(m)),\n  modo_principal: modos[0] || 'sdr_inbound',\n  \n  // Campos específicos por modo\n  social_seller_config: briefing.social_seller_config || {},\n  scheduler_config: briefing.scheduler_config || {},\n  followuper_config: briefing.followuper_config || {},\n  concierge_config: briefing.concierge_config || {},\n  reativador_config: briefing.reativador_config || {},\n  \n  // Qualificação\n  publico_alvo: briefing.publico_alvo || {},\n  objecoes: briefing.objecoes || ['preco_alto', 'preciso_pensar', 'nao_tenho_tempo'],\n  \n  // Compliance\n  proibicoes: briefing.proibicoes || [],\n  gatilhos_escalacao: briefing.gatilhos_escalacao || ['pedido_humano', 'crise_emocional'],\n  \n  // Metadados\n  avisos: avisos,\n  timestamp: new Date().toISOString(),\n  tentativa: 1\n};\n\nreturn [{ json: briefingNormalizado }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1960, 400],
+      "id": "validar-briefing",
+      "name": "1.1 Validar Briefing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "briefing-valido",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1720, 400],
+      "id": "check-briefing-valido",
+      "name": "1.2 Briefing Válido?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1720, 600],
+      "id": "respond-erro-briefing",
+      "name": "Respond Erro Briefing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cliente-a1.mentorfy.io/webhook/segundo-cerebro",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"search\",\n  \"params\": {\n    \"query\": \"template agente {{ $json.vertical }}\",\n    \"category\": \"pattern\",\n    \"limit\": 3\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1480, 400],
+      "id": "buscar-template-rag",
+      "name": "1.3 Buscar Template RAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1.4 Preparar Contexto para IA\nconst briefing = $('1.1 Validar Briefing').first().json;\nconst ragResults = $input.first().json;\n\nlet templateBase = '';\nif (ragResults.results && ragResults.results.length > 0) {\n  templateBase = ragResults.results[0].content || '';\n}\n\nconst contexto = {\n  briefing: briefing,\n  template_base: templateBase,\n  framework: 'CRITICS',\n  scorecard: {\n    total: 200,\n    minimo_aprovacao: 140,\n    dimensoes: [\n      'system_prompt (25 pts)',\n      'tools_config (25 pts)',\n      'compliance_rules (25 pts)',\n      'personality_config (25 pts)',\n      'business_config (25 pts)',\n      'qualification_config (25 pts)',\n      'prompts_by_mode (25 pts)',\n      'hyperpersonalization (25 pts)'\n    ]\n  }\n};\n\nreturn [{ json: contexto }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1240, 400],
+      "id": "preparar-contexto-ia",
+      "name": "1.4 Preparar Contexto IA"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você é um especialista em criar agentes SDR usando o framework CRITICS.\n\n## FRAMEWORK CRITICS\n\nGere um system_prompt com as seguintes seções:\n\n<Role>\n- Nome, cargo, empresa, tom, propósito\n</Role>\n\n<Constraints>\n- Max linhas, emoji, horário, proibições\n</Constraints>\n\n<Inputs>\n- 6 blocos XML documentados\n</Inputs>\n\n<Tools>\n- Ferramentas com parâmetros e limites\n</Tools>\n\n<Instructions>\n- Fluxo com no mínimo 10 fases\n</Instructions>\n\n<Conclusions>\n- Formato de saída e anti-patterns\n</Conclusions>\n\n<Solutions>\n- Mínimo 8 cenários específicos\n</Solutions>\n\n## REGRAS CRÍTICAS\n\n1. NUNCA invente CNPJ, valores ou endereços não fornecidos\n2. Use EXATAMENTE os dados do briefing\n3. Siga o tom de voz especificado\n4. Inclua anti-alucinação explícita em Constraints\n\n## OUTPUT\n\nRetorne APENAS JSON válido com a estrutura:\n{\n  \"system_prompt\": \"<string com markdown>\",\n  \"agent_name\": \"<string>\",\n  \"version\": \"v1.0.0\"\n}"
+            },
+            {
+              "role": "user",
+              "content": "=Crie um agente SDR para:\n\n## BRIEFING\n{{ JSON.stringify($json.briefing, null, 2) }}\n\n## TEMPLATE BASE (se disponível)\n{{ $json.template_base || 'Nenhum template encontrado, crie do zero.' }}\n\nGere o system_prompt completo no formato CRITICS."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 4000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [-1000, 400],
+      "id": "gerar-system-prompt",
+      "name": "2.0 Gerar system_prompt (Groq)",
+      "credentials": {
+        "groqApi": {
+          "id": "groq-api-credential",
+          "name": "Groq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 2.1 Gerar JSONBs - 8 colunas para agent_versions\nconst briefing = $('1.1 Validar Briefing').first().json;\nconst iaResponse = $input.first().json;\n\nlet parsed;\ntry {\n  // Tentar parse do JSON da IA\n  const content = iaResponse.text || iaResponse.message?.content || JSON.stringify(iaResponse);\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    parsed = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('JSON não encontrado na resposta');\n  }\n} catch (e) {\n  return [{\n    json: {\n      error: 'PARSE_ERROR',\n      message: e.message,\n      raw: iaResponse\n    }\n  }];\n}\n\n// 1. system_prompt\nconst system_prompt = parsed.system_prompt || '';\n\n// 2. tools_config - EXPANDIDO para multi-modo\nconst TOOLS_POR_MODO = {\n  sdr_inbound: ['Escalar_humano', 'Busca_disponibilidade', 'Criar_ou_buscar_cobranca', 'Enviar_link_pagamento'],\n  social_seller: ['Escalar_humano', 'Enviar_material_gratuito', 'Agendar_callback'],\n  scheduler: ['Busca_disponibilidade', 'Confirmar_agendamento', 'Enviar_lembrete', 'Reagendar'],\n  objection_handler: ['Escalar_humano', 'Buscar_beneficios', 'Calcular_parcelamento'],\n  followuper: ['Escalar_humano', 'Verificar_historico', 'Enviar_novidade'],\n  concierge: ['Escalar_humano', 'Buscar_status_pedido', 'Abrir_ticket_suporte'],\n  reativador: ['Verificar_historico', 'Enviar_oferta_exclusiva', 'Busca_disponibilidade']\n};\n\nconst modosSelecionados = briefing.modos || ['sdr_inbound'];\nconst toolsHabilitados = new Set();\nmodosSelecionados.forEach(modo => {\n  (TOOLS_POR_MODO[modo] || []).forEach(tool => toolsHabilitados.add(tool));\n});\n\nconst tools_config = {\n  versao: '3.0',\n  framework: 'CRITICS',\n  modos_ativos: modosSelecionados,\n  enabled_tools: {\n    gestao: [{\n      code: 'Escalar_humano',\n      name: 'Escalar para humano',\n      enabled: toolsHabilitados.has('Escalar_humano'),\n      parameters: ['motivo', 'prioridade'],\n      max_chamadas_por_conversa: 1,\n      gatilhos_obrigatorios: briefing.gatilhos_escalacao\n    }],\n    agendamento: [{\n      code: 'Busca_disponibilidade',\n      enabled: toolsHabilitados.has('Busca_disponibilidade'),\n      parameters: ['calendar_id'],\n      max_chamadas_por_conversa: 2\n    }, {\n      code: 'Confirmar_agendamento',\n      enabled: toolsHabilitados.has('Confirmar_agendamento'),\n      parameters: ['appointment_id', 'status']\n    }, {\n      code: 'Reagendar',\n      enabled: toolsHabilitados.has('Reagendar'),\n      parameters: ['appointment_id', 'nova_data']\n    }],\n    cobranca: [{\n      code: 'Criar_ou_buscar_cobranca',\n      enabled: toolsHabilitados.has('Criar_ou_buscar_cobranca'),\n      parameters: ['nome', 'cpf', 'cobranca_valor'],\n      max_chamadas_por_conversa: 1,\n      regras: { perguntar_cpf_antes: true }\n    }, {\n      code: 'Enviar_link_pagamento',\n      enabled: toolsHabilitados.has('Enviar_link_pagamento'),\n      parameters: ['valor', 'descricao']\n    }],\n    marketing: [{\n      code: 'Enviar_material_gratuito',\n      enabled: toolsHabilitados.has('Enviar_material_gratuito'),\n      parameters: ['tipo_material', 'contato_id']\n    }, {\n      code: 'Enviar_oferta_exclusiva',\n      enabled: toolsHabilitados.has('Enviar_oferta_exclusiva'),\n      parameters: ['oferta_id', 'contato_id']\n    }],\n    suporte: [{\n      code: 'Buscar_status_pedido',\n      enabled: toolsHabilitados.has('Buscar_status_pedido'),\n      parameters: ['pedido_id']\n    }, {\n      code: 'Abrir_ticket_suporte',\n      enabled: toolsHabilitados.has('Abrir_ticket_suporte'),\n      parameters: ['assunto', 'descricao', 'prioridade']\n    }]\n  },\n  regras_globais: {\n    pagamento_antes_agendamento: modosSelecionados.includes('sdr_inbound')\n  }\n};\n\n// 3. compliance_rules - EXPANDIDO para multi-modo\nconst PROIBICOES_POR_MODO = {\n  sdr_inbound: ['Pressionar por venda', 'Revelar preço antes do valor'],\n  social_seller: ['Ser vendedor demais', 'Pular para CTA direto', 'Ignorar contexto do perfil'],\n  scheduler: ['Confirmar sem disponibilidade real', 'Ignorar preferências do lead'],\n  objection_handler: ['Invalidar sentimento', 'Contra-argumentar agressivamente'],\n  followuper: ['Ser insistente', 'Cobrar resposta', 'Tom de cobrança'],\n  concierge: ['Prometer prazos sem confirmação', 'Escalar sem tentar resolver'],\n  reativador: ['Fazer cliente se sentir culpado', 'Ignorar motivo da inatividade']\n};\n\nconst proibicoesMultiModo = [\n  'Prometer resultados garantidos',\n  'Falar mal de concorrentes',\n  'Repetir saudacao',\n  'Mensagens com mais de 3 linhas',\n  ...(briefing.proibicoes || [])\n];\nmodosSelecionados.forEach(modo => {\n  (PROIBICOES_POR_MODO[modo] || []).forEach(p => proibicoesMultiModo.push(p));\n});\n\nconst compliance_rules = {\n  versao: '3.0',\n  framework: 'CRITICS',\n  modos_ativos: modosSelecionados,\n  proibicoes: [...new Set(proibicoesMultiModo)],\n  anti_alucinacao: [\n    'NUNCA invente CNPJ',\n    'NUNCA invente valores',\n    'NUNCA invente enderecos',\n    'NUNCA invente nomes de profissionais',\n    'NUNCA invente horários de funcionamento'\n  ],\n  escalacao: {\n    triggers: briefing.gatilhos_escalacao,\n    destino: 'equipe_suporte'\n  },\n  objecoes_mapeadas: {\n    preco_alto: {\n      variantes: ['caro', 'nao tenho dinheiro', 'muito caro'],\n      tecnica: 'parcelamento + valor percebido'\n    },\n    preciso_pensar: {\n      variantes: ['vou pensar', 'deixa eu ver', 'preciso analisar'],\n      tecnica: 'urgencia + escassez'\n    },\n    nao_tenho_tempo: {\n      variantes: ['estou ocupado', 'sem tempo', 'correria'],\n      tecnica: 'flexibilidade + valor do tempo'\n    },\n    preciso_consultar: {\n      variantes: ['falar com marido', 'consultar socio', 'ver com familia'],\n      tecnica: 'envolver decisor + material de apoio'\n    }\n  },\n  regras_por_modo: {\n    social_seller: { max_mensagens_antes_cta: 5, tom_obrigatorio: 'casual' },\n    scheduler: { confirmar_2x_antes_finalizar: true },\n    followuper: { intervalo_minimo_horas: 48 }\n  }\n};\n\n// 4. personality_config - MULTI-MODO\nconst TOM_POR_MODO = {\n  sdr_inbound: { tom: 'acolhedor', formalidade: 6 },\n  social_seller: { tom: 'casual', formalidade: 4 },\n  scheduler: { tom: 'direto', formalidade: 7 },\n  objection_handler: { tom: 'empático', formalidade: 6 },\n  followuper: { tom: 'amigável', formalidade: 5 },\n  concierge: { tom: 'prestativo', formalidade: 7 },\n  reativador: { tom: 'nostálgico', formalidade: 5 }\n};\n\nconst modosConfig = {};\nmodosSelecionados.forEach(modo => {\n  modosConfig[modo] = {\n    tom: TOM_POR_MODO[modo]?.tom || briefing.tom_voz,\n    objetivo: {\n      sdr_inbound: 'qualificar e agendar',\n      social_seller: 'engajar e nutrir',\n      scheduler: 'confirmar horário',\n      objection_handler: 'converter objeção',\n      followuper: 'retomar conversa',\n      concierge: 'suporte pós-venda',\n      reativador: 'reconquistar cliente'\n    }[modo] || 'atender'\n  };\n});\n\nconst personality_config = {\n  tom_voz: briefing.tom_voz,\n  nivel_formalidade: briefing.nivel_formalidade,\n  uso_emojis: briefing.uso_emojis,\n  max_emoji_por_mensagem: 1,\n  regra_apelidos: {\n    politica: 'NUNCA_USAR',\n    proibidos: ['querida', 'amor', 'flor', 'benzinho', 'meu bem'],\n    motivo: 'High-ticket exige profissionalismo'\n  },\n  modos: modosConfig,\n  modo_atual: modosSelecionados[0]\n};\n\n// 5. business_config\nconst business_config = {\n  nome_negocio: briefing.nome_negocio,\n  cnpj: briefing.cnpj,\n  razao_social: briefing.razao_social,\n  horario: briefing.horario,\n  ceps: briefing.ceps,\n  valores: briefing.valores,\n  parcelamento: briefing.parcelamento,\n  objecoes: briefing.objecoes\n};\n\n// 6. qualification_config\nconst qualification_config = {\n  bant: {\n    budget: {\n      peso: 0.25,\n      indicadores_positivos: ['ja investi', 'tenho reserva'],\n      indicadores_negativos: ['desempregado', 'sem renda']\n    },\n    authority: {\n      peso: 0.25,\n      indicadores_positivos: ['sou eu quem decide'],\n      indicadores_negativos: ['preciso falar com marido']\n    },\n    need: {\n      peso: 0.25,\n      indicadores_positivos: ['sofro com isso ha anos'],\n      indicadores_negativos: ['so curiosidade']\n    },\n    timeline: {\n      peso: 0.25,\n      indicadores_positivos: ['quero comecar ja'],\n      indicadores_negativos: ['ano que vem']\n    }\n  },\n  threshold_qualificado: 0.6,\n  fases_venda: {\n    '1_primeiro_contato': { objetivo: 'rapport + dor' },\n    '2_qualificacao': { objetivo: 'BANT discreto' },\n    '3_apresentacao': { objetivo: 'valor antes do preco' },\n    '4_fechamento': { objetivo: 'agendamento/venda' }\n  }\n};\n\n// 7. prompts_by_mode - GERADO DINAMICAMENTE por modos selecionados\nconst TEMPLATES_MODO = {\n  sdr_inbound: '# MODO: SDR INBOUND\\n\\nObjetivo: Qualificar e agendar.\\n\\nFLUXO:\\n1. Acolhimento caloroso\\n2. Discovery (dor profunda)\\n3. Apresentar valor\\n4. Revelar preço\\n5. Tratar objeções\\n6. Pagamento\\n7. Agendamento',\n  social_seller: '# MODO: SOCIAL SELLER\\n\\nObjetivo: Engajar e nutrir via DM.\\n\\nFLUXO:\\n1. Conexão genuína\\n2. Interesse no perfil\\n3. Transição natural\\n4. Qualificação soft\\n5. CTA leve (material gratuito)',\n  scheduler: '# MODO: SCHEDULER\\n\\nObjetivo: Confirmar horário.\\n\\nFLUXO:\\n1. Identificar lead\\n2. Oferecer 3 opções\\n3. Confirmar escolha\\n4. Enviar lembrete\\n5. Reagendar se necessário',\n  objection_handler: '# MODO: OBJECTION HANDLER\\n\\nTécnica A.R.O:\\n- Acolher: validar sentimento\\n- Refinar: entender causa real\\n- Oferecer: solução específica\\n\\nObjeções mapeadas: preço, tempo, decisão conjunta',\n  followuper: '# MODO: FOLLOWUPER\\n\\nObjetivo: Retomar leads frios.\\n\\nFLUXO:\\n1. Mensagem de retomada (sem pressão)\\n2. Oferecer novidade/benefício\\n3. Recapturar interesse\\n4. Transição para SDR',\n  concierge: '# MODO: CONCIERGE\\n\\nObjetivo: Atendimento pós-venda.\\n\\nFLUXO:\\n1. Boas-vindas ao cliente\\n2. Orientação de onboarding\\n3. Suporte tier 1\\n4. Escalar se complexo',\n  reativador: '# MODO: REATIVADOR\\n\\nObjetivo: Reativar clientes inativos.\\n\\nFLUXO:\\n1. Mensagem nostálgica\\n2. Oferta exclusiva retorno\\n3. Facilitar caminho\\n4. Urgência genuína'\n};\n\nconst modosSelecionados = briefing.modos || ['sdr_inbound'];\nconst prompts_by_mode = {};\nmodosSelecionados.forEach(modo => {\n  if (TEMPLATES_MODO[modo]) {\n    prompts_by_mode[modo] = TEMPLATES_MODO[modo];\n  }\n});\n\n// 8. hyperpersonalization - MULTI-MODO\nconst hyperpersonalization = {\n  setor: briefing.vertical,\n  tipo_agente: briefing.modo_principal || 'sdr_inbound',\n  modos_habilitados: modosSelecionados,\n  modo_primario: modosSelecionados[0],\n  localizacao: {\n    cidade_principal: briefing.cidade,\n    estado: briefing.estado,\n    pais: 'Brasil'\n  },\n  publico_alvo: briefing.publico_alvo,\n  saudacao_por_horario: {\n    '06-11': 'Bom dia',\n    '12-17': 'Boa tarde',\n    '18-05': 'Boa noite'\n  },\n  configs_modo_especifico: {\n    social_seller: briefing.social_seller_config || {},\n    scheduler: briefing.scheduler_config || {},\n    followuper: briefing.followuper_config || {},\n    concierge: briefing.concierge_config || {},\n    reativador: briefing.reativador_config || {}\n  }\n};\n\nreturn [{\n  json: {\n    // Dados do agente\n    agent_name: parsed.agent_name || briefing.nome_agente,\n    version: parsed.version || 'v1.0.0',\n    location_id: briefing.location_id,\n    \n    // 8 JSONBs\n    system_prompt: system_prompt,\n    tools_config: tools_config,\n    compliance_rules: compliance_rules,\n    personality_config: personality_config,\n    business_config: business_config,\n    qualification_config: qualification_config,\n    prompts_by_mode: prompts_by_mode,\n    hyperpersonalization: hyperpersonalization,\n    \n    // Metadados\n    briefing: briefing,\n    tentativa: briefing.tentativa || 1\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-760, 400],
+      "id": "gerar-jsonbs",
+      "name": "2.1 Gerar JSONBs"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 2.2 Anti-Alucinação - Validar dados contra briefing\nconst data = $input.first().json;\nconst briefing = data.briefing;\n\nconst errosAlucinacao = [];\n\n// Verificar nome do negócio\nif (data.business_config.nome_negocio !== briefing.nome_negocio) {\n  errosAlucinacao.push(`Nome divergente: esperado '${briefing.nome_negocio}', encontrado '${data.business_config.nome_negocio}'`);\n}\n\n// Verificar CNPJ (se fornecido)\nif (briefing.cnpj && data.business_config.cnpj !== briefing.cnpj) {\n  errosAlucinacao.push(`CNPJ divergente: esperado '${briefing.cnpj}', encontrado '${data.business_config.cnpj}'`);\n}\n\n// Verificar se system_prompt menciona dados inventados\nconst systemPrompt = data.system_prompt.toLowerCase();\nconst nomesComuns = ['dr. luiz', 'dra. eline', 'instituto amare', 'isabella'];\nnomesComuns.forEach(nome => {\n  if (systemPrompt.includes(nome) && !briefing.nome_negocio.toLowerCase().includes(nome.split(' ')[1] || nome)) {\n    errosAlucinacao.push(`Possível alucinação: '${nome}' mencionado sem estar no briefing`);\n  }\n});\n\n// Verificar tamanho mínimo do system_prompt\nif (data.system_prompt.length < 500) {\n  errosAlucinacao.push(`system_prompt muito curto: ${data.system_prompt.length} chars (mínimo 500)`);\n}\n\nreturn [{\n  json: {\n    ...data,\n    validacao_alucinacao: {\n      passou: errosAlucinacao.length === 0,\n      erros: errosAlucinacao\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-520, 400],
+      "id": "anti-alucinacao",
+      "name": "2.2 Anti-Alucinação"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 3.0 Calcular Score - Scorecard 200 pontos\nconst data = $input.first().json;\n\nlet score = 0;\nconst detalhes = {};\n\n// 1. system_prompt (25 pts)\nlet scoreSystemPrompt = 0;\nif (data.system_prompt) {\n  if (data.system_prompt.includes('<Role>') && data.system_prompt.includes('<Constraints>') && \n      data.system_prompt.includes('<Instructions>') && data.system_prompt.includes('<Tools>')) {\n    scoreSystemPrompt += 10; // CRITICS completo\n  }\n  if (data.system_prompt.length > 500) scoreSystemPrompt += 5;\n  if (data.business_config.cnpj) scoreSystemPrompt += 5;\n  if (data.system_prompt.includes('<Solutions>') && data.system_prompt.includes('<Conclusions>')) scoreSystemPrompt += 5;\n}\ndetalhes.system_prompt = { score: scoreSystemPrompt, max: 25 };\nscore += scoreSystemPrompt;\n\n// 2. tools_config (25 pts) - MULTI-MODO\nlet scoreTools = 0;\nif (data.tools_config) {\n  // Categorias de ferramentas\n  const categorias = Object.keys(data.tools_config.enabled_tools || {});\n  if (categorias.length >= 3) scoreTools += 10;\n  else if (categorias.length > 0) scoreTools += 5;\n  \n  // Modos configurados\n  if (data.tools_config.modos_ativos?.length > 0) scoreTools += 5;\n  \n  // Parâmetros e limites\n  const temParametros = categorias.some(cat => \n    data.tools_config.enabled_tools[cat]?.some(t => t.parameters?.length > 0)\n  );\n  if (temParametros) scoreTools += 5;\n  \n  // Regras globais\n  if (data.tools_config.regras_globais) scoreTools += 5;\n}\ndetalhes.tools_config = { score: scoreTools, max: 25 };\nscore += scoreTools;\n\n// 3. compliance_rules (25 pts)\nlet scoreCompliance = 0;\nif (data.compliance_rules) {\n  if (data.compliance_rules.proibicoes?.length >= 3) scoreCompliance += 10;\n  if (data.compliance_rules.anti_alucinacao) scoreCompliance += 5;\n  if (data.compliance_rules.escalacao?.triggers) scoreCompliance += 5;\n  if (Object.keys(data.compliance_rules.objecoes_mapeadas || {}).length >= 3) scoreCompliance += 5;\n}\ndetalhes.compliance_rules = { score: scoreCompliance, max: 25 };\nscore += scoreCompliance;\n\n// 4. personality_config (25 pts)\nlet scorePersonality = 0;\nif (data.personality_config) {\n  if (data.personality_config.tom_voz) scorePersonality += 5;\n  if (data.personality_config.nivel_formalidade) scorePersonality += 5;\n  if (data.personality_config.regra_apelidos?.politica) scorePersonality += 10;\n  if (data.personality_config.modos) scorePersonality += 5;\n}\ndetalhes.personality_config = { score: scorePersonality, max: 25 };\nscore += scorePersonality;\n\n// 5. business_config (25 pts)\nlet scoreBusiness = 0;\nif (data.business_config) {\n  if (data.business_config.nome_negocio) scoreBusiness += 10;\n  if (data.business_config.valores && Object.keys(data.business_config.valores).length > 0) scoreBusiness += 5;\n  if (data.business_config.parcelamento?.max_parcelas) scoreBusiness += 5;\n  if (data.business_config.ceps?.length > 0) scoreBusiness += 5;\n}\ndetalhes.business_config = { score: scoreBusiness, max: 25 };\nscore += scoreBusiness;\n\n// 6. qualification_config (25 pts)\nlet scoreQualification = 0;\nif (data.qualification_config) {\n  if (data.qualification_config.bant) scoreQualification += 10;\n  if (data.qualification_config.bant?.budget?.indicadores_positivos) scoreQualification += 5;\n  if (data.qualification_config.fases_venda) scoreQualification += 5;\n  if (data.qualification_config.threshold_qualificado) scoreQualification += 5;\n}\ndetalhes.qualification_config = { score: scoreQualification, max: 25 };\nscore += scoreQualification;\n\n// 7. prompts_by_mode (25 pts) - MULTI-MODO\nlet scorePrompts = 0;\nif (data.prompts_by_mode) {\n  const modosConfigurados = Object.keys(data.prompts_by_mode);\n  const modosEsperados = data.hyperpersonalization?.modos_habilitados || ['sdr_inbound'];\n  \n  // Todos modos esperados estão configurados?\n  const todosModosPresentes = modosEsperados.every(m => modosConfigurados.includes(m));\n  if (todosModosPresentes) scorePrompts += 15;\n  else if (modosConfigurados.length > 0) scorePrompts += 5;\n  \n  // Cada modo tem FLUXO definido?\n  const modosComFluxo = modosConfigurados.filter(m => data.prompts_by_mode[m]?.includes('FLUXO'));\n  if (modosComFluxo.length === modosConfigurados.length) scorePrompts += 10;\n  else if (modosComFluxo.length > 0) scorePrompts += 5;\n}\ndetalhes.prompts_by_mode = { score: scorePrompts, max: 25 };\nscore += scorePrompts;\n\n// 8. hyperpersonalization (25 pts) - MULTI-MODO\nlet scoreHyper = 0;\nif (data.hyperpersonalization) {\n  if (data.hyperpersonalization.setor) scoreHyper += 5;\n  if (data.hyperpersonalization.tipo_agente) scoreHyper += 5;\n  if (data.hyperpersonalization.localizacao) scoreHyper += 5;\n  if (data.hyperpersonalization.modos_habilitados?.length > 0) scoreHyper += 5;\n  if (data.hyperpersonalization.configs_modo_especifico) scoreHyper += 5;\n}\ndetalhes.hyperpersonalization = { score: scoreHyper, max: 25 };\nscore += scoreHyper;\n\n// Determinar status\nconst percentual = Math.round((score / 200) * 100);\nlet status;\nif (percentual < 70) status = 'BLOQUEADO';\nelse if (percentual < 80) status = 'APROVADO';\nelse if (percentual < 90) status = 'BOM';\nelse status = 'EXCELENTE';\n\nreturn [{\n  json: {\n    ...data,\n    validation_score: score,\n    validation_percentual: percentual,\n    validation_status: status,\n    validation_detalhes: detalhes,\n    pode_deploy: percentual >= 70\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-280, 400],
+      "id": "calcular-score",
+      "name": "3.0 Calcular Score (200 pts)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "score-aprovado",
+              "leftValue": "={{ $json.pode_deploy }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-40, 400],
+      "id": "switch-resultado",
+      "name": "3.1 Score >= 70%?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "tentativas-restantes",
+              "leftValue": "={{ $json.tentativa }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-40, 600],
+      "id": "check-tentativas",
+      "name": "3.2 Tentativas < 3?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 3.3 Auto-Fix - Corrigir campos com score 0\nconst data = $input.first().json;\nconst detalhes = data.validation_detalhes;\n\n// Identificar campos com score baixo\nconst camposCorrigir = [];\nfor (const [campo, info] of Object.entries(detalhes)) {\n  if (info.score < info.max * 0.5) {\n    camposCorrigir.push(campo);\n  }\n}\n\n// Preparar briefing atualizado para retry\nconst briefingAtualizado = {\n  ...data.briefing,\n  tentativa: (data.tentativa || 1) + 1,\n  campos_corrigir: camposCorrigir,\n  feedback_anterior: `Score: ${data.validation_score}/200 (${data.validation_percentual}%). Campos a melhorar: ${camposCorrigir.join(', ')}`\n};\n\nreturn [{ json: briefingAtualizado }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 600],
+      "id": "auto-fix",
+      "name": "3.3 Auto-Fix"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"SCORE_INSUFICIENTE\",\n  \"score\": {{ $json.validation_score }},\n  \"percentual\": {{ $json.validation_percentual }},\n  \"status\": \"{{ $json.validation_status }}\",\n  \"tentativas\": {{ $json.tentativa }},\n  \"detalhes\": {{ JSON.stringify($json.validation_detalhes) }}\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-40, 800],
+      "id": "respond-bloqueado",
+      "name": "Respond Bloqueado"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO agent_versions (\n  id,\n  version,\n  system_prompt,\n  tools_config,\n  compliance_rules,\n  personality_config,\n  business_config,\n  qualification_config,\n  hyperpersonalization,\n  prompts_by_mode,\n  is_active,\n  agent_name,\n  location_id,\n  status,\n  validation_score,\n  validation_status,\n  framework_approved,\n  created_at,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '{{ $json.version }}',\n  '{{ $json.system_prompt.replace(/'/g, \"''\") }}',\n  '{{ JSON.stringify($json.tools_config).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.compliance_rules).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.personality_config).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.business_config).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.qualification_config).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.hyperpersonalization).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.prompts_by_mode).replace(/'/g, \"''\") }}'::jsonb,\n  false,\n  '{{ $json.agent_name.replace(/'/g, \"''\") }}',\n  '{{ $json.location_id }}',\n  'pending_approval',\n  {{ $json.validation_score }},\n  '{{ $json.validation_status }}',\n  'true',\n  NOW(),\n  NOW()\n)\nRETURNING id, agent_name, version, validation_score, validation_status;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [200, 400],
+      "id": "deploy-supabase",
+      "name": "4.0 Deploy Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"agent_id\": \"{{ $json.id }}\",\n  \"agent_name\": \"{{ $json.agent_name }}\",\n  \"version\": \"{{ $json.version }}\",\n  \"score\": {{ $json.validation_score }},\n  \"status\": \"{{ $json.validation_status }}\",\n  \"message\": \"Agente criado com sucesso. Score: {{ $json.validation_score }}/200\"\n}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 400],
+      "id": "respond-sucesso",
+      "name": "4.1 Respond Sucesso"
+    },
+    {
+      "parameters": {
+        "content": "## 17-Agent-Creator v3.0\n\n**Meta-agente MULTI-MODO**\n\n### 7 Modos Suportados:\n- sdr_inbound\n- social_seller\n- scheduler\n- objection_handler\n- followuper\n- concierge\n- reativador\n\n### Fluxo:\n1. Webhook recebe briefing + modos[]\n2. Valida campos + modos\n3. Busca template no RAG\n4. Gera system_prompt (Groq)\n5. Gera 8 JSONBs MULTI-MODO\n6. Valida anti-alucinação\n7. Calcula score (200 pts)\n8. Auto-fix se < 70%\n9. Deploy no Supabase\n\n### Scorecard:\n- system_prompt: 25 pts\n- tools_config: 25 pts (por modo)\n- compliance_rules: 25 pts (por modo)\n- personality_config: 25 pts\n- business_config: 25 pts\n- qualification_config: 25 pts\n- prompts_by_mode: 25 pts (todos modos)\n- hyperpersonalization: 25 pts\n\n**Total: 200 pts | Mínimo: 70%**",
+        "height": 520,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-2200, -100],
+      "id": "sticky-doc",
+      "name": "Documentação"
+    }
+  ],
+  "connections": {
+    "1.0 Webhook Briefing": {
+      "main": [
+        [
+          {
+            "node": "1.1 Validar Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1.1 Validar Briefing": {
+      "main": [
+        [
+          {
+            "node": "1.2 Briefing Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1.2 Briefing Válido?": {
+      "main": [
+        [
+          {
+            "node": "Respond Erro Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "1.3 Buscar Template RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1.3 Buscar Template RAG": {
+      "main": [
+        [
+          {
+            "node": "1.4 Preparar Contexto IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1.4 Preparar Contexto IA": {
+      "main": [
+        [
+          {
+            "node": "2.0 Gerar system_prompt (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.0 Gerar system_prompt (Groq)": {
+      "main": [
+        [
+          {
+            "node": "2.1 Gerar JSONBs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.1 Gerar JSONBs": {
+      "main": [
+        [
+          {
+            "node": "2.2 Anti-Alucinação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.2 Anti-Alucinação": {
+      "main": [
+        [
+          {
+            "node": "3.0 Calcular Score (200 pts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3.0 Calcular Score (200 pts)": {
+      "main": [
+        [
+          {
+            "node": "3.1 Score >= 70%?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3.1 Score >= 70%?": {
+      "main": [
+        [
+          {
+            "node": "3.2 Tentativas < 3?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "4.0 Deploy Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3.2 Tentativas < 3?": {
+      "main": [
+        [
+          {
+            "node": "3.3 Auto-Fix",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Bloqueado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3.3 Auto-Fix": {
+      "main": [
+        [
+          {
+            "node": "1.1 Validar Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4.0 Deploy Supabase": {
+      "main": [
+        [
+          {
+            "node": "4.1 Respond Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "agent-creator-v3.0-multi-modo",
+  "meta": {
+    "instanceId": "ai-factory-mottivme"
+  },
+  "tags": [
+    {
+      "name": "agent-creator"
+    },
+    {
+      "name": "meta-agente"
+    }
+  ]
+}

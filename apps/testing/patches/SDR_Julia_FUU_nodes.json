@@ -1,0 +1,73 @@
+{
+  "_description": "Nós FUU para adicionar ao SDR Julia Amare",
+  "_instructions": [
+    "1. Adicionar 'FUU - Cancelar Follow-ups' LOGO APÓS 'Mensagem recebida', ANTES de 'Contexto UTM'",
+    "2. Adicionar 'FUU - Agendar Follow-up' APÓS 'no.op' (final do fluxo de envio)"
+  ],
+  "nodes_to_add": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Cancela follow-ups pendentes quando lead responde\nSELECT fuu_mark_responded(\n  '{{ $json.contact.id }}',\n  '{{ $json.contact.locationId }}'\n) as cancelled_count;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [32350, 26496],
+      "id": "fuu-cancel-followups-001",
+      "name": "FUU - Cancelar Follow-ups",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Agenda follow-up para caso lead não responda\nSELECT fuu_schedule_followup(\n  '{{ $('Mensagem recebida').first().json.contact.id }}',\n  '{{ $('Mensagem recebida').first().json.contact.locationId }}',\n  'sdr_inbound',\n  '{{ $('Mensagem recebida').first().json.contact.phone || null }}',\n  '{{ $('Mensagem recebida').first().json.contact.email || null }}',\n  '{{ $('Mensagem recebida').first().json.contact.name || $('Mensagem recebida').first().json.contact.firstName || null }}',\n  '{{ JSON.stringify({ ultimo_assunto: $('Mensagem recebida').first().json.message?.body?.substring(0, 200) || \"\", etapa: $('Info').first().json.etapa_funil || \"qualificacao\", source: $('Info').first().json.source || \"whatsapp\" }) }}',\n  NOW()\n) as queue_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [45300, 26480],
+      "id": "fuu-schedule-followup-001",
+      "name": "FUU - Agendar Follow-up",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": false,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections_to_modify": {
+    "add": [
+      {
+        "from": "Mensagem recebida",
+        "to": "FUU - Cancelar Follow-ups"
+      },
+      {
+        "from": "FUU - Cancelar Follow-ups",
+        "to": "Contexto UTM"
+      },
+      {
+        "from": "no.op",
+        "to": "FUU - Agendar Follow-up"
+      }
+    ],
+    "remove": [
+      {
+        "from": "Mensagem recebida",
+        "to": "Contexto UTM"
+      }
+    ]
+  }
+}

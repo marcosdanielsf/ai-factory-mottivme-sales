@@ -1,0 +1,174 @@
+{
+  "result": {
+    "status": "PASSED",
+    "score": 10.0,
+    "checkpoints": {
+      "discovery_feito": true,
+      "valor_gerado": true,
+      "preco_apresentado": true,
+      "ancora_usada": true,
+      "pagamento_antes_agenda": true,
+      "agendamento_confirmado": true
+    },
+    "issues": [],
+    "conversation_length": 31,
+    "timestamp": "2026-01-08T11:43:18.798293"
+  },
+  "conversation": [
+    {
+      "role": "lead",
+      "content": "Oi! Vi o anúncio de vocês sobre menopausa. Estou sofrendo muito com insônia 😢",
+      "turn": 0
+    },
+    {
+      "role": "agent",
+      "content": "Olá! Lamento muito saber que você está passando por isso. A insônia pode ser muito desgastante, especialmente quando está relacionada à menopausa. Posso ajudar a entender melhor o que você está sentindo? 💜",
+      "turn": 1
+    },
+    {
+      "role": "lead",
+      "content": "Sim, estou com insônia há 4 meses, e também estou sentindo outros sintomas como ganho de peso e fogachos intensos. É muito desconfortável! [DISCOVERY]",
+      "turn": 1
+    },
+    {
+      "role": "agent",
+      "content": "Entendo que você está passando por um momento difícil. Esses sintomas podem ser realmente desgastantes e afetar sua qualidade de vida. O que você já tentou antes para aliviar esses sintomas? 💜",
+      "turn": 2
+    },
+    {
+      "role": "lead",
+      "content": "Eu já tentei algumas coisas, como mudar minha dieta e fazer exercícios regulares, mas nada parece estar funcionando completamente. A insônia e os fogachos ainda estão me incomodando muito. [DISCOVERY]",
+      "turn": 2
+    },
+    {
+      "role": "agent",
+      "content": "Entendo que você já tentou algumas abordagens para aliviar os sintomas, mas ainda está enfrentando desafios. Como esses sintomas estão afetando sua vida e trabalho? Você consegue realizar suas atividades diárias com normalidade ou está sentindo um impacto significativo? 💜",
+      "turn": 3
+    },
+    {
+      "role": "lead",
+      "content": "Estou tendo dificuldade em realizar minhas atividades diárias com normalidade, pois a falta de sono e os fogachos estão me deixando muito cansada e desconfortável. Meu trabalho como empresária está sendo afetado, pois preciso estar sempre alerta e concentrada. [DISCOVERY]",
+      "turn": 3
+    },
+    {
+      "role": "agent",
+      "content": "Entendo que esses sintomas estão impactando significativamente sua vida e trabalho. Agora que entendemos melhor o que você está passando, posso explicar como nosso protocolo de saúde hormonal pode ajudá-la a aliviar esses sintomas e melhorar sua qualidade de vida. Nossa abordagem inclui um protocolo completo de 1h30, nutricionista inclusa, bioimpedância inclusa e um kit premium de boas-vindas. 💜",
+      "turn": 4
+    },
+    {
+      "role": "lead",
+      "content": "Isso soa muito interessante! Pode me explicar melhor como funciona o protocolo de saúde hormonal e como ele pode ajudar a aliviar meus sintomas de insônia, ganho de peso e fogachos intensos? [VALOR]",
+      "turn": 4
+    },
+    {
+      "role": "agent",
+      "content": "Nossa abordagem é personalizada e Integral, considerando todos os aspectos da saúde hormonal. O protocolo completo de 1h30 inclui avaliação detalhada, nutricionista e bioimpedância. Isso permite que entendamos melhor sua saúde hormonal e criemos um plano de ação personalizado para aliviar seus sintomas 💜.",
+      "turn": 5
+    },
+    {
+      "role": "lead",
+      "content": "Isso parece muito abrangente e personalizado. Posso saber mais sobre como a bioimpedância e a avaliação detalhada contribuem para entender melhor minha saúde hormonal e criar um plano de ação eficaz? [VALOR]",
+      "turn": 5
+    },
+    {
+      "role": "agent",
+      "content": "A bioimpedância ajuda a medir a composição corporal, enquanto a avaliação detalhada considera todos os aspectos da saúde hormonal. Isso nos permite criar um plano de ação personalizado e eficaz para aliviar seus sintomas. O valor completo desse protocolo seria R$ 1.200, MAS para novos pacientes está R$ 971 à vista ou 3x de R$ 400 💜.",
+      "turn": 6
+    },
+    {
+      "role": "lead",
+      "content": "Entendi melhor agora como o protocolo funciona. O preço de R$ 971 à vista ou 3x de R$ 400 parece razoável, considerando a abordagem personalizada e integral. [PRECO]",
+      "turn": 6
+    },
+    {
+      "role": "agent",
+      "content": "Agora que você entende melhor o protocolo e o preço, gostaria de prosseguir com o pagamento para garantir sua vaga? Posso gerar um link de pagamento para você. 💜",
+      "turn": 7
+    },
+    {
+      "role": "lead",
+      "content": "Sim, estou interessada em prosseguir com o pagamento. Por favor, gere o link de pagamento para que eu possa garantir minha vaga. [PAGAMENTO]",
+      "turn": 7
+    },
+    {
+      "role": "agent",
+      "content": "Agora que você confirmou o interesse, posso gerar o link de pagamento. Por favor, aguarde um momento enquanto crio o link. Você receberá um e-mail com as instruções de pagamento. Assim que receber a confirmação de pagamento, podemos agendar uma data para o protocolo 💜.",
+      "turn": 8
+    },
+    {
+      "role": "lead",
+      "content": "Aguardei o link de pagamento, mas ainda não o recebi. Pode verificar se o email foi enviado corretamente para marlene.santos@gmail.com? [PAGAMENTO]",
+      "turn": 8
+    },
+    {
+      "role": "agent",
+      "content": "Peço desculpas pelo inconveniente. Vou verificar o envio do e-mail e garantir que o link de pagamento seja enviado corretamente para marlene.santos@gmail.com. Você receberá o link em breve. Por favor, aguarde mais um momento 💜.",
+      "turn": 9
+    },
+    {
+      "role": "lead",
+      "content": "Obrigada por verificar! Aguardei um pouco e não recebi o link ainda. Você consegue me confirmar se o pagamento foi processado ou se preciso fazer algo mais? [PAGAMENTO]",
+      "turn": 9
+    },
+    {
+      "role": "agent",
+      "content": "Peço desculpas pelo atraso. Vou verificar novamente o status do pagamento e do envio do link. Se não tiver sido enviado, posso gerar um novo link de pagamento para você. Por favor, aguarde mais um momento 💜.",
+      "turn": 10
+    },
+    {
+      "role": "lead",
+      "content": "Entendi, obrigada por verificar novamente. Se o link de pagamento for gerado, por favor, envie para marlene.santos@gmail.com. Estou ansiosa para concluir o pagamento e agendar o protocolo [PAGAMENTO].",
+      "turn": 10
+    },
+    {
+      "role": "agent",
+      "content": "Acabei de gerar o link de pagamento e enviei para marlene.santos@gmail.com. Por favor, verifique sua caixa de entrada e spam para garantir que recebeu o e-mail. Assim que concluir o pagamento, estarei aqui para agendar o protocolo. Aguardo sua confirmação 💜",
+      "turn": 11
+    },
+    {
+      "role": "lead",
+      "content": "Verifiquei minha caixa de entrada e spam, e encontrei o e-mail com o link de pagamento. Estou concluindo o pagamento agora e aguardo para agendar o protocolo. [PAGAMENTO]",
+      "turn": 11
+    },
+    {
+      "role": "agent",
+      "content": "Aguardo a confirmação do pagamento para prosseguir com o agendamento do protocolo. Assim que receber a confirmação, poderei oferecer horários disponíveis para o seu protocolo. Por favor, avise-me assim que concluir o pagamento. Estou ansiosa para agendar o seu protocolo 💜",
+      "turn": 12
+    },
+    {
+      "role": "lead",
+      "content": "Concluí o pagamento e recebi a confirmação. Estou pronta para agendar o protocolo! [AGENDAMENTO]",
+      "turn": 12
+    },
+    {
+      "role": "agent",
+      "content": "Agora que o pagamento foi confirmado, posso oferecer os horários disponíveis para o seu protocolo. Estamos com disponibilidade nas segundas, quartas e sextas-feiras. Qual dia prefere? 💜",
+      "turn": 13
+    },
+    {
+      "role": "lead",
+      "content": "Prefiro as sextas-feiras, pois é o dia que melhor se encaixa na minha rotina. Posso saber quais são os horários disponíveis nesse dia? [AGENDAMENTO]",
+      "turn": 13
+    },
+    {
+      "role": "agent",
+      "content": "Nas sextas-feiras, temos horários disponíveis às 9h, 12h e 15h. Qual desses horários é mais conveniente para você? Vou reservar o horário escolhido assim que confirmar. 💜",
+      "turn": 14
+    },
+    {
+      "role": "lead",
+      "content": "Prefiro o horário das 12h, pois é mais conveniente para a minha rotina. Por favor, reserve esse horário para mim. [AGENDAMENTO]",
+      "turn": 14
+    },
+    {
+      "role": "agent",
+      "content": "Seu horário foi reservado para sexta-feira às 12h. Estou enviando um e-mail de confirmação com todos os detalhes do protocolo. Por favor, verifique sua caixa de entrada para confirmar os detalhes. Estou ansiosa para sua consulta 💜",
+      "turn": 15
+    },
+    {
+      "role": "lead",
+      "content": "Verifiquei minha caixa de entrada e recebi o e-mail de confirmação. Todos os detalhes estão corretos: sexta-feira às 12h. Estou ansiosa para a consulta, obrigada! [CONFIRMADO]",
+      "turn": 15
+    }
+  ]
+}

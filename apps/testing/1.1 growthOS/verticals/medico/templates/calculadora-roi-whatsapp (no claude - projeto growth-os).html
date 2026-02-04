@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de ROI | Quanto você economiza com MedFlow?</title>
+    <meta name="description" content="Descubra quanto sua clínica pode economizar com WhatsApp ilimitado. Calcule seu ROI em 30 segundos.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #0066FF;
+            --primary-dark: #0052CC;
+            --primary-light: #E8F1FF;
+            --success: #10B981;
+            --success-light: #D1FAE5;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --dark: #111827;
+            --gray-600: #4B5563;
+            --gray-400: #9CA3AF;
+            --gray-200: #E5E7EB;
+            --gray-100: #F3F4F6;
+            --white: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--dark);
+            line-height: 1.6;
+            background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* ========== HEADER ========== */
+        .header {
+            background: var(--white);
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .header-cta {
+            background: var(--primary);
+            color: var(--white);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .header-cta:hover {
+            background: var(--primary-dark);
+        }
+
+        /* ========== HERO ========== */
+        .hero {
+            text-align: center;
+            padding: 60px 0 40px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--success-light);
+            color: var(--success);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        .hero h1 span {
+            color: var(--primary);
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--gray-600);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ========== CALCULATOR ========== */
+        .calculator {
+            padding: 40px 0 80px;
+        }
+
+        .calc-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        /* INPUT SECTION */
+        .calc-input {
+            background: var(--white);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+
+        .calc-input h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .calc-input h2 i {
+            color: var(--primary);
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .input-group .hint {
+            font-size: 0.85rem;
+            color: var(--gray-400);
+            margin-bottom: 10px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input,
+        .input-wrapper select {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .input-wrapper input:focus,
+        .input-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
+        }
+
+        .input-wrapper .prefix {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray-400);
+            font-weight: 500;
+        }
+
+        .input-wrapper input.has-prefix {
+            padding-left: 45px;
+        }
+
+        .slider-container {
+            margin-top: 10px;
+        }
+
+        .slider-container input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--gray-200);
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        }
+
+        .slider-value {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--gray-400);
+        }
+
+        .slider-value span:last-child {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        /* COMPETITOR SELECT */
+        .competitor-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .competitor-card {
+            padding: 15px;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .competitor-card:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .competitor-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .competitor-card .name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+        }
+
+        .competitor-card .price {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        .competitor-card .limit {
+            font-size: 0.75rem;
+            color: var(--danger);
+            margin-top: 5px;
+        }
+
+        /* RESULT SECTION */
+        .calc-result {
+            background: linear-gradient(135deg, var(--primary) 0%, #0044CC 100%);
+            border-radius: 24px;
+            padding: 40px;
+            color: var(--white);
+            position: sticky;
+            top: 20px;
+        }
+
+        .calc-result h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-main {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .result-main .label {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .result-main .value {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .result-main .period {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        .result-breakdown {
+            margin-bottom: 25px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-item .label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .breakdown-item .label i {
+            width: 20px;
+            opacity: 0.8;
+        }
+
+        .breakdown-item .value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .breakdown-item .value.negative {
+            color: #FCA5A5;
+        }
+
+        .breakdown-item .value.positive {
+            color: #6EE7B7;
+        }
+
+        .result-highlight {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .result-highlight .label {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .result-highlight .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #6EE7B7;
+        }
+
+        .result-cta {
+            display: block;
+            background: var(--white);
+            color: var(--primary);
+            text-align: center;
+            padding: 18px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .result-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .result-note {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        /* ========== DETAILS SECTION ========== */
+        .details {
+            padding: 60px 0;
+            background: var(--white);
+        }
+
+        .details h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .detail-card {
+            text-align: center;
+            padding: 30px;
+            background: var(--gray-100);
+            border-radius: 16px;
+        }
+
+        .detail-card i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .detail-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .detail-card p {
+            color: var(--gray-600);
+            font-size: 0.95rem;
+        }
+
+        /* ========== COMPARISON TABLE ========== */
+        .comparison {
+            padding: 60px 0;
+        }
+
+        .comparison h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .comparison-table thead {
+            background: var(--dark);
+            color: var(--white);
+        }
+
+        .comparison-table thead th:first-child {
+            text-align: left;
+        }
+
+        .comparison-table tbody tr {
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .comparison-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .comparison-table tbody td:first-child {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .comparison-table .highlight {
+            background: var(--primary-light);
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .comparison-table .best {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        .comparison-table .worst {
+            color: var(--danger);
+        }
+
+        /* ========== CTA SECTION ========== */
+        .cta-section {
+            padding: 80px 0;
+            background: linear-gradient(135deg, var(--primary) 0%, #0044CC 100%);
+            color: var(--white);
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .cta-section p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .cta-buttons .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 36px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-white {
+            background: var(--white);
+            color: var(--primary);
+        }
+
+        .btn-whatsapp {
+            background: #25D366;
+            color: var(--white);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* ========== FOOTER ========== */
+        .footer {
+            background: var(--dark);
+            color: var(--white);
+            padding: 30px 0;
+            text-align: center;
+        }
+
+        .footer p {
+            opacity: 0.6;
+            font-size: 0.9rem;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1024px) {
+            .calc-wrapper {
+                grid-template-columns: 1fr;
+            }
+
+            .calc-result {
+                position: static;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .competitor-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .result-main .value {
+                font-size: 2.5rem;
+            }
+
+            .comparison-table {
+                font-size: 0.85rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 12px 8px;
+            }
+
+            .cta-section h2 {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* ========== ANIMATIONS ========== */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .result-main.updated {
+            animation: pulse 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== HEADER ========== -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">MedFlow</div>
+            <a href="#" class="header-cta">Começar Agora</a>
+        </div>
+    </header>
+
+    <!-- ========== HERO ========== -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <i class="fas fa-calculator"></i>
+                Calculadora de ROI
+            </div>
+            <h1>Quanto você <span>economiza</span> com<br>WhatsApp ilimitado?</h1>
+            <p>Descubra em 30 segundos quanto sua clínica pode economizar migrando para o MedFlow.</p>
+        </div>
+    </section>
+
+    <!-- ========== CALCULATOR ========== -->
+    <section class="calculator">
+        <div class="container">
+            <div class="calc-wrapper">
+                <!-- INPUT -->
+                <div class="calc-input">
+                    <h2><i class="fas fa-sliders-h"></i> Dados da sua clínica</h2>
+
+                    <!-- Consultas por mês -->
+                    <div class="input-group">
+                        <label>Quantas consultas você realiza por mês?</label>
+                        <p class="hint">Média de todas as consultas (primeiras vezes + retornos)</p>
+                        <div class="slider-container">
+                            <input type="range" id="consultas" min="50" max="1000" value="200" step="10">
+                            <div class="slider-value">
+                                <span>50</span>
+                                <span id="consultasValue">200 consultas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Taxa de no-show -->
+                    <div class="input-group">
+                        <label>Qual sua taxa de no-show atual?</label>
+                        <p class="hint">Porcentagem de pacientes que faltam sem avisar</p>
+                        <div class="slider-container">
+                            <input type="range" id="noshow" min="5" max="40" value="20" step="1">
+                            <div class="slider-value">
+                                <span>5%</span>
+                                <span id="noshowValue">20%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Valor médio da consulta -->
+                    <div class="input-group">
+                        <label>Valor médio da consulta (R$)</label>
+                        <p class="hint">Incluindo particular e convênio</p>
+                        <div class="input-wrapper">
+                            <span class="prefix">R$</span>
+                            <input type="number" id="valorConsulta" class="has-prefix" value="250" min="50" max="1000">
+                        </div>
+                    </div>
+
+                    <!-- Sistema atual -->
+                    <div class="input-group">
+                        <label>Qual sistema você usa atualmente?</label>
+                        <p class="hint">Selecione para comparar os custos</p>
+                        <div class="competitor-cards">
+                            <div class="competitor-card" data-competitor="medx" data-price="350" data-limit="100">
+                                <div class="name">MEDX</div>
+                                <div class="price">R$350/mês</div>
+                                <div class="limit">50-100 msg/mês</div>
+                            </div>
+                            <div class="competitor-card selected" data-competitor="iclinic" data-price="250" data-limit="85">
+                                <div class="name">iClinic</div>
+                                <div class="price">R$250/mês</div>
+                                <div class="limit">85 msg = R$29,90</div>
+                            </div>
+                            <div class="competitor-card" data-competitor="doctoralia" data-price="529" data-limit="999">
+                                <div class="name">Doctoralia</div>
+                                <div class="price">R$529/mês</div>
+                                <div class="limit">Ilimitado (Plus)</div>
+                            </div>
+                            <div class="competitor-card" data-competitor="shosp" data-price="209" data-limit="0">
+                                <div class="name">Shosp</div>
+                                <div class="price">R$149 + R$60</div>
+                                <div class="limit">WhatsApp = addon</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RESULT -->
+                <div class="calc-result">
+                    <h2><i class="fas fa-chart-line"></i> Seu resultado</h2>
+
+                    <div class="result-main" id="resultMain">
+                        <div class="label">Economia anual estimada</div>
+                        <div class="value" id="economiaAnual">R$0</div>
+                        <div class="period">por ano com MedFlow</div>
+                    </div>
+
+                    <div class="result-breakdown">
+                        <div class="breakdown-item">
+                            <div class="label">
+                                <i class="fas fa-building"></i>
+                                <span>Sistema atual</span>
+                            </div>
+                            <div class="value negative" id="custoAtual">R$0/mês</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="label">
+                                <i class="fas fa-rocket"></i>
+                                <span>MedFlow Professional</span>
+                            </div>
+                            <div class="value positive">R$397/mês</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="label">
+                                <i class="fab fa-whatsapp"></i>
+                                <span>Msgs WhatsApp/mês</span>
+                            </div>
+                            <div class="value" id="msgsNecessarias">0 msgs</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="label">
+                                <i class="fas fa-dollar-sign"></i>
+                                <span>Custo extra WhatsApp</span>
+                            </div>
+                            <div class="value negative" id="custoExtraWpp">R$0/mês</div>
+                        </div>
+                    </div>
+
+                    <div class="result-highlight">
+                        <div class="label">Receita recuperada (redução no-show)</div>
+                        <div class="value" id="receitaRecuperada">R$0/mês</div>
+                    </div>
+
+                    <a href="https://wa.me/55[DDD][NUMERO]?text=Olá! Fiz a calculadora e quero saber mais sobre o MedFlow. Minha economia estimada é de [VALOR]" class="result-cta" id="ctaWhatsapp">
+                        <i class="fab fa-whatsapp"></i> Quero essa economia!
+                    </a>
+                    <p class="result-note">
+                        <i class="fas fa-lock"></i> Teste grátis por 14 dias
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== DETAILS ========== -->
+    <section class="details">
+        <div class="container">
+            <h2>Como calculamos sua economia?</h2>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <i class="fab fa-whatsapp"></i>
+                    <h3>WhatsApp Ilimitado</h3>
+                    <p>Enviamos em média 4 mensagens por consulta (confirmação, lembrete 24h, lembrete 2h, pós-consulta). Com MedFlow, você não paga por mensagem.</p>
+                </div>
+                <div class="detail-card">
+                    <i class="fas fa-user-clock"></i>
+                    <h3>Redução de No-Show</h3>
+                    <p>Clínicas que usam lembretes automatizados reduzem no-show em até 60%. Calculamos 40% de redução conservadora.</p>
+                </div>
+                <div class="detail-card">
+                    <i class="fas fa-piggy-bank"></i>
+                    <h3>Custo Total</h3>
+                    <p>Somamos a mensalidade do sistema + custo de WhatsApp extra + pacotes de SMS para comparar com o MedFlow tudo incluso.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== COMPARISON ========== -->
+    <section class="comparison">
+        <div class="container">
+            <h2>Custo real do WhatsApp nos concorrentes</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Sistema</th>
+                        <th>Mensalidade</th>
+                        <th>WhatsApp incluso</th>
+                        <th>Custo 500 msgs</th>
+                        <th>Custo 1000 msgs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>MEDX</strong></td>
+                        <td>R$350</td>
+                        <td class="worst">50-100 msgs</td>
+                        <td class="worst">~R$150 extra</td>
+                        <td class="worst">~R$350 extra</td>
+                    </tr>
+                    <tr>
+                        <td><strong>iClinic</strong></td>
+                        <td>R$250</td>
+                        <td class="worst">0 (pacotes)</td>
+                        <td class="worst">R$149 (5 pacotes)</td>
+                        <td class="worst">R$298 (10 pacotes)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Shosp</strong></td>
+                        <td>R$149</td>
+                        <td class="worst">Addon R$60/mês</td>
+                        <td>R$60</td>
+                        <td>R$60</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Doctoralia</strong></td>
+                        <td>R$529</td>
+                        <td>Ilimitado (Plus)</td>
+                        <td>R$0</td>
+                        <td>R$0</td>
+                    </tr>
+                    <tr class="highlight">
+                        <td><strong>MedFlow</strong></td>
+                        <td>R$397</td>
+                        <td class="best">ILIMITADO</td>
+                        <td class="best">R$0</td>
+                        <td class="best">R$0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ========== CTA ========== -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Pronto para parar de pagar por mensagem?</h2>
+            <p>Comece hoje e tenha WhatsApp ilimitado, automações avançadas e muito mais incluído.</p>
+            <div class="cta-buttons">
+                <a href="#" class="btn btn-white">
+                    <i class="fas fa-play"></i>
+                    Ver Demonstração
+                </a>
+                <a href="https://wa.me/55[DDD][NUMERO]?text=Olá! Quero conhecer o MedFlow" class="btn btn-whatsapp">
+                    <i class="fab fa-whatsapp"></i>
+                    Falar com Consultor
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 MedFlow by MOTTIVME. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- ========== SCRIPTS ========== -->
+    <script>
+        // ========== CONFIGURAÇÕES ==========
+        const MEDFLOW_PRICE = 397; // Preço do MedFlow Professional
+        const MSGS_PER_CONSULTA = 4; // Confirmação + 24h + 2h + pós
+        const NOSHOW_REDUCTION = 0.40; // 40% de redução no no-show
+
+        const COMPETITORS = {
+            medx: {
+                name: 'MEDX',
+                price: 350,
+                whatsappLimit: 75, // média 50-100
+                extraMsgCost: 0.35 // estimativa por msg extra
+            },
+            iclinic: {
+                name: 'iClinic',
+                price: 250,
+                whatsappLimit: 0,
+                packagePrice: 29.90,
+                packageMsgs: 85
+            },
+            doctoralia: {
+                name: 'Doctoralia',
+                price: 529,
+                whatsappLimit: 9999,
+                extraMsgCost: 0
+            },
+            shosp: {
+                name: 'Shosp',
+                price: 149,
+                whatsappAddon: 60,
+                whatsappLimit: 9999
+            }
+        };
+
+        // ========== ELEMENTOS ==========
+        const consultasSlider = document.getElementById('consultas');
+        const consultasValue = document.getElementById('consultasValue');
+        const noshowSlider = document.getElementById('noshow');
+        const noshowValue = document.getElementById('noshowValue');
+        const valorConsultaInput = document.getElementById('valorConsulta');
+        const competitorCards = document.querySelectorAll('.competitor-card');
+
+        // Resultados
+        const economiaAnualEl = document.getElementById('economiaAnual');
+        const custoAtualEl = document.getElementById('custoAtual');
+        const msgsNecessariasEl = document.getElementById('msgsNecessarias');
+        const custoExtraWppEl = document.getElementById('custoExtraWpp');
+        const receitaRecuperadaEl = document.getElementById('receitaRecuperada');
+        const resultMain = document.getElementById('resultMain');
+
+        let selectedCompetitor = 'iclinic';
+
+        // ========== EVENT LISTENERS ==========
+        consultasSlider.addEventListener('input', () => {
+            consultasValue.textContent = `${consultasSlider.value} consultas`;
+            calculate();
+        });
+
+        noshowSlider.addEventListener('input', () => {
+            noshowValue.textContent = `${noshowSlider.value}%`;
+            calculate();
+        });
+
+        valorConsultaInput.addEventListener('input', calculate);
+
+        competitorCards.forEach(card => {
+            card.addEventListener('click', () => {
+                competitorCards.forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedCompetitor = card.dataset.competitor;
+                calculate();
+            });
+        });
+
+        // ========== CÁLCULO ==========
+        function calculate() {
+            const consultas = parseInt(consultasSlider.value);
+            const noshowRate = parseInt(noshowSlider.value) / 100;
+            const valorConsulta = parseFloat(valorConsultaInput.value) || 250;
+
+            const competitor = COMPETITORS[selectedCompetitor];
+            const msgsNecessarias = consultas * MSGS_PER_CONSULTA;
+
+            // Custo do sistema atual
+            let custoSistemaAtual = competitor.price;
+            let custoExtraWhatsapp = 0;
+
+            if (selectedCompetitor === 'iclinic') {
+                // iClinic cobra por pacotes
+                const packagesNeeded = Math.ceil(msgsNecessarias / competitor.packageMsgs);
+                custoExtraWhatsapp = packagesNeeded * competitor.packagePrice;
+            } else if (selectedCompetitor === 'medx') {
+                // MEDX tem limite e cobra extra
+                const msgsExtras = Math.max(0, msgsNecessarias - competitor.whatsappLimit);
+                custoExtraWhatsapp = msgsExtras * competitor.extraMsgCost;
+            } else if (selectedCompetitor === 'shosp') {
+                // Shosp cobra addon fixo
+                custoExtraWhatsapp = competitor.whatsappAddon;
+            }
+            // Doctoralia já tem ilimitado no Plus
+
+            const custoTotalAtual = custoSistemaAtual + custoExtraWhatsapp;
+
+            // Economia mensal no sistema
+            const economiaSistemaMensal = custoTotalAtual - MEDFLOW_PRICE;
+
+            // Receita recuperada com redução de no-show
+            const consultasPerdidasAtual = consultas * noshowRate;
+            const consultasRecuperadas = consultasPerdidasAtual * NOSHOW_REDUCTION;
+            const receitaRecuperadaMensal = consultasRecuperadas * valorConsulta;
+
+            // Economia total
+            const economiaTotalMensal = economiaSistemaMensal + receitaRecuperadaMensal;
+            const economiaAnual = economiaTotalMensal * 12;
+
+            // Atualizar UI
+            animateValue(economiaAnualEl, economiaAnual);
+            custoAtualEl.textContent = `R$${custoTotalAtual.toFixed(0)}/mês`;
+            msgsNecessariasEl.textContent = `${msgsNecessarias} msgs`;
+            custoExtraWppEl.textContent = custoExtraWhatsapp > 0 ? `R$${custoExtraWhatsapp.toFixed(0)}/mês` : 'R$0';
+            receitaRecuperadaEl.textContent = `R$${receitaRecuperadaMensal.toFixed(0)}/mês`;
+
+            // Animar resultado principal
+            resultMain.classList.add('updated');
+            setTimeout(() => resultMain.classList.remove('updated'), 300);
+
+            // Atualizar CTA do WhatsApp
+            const ctaWhatsapp = document.getElementById('ctaWhatsapp');
+            const economiaFormatada = economiaAnual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+            ctaWhatsapp.href = `https://wa.me/5511999999999?text=Olá! Fiz a calculadora e quero saber mais sobre o MedFlow. Minha economia estimada é de ${economiaFormatada} por ano!`;
+        }
+
+        function animateValue(element, value) {
+            const formatted = value.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                maximumFractionDigits: 0
+            });
+            element.textContent = formatted;
+        }
+
+        // ========== INICIALIZAR ==========
+        calculate();
+    </script>
+
+</body>
+</html>

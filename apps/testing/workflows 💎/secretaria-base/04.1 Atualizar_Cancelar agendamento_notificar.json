@@ -1,0 +1,1795 @@
+{
+  "name": "04.1 Atualizar/Cancelar agendamento/notificar",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "calendar_id"
+            },
+            {
+              "name": "startTime"
+            },
+            {
+              "name": "firstName"
+            },
+            {
+              "name": "lastName"
+            },
+            {
+              "name": "lead_id"
+            }
+          ]
+        }
+      },
+      "id": "fc01e966-08e8-43e9-b685-bb831c6d6bf8",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -2592,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cancelar-check",
+              "leftValue": "={{ $('Start').item.json.cancelar }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -576,
+        1056
+      ],
+      "id": "e2f1322f-ccf9-421c-8883-dbb02590d618",
+      "name": "Vai Cancelar?",
+      "notes": "Verifica se deve marcar como cancelado"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/calendars/events/appointments/{{ $('Start').item.json.appointment_id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "title",
+              "value": "=[CANCELADO] {{ $('Start').item.json.title || 'Reunião' }}"
+            },
+            {
+              "name": "status",
+              "value": "cancelled"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        928
+      ],
+      "id": "a00131cf-9b63-4f1b-a5ba-5ec3362a6c00",
+      "name": "Marcar como CANCELADO",
+      "notes": "Marca o agendamento como cancelado e adiciona [CANCELADO] no título"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1472,
+        1216
+      ],
+      "id": "30e04a96-37ad-452b-b91f-9eba24b6afc2",
+      "name": "If5",
+      "notes": "Verifica se encontrou contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Start').item.json.location_id }}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $('Start').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact by Phone1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        1216
+      ],
+      "id": "c73ab97a-10b9-44ff-b738-eb8d467cadce",
+      "notes": "Busca contato por TELEFONE"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts?.[0] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1920,
+        1120
+      ],
+      "id": "5cfc62c7-4675-4e34-8c58-e8603297f441",
+      "name": "If1",
+      "notes": "Verifica se encontrou contato por EMAIL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "db1a4173-dc6a-4d5e-895e-610a97e01570",
+              "name": "contact_id",
+              "value": "={{ $('Search Contact').item?.json?.contacts?.[0]?.id ?? $('Search Contact by Phone1').item?.json?.contacts?.[0]?.id ?? $('Create contact').first().json.contact.id }}",
+              "type": "string"
+            },
+            {
+              "id": "449fd8cd-c042-4267-8b3f-5d1ca0822ad6",
+              "name": "location_id",
+              "value": "={{ $('Start').first().json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "52c150ad-47f8-4129-bf5b-010150511607",
+              "name": "calendar_id",
+              "value": "={{ $('Start').first().json.calendar_id }}",
+              "type": "string"
+            },
+            {
+              "id": "86e46826-8215-4c1a-9404-4a5858ce2e6e",
+              "name": "startTime",
+              "value": "={{ $('Start').item.json.startTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -800,
+        1056
+      ],
+      "id": "d5c65dbc-0d22-4df3-9b45-3d15bc046acd",
+      "name": "contact"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/search",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{$json[\"location_id\"]}}"
+            },
+            {
+              "name": "pageLimit",
+              "value": "={{20}}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Search Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        1120
+      ],
+      "id": "a3398a56-ce82-4dc0-be2f-db377bdd2a59",
+      "notes": "Busca contato por EMAIL"
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "locationId",
+              "value": "={{ $('Start').item.json.location_id }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Start').item.json.email }}"
+            },
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Start').item.json.telefone }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Create contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        1264
+      ],
+      "id": "b8d51345-22a3-45e1-9907-3e97770aa3fa",
+      "notes": "Cria novo contato apenas se NÃO existir por email NEM telefone"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contacts[0].id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "firstName",
+              "value": "={{ $('Start').item.json.firstName }}"
+            },
+            {
+              "name": "lastName",
+              "value": "={{ $('Start').item.json.lastName != $('Start').item.json.firstName ? $('Start').item.json.lastName : \"\"}}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        }
+      },
+      "name": "Atualizar Contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        976
+      ],
+      "id": "9cf531bc-cd7d-4f7c-980e-fa6ae316fe2b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e54ae733-9f48-415b-9402-bcbbdd268754",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "trocar",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "7556fef1-4d29-429b-a1e3-26b655b98e84",
+              "leftValue": "={{ $json.contacts[0].lastNameLowerCase }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1248,
+        1056
+      ],
+      "id": "c4139e14-7df2-4c0b-b0b9-40b8951a614f",
+      "name": "Verifica Nome"
+    },
+    {
+      "parameters": {
+        "content": "v2 - Agora com opção de CANCELAR agendamento!\n\nSe cancelar=true, marca como cancelado e adiciona [CANCELADO] no título.",
+        "height": 688,
+        "width": 1696,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2272,
+        736
+      ],
+      "typeVersion": 1,
+      "id": "9fff3652-86ca-4125-850b-8697b7b6f597",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "telefone",
+              "value": "={{ $json.telefone }}"
+            },
+            {
+              "key": "email",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        -2368,
+        1120
+      ],
+      "id": "94ceb4bc-cbd6-4012-a555-4b5d83e08a39",
+      "name": "Execution Data1"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/calendars/events/appointments/{{ $('Start').item.json.appointment_id }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "title",
+              "value": "={{ $('Start').item.json.title }}"
+            },
+            {
+              "name": "startTime",
+              "value": "={{ $('Start').item.json.startTime }}"
+            },
+            {
+              "name": "endTime",
+              "value": "={{ $('Start').item.json.endTime }}"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        1152
+      ],
+      "id": "c3073dac-005c-45a6-972f-67204d20f26c",
+      "name": "Atualizar_agendamento1",
+      "notes": "Atualizar um agendamento existente. startTime e endTime seguem o padrão ISO 8601 (ex: 2021-06-23T03:30:00+05:30)."
+    },
+    {
+      "parameters": {
+        "content": "## Atualizar/Cancelar Agendamento GHL\n\n### Parâmetros obrigatórios:\n- **API_KEY**: Token de autenticação do GHL\n- **appointment_id**: ID do agendamento\n\n### Para CANCELAR:\n- **cancelar**: true\n- **title**: Título original (será prefixado com [CANCELADO])\n\n### Para ATUALIZAR:\n- **cancelar**: false (ou não enviar)\n- **title**: Novo título\n- **startTime**: Nova data/hora início (ISO 8601)\n- **endTime**: Nova data/hora fim (ISO 8601)\n\n### Formato de data:\n`2025-11-10T15:00:00-03:00`",
+        "height": 500,
+        "width": 480,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        432
+      ],
+      "id": "3c83431b-e7cf-40fa-a24e-eaba9dbba01d",
+      "name": "Sticky Note - Info1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "Bgi2hFMgiLLoRlOO0K5b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "69d1e309-7843-4d5d-b766-8fb92c8dc9fb"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Marina Couto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9756d7f2-64ee-4fa7-a120-371d25999024",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "AP53YUiTaDZqQIlSJBP3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Gustavo Couto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "591ed4c3-1c97-4b60-bd06-7c24e7ba7af4",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "EKHxHl3KLPN0iRc69GNU",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Fernanda Lappe"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "45faf2fd-9fa1-4fc6-b606-4cd466c48c87",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "uEh9LDrdLpKH1oruwxZ4",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "André Rosa"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "198da5e3-016b-4219-8c6c-10fb40b02cc3",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "ZwT6vg9vjWxKPMrkRJpZ",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cláudia Fehribach"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1e2b5d8b-7190-420c-afc0-a08187e4c607",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "mHuN6v75KQc3lwmBd6mV",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Milton Abreu"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "10161adc-f0fc-4f16-908c-f9b6bcc529bb",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "stZe6Dng4I83yRAhGyNu",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Renata Vieira"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b5ba9f6b-5e3d-45da-a91b-ee5bd4108039",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "TRrG5ShxwDSL1XAN382x",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Vivian Osorio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4e0a9dd8-13f7-4ebc-b3e1-dd9fc8515ec0",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "ehlHgDeJS3sr8rCDcZtA",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Vertex Sales "
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "90a2d79e-323b-45ad-829a-5d7d7bd7251e",
+                    "leftValue": "={{ $json.location.id }}",
+                    "rightValue": "4poUjboW7OBvtMTqHHIe",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cliente Socialfy"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        320,
+        800
+      ],
+      "id": "1368bbc5-0c00-422c-9066-2de56767a16d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json['api key v2'] }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f96de9db-a53d-446b-a9db-63b28432c648",
+      "name": "Send WhatsApp Report1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mensagemOriginal = $json.message;\n\n// Extrai as partes da mensagem\nconst match = mensagemOriginal.match(/\\[SOCIALFY\\](.*?)Aqui estão os detalhes do cancelamento:(.*)/s);\n\nif (match) {\n  const intro = match[1].trim();\n  const detalhes = match[2].trim();\n  \n  // Formata os detalhes com negrito nos campos\n  const detalhesFormatados = detalhes\n    .replace(/Date:/g, '\\n*Date:*')\n    .replace(/Contact:/g, '\\n*Contact:*')\n    .replace(/Email:/g, '\\n*Email:*')\n    .replace(/Phone:/g, '\\n*Phone:*')\n    .replace(/^\\s+/gm, '')\n    .trim();\n  \n  // Monta com [SOCIALFY] em negrito\n  const mensagemFormatada = `*[SOCIALFY]* ${intro}\\n\\nAqui estão os detalhes do cancelamento:\\n\\n${detalhesFormatados}`;\n  \n  return {\n    ...$json,\n    message: mensagemFormatada\n  };\n} else {\n  return $json;\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        928
+      ],
+      "id": "aceac851-c6b0-4531-ba49-e9ac07a9a57c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "07933762-478f-478a-944b-0134804165cb",
+      "name": "Send WhatsApp Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=skfa6JP6lLlAXkc8FfIp",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+1203633587897208",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.body.customData.mensagem }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.body.location.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5d38d42c-275e-45ce-8bd6-4fefb3a6932d",
+              "name": "data.tipo",
+              "value": "={{ $json.body.customData.tipo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -128,
+        928
+      ],
+      "id": "88d55461-ced4-4333-8b1a-d301da2a6f32",
+      "name": "filtro"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=DeQGrXaZBAPBnsnoqvSM",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+1203634024083840",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.location.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        544
+      ],
+      "id": "35dab320-6f11-4876-8cd9-2e9e52ce0399",
+      "name": "Info_marina"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=2g0UCycwqZKJgXSKjfm1",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+ 1203633394958566",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.location.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        928
+      ],
+      "id": "ab15231f-fde3-4715-a76a-7903b9876ff6",
+      "name": "Info_lappe"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "db1be1b2-9f9e-4ca8-83b6-e19105faa40b",
+      "name": "Send WhatsApp Report2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=DeQGrXaZBAPBnsnoqvSM",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+1203634024083840",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.location.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        736
+      ],
+      "id": "f7aa568c-ea40-47df-a37f-89d8d811719a",
+      "name": "Info_gustavo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "=XdsVZ9Fx0dzToMPinO2r"
+            },
+            {
+              "name": "message",
+              "value": "={{ $('Switch').item.json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "=+1203634177742526"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cd50f777-3315-4b6e-b7ba-bd5fd597b417",
+      "name": "Send WhatsApp Report3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        992,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=0Bm0WMO7Mvn92EUXQ0W3",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+ 1203633394958566",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.location.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        1120
+      ],
+      "id": "f955e3d3-8174-4dd1-aebd-ce0462079523",
+      "name": "Info_vertex"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6da9e87a-3d8f-41ea-8165-e18b0ea648fe",
+      "name": "Send WhatsApp Report4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json['api key v2'] }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.telefone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f8e9e94c-dbef-4c42-84de-4d32ee799b8b",
+      "name": "Send WhatsApp Report5",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2be10433-977e-4474-9e8a-5a1c0d8ec042",
+              "name": "contact_id",
+              "value": "=CJxV7ibaGHY1STWvmyKD",
+              "type": "string"
+            },
+            {
+              "id": "d869c5fb-1179-48ff-89de-fe860e9454cf",
+              "name": "api key v2",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            },
+            {
+              "id": "53c37ac8-beaf-4ee0-8a1c-778ad5995b0e",
+              "name": "telefone",
+              "value": "+1203634024083840",
+              "type": "string"
+            },
+            {
+              "id": "9f564bf5-ea29-4e0e-aae2-b942c47980f0",
+              "name": "=message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "7803be88-99af-4219-973d-aff58a4780fc",
+              "name": "location.id",
+              "value": "={{ $json.location.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        1312
+      ],
+      "id": "d87779a8-f14a-47b6-a6d7-78e136e12b51",
+      "name": "Info_Gustavo"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "API_KEY": "pit-da757200-941e-41eb-83f2-10d5b89ad789",
+          "email": "egislaine.santos1987@gmail.com",
+          "telefone": "+15082154456",
+          "location_id": "Bgi2hFMgiLLoRlOO0K5b",
+          "calendar_id": "LvZWMISiyYnF8p7TrY7q",
+          "startTime": "2025-10-29T12:00:00-04:00",
+          "firstName": "Egislaine",
+          "lastName": "Egislaine"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Execution Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vai Cancelar?": {
+      "main": [
+        [
+          {
+            "node": "Marcar como CANCELADO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar_agendamento1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If5": {
+      "main": [
+        [
+          {
+            "node": "Verifica Nome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Contact by Phone1": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Verifica Nome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search Contact by Phone1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "contact": {
+      "main": [
+        [
+          {
+            "node": "Vai Cancelar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Contact": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact": {
+      "main": [
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Contato": {
+      "main": [
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Nome": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Data1": {
+      "main": [
+        [
+          {
+            "node": "Search Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Info_marina",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Info_gustavo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Info_lappe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [
+          {
+            "node": "Info_vertex",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Info_Gustavo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Report1": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Report": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filtro": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info_marina": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info_lappe": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Report2": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info_gustavo": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info_vertex": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Report4": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info_Gustavo": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Report5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como CANCELADO": {
+      "main": [
+        [
+          {
+            "node": "filtro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "76e4ea64-fef2-41db-b6f6-70200b110a48",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "tB6BNUcIu0SxpA9u",
+  "tags": []
+}

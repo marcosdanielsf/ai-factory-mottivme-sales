@@ -1,0 +1,144 @@
+{
+  "result": {
+    "status": "PASSED",
+    "score": 10.0,
+    "checkpoints": {
+      "discovery_feito": true,
+      "valor_gerado": true,
+      "preco_apresentado": true,
+      "ancora_usada": true,
+      "pagamento_antes_agenda": true,
+      "agendamento_confirmado": true
+    },
+    "issues": [],
+    "conversation_length": 25,
+    "timestamp": "2026-01-08T11:49:42.919447"
+  },
+  "conversation": [
+    {
+      "role": "lead",
+      "content": "Oi! Vi o anúncio de vocês sobre menopausa. Estou sofrendo muito com insônia 😢",
+      "turn": 0
+    },
+    {
+      "role": "agent",
+      "content": "Olá! Sinto muito que você esteja passando por isso. A insônia pode ser muito desgastante. Qual é a sua maior frustração com a insônia e como ela está afetando seu dia a dia? 💜",
+      "turn": 1
+    },
+    {
+      "role": "lead",
+      "content": "Estou tendo dificuldade em dormir há 4 meses, e também estou ganhando peso (6kg) e sentindo fogachos intensos. Isso está me deixando muito cansada e estressada durante o dia. [DISCOVERY] 😔",
+      "turn": 1
+    },
+    {
+      "role": "agent",
+      "content": "Entendo que isso está sendo muito desafiador para você. Você mencionou que está tendo dificuldade em dormir há 4 meses, mas o que você já tentou para resolver isso? Qual foi o seu último passo em busca de uma solução? 💜",
+      "turn": 2
+    },
+    {
+      "role": "lead",
+      "content": "Já tentei várias coisas, como mudar a minha dieta, fazer exercícios regulares e até mesmo tomar remédios para dormir, mas nada parece estar funcionando. Estou começando a me sentir um pouco desesperada. [DISCOVERY] 😔",
+      "turn": 2
+    },
+    {
+      "role": "agent",
+      "content": "Sinto muito que nada tenha funcionado até agora. Posso ver que você está realmente buscando uma solução. Como essa situação está afetando sua vida e relação com as pessoas ao seu redor? 💜",
+      "turn": 3
+    },
+    {
+      "role": "lead",
+      "content": "Estou me sentindo muito isolada e irritada, o que está afetando minhas relações pessoais e profissionais. Meu humor está sempre instável e isso está me preocupando. [DISCOVERY] 😔",
+      "turn": 3
+    },
+    {
+      "role": "agent",
+      "content": "Entendo que isso está sendo muito difícil para você. Nossa abordagem no Instituto Amare é holística, focando na saúde hormonal para resolver problemas como insônia e fogachos. Nosso protocolo completo inclui uma consulta de 1h30 com um especialista, nutricionista e bioimpedância. 💜",
+      "turn": 4
+    },
+    {
+      "role": "lead",
+      "content": "Isso soa muito interessante! Como funciona essa abordagem holística e como vocês lidam com a saúde hormonal para resolver problemas como insônia e fogachos? [VALOR]",
+      "turn": 4
+    },
+    {
+      "role": "agent",
+      "content": "Nossa abordagem holística no Instituto Amare envolve uma avaliação completa da saúde hormonal, incluindo exames e consultas com especialistas. Além disso, oferecemos um suporte nutricional personalizado e bioimpedância para entender melhor o seu corpo. Isso permite que desenvolvamos um plano de tratamento personalizado para resolver problemas como insônia e fogachos. 💜",
+      "turn": 5
+    },
+    {
+      "role": "lead",
+      "content": "Isso tudo parece muito completo e personalizado. Pode me explicar melhor como a bioimpedância ajuda no processo de tratamento? [VALOR]",
+      "turn": 5
+    },
+    {
+      "role": "agent",
+      "content": "A bioimpedância é uma ferramenta valiosa que nos permite entender a composição corporal, incluindo a porcentagem de gordura, massa muscular e hidratação. Isso é crucial para desenvolver um plano de tratamento personalizado e eficaz. Com esses dados, podemos criar um plano nutricional e de exercícios que atenda às suas necessidades específicas. 💜",
+      "turn": 6
+    },
+    {
+      "role": "lead",
+      "content": "Agora que entendi melhor como funciona a abordagem holística e a importância da bioimpedância, gostaria de saber mais sobre o custo desse tratamento. Qual é o preço do protocolo completo? [VALOR]",
+      "turn": 6
+    },
+    {
+      "role": "agent",
+      "content": "O valor completo desse protocolo seria R$ 1.200, MAS para novos pacientes está R$ 971 à vista ou 3x de R$ 400. Isso inclui tudo o que mencionei anteriormente, como a consulta de 1h30, nutricionista, bioimpedância e kit premium de boas-vindas. É um investimento valioso para sua saúde e bem-estar 💜",
+      "turn": 7
+    },
+    {
+      "role": "lead",
+      "content": "O preço parece justo considerando a abordagem completa e personalizada que vocês oferecem. Gostaria de saber se há alguma opção de parcelamento além das 3x de R$ 400? [PRECO] 💸",
+      "turn": 7
+    },
+    {
+      "role": "agent",
+      "content": "Nossa opção de parcelamento é justamente as 3x de R$ 400, pois isso nos permite manter o valor acessível e garantir que você receba todo o suporte necessário. É um investimento único e não há outras opções de parcelamento além disso. Se você estiver pronto para prosseguir, posso gerar um link de pagamento para você 💜",
+      "turn": 8
+    },
+    {
+      "role": "lead",
+      "content": "Entendi, acho que o valor é justo considerando o suporte completo que vocês oferecem. Estou disposta a pagar as 3x de R$ 400, por favor, gere o link de pagamento para mim. [PAGAMENTO] 💸",
+      "turn": 8
+    },
+    {
+      "role": "agent",
+      "content": "Vou gerar o link de pagamento para você. Por favor, aguarde um momento. Assim que gerar, envio para você para concluir a compra. 💜",
+      "turn": 9
+    },
+    {
+      "role": "lead",
+      "content": "Recebi o link de pagamento, agora posso finalizar a compra. Qual é o próximo passo após o pagamento? [PAGAMENTO]",
+      "turn": 9
+    },
+    {
+      "role": "agent",
+      "content": "Após concluir o pagamento, aguarde um momento até que eu receba a confirmação. Então, poderei agendar uma consulta de 1h30 com nosso especialista. Você receberá um e-mail com as opções de horário disponíveis. 💜",
+      "turn": 10
+    },
+    {
+      "role": "lead",
+      "content": "Aguardo a confirmação do pagamento e as opções de horário para a consulta. Por favor, envie o e-mail com as opções de horário disponíveis em São Paulo, se possível. [AGENDAMENTO] 💜",
+      "turn": 10
+    },
+    {
+      "role": "agent",
+      "content": "Aguardo a confirmação do pagamento. Assim que receber, enviarei um e-mail com as opções de horário disponíveis para a consulta em São Paulo. Por favor, verifique sua caixa de entrada em alguns minutos. 💜",
+      "turn": 11
+    },
+    {
+      "role": "lead",
+      "content": "Recebi a confirmação do pagamento e já verifiquei minha caixa de entrada. Encontrei o e-mail com as opções de horário disponíveis para a consulta em São Paulo. [AGENDAMENTO] Qual é o próximo passo para confirmar o agendamento?",
+      "turn": 11
+    },
+    {
+      "role": "agent",
+      "content": "Agora que você recebeu as opções de horário, basta escolher uma data e horário que lhe convenha e responder ao e-mail para confirmar o agendamento. Estou ansiosa para que você comece seu protocolo de saúde hormonal. Por favor, responda ao e-mail com sua escolha 💜",
+      "turn": 12
+    },
+    {
+      "role": "lead",
+      "content": "Escolhi a opção de consulta na próxima quarta-feira às 10h. Já enviei um e-mail confirmado o agendamento. Estou ansiosa para começar meu protocolo de saúde hormonal! [CONFIRMADO] 💜",
+      "turn": 12
+    }
+  ]
+}

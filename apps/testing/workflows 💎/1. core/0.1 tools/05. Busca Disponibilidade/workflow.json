@@ -1,0 +1,596 @@
+{
+  "updatedAt": "2025-12-01T18:56:57.000Z",
+  "createdAt": "2025-11-06T21:45:05.753Z",
+  "id": "K2T5oJMpZs4emU2s",
+  "name": "03. [ Socialfy ] Busca Disponibilidade v3",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "calendar"
+            },
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "startDate"
+            },
+            {
+              "name": "endDate"
+            },
+            {
+              "name": "lead_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -336,
+        160
+      ],
+      "id": "162778c8-c189-4ecd-875b-ef14bac5ff95",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "23303d5a-637f-44dd-9d66-f362a57c45bd",
+              "leftValue": "={{ $json.keys()?.find(item => item !== \"traceId\") }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        320,
+        160
+      ],
+      "id": "f772f725-899b-4081-81c6-6ab634d3abd4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/calendars/{{$json[\"calendar\"]}}/free-slots",
+        "options": {},
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json[\"API_KEY\"]}}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            }
+          ]
+        },
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "startDate",
+              "value": "={{$json[\"startDate\"]}}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{$json[\"endDate\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Busca_disponibilidade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        112,
+        160
+      ],
+      "id": "57dfe8c4-78b2-45e5-bb1a-f681b49dfa86",
+      "notes": "Buscar/consultar por horários disponíveis antes de agendar. Formato da data é timestamp (ex: 1755701965881). O parâmetro `calendar` pode ser `consultoria` ou `carreira`. `startDate` = data atual, `endDate` = hoje + 7 dias."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2efa7747-6fd7-4157-bb84-d6c41b0cdc69",
+              "name": "Slots Disponíveis",
+              "value": "={{ Object.values($json).flatMap(d => d.slots || []).join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        64
+      ],
+      "id": "9e1a91d3-e2b2-437d-a794-5bdfad7c782f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d6599ffd-9a27-4632-abd1-6e342678f10d",
+              "name": "Slots Disponíveis",
+              "value": "=Não há disponibilidade no range pesquisado. Range: {{ $('When Executed by Another Workflow').first().json.startDate.toDateTime('ms') }} - {{ $('When Executed by Another Workflow').item.json.endDate.toDateTime('ms') }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        256
+      ],
+      "id": "34937710-ea66-4063-a0cf-5bb10ed9cc96",
+      "name": "Sem disponibilidade"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "slots",
+              "value": "={{ $json['Slots Disponíveis'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        752,
+        256
+      ],
+      "id": "927fd826-9527-4a58-b97e-c61bab4e83b5",
+      "name": "Execution Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Função para ajustar datas antigas para o ano atual\nconst now = new Date();\nconst currentYear = now.getFullYear();\n\n// Pega os inputs\nconst calendar = $input.item.json.calendar;\nconst apiKey = $input.item.json.API_KEY;\nlet startDate = parseInt($input.item.json.startDate);\nlet endDate = parseInt($input.item.json.endDate);\n\n// Converte timestamps para Date\nconst startDateObj = new Date(startDate);\nconst endDateObj = new Date(endDate);\n\n// Verifica se a data está no passado (ano anterior)\nif (startDateObj.getFullYear() < currentYear) {\n  // Ajusta para o ano atual mantendo mês e dia\n  const adjustedStart = new Date(\n    currentYear,\n    startDateObj.getMonth(),\n    startDateObj.getDate(),\n    startDateObj.getHours(),\n    startDateObj.getMinutes(),\n    startDateObj.getSeconds()\n  );\n  \n  const adjustedEnd = new Date(\n    currentYear,\n    endDateObj.getMonth(),\n    endDateObj.getDate(),\n    endDateObj.getHours(),\n    endDateObj.getMinutes(),\n    endDateObj.getSeconds()\n  );\n  \n  // Atualiza os timestamps\n  startDate = adjustedStart.getTime();\n  endDate = adjustedEnd.getTime();\n}\n\n// Se a data ajustada ainda estiver no passado (já passou esse mês/dia no ano atual)\nconst adjustedStartObj = new Date(startDate);\nif (adjustedStartObj < now) {\n  // Adiciona 1 dia ao invés de manter a data passada\n  const tomorrow = new Date(now);\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  tomorrow.setHours(0, 0, 0, 0);\n  \n  const nextWeek = new Date(tomorrow);\n  nextWeek.setDate(nextWeek.getDate() + 7);\n  nextWeek.setHours(23, 59, 59, 999);\n  \n  startDate = tomorrow.getTime();\n  endDate = nextWeek.getTime();\n}\n\nreturn {\n  calendar,\n  API_KEY: apiKey,\n  startDate: startDate.toString(),\n  endDate: endDate.toString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        160
+      ],
+      "id": "dfd7116c-139b-4d3a-bbdb-b335720ca1ca",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca_disponibilidade": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem disponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sem disponibilidade": {
+      "main": [
+        [
+          {
+            "node": "Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Busca_disponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "c7f2350a-c959-493d-952e-5afe0da532b1",
+  "activeVersionId": "c7f2350a-c959-493d-952e-5afe0da532b1",
+  "versionCounter": 14,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-11-06T21:45:05.762Z",
+      "createdAt": "2025-11-06T21:45:05.762Z",
+      "role": "workflow:owner",
+      "workflowId": "K2T5oJMpZs4emU2s",
+      "projectId": "VAjodPr5Fy7WALLy",
+      "project": {
+        "updatedAt": "2025-06-18T03:44:57.988Z",
+        "createdAt": "2025-06-18T03:36:54.736Z",
+        "id": "VAjodPr5Fy7WALLy",
+        "name": "Alan Jones Rios <alan@mentorfy.io>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-06-18T03:36:54.737Z",
+            "createdAt": "2025-06-18T03:36:54.737Z",
+            "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+            "projectId": "VAjodPr5Fy7WALLy",
+            "user": {
+              "updatedAt": "2026-01-26T04:01:50.000Z",
+              "createdAt": "2025-06-18T03:36:53.786Z",
+              "id": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+              "email": "alan@mentorfy.io",
+              "firstName": "Alan Jones",
+              "lastName": "Rios",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-06-18T03:45:05.123Z",
+                "personalization_survey_n8n_version": "1.98.1"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "ccHBfcfeKrXwUhIA",
+                "userActivatedAt": 1750223854201,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1768854304461
+                },
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true,
+                  "ragStarterCallout": true
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-01-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2025-12-05T18:43:11.095Z",
+    "createdAt": "2025-12-05T18:43:11.095Z",
+    "versionId": "c7f2350a-c959-493d-952e-5afe0da532b1",
+    "workflowId": "K2T5oJMpZs4emU2s",
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "calendar"
+              },
+              {
+                "name": "API_KEY"
+              },
+              {
+                "name": "startDate"
+              },
+              {
+                "name": "endDate"
+              },
+              {
+                "name": "lead_id"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -336,
+          160
+        ],
+        "id": "162778c8-c189-4ecd-875b-ef14bac5ff95",
+        "name": "When Executed by Another Workflow"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "23303d5a-637f-44dd-9d66-f362a57c45bd",
+                "leftValue": "={{ $json.keys()?.find(item => item !== \"traceId\") }}",
+                "rightValue": "=",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          320,
+          160
+        ],
+        "id": "f772f725-899b-4081-81c6-6ab634d3abd4",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "url": "=https://services.leadconnectorhq.com/calendars/{{$json[\"calendar\"]}}/free-slots",
+          "options": {},
+          "headerParametersUi": {
+            "parameter": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{$json[\"API_KEY\"]}}"
+              },
+              {
+                "name": "Version",
+                "value": "2021-04-15"
+              }
+            ]
+          },
+          "queryParametersUi": {
+            "parameter": [
+              {
+                "name": "startDate",
+                "value": "={{$json[\"startDate\"]}}"
+              },
+              {
+                "name": "endDate",
+                "value": "={{$json[\"endDate\"]}}"
+              }
+            ]
+          }
+        },
+        "name": "Busca_disponibilidade",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 2,
+        "position": [
+          112,
+          160
+        ],
+        "id": "57dfe8c4-78b2-45e5-bb1a-f681b49dfa86",
+        "notes": "Buscar/consultar por horários disponíveis antes de agendar. Formato da data é timestamp (ex: 1755701965881). O parâmetro `calendar` pode ser `consultoria` ou `carreira`. `startDate` = data atual, `endDate` = hoje + 7 dias."
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "2efa7747-6fd7-4157-bb84-d6c41b0cdc69",
+                "name": "Slots Disponíveis",
+                "value": "={{ Object.values($json).flatMap(d => d.slots || []).join(', ') }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          528,
+          64
+        ],
+        "id": "9e1a91d3-e2b2-437d-a794-5bdfad7c782f",
+        "name": "Edit Fields"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "d6599ffd-9a27-4632-abd1-6e342678f10d",
+                "name": "Slots Disponíveis",
+                "value": "=Não há disponibilidade no range pesquisado. Range: {{ $('When Executed by Another Workflow').first().json.startDate.toDateTime('ms') }} - {{ $('When Executed by Another Workflow').item.json.endDate.toDateTime('ms') }}\n",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          528,
+          256
+        ],
+        "id": "34937710-ea66-4063-a0cf-5bb10ed9cc96",
+        "name": "Sem disponibilidade"
+      },
+      {
+        "parameters": {
+          "dataToSave": {
+            "values": [
+              {
+                "key": "slots",
+                "value": "={{ $json['Slots Disponíveis'] }}"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executionData",
+        "typeVersion": 1.1,
+        "position": [
+          752,
+          256
+        ],
+        "id": "927fd826-9527-4a58-b97e-c61bab4e83b5",
+        "name": "Execution Data"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Função para ajustar datas antigas para o ano atual\nconst now = new Date();\nconst currentYear = now.getFullYear();\n\n// Pega os inputs\nconst calendar = $input.item.json.calendar;\nconst apiKey = $input.item.json.API_KEY;\nlet startDate = parseInt($input.item.json.startDate);\nlet endDate = parseInt($input.item.json.endDate);\n\n// Converte timestamps para Date\nconst startDateObj = new Date(startDate);\nconst endDateObj = new Date(endDate);\n\n// Verifica se a data está no passado (ano anterior)\nif (startDateObj.getFullYear() < currentYear) {\n  // Ajusta para o ano atual mantendo mês e dia\n  const adjustedStart = new Date(\n    currentYear,\n    startDateObj.getMonth(),\n    startDateObj.getDate(),\n    startDateObj.getHours(),\n    startDateObj.getMinutes(),\n    startDateObj.getSeconds()\n  );\n  \n  const adjustedEnd = new Date(\n    currentYear,\n    endDateObj.getMonth(),\n    endDateObj.getDate(),\n    endDateObj.getHours(),\n    endDateObj.getMinutes(),\n    endDateObj.getSeconds()\n  );\n  \n  // Atualiza os timestamps\n  startDate = adjustedStart.getTime();\n  endDate = adjustedEnd.getTime();\n}\n\n// Se a data ajustada ainda estiver no passado (já passou esse mês/dia no ano atual)\nconst adjustedStartObj = new Date(startDate);\nif (adjustedStartObj < now) {\n  // Adiciona 1 dia ao invés de manter a data passada\n  const tomorrow = new Date(now);\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  tomorrow.setHours(0, 0, 0, 0);\n  \n  const nextWeek = new Date(tomorrow);\n  nextWeek.setDate(nextWeek.getDate() + 7);\n  nextWeek.setHours(23, 59, 59, 999);\n  \n  startDate = tomorrow.getTime();\n  endDate = nextWeek.getTime();\n}\n\nreturn {\n  calendar,\n  API_KEY: apiKey,\n  startDate: startDate.toString(),\n  endDate: endDate.toString()\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -128,
+          160
+        ],
+        "id": "dfd7116c-139b-4d3a-bbdb-b335720ca1ca",
+        "name": "Code in JavaScript"
+      }
+    ],
+    "connections": {
+      "When Executed by Another Workflow": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Busca_disponibilidade": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Sem disponibilidade",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sem disponibilidade": {
+        "main": [
+          [
+            {
+              "node": "Execution Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Busca_disponibilidade",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "system migration",
+    "name": null,
+    "description": null,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2025-12-01T18:56:57.000Z",
+        "id": 84,
+        "workflowId": "K2T5oJMpZs4emU2s",
+        "versionId": "c7f2350a-c959-493d-952e-5afe0da532b1",
+        "event": "activated",
+        "userId": null
+      }
+    ]
+  }
+}

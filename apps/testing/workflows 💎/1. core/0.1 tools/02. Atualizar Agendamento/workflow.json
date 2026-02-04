@@ -1,0 +1,465 @@
+{
+  "updatedAt": "2025-12-16T17:19:59.019Z",
+  "createdAt": "2025-12-16T17:10:29.802Z",
+  "id": "2zvOdDg0sRPkh6wZ",
+  "name": "Atualizar Last Appointment GHL",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "profissaoValue"
+            }
+          ]
+        }
+      },
+      "id": "4d268190-b1f2-410a-878f-d6f0ecc8e342",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1152,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $json.location_id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -928,
+        -400
+      ],
+      "id": "6bfd6b7d-476f-4729-81c2-c3ded12ea7ce",
+      "name": "1️⃣ Listar Campos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// 🔧 CONFIGURAÇÃO DO CAMPO (EDITE AQUI)\n// =====================================================\n\nconst FIELD_CONFIG = {\n  name: \"Last Appointment\",\n  fieldKey: \"contact.last_appointment\",\n  dataType: \"SINGLE_OPTIONS\",\n  placeholder: \"Selecione o tipo\",\n  position: 860,\n  options: [\"Carreira\", \"Consultoria\"]\n};\n\n// =====================================================\n// 🔍 LÓGICA DE BUSCA (NÃO EDITAR)\n// =====================================================\n\nconst customFields = $input.first().json.customFields || [];\n\nlet startData = {};\ntry {\n  startData = $('Start').first().json || {};\n} catch (e) {\n  startData = {};\n}\n\nconst currentItem = $input.first().json || {};\n\nconst API_KEY = startData.API_KEY || currentItem.API_KEY || null;\nconst location_id = startData.location_id || currentItem.location_id || null;\nconst contact_id = startData.contact_id || currentItem.contact_id || null;\nconst fieldValue = startData.fieldValue || currentItem.fieldValue || null;\n\nconst campoExistente = customFields.find(f => f.name === FIELD_CONFIG.name);\n\nreturn [{\n  json: {\n    fieldId: campoExistente ? campoExistente.id : null,\n    fieldExists: !!campoExistente,\n    fieldConfig: FIELD_CONFIG,\n    contactId: contact_id,\n    fieldValue: fieldValue,\n    API_KEY: API_KEY,\n    location_id: location_id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        -400
+      ],
+      "id": "ceef8bc0-7fd1-497e-937b-14aae85644b8",
+      "name": "2️⃣ Verificar Campo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "field-exists-check",
+              "leftValue": "={{ $json.fieldExists }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        -400
+      ],
+      "id": "ed3ddffe-46aa-4202-a99b-950198ab7690",
+      "name": "3️⃣ Campo Existe?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $json.location_id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.fieldConfig) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        -304
+      ],
+      "id": "a5eb38ea-5878-4921-8806-8266806c03f3",
+      "name": "4️⃣ Criar Campo",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id-from-create",
+              "name": "fieldId",
+              "value": "={{ $json.customField?.id || $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id",
+              "name": "contactId",
+              "value": "={{ $('2️⃣ Verificar Campo').first().json.contactId }}",
+              "type": "string"
+            },
+            {
+              "id": "field-value",
+              "name": "fieldValue",
+              "value": "={{ $('2️⃣ Verificar Campo').first().json.fieldValue }}",
+              "type": "string"
+            },
+            {
+              "id": "api-key",
+              "name": "API_KEY",
+              "value": "={{ $('2️⃣ Verificar Campo').first().json.API_KEY }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        -304
+      ],
+      "id": "7f5db10b-a23b-4c2a-9196-eabdab8b3b84",
+      "name": "5️⃣ Preparar Dados (Após Criar)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id-exists",
+              "name": "fieldId",
+              "value": "={{ $json.fieldId }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id-exists",
+              "name": "contactId",
+              "value": "={{ $json.contactId }}",
+              "type": "string"
+            },
+            {
+              "id": "field-value-exists",
+              "name": "fieldValue",
+              "value": "={{ $json.fieldValue }}",
+              "type": "string"
+            },
+            {
+              "id": "api-key-exists",
+              "name": "API_KEY",
+              "value": "={{ $json.API_KEY }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        -496
+      ],
+      "id": "6996bcc2-5792-4b3b-a265-1518d41485b0",
+      "name": "5️⃣ Preparar Dados (Existente)"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $json.fieldId }}\",\n      \"value\": \"{{ $json.fieldValue }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        192,
+        -400
+      ],
+      "id": "4158e1d2-67fd-4b79-ad93-6ae19abb870c",
+      "name": "7️⃣ Atualizar Contato",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "## 🔧 TOOL AUTO-CONFIGURÁVEL\n\n### Como usar:\n1. Duplique este workflow\n2. Edite APENAS o bloco `FIELD_CONFIG` no node \"2️⃣ Verificar Campo\"\n3. Renomeie o workflow\n\n### Configurações disponíveis:\n\n**Campo TEXT:**\n```javascript\nconst FIELD_CONFIG = {\n  name: \"Nome do Campo\",\n  fieldKey: \"contact.nome_interno\",\n  dataType: \"TEXT\",\n  placeholder: \"Exemplo...\",\n  position: 100\n};\n```\n\n**Campo DROPDOWN:**\n```javascript\nconst FIELD_CONFIG = {\n  name: \"Status\",\n  fieldKey: \"contact.status\",\n  dataType: \"SINGLE_OPTIONS\",\n  placeholder: \"Selecione...\",\n  position: 100,\n  options: [\"Opção 1\", \"Opção 2\"]\n};\n```\n\n### Fluxo:\n```\nStart → Listar → Verificar → IF\n                              ├─ SIM → Preparar → Merge → Atualizar\n                              └─ NÃO → Criar → Preparar → Merge → Atualizar\n```",
+        "height": 820,
+        "width": 768,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1328,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "96f3a1cf-0c87-485b-81c0-e1d53365f562",
+      "name": "📌 Documentação"
+    },
+    {
+      "parameters": {
+        "content": "## ⚙️ EDITE AQUI\n\nNo node \"2️⃣ Verificar Campo\", altere o `FIELD_CONFIG` para o campo desejado.",
+        "height": 120,
+        "width": 300,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -384,
+        368
+      ],
+      "typeVersion": 1,
+      "id": "6f27edc7-9c82-404d-ba4c-09185bacdc5b",
+      "name": "⚠️ Config"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "1️⃣ Listar Campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1️⃣ Listar Campos": {
+      "main": [
+        [
+          {
+            "node": "2️⃣ Verificar Campo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2️⃣ Verificar Campo": {
+      "main": [
+        [
+          {
+            "node": "3️⃣ Campo Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3️⃣ Campo Existe?": {
+      "main": [
+        [
+          {
+            "node": "5️⃣ Preparar Dados (Existente)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "4️⃣ Criar Campo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4️⃣ Criar Campo": {
+      "main": [
+        [
+          {
+            "node": "5️⃣ Preparar Dados (Após Criar)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5️⃣ Preparar Dados (Existente)": {
+      "main": [
+        [
+          {
+            "node": "7️⃣ Atualizar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5️⃣ Preparar Dados (Após Criar)": {
+      "main": [
+        [
+          {
+            "node": "7️⃣ Atualizar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "API_KEY": "pit-3d61b334-690f-46ad-a6be-54c5efce1f46",
+          "location_id": "EKHxHl3KLPN0iRc69GNU",
+          "contact_id": "COLOQUE_UM_CONTACT_ID_AQUI",
+          "fieldValue": "Carreira"
+        }
+      }
+    ]
+  },
+  "versionId": "99ff14fa-9ac7-4f0e-b6a7-350492c8e49f",
+  "activeVersionId": null,
+  "versionCounter": 20,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-16T17:10:29.813Z",
+      "createdAt": "2025-12-16T17:10:29.813Z",
+      "role": "workflow:owner",
+      "workflowId": "2zvOdDg0sRPkh6wZ",
+      "projectId": "VAjodPr5Fy7WALLy",
+      "project": {
+        "updatedAt": "2025-06-18T03:44:57.988Z",
+        "createdAt": "2025-06-18T03:36:54.736Z",
+        "id": "VAjodPr5Fy7WALLy",
+        "name": "Alan Jones Rios <alan@mentorfy.io>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-06-18T03:36:54.737Z",
+            "createdAt": "2025-06-18T03:36:54.737Z",
+            "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+            "projectId": "VAjodPr5Fy7WALLy",
+            "user": {
+              "updatedAt": "2026-01-26T04:01:50.000Z",
+              "createdAt": "2025-06-18T03:36:53.786Z",
+              "id": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+              "email": "alan@mentorfy.io",
+              "firstName": "Alan Jones",
+              "lastName": "Rios",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-06-18T03:45:05.123Z",
+                "personalization_survey_n8n_version": "1.98.1"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "ccHBfcfeKrXwUhIA",
+                "userActivatedAt": 1750223854201,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1768854304461
+                },
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true,
+                  "ragStarterCallout": true
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-01-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

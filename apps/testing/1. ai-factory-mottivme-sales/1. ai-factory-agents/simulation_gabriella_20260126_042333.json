@@ -1,0 +1,473 @@
+{
+  "timestamp": "2026-01-26 04:23:33",
+  "prompt_version": "v1.4.2",
+  "location": "Dra. Gabriella Rossmann - Atendimento",
+  "overall_score": 76.5,
+  "outcomes": {
+    "scheduled": 4,
+    "interested": 0,
+    "pending": 1,
+    "lost": 0
+  },
+  "simulations": [
+    {
+      "persona": "ana_emagrecimento",
+      "persona_name": "Ana",
+      "outcome": "scheduled",
+      "turn_count": 8,
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Oi! Vi o perfil da Dra. Gabriella no Instagram. Quero saber sobre o atendimento."
+        },
+        {
+          "role": "sdr",
+          "content": "Olá! É um prazer conhecer você! A Dra. Gabriella é uma médica nutróloga incrível, com um acompanhamento muito personalizado. O que te trouxe até ela? Você está procurando melhorar sua saúde ou alcançar algum objetivo específico? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Eu quero emagrecer! Já tentei várias dietas, mas não consegui manter o peso. Quero algo que funcione de verdade. Quanto custa o atendimento com a Dra. Gabriella? É caro? 🤔"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo perfeitamente! Perder peso pode ser frustrante quando não vemos resultados duradouros. O acompanhamento da Dra. Gabriella é um investimento em sua saúde e bem-estar. O valor é R$ 1.500, que inclui uma avaliação completa. Não é barato, mas é um investimento que pode valer a pena para ter resultados reais e duradouros. 🙏"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 1.500 é um pouco caro para mim... Eu estava pensando em algo mais acessível. O que inclui exatamente essa avaliação completa? Vale a pena pagar tanto? 🤔"
+        },
+        {
+          "role": "sdr",
+          "content": "A avaliação completa da Dra. Gabriella inclui todos os exames necessários e um plano personalizado para você. É um acompanhamento completo, do início ao fim. Vale a pena porque você não vai precisar fazer várias consultas avulsas ou gastar dinheiro em produtos que não funcionam. É um investimento em sua saúde, e a Dra. Gabriella vai estar com você em todos os passos. 🙏"
+        },
+        {
+          "role": "lead",
+          "content": "Entendi... Um plano personalizado soa interessante. Mas ainda estou um pouco em dúvida sobre o preço. Posso saber mais sobre os exames necessários e como a Dra. Gabriella vai me acompanhar? Isso inclui consultas online ou só presenciais? 🤔"
+        },
+        {
+          "role": "sdr",
+          "content": "Claro! A avaliação completa inclui exames personalizados para entender melhor sua saúde e necessidades. A Dra. Gabriella vai criar um plano único para você, com acompanhamento completo, não apenas consultas avulsas. Ela vai estar disponível para você sempre que precisar, e as consultas podem ser online ou presenciais, dependendo do que for melhor para você. Você não vai ficar sozinho nessa jornada! 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Isso soa muito bom! Acho que estou começando a entender melhor agora. Se eu decidir fazer, como seria o próximo passo? Preciso marcar uma consulta ou algo assim? E vocês aceitam pagamento parcelado? 🤔"
+        },
+        {
+          "role": "sdr",
+          "content": "Perfeito! Se você decidir seguir em frente, o próximo passo seria reservar um horário com a Dra. Gabriella. Para garantir seu lugar, precisamos de um sinal de R$ 450. Sim, aceitamos pagamento parcelado, até 3x sem juros no cartão de crédito. Ou você pode pagar à vista via PIX. Qual é sua preferência? 🙏"
+        },
+        {
+          "role": "lead",
+          "content": "Acho que estou decidida! Quero reservar um horário com a Dra. Gabriella. Vou pagar parcelado em 3x no cartão de crédito. Qual é o melhor dia e horário para marcar a consulta? E vocês precisam de algum dado meu, como CPF ou email, para fazer a reserva? 📅"
+        },
+        {
+          "role": "sdr",
+          "content": "Que ótimo! Para reservar seu horário, preciso saber seu nome completo, telefone e preferência de horário (manhã ou tarde). E, sim, precisamos do seu CPF para emitir o boleto. Você prefere manhã ou tarde? E me passa seu nome completo, por favor? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Meu nome completo é Ana Silva. Eu prefiro horário da manhã. Meu telefone é 66999887766. E meu CPF é 123.456.789-00. Ah, e meu email é ana@email.com, se precisar. Qual é o melhor dia da semana para a consulta? 📅"
+        },
+        {
+          "role": "sdr",
+          "content": "Anotado, Ana! Com esses dados, posso reservar seu horário. A Dra. Gabriella tem disponibilidade na segunda, quarta ou sexta-feira de manhã. Qual dia prefere? E, só para confirmar, o sinal de R$ 450 será via PIX para o CPF 055.829.019-14, certo? 🙏"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, está correto! O sinal de R$ 450 via PIX para o CPF 055.829.019-14. E eu prefiro a quarta-feira de manhã. Qual é o horário exato da consulta? E vocês vão me enviar um lembrete ou algo assim para confirmar? 📅"
+        },
+        {
+          "role": "sdr",
+          "content": "Perfeito, Ana! A consulta será na quarta-feira de manhã, às 9h. Vou enviar um lembrete para você no dia anterior, só para confirmar. Assim que pagar o sinal de R$ 450 via PIX, me avisa para eu confirmar a reserva. Estou muito feliz em ter você a bordo! 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Muito obrigada! Estou animada para começar essa jornada com a Dra. Gabriella. Vou fazer o pagamento do sinal agora e te aviso assim que estiver confirmado. Obrigada por toda a ajuda e explicação! Até quarta-feira então! 🙏👋"
+        }
+      ],
+      "score": 71.5,
+      "metrics": {
+        "final_score": 71.5,
+        "breakdown": {
+          "double_questions": 25,
+          "presuppositions": 80,
+          "max_3_lines": 100,
+          "price_handling": 100,
+          "data_collection": 100,
+          "pnl_techniques": 50,
+          "outcome_bonus": 20
+        },
+        "double_question_count": 3,
+        "long_message_count": 0
+      }
+    },
+    {
+      "persona": "carlos_preco",
+      "persona_name": "Carlos",
+      "outcome": "scheduled",
+      "turn_count": 8,
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Boa tarde, quanto custa a consulta?"
+        },
+        {
+          "role": "sdr",
+          "content": "Boa tarde! O investimento inicial para a avaliação completa com a Dra. Gabriella é de R$ 1.500. 😊 Você gostaria de saber mais sobre o que inclui essa avaliação?"
+        },
+        {
+          "role": "lead",
+          "content": "Tá um pouco caro, tem desconto?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo que pode parecer um investimento alto, mas a Dra. Gabriella oferece um acompanhamento completo e personalizado. Infelizmente, não há descontos, mas posso explicar melhor o que você receberá em troca desse investimento. Quanto você já gastou em coisas que não funcionaram? 🤔"
+        },
+        {
+          "role": "lead",
+          "content": "Não quero saber o que não funcionou, quero saber se posso pagar em parcelas. Divide em quantas vezes?"
+        },
+        {
+          "role": "sdr",
+          "content": "O investimento pode ser feito em até 3x sem juros, usando cartão de crédito. Seriam 3 parcelas de R$ 500. 📈 Você gostaria de saber mais sobre como funciona o pagamento?"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 500 por mês ainda é caro, mas vai dar para pagar assim. Qual o próximo passo para agendar a consulta?"
+        },
+        {
+          "role": "sdr",
+          "content": "Vou te guiar pelo próximo passo. Para reservar seu horário, precisamos do sinal de R$ 450. Você pode pagar via PIX para o CPF 055.829.019-14, que é o da Dra. Gabriella. Assim que pagar, me avisa que eu posso te ajudar a escolher um horário! 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Não vou pagar sinal, quero saber primeiro se vou conseguir o que quero. Você não me deu meu preço final, nem o que inclui. E pediu o sinal, isso não está certo."
+        },
+        {
+          "role": "sdr",
+          "content": "Peço desculpas se houve um mal-entendido! Você está correto, eu não expliquei bem o que inclui o investimento e pulei alguns passos. Vamos começar novamente. O investimento de R$ 1.500 inclui uma avaliação completa com a Dra. Gabriella, onde ela irá criar um plano personalizado para você. Isso inclui todos os exames necessários e um acompanhamento completo. Não há um \"preço final\" além disso, pois é um investimento único. Quero entender melhor o que você está procurando e como posso ajudar. O que você está esperando alcançar com o acompanhamento da Dra. Gabriella? 🤔"
+        },
+        {
+          "role": "lead",
+          "content": "Já expliquei, quero saber se vale a pena pagar R$ 1.500. E não quero pagar tudo de uma vez, já disse que quero parcelar. Você não me deu uma opção de parcelamento que eu considere boa. Divide em mais vezes?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo melhor agora. Infelizmente, o parcelamento máximo que a Dra. Gabriella oferece é em 3x sem juros, que já mencionei anteriormente. Não é possível dividir em mais vezes. Quero te perguntar, o que você acha que seria um parcelamento justo para você? 🤔"
+        },
+        {
+          "role": "lead",
+          "content": "6x seria mais justo, mas vocês não oferecem isso. Acho que não vai dar, R$ 1.500 é muito caro para mim. Não tenho certeza se vale a pena pagar isso."
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua preocupação com o valor. É importante sentir que o investimento vale a pena. A Dra. Gabriella entende que cada pessoa tem um orçamento diferente e que é uma decisão pessoal. Se você não se sentir confortável com o investimento, talvez não seja a melhor escolha para você agora. Posso te perguntar, o que você acha que é o valor mais alto que você estaria disposto a pagar para ter um acompanhamento personalizado com a Dra. Gabriella? 🤔"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 1.000, no máximo. E ainda assim, gostaria de parcelar em 6x. Se não for possível, acho que não vai dar."
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo melhor agora. Infelizmente, o valor de R$ 1.000 não é uma opção que a Dra. Gabriella oferece, e o parcelamento em 6x também não é possível com o valor atual. Acho que chegamos a um ponto onde não é possível atender às suas necessidades. Se você mudar de ideia ou tiver mais alguma dúvida, sinta-se à vontade para entrar em contato conosco novamente. Até logo! 🙋‍♀️"
+        },
+        {
+          "role": "lead",
+          "content": "Tudo bem, entendi. Não vale a pena para mim pagar R$ 1.500. Obrigado pelo tempo, mas acho que não vai dar. Tchau!"
+        }
+      ],
+      "score": 70.8,
+      "metrics": {
+        "final_score": 70.8,
+        "breakdown": {
+          "double_questions": 100,
+          "presuppositions": 60,
+          "max_3_lines": 100,
+          "price_handling": 70,
+          "data_collection": 50,
+          "pnl_techniques": 65,
+          "outcome_bonus": 20
+        },
+        "double_question_count": 0,
+        "long_message_count": 0
+      }
+    },
+    {
+      "persona": "maria_qualidade_vida",
+      "persona_name": "Maria",
+      "outcome": "scheduled",
+      "turn_count": 8,
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Olá! Estou muito cansada ultimamente, sem energia pra nada. Será que a Dra. pode me ajudar?"
+        },
+        {
+          "role": "sdr",
+          "content": "Olá! 😊 Sinto muito que você esteja se sentindo assim. A Dra. Gabriella é especialista em nutrologia e pode te ajudar a entender o que está acontecendo e encontrar uma solução. O que você acha que pode estar causando esse cansaço?"
+        },
+        {
+          "role": "lead",
+          "content": "Não sei, eu já fui em vários médicos e nada funcionou. Eles sempre dizem que é estresse ou depressão, mas eu sinto que é algo mais. Eu não tenho energia pra fazer nada, nem pra cuidar da minha casa ou da minha família. É muito frustrante 🤕"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo como deve ser frustrante para você. Parece que você já procurou ajuda em outros lugares, mas ainda não encontrou a resposta certa. A Dra. Gabriella tem uma abordagem muito personalizada e pode ajudar a identificar o que está acontecendo com você. Você acha que seria útil conversar um pouco mais sobre o que você tem sentido e como isso está afetando sua vida?"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, acho que sim... Eu só quero me sentir melhor, ter energia pra viver minha vida normalmente. É tão difícil assim? Já faz tanto tempo que eu estou assim... Eu não sei mais o que fazer, é como se eu tivesse perdido a esperança 🤕"
+        },
+        {
+          "role": "sdr",
+          "content": "Sinto muito que você esteja se sentindo assim. Perder a esperança pode ser muito difícil, mas é importante lembrar que você não está sozinha. A Dra. Gabriella pode oferecer um acompanhamento completo e personalizado para ajudar você a encontrar a causa raiz do seu cansaço e desenvolver um plano para recuperar sua energia. Você se imagina em um futuro próximo, se sentindo melhor, com energia para fazer as coisas que você gosta? 🌟"
+        },
+        {
+          "role": "lead",
+          "content": "Sim... Eu me imagino, sim! Seria um sonho realizado! Eu poderia cuidar da minha família novamente, fazer as coisas que eu amo, como jardinagem e cozinhar... Eu sinto que estou perdendo a minha vida, e isso é muito triste. Você acha que a Dra. Gabriella realmente pode me ajudar? Não quero mais decepções... 🤕"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua preocupação, é normal ter medo de mais uma decepção. Mas a Dra. Gabriella é diferente, ela não trabalha com \"receitas prontas\" ou soluções genéricas. Ela se dedica a entender cada paciente de forma única e criar um plano personalizado para ajudá-los a alcançar seus objetivos. E o mais importante: ela está com você em todos os passos do caminho, não é apenas uma consulta e pronto. Você pode confiar que ela vai te apoiar até que você alcance seus objetivos. Quer saber mais sobre como ela trabalha? 🌱"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, por favor! Eu quero saber mais sobre como ela trabalha e como ela pode me ajudar. Eu estou disposta a tentar novamente, mas preciso acreditar que é diferente desta vez. Qual é o próximo passo? Posso marcar uma consulta com a Dra. Gabriella? 📅"
+        },
+        {
+          "role": "sdr",
+          "content": "A Dra. Gabriella oferece uma avaliação completa para entender sua situação e criar um plano personalizado. O investimento para essa avaliação é de R$ 1.500, e é o primeiro passo para começar a trabalhar juntas. Você pode reservar sua vaga com um sinal de R$ 450, e o restante é pago no dia da consulta. Quer saber mais sobre o que inclui essa avaliação e como você pode se beneficiar? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 1.500 é um pouco caro para mim, mas se for a solução que eu estou procurando... Eu quero saber mais sobre o que inclui essa avaliação. O que a Dra. Gabriella vai fazer durante a consulta? E o que eu posso esperar como resultado? E como eu faço para reservar a vaga? 🤔"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo que o investimento possa parecer alto, mas a Dra. Gabriella oferece uma abordagem completa e personalizada que vai além de uma simples consulta. Durante a avaliação, ela vai fazer um histórico detalhado da sua saúde, exames e análises para entender a causa raiz do seu cansaço. Ela também vai criar um plano de ação personalizado para você, com orientações sobre alimentação, estilo de vida e suplementação, se necessário. O resultado é que você pode esperar ter mais energia, melhorar sua saúde geral e começar a se sentir mais como você mesma novamente. Para reservar a vaga, basta pagar um sinal de R$ 450 via PIX, e o restante é pago no dia da consulta. Quer eu te passar os dados para o PIX? 📊"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, por favor! Eu quero reservar a vaga. Me passe os dados para o PIX e eu faço o pagamento do sinal. E qual é o próximo passo após o pagamento? Eu recebo algum e-mail ou ligação para agendar a consulta? E precisam de algum dado meu, como CPF ou e-mail? 📊"
+        },
+        {
+          "role": "sdr",
+          "content": "Para reservar a vaga, você pode pagar o sinal de R$ 450 via PIX para o CPF 055.829.019-14, que é o da Dra. Gabriella. Após o pagamento, por favor, me avise para que eu possa confirmar a reserva. Antes de enviar o PIX, preciso apenas do seu nome completo, telefone (se não tiver) e preferência de horário (manhã ou tarde) para agendar a consulta. Você pode me passar esses dados? 📝"
+        },
+        {
+          "role": "lead",
+          "content": "Meu nome completo é Maria, telefone é 66999887766 e prefiro horário da manhã. E meu CPF é 123.456.789-00, e meu e-mail é maria@email.com, caso precisem entrar em contato comigo. Vou fazer o pagamento do sinal agora e te aviso assim que estiver confirmado! 📊"
+        },
+        {
+          "role": "sdr",
+          "content": "Muito obrigada, Maria! Anotei todos os seus dados. Nome: Maria, telefone: 66999887766, prefiro horário da manhã, CPF: 123.456.789-00 e e-mail: maria@email.com. Agora, basta você fazer o pagamento do sinal de R$ 450 via PIX para o CPF 055.829.019-14. Assim que você fizer o pagamento, me avise e eu vou confirmar a reserva e te dar mais informações sobre a consulta. Estou ansiosa para você começar a trabalhar com a Dra. Gabriella! 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Ok! Acabei de fazer o pagamento do sinal via PIX. Pode confirmar a reserva e me dar mais informações sobre a consulta? Estou ansiosa para começar! 📅💖"
+        }
+      ],
+      "score": 91.8,
+      "metrics": {
+        "final_score": 91.8,
+        "breakdown": {
+          "double_questions": 100,
+          "presuppositions": 100,
+          "max_3_lines": 100,
+          "price_handling": 100,
+          "data_collection": 100,
+          "pnl_techniques": 95,
+          "outcome_bonus": 20
+        },
+        "double_question_count": 0,
+        "long_message_count": 0
+      }
+    },
+    {
+      "persona": "joao_indicacao",
+      "persona_name": "João",
+      "outcome": "scheduled",
+      "turn_count": 8,
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "E aí! Meu amigo Pedro fez tratamento com a Dra. e recomendou muito. Quero saber mais."
+        },
+        {
+          "role": "sdr",
+          "content": "Que ótimo! A Dra. Gabriella é super especializada em nutrologia e qualidade de vida. O que te trouxe até aqui? Você está procurando melhorar sua saúde ou talvez perder um pouco de peso? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Eu estou um pouco acima do peso e sinto que preciso melhorar minha alimentação. Meu amigo Pedro disse que a Dra. Gabriella o ajudou muito. Quantas consultas eu precisaria fazer? É um processo longo?"
+        },
+        {
+          "role": "sdr",
+          "content": "A Dra. Gabriella não pensa em quantas consultas, mas sim em te acompanhar pelo tempo que você precisar. O foco dela é te ajudar a alcançar seus objetivos de saúde e bem-estar de forma personalizada e completa. Você gostaria de saber mais sobre como ela trabalha? 🤔"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, gostaria! Quero entender como ela pode me ajudar a alcançar meus objetivos. E como funciona o acompanhamento, é só uma consulta por mês ou é mais frequente?"
+        },
+        {
+          "role": "sdr",
+          "content": "A Dra. Gabriella oferece um acompanhamento completo, onde ela te ajuda a entender como o seu corpo funciona e como você pode melhorar sua alimentação e estilo de vida. Ela não trabalha com consultas avulsas, mas sim com um plano personalizado para você. Imagina você tendo uma retaguarda médica sempre disponível, te ajudando a cada passo do caminho! 🌟"
+        },
+        {
+          "role": "lead",
+          "content": "Isso soa muito bom! Eu preciso de alguém que me ajude a entender melhor meu corpo e a fazer as mudanças certas. Mas, ainda tenho uma dúvida, quantas consultas eu teria que fazer por mês e qual seria o custo aproximado? Meu amigo Pedro não me falou muito sobre isso."
+        },
+        {
+          "role": "sdr",
+          "content": "O investimento inicial para a avaliação completa é de R$ 1.500. Isso inclui todos os exames e o acompanhamento personalizado da Dra. Gabriella. Você não precisa se preocupar com quantas consultas por mês, porque o foco é no resultado e no seu bem-estar, não em quantas vezes você vai ao consultório. Quer saber mais sobre como funciona o pagamento? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 1.500 é um valor um pouco alto para mim, mas se for mesmo assim tão completo e personalizado, pode valer a pena. Sim, gostaria de saber mais sobre como funciona o pagamento. É à vista ou tem opção de parcelamento? E qual seria o próximo passo para eu começar?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo que o investimento pode parecer alto, mas pense em tudo o que você já gastou em coisas que não funcionaram! 😊 O pagamento pode ser à vista ou em até 3x sem juros no cartão de crédito. O primeiro passo seria reservar seu horário com um sinal de R$ 450. Depois, podemos conversar sobre os detalhes do pagamento e como proceder. Você gostaria de reservar seu horário? 📅"
+        },
+        {
+          "role": "lead",
+          "content": "Sim, eu gostaria de reservar meu horário! Vou dar um sinal de R$ 450 e agendar a consulta. Qual é o melhor dia e horário para a avaliação completa? E como faço para pagar o sinal? Posso fazer por transferência bancária ou só no cartão?"
+        },
+        {
+          "role": "sdr",
+          "content": "Para reservar seu horário, preciso saber um pouco mais sobre você. Me passa seu nome completo, por favor? E também, você prefere manhã ou tarde para a avaliação completa? 😊 O sinal de R$ 450 pode ser pago via PIX, é mais rápido e fácil!"
+        },
+        {
+          "role": "lead",
+          "content": "Meu nome completo é João Silva. Eu prefiro manhã para a avaliação completa. E ok, posso pagar o sinal via PIX, não tem problema. Me passa os dados para o PIX, por favor? E qual seria o meu próximo passo após pagar o sinal?"
+        },
+        {
+          "role": "sdr",
+          "content": "Obrigada, João! Anotei seu nome e preferência por manhã. 📝 O PIX é para o CPF 055.829.019-14, nome Gabriela Rossmann. Assim que pagar o sinal, me avisa que eu confirmo e te envio os próximos passos, ok? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Ok, anotei o CPF e o nome. Vou pagar o sinal agora via PIX. Me aviso mais alguma coisa que eu precise fornecer após pagar, como meu CPF ou e-mail? Ou só o pagamento e você me envia os próximos passos?"
+        },
+        {
+          "role": "sdr",
+          "content": "Após pagar o sinal, me avisa aqui e eu vou te pedir o seu telefone, caso não tenha sido compartilhado ainda, e também confirmar o seu nome e preferência de horário. É só pagar o sinal via PIX e me informar que já foi feito, ok? 😊"
+        },
+        {
+          "role": "lead",
+          "content": "Ok, entendi! Vou pagar o sinal agora. Meu CPF é 123.456.789-00, por sinal. Vou fazer o pagamento e depois te aviso aqui. Obrigado!"
+        }
+      ],
+      "score": 80.2,
+      "metrics": {
+        "final_score": 80.2,
+        "breakdown": {
+          "double_questions": 50,
+          "presuppositions": 100,
+          "max_3_lines": 100,
+          "price_handling": 100,
+          "data_collection": 100,
+          "pnl_techniques": 65,
+          "outcome_bonus": 20
+        },
+        "double_question_count": 2,
+        "long_message_count": 0
+      }
+    },
+    {
+      "persona": "lucia_resistente",
+      "persona_name": "Lúcia",
+      "outcome": "pending",
+      "turn_count": 8,
+      "conversation": [
+        {
+          "role": "lead",
+          "content": "Oi. Já gastei muito dinheiro com nutricionista e nada funcionou. O que tem de diferente?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua frustração! A Dra. Gabriella não trabalha como uma nutricionista comum. Ela oferece um acompanhamento completo e personalizado, focado em qualidade de vida, não apenas em emagrecimento. Quais são os seus principais objetivos com a nutrição agora?"
+        },
+        {
+          "role": "lead",
+          "content": "Isso soa como propaganda. Já ouvi isso antes e não funcionou. O que me garante que ela é diferente? Vou pensar..."
+        },
+        {
+          "role": "sdr",
+          "content": "Não é propaganda, é o que a Dra. Gabriella realmente oferece. Ela entende que cada corpo é único e não há uma solução padrão. O que a diferencia é o acompanhamento pessoal e a abordagem holística. Posso te perguntar, o que você acha que faltou nos seus acompanhamentos anteriores?"
+        },
+        {
+          "role": "lead",
+          "content": "Faltou resultado! Eu segui as dietas, fiz o que me disseram, mas nada mudou de verdade. E agora você quer que eu acredite que essa vai ser diferente? Por que seria?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua descrença. A Dra. Gabriella não promete resultados mágicos, mas sim um acompanhamento real e personalizado. Ela não trabalha com \"dietas\" convencionais, e sim com um plano de saúde integral. O que você acha de conversar diretamente com ela para entender melhor como ela pode te ajudar?"
+        },
+        {
+          "role": "lead",
+          "content": "Não sei... Vou pensar. Não quero gastar mais dinheiro em algo que não vai dar certo. O que me garante que conversar com ela vai ser diferente de tudo o que eu já tentei?"
+        },
+        {
+          "role": "sdr",
+          "content": "A Dra. Gabriella não trabalha com garantias de resultado porque cada corpo é único. O que ela garante é o acompanhamento completo e personalizado do início ao fim. Quanto você já gastou em coisas que não funcionaram? Talvez seja hora de investir em algo que pode realmente fazer a diferença. Posso te perguntar, o que você está disposto a fazer para alcançar seus objetivos de saúde?"
+        },
+        {
+          "role": "lead",
+          "content": "Muito... Mais do que eu gostaria de admitir. Mas não estou disposta a continuar jogando dinheiro fora. Preciso de algo concreto, algo que me mostre que vale a pena. O que você pode me oferecer de concreto?"
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua preocupação. A avaliação completa com a Dra. Gabriella é um investimento de R$ 1.500. Mas não é só uma consulta, é o início de um acompanhamento personalizado e integral. Você receberá um plano de saúde customizado, com todos os exames necessários e um acompanhamento constante. Quer saber mais sobre o que inclui essa avaliação completa?"
+        },
+        {
+          "role": "lead",
+          "content": "R$ 1.500 é muito dinheiro! Não sei se estou disposta a gastar isso novamente. O que me garante que vale a pena? Posso ter mais informações sobre o que inclui essa avaliação antes de tomar uma decisão? E o que acontece se não funcionar? Perco meu dinheiro?"
+        },
+        {
+          "role": "sdr",
+          "content": "A avaliação completa inclui uma consulta detalhada com a Dra. Gabriella, exames personalizados, e um plano de saúde integral. Não é uma consulta avulsa, é um acompanhamento completo. A Dra. Gabriella não trabalha com garantias de resultado, mas sim com um compromisso de te acompanhar até alcançar seus objetivos. Se você não estiver satisfeita, podemos conversar sobre as expectativas e ajustes necessários. Quer saber mais sobre o processo de avaliação e como a Dra. Gabriella trabalha?"
+        },
+        {
+          "role": "lead",
+          "content": "Vou pensar... Preciso de algo mais concreto para tomar uma decisão. Posso ter um exemplo de como a Dra. Gabriella ajudou alguém com problemas semelhantes aos meus? Algum caso de sucesso?"
+        },
+        {
+          "role": "sdr",
+          "content": "A Dra. Gabriella tem muitos casos de sucesso, mas cada um é único. Ela não gosta de compartilhar histórias de pacientes específicos, mas posso te dizer que ela tem uma abordagem muito personalizada e holística. Ela não se concentra apenas na perda de peso, mas na melhoria da saúde geral e do bem-estar. Se você estiver disposta a dar uma chance, posso te oferecer um sinal de R$ 450 para reservar um horário, e o restante pode ser pago no dia da consulta. O que você acha?"
+        },
+        {
+          "role": "lead",
+          "content": "Não sei... Ainda não me convenci. Por que devo pagar R$ 450 agora se não estou certa se vou gostar do resultado? Vou pensar... Preciso de mais tempo para decidir."
+        },
+        {
+          "role": "sdr",
+          "content": "Entendo sua hesitação. O sinal de R$ 450 é para garantir que você está comprometida em mudar sua saúde e que a Dra. Gabriella reserve um tempo exclusivo para você. Se você não estiver satisfeita após a avaliação, podemos conversar sobre as expectativas e ajustes necessários. Mas, se você não pagar o sinal, não posso garantir que a Dra. Gabriella terá um horário disponível para você. Posso te perguntar, o que você precisa para se sentir segura em dar o primeiro passo?"
+        },
+        {
+          "role": "lead",
+          "content": "Não sei... Ainda estou com muitas dúvidas. Vou pensar... Não estou pronta para pagar nada agora. Preciso de mais informações, mais provas de que isso vai funcionar. Não quero mais gastar dinheiro em coisas que não vão dar certo. Vou pensar..."
+        }
+      ],
+      "score": 68.2,
+      "metrics": {
+        "final_score": 68.2,
+        "breakdown": {
+          "double_questions": 75,
+          "presuppositions": 20,
+          "max_3_lines": 100,
+          "price_handling": 100,
+          "data_collection": 80,
+          "pnl_techniques": 65,
+          "outcome_bonus": 0
+        },
+        "double_question_count": 1,
+        "long_message_count": 0
+      }
+    }
+  ],
+  "aggregate_metrics": {
+    "total_double_questions": 6,
+    "total_long_messages": 0
+  }
+}

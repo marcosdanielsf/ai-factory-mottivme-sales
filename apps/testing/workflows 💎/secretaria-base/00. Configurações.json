@@ -1,0 +1,770 @@
+{
+  "name": "00. Configurações",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS n8n_historico_mensagens (\n  id           BIGSERIAL PRIMARY KEY,\n  session_id   VARCHAR(40) NOT NULL,\n  message      JSONB NOT NULL,\n  created_at   TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\n\nCREATE INDEX IF NOT EXISTS idx_n8n_historico_mensagens_session_id ON n8n_historico_mensagens (session_id);\n\nCREATE TABLE IF NOT EXISTS n8n_fila_mensagens (\n  id           BIGSERIAL PRIMARY KEY,\n  id_mensagem  VARCHAR(40) NOT NULL,\n  telefone     VARCHAR(40) NOT NULL,\n  mensagem     TEXT NOT NULL,\n  \"timestamp\"  TIMESTAMP WITHOUT TIME ZONE NOT NULL\n);\n\nCREATE INDEX IF NOT EXISTS idx_n8n_fila_mensagens_telefone ON n8n_fila_mensagens (telefone);\n\nCREATE TABLE IF NOT EXISTS n8n_status_atendimento (\n  id                   BIGSERIAL PRIMARY KEY,\n  session_id           VARCHAR(40) NOT NULL UNIQUE,\n  lock_conversa        BOOLEAN NOT NULL DEFAULT FALSE,\n  aguardando_followup  BOOLEAN NOT NULL DEFAULT FALSE,\n  numero_followup      INTEGER NOT NULL DEFAULT 0,\n  updated_at           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\n\nCREATE INDEX IF NOT EXISTS idx_n8n_status_atendimento_session_id ON n8n_status_atendimento (session_id);\nCREATE INDEX IF NOT EXISTS idx_n8n_status_atendimento_aguardando_followup ON n8n_status_atendimento (aguardando_followup);\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        864,
+        1040
+      ],
+      "id": "34b7c333-da08-4c36-a55e-738043c08eb0",
+      "name": "Criar tabelas",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        640,
+        1088
+      ],
+      "id": "04816ae5-b07e-43cb-8465-eac7759e00d9",
+      "name": "Rodar configuração"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://content.twilio.com/v1/Content",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n    \"friendly_name\": \"voice_call_request\",\n    \"language\": \"pt_BR\",     \n    \"types\": {\n      \"twilio/call-to-action\": {\n        \"body\":\"Permitir receber ligações.\",         \n        \"actions\": [\n          {             \n            \"type\": \"VOICE_CALL_REQUEST\",\n            \"title\": \"Aceitar ligações\" \n          }         \n        ]       \n    }     \n  } \n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        1232
+      ],
+      "id": "d3931480-0e1f-456a-93ed-9529f1be329b",
+      "name": "Criar template de ligações",
+      "credentials": {
+        "twilioApi": {
+          "id": "pauvhliYHlGqkTOY",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://content.twilio.com/v1/Content",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        1232
+      ],
+      "id": "28fe8665-cd8f-4cc0-b138-f2639e1a014d",
+      "name": "Buscar template de ligações",
+      "credentials": {
+        "twilioApi": {
+          "id": "pauvhliYHlGqkTOY",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7b97ffe9-0b20-4321-9693-8f6543f5e009",
+              "leftValue": "={{ $('Buscar template de ligações').item.json.contents.find(c => c.friendly_name === 'voice_call_request') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        1232
+      ],
+      "id": "f0875fc5-ca44-48e7-84ad-ad9a089702b5",
+      "name": "Template já criado?"
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Edit Fields').item.json.contactId }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "tags",
+              "value": "=testando-agente"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Criar etiqueta testando-agente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        656
+      ],
+      "id": "067595b2-76be-4afb-aa76-d65a2ab9d671",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Edit Fields').item.json.contactId }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "tags",
+              "value": "=testando-agente"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Criar etiqueta agente-off",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        656
+      ],
+      "id": "338603ef-a70d-41e2-b0a4-892c254ba72c",
+      "retryOnFail": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "requestMethod": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Edit Fields').item.json.contactId }}",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "tags",
+              "value": "=testando-agente"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "name": "Criar etiqueta gestor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        656
+      ],
+      "id": "72727f74-adfa-4167-8961-14f161c49859",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $json.body.location.id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"Preferência Áudio/Texto\",\n  \"fieldKey\": \"preferencia_audio_texto\",\n  \"dataType\": \"SINGLE_OPTIONS\",\n  \"position\": 1,\n  \"options\": [\"audio\", \"texto\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        848
+      ],
+      "id": "c63dc122-75b5-45f8-b2d7-12db6f6dd9ad",
+      "name": "GHL - Criar campo preferência áudio/texto3",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"ID cliente - Asaas\",\n  \"fieldKey\": \"asaas_id_cliente\",\n  \"dataType\": \"TEXT\",\n  \"position\": 1,\n  \"placeholder\": \"cus_...\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        848
+      ],
+      "id": "49e5f5d3-7d54-4f31-a1cb-bde9fd3bf632",
+      "name": "GHL - Criar campo Asaas ID cliente",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"ID cobrança - Asaas\",\n  \"fieldKey\": \"asaas_id_cobranca\",\n  \"dataType\": \"TEXT\",\n  \"position\": 2,\n  \"placeholder\": \"pay_...\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1904,
+        848
+      ],
+      "id": "dcdc186d-732e-401f-8ebc-498226555976",
+      "name": "GHL - Criar campo Asaas ID cobrança",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"Status cobrança - Asaas\",\n  \"fieldKey\": \"asaas_status_cobranca\",\n  \"dataType\": \"SINGLE_OPTIONS\",\n  \"position\": 3,\n  \"options\": [\n    \"Pendente\",\n    \"Cobrança recebida\",\n    \"Cobrança confirmada\",\n    \"Cobrança vencida\",\n    \"Cobrança estornada\",\n    \"Cobrança recebida em dinheiro\",\n    \"Solicitação de estorno\",\n    \"Estorno em andamento\",\n    \"Recebido chargeback\",\n    \"Em disputa de chargeback\",\n    \"Disputa vencida\",\n    \"Requisição de negativação\",\n    \"Recebimento de negativação\",\n    \"Aguardando análise de risco\"\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2128,
+        848
+      ],
+      "id": "71ec8618-577f-4eac-9def-40842772f8c5",
+      "name": "GHL - Criar campo Asaas status cobrança",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"Permitir chamadas WhatsApp\",\n  \"fieldKey\": \"permitir_chamadas_whatsapp\",\n  \"dataType\": \"SINGLE_OPTIONS\",\n  \"position\": 4,\n  \"options\": [\"Sim\", \"Não\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2352,
+        848
+      ],
+      "id": "67f2a8d6-0f4e-4b27-8a4a-5b473eaa74f1",
+      "name": "GHL - Criar campo permitir chamadas2",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        1040
+      ],
+      "id": "ddcd14e1-7af0-4fe2-a9bc-67d061685b24",
+      "name": "1️⃣ Listar todos os campos"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "customFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        1040
+      ],
+      "id": "31c32f12-92c9-4974-b7d9-1e21349939ca",
+      "name": "2️⃣ Separar cada campo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.fieldKey }}",
+              "rightValue": "contact.preferencia_audio_texto",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.fieldKey }}",
+              "rightValue": "contact.asaas_id_cliente",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "3",
+              "leftValue": "={{ $json.fieldKey }}",
+              "rightValue": "contact.asaas_id_cobranca",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "4",
+              "leftValue": "={{ $json.fieldKey }}",
+              "rightValue": "contact.asaas_status_cobranca",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "5",
+              "leftValue": "={{ $json.fieldKey }}",
+              "rightValue": "contact.permitir_chamadas_whatsapp",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        1040
+      ],
+      "id": "db2849e8-c2a8-45c0-b870-670a2d1434d5",
+      "name": "3️⃣ Filtrar apenas nossos 5 campos"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://services.leadconnectorhq.com/locations/cd1uyzpJox6XPt4Vct8Y/customFields/{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-fe627027-b9cb-4ea3-aaa4-149459e66a03"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2128,
+        1040
+      ],
+      "id": "72dbfe72-3800-474f-ae95-9a2b6d2d1cbc",
+      "name": "4️⃣ Deletar campo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ghl-location",
+              "name": "ghl_location_id",
+              "value": "cd1uyzpJox6XPt4Vct8Y",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "pit-fe627027-b9cb-4ea3-aaa4-149459e66a03",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        864,
+        752
+      ],
+      "id": "a21d074a-1c5c-411d-b85c-7b1b3aab5816",
+      "name": "⚙️ Config GHL2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Rodar configuração": {
+      "main": [
+        [
+          {
+            "node": "Criar tabelas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar template de ligações",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "⚙️ Config GHL2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar template de ligações": {
+      "main": [
+        [
+          {
+            "node": "Template já criado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Template já criado?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Criar template de ligações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar etiqueta testando-agente": {
+      "main": [
+        [
+          {
+            "node": "Criar etiqueta agente-off",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar etiqueta agente-off": {
+      "main": [
+        [
+          {
+            "node": "Criar etiqueta gestor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL - Criar campo Asaas ID cliente": {
+      "main": [
+        [
+          {
+            "node": "GHL - Criar campo Asaas ID cobrança",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL - Criar campo Asaas ID cobrança": {
+      "main": [
+        [
+          {
+            "node": "GHL - Criar campo Asaas status cobrança",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL - Criar campo Asaas status cobrança": {
+      "main": [
+        [
+          {
+            "node": "GHL - Criar campo permitir chamadas2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL - Criar campo preferência áudio/texto3": {
+      "main": [
+        [
+          {
+            "node": "GHL - Criar campo Asaas ID cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1️⃣ Listar todos os campos": {
+      "main": [
+        [
+          {
+            "node": "2️⃣ Separar cada campo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2️⃣ Separar cada campo": {
+      "main": [
+        [
+          {
+            "node": "3️⃣ Filtrar apenas nossos 5 campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3️⃣ Filtrar apenas nossos 5 campos": {
+      "main": [
+        [
+          {
+            "node": "4️⃣ Deletar campo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Config GHL2": {
+      "main": [
+        [
+          {
+            "node": "Criar etiqueta testando-agente",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GHL - Criar campo preferência áudio/texto3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "1️⃣ Listar todos os campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b45f4e6b-ae46-4aff-9532-3fb779d37ba8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "fm0fXY6nClb7OsyU",
+  "tags": []
+}

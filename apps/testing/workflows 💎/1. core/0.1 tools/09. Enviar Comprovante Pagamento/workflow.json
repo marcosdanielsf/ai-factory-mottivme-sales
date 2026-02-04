@@ -1,0 +1,165 @@
+{
+  "name": "09. Enviar Comprovante Pagamento (node extraído)",
+  "source": "0.1 - Fluxo Principal de Conversasão - GHL - Versionado",
+  "type": "node_group",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $('Info').item.json.photo_audio }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32896,
+        28208
+      ],
+      "id": "e64e4a8e-0237-46fa-be52-2719dad2c28a",
+      "name": "Download Comprovante1"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-5-20250929",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-5-20250929"
+        },
+        "text": "=# PAPEL\n  Você é um assistente inteligente de análise de documentos e imagens.\n\n  # TAREFA\n  Analise a imagem enviada e:\n  1. IDENTIFIQUE o tipo de documento/imagem\n  2. EXTRAIA as informações relevantes baseado no tipo\n\n  ## Tipos possíveis:\n  - **comprovante_pagamento**: PIX, TED, DOC, boleto pago\n  - **fatura**: fatura de cartão, conta de luz/água/telefone\n  - **nota_fiscal**: NF-e, cupom fiscal, recibo\n  - **documento_pessoal**: RG, CNH, passaporte\n  - **contrato**: contrato, proposta, acordo\n  - **print_conversa**: screenshot de WhatsApp/chat\n  - **foto_produto**: foto de produto, embalagem\n  - **outro**: qualquer outra coisa\n\n  # FORMATO DE SAÍDA\n  Retorne APENAS JSON válido:\n\n  {\n    \"tipo_documento\": \"[tipo identificado]\",\n    \"confianca\": [0-100],\n    \"resumo\": \"[descrição curta do que é]\",\n    \"dados_extraidos\": {\n      // campos dinâmicos baseados no tipo\n    },\n    \"acao_sugerida\": \"[o que fazer com esse documento]\"\n  }\n\n  # EXEMPLOS DE dados_extraidos POR TIPO\n\n  ## Se for comprovante_pagamento:\n  {\n    \"valor\": 150.00,\n    \"data\": \"2026-01-10\",\n    \"pagador\": \"João Silva\",\n    \"recebedor\": \"Empresa X\",\n    \"tipo_transacao\": \"pix\",\n    \"codigo\": \"E123456789\"\n  }\n\n  ## Se for fatura:\n  {\n    \"valor_total\": 500.00,\n    \"vencimento\": \"2026-01-15\",\n    \"empresa\": \"Nubank\",\n    \"periodo\": \"Dez/2025\",\n    \"principais_gastos\": [\"UBER 50.00\", \"IFOOD 120.00\"]\n  }\n\n  ## Se for print_conversa:\n  {\n    \"participantes\": [\"João\", \"Maria\"],\n    \"assunto\": \"Agendamento de reunião\",\n    \"pontos_principais\": [\"Reunião dia 15\", \"Horário 14h\"]\n  }\n\n  ## Se for outro:\n  {\n    \"descricao\": \"[o que aparece na imagem]\",\n    \"texto_visivel\": \"[qualquer texto legível]\"\n  }\n\n  # REGRAS\n  1. Sempre identifique o tipo PRIMEIRO\n  2. Extraia apenas dados relevantes pro tipo\n  3. Se não tiver certeza, use \"outro\"\n  4. Campos não encontrados = null\n  5. Mantenha parcelas no nome (ex: \"MAGAZINE LUIZA 05/10\")",
+        "imageUrls": "={{ $json.photo_audio }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        33632,
+        28592
+      ],
+      "id": "71241158-10f2-4249-aaa7-e91a97ec7c16",
+      "name": "Analisar Comprovante Claude1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "nNkFTZpNoiBCbO1I",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Utilize essa ferramenta para enviar o comprovante de pagamento para o gestor responsável.",
+        "workflowId": {
+          "__rl": true,
+          "value": "0r0V3ija6EM88T6E",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0r0V3ija6EM88T6E",
+          "cachedResultName": "05 - Escalar para humano - SOCIALFY"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "api key v2": "={{ $('Info').first().json.api_key }}",
+            "telefone": "={{ $('Info').first().json.telefone }}",
+            "message": "=Time, mais uma consulta efetuada: Segue o link do comprovante de pagamento, basta clicar pra baixar: {{ $('Download Comprovante1').first().json.photo_audio }}",
+            "contact_id": "={{ $('Info').first().json.id_conversa_alerta }}",
+            "location.id": "={{ $('Info').first().json.location_id }}",
+            "usuario_responsavel": "={{ $('Mensagem recebida').first().json.body.location.name }}",
+            "tool": "Enviar comprovante de pagamento"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "api key v2",
+              "displayName": "api key v2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "location.id",
+              "displayName": "location.id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "usuario_responsavel",
+              "displayName": "usuario_responsavel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "tool",
+              "displayName": "tool",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        38720,
+        28144
+      ],
+      "id": "f88029fa-8eb9-4591-b208-fae54a6ff8b9",
+      "name": "Enviar comprovante de pagamento"
+    }
+  ]
+}

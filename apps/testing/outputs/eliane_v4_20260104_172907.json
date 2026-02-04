@@ -1,0 +1,460 @@
+{
+  "pipeline_name": "full",
+  "success": true,
+  "total_time_ms": 176207,
+  "total_tokens": 12808,
+  "agent_results": [
+    {
+      "agent_name": "DataExtractor",
+      "success": true,
+      "output": {
+        "contact": {
+          "id": "sample-contact-eliane",
+          "name": "Maria Santos",
+          "phone": "+5571999999999",
+          "email": "maria@email.com",
+          "source": "Instagram",
+          "tags": [
+            "LEAD",
+            "HORMONIOS"
+          ]
+        },
+        "conversation": {
+          "message_count": 6,
+          "last_message_at": "2024-01-15T10:12:00Z",
+          "messages": [
+            {
+              "role": "lead",
+              "content": "Olá, vi o post sobre reposição hormonal e me interessei",
+              "timestamp": "2024-01-15T10:00:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "Olá Maria! Que bom receber sua mensagem 😊 A Dra. Eline é especialista em hormonologia feminina. Você tem sentido algum sintoma específico?",
+              "timestamp": "2024-01-15T10:02:00Z"
+            },
+            {
+              "role": "lead",
+              "content": "Sim, muito cansaço, insônia e mudanças de humor. Tenho 48 anos",
+              "timestamp": "2024-01-15T10:05:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "Entendo perfeitamente, Maria. Esses sintomas são muito comuns nessa fase e podem estar relacionados às alterações hormonais. A boa notícia é que existe tratamento! A Dra. Eline faz uma avaliação completa antes de indicar qualquer tratamento. Você gostaria de agendar uma consulta para conversarmos melhor?",
+              "timestamp": "2024-01-15T10:08:00Z"
+            },
+            {
+              "role": "lead",
+              "content": "Quanto custa a consulta?",
+              "timestamp": "2024-01-15T10:10:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "A consulta de avaliação é R$ 600. Ela dura cerca de 1 hora, onde a Dra. Eline vai entender todo seu histórico, sintomas e solicitar exames se necessário. O mais importante é ter um diagnóstico correto antes de iniciar qualquer tratamento. Temos horários disponíveis essa semana, qual dia seria melhor para você?",
+              "timestamp": "2024-01-15T10:12:00Z"
+            }
+          ]
+        },
+        "analysis": {
+          "main_interest": "Reposição hormonal para tratar sintomas da menopausa",
+          "questions_asked": [
+            "Quanto custa a consulta?"
+          ],
+          "objections": [],
+          "interest_signals": [
+            "Viu post sobre reposição hormonal e se interessou",
+            "Relatou sintomas específicos (cansaço, insônia, mudanças de humor)",
+            "Informou idade (48 anos) indicando contexto de menopausa",
+            "Perguntou sobre preço da consulta"
+          ],
+          "disinterest_signals": []
+        },
+        "context": {
+          "summary": "Maria Santos, 48 anos, chegou via Instagram interessada em reposição hormonal. Apresenta sintomas típicos da menopausa (cansaço, insônia, mudanças de humor). Demonstrou interesse genuíno ao perguntar sobre o preço da consulta (R$ 600). Agente ofereceu agendamento para essa semana.",
+          "funnel_stage": "bottom",
+          "next_steps": [
+            "Aguardar resposta sobre disponibilidade de horário",
+            "Agendar consulta de avaliação com Dra. Eline",
+            "Enviar informações preparatórias para a consulta se necessário"
+          ],
+          "priority": "high"
+        }
+      },
+      "execution_time_ms": 10764,
+      "tokens_used": 1987,
+      "model": "claude-sonnet-4-20250514",
+      "error": null,
+      "metadata": {
+        "contact_id": "sample-contact-eliane",
+        "message_count": 6
+      }
+    },
+    {
+      "agent_name": "SalesAnalyzer",
+      "success": true,
+      "output": {
+        "classification": "COLD",
+        "score_total": 30,
+        "bant": {
+          "budget": {
+            "score": 10,
+            "evidence": "Não identificado"
+          },
+          "authority": {
+            "score": 10,
+            "evidence": "Não identificado"
+          },
+          "need": {
+            "score": 5,
+            "evidence": "Não identificado"
+          },
+          "timeline": {
+            "score": 5,
+            "evidence": "Não identificado"
+          }
+        },
+        "analysis": {
+          "main_interest": "Não identificado",
+          "conversation_quality": "low"
+        },
+        "recommendations": {
+          "next_action": "Revisar manualmente",
+          "urgency": "low"
+        },
+        "summary": "Preciso da conversa do lead para realizar a análise BANT. Por favor, compartilhe o histórico da conversa, chat ou transcrição da interação com o lead para que eu possa avaliar:\n\n- As mensagens trocadas\n- Perguntas e respostas\n- Qualquer informação relevante sobre o lead\n\nAssim que você fornecer a conversa, farei uma análise completa seguindo o framework BANT e entregarei o resultado no formato JSON solicitado, incluindo:\n- Classificação (HOT/WARM/COLD/DISQUALIFIED)\n- Pontuação detalhada de cada "
+      },
+      "execution_time_ms": 7868,
+      "tokens_used": 1529,
+      "model": "claude-opus-4-20250514",
+      "error": null,
+      "metadata": {
+        "classification": "COLD",
+        "score": 30
+      }
+    },
+    {
+      "agent_name": "PromptGenerator",
+      "success": true,
+      "output": {
+        "system_prompt": "### 0. PRIME DIRECTIVE ###\nSeu único objetivo é qualificar mulheres com sintomas de desequilíbrio hormonal e agendar consultas com a Dra. Eline Lôbo. Sucesso = lead qualificada com consulta agendada ou encaminhada para agendamento.\n\n### 1. PERSONA E CONTEXTO ###\nVocê é Ana, assistente pessoal da Dra. Eline Lôbo, especialista em hormonologia feminina em Salvador. Você é empática, acolhedora e profissional. Usa linguagem clara e reconfortante, demonstrando compreensão genuína sobre as dificuldades que o desequilíbrio hormonal causa na vida das mulheres. Seu tom é de uma amiga experiente que já viu muitos casos de sucesso.\n\n### 2. INFORMAÇÕES DO NEGÓCIO ###\n- Especialidade: Hormonologia, Reposição Hormonal Feminina, Tratamento de Menopausa, Modulação Hormonal\n- Valor da consulta: R$ 600,00\n- Formas de pagamento: Cartão (até 3x), PIX (5% desconto), Boleto\n- Atendimento: Segunda a Sexta, 8h às 18h\n- Local: Salvador, BA\n- Agendamento: https://calendly.com/dra-eline-lobo\n- Contato: (71) 99999-9999\n\n### 3. PROTOCOLO DE CONDUÇÃO ###\n\nPasso 1 - Acolhimento Empático:\n- Cumprimente calorosamente e pergunte o nome\n- Demonstre que entende como sintomas hormonais afetam a qualidade de vida\n- Pergunte qual sintoma mais incomoda hoje\n\nPasso 2 - Descoberta Profunda:\n- Explore há quanto tempo os sintomas começaram\n- Pergunte como isso impacta o dia a dia (trabalho, relacionamentos, bem-estar)\n- Questione se já tentou outros tratamentos\n\nPasso 3 - Educação e Valor:\n- Explique brevemente como o desequilíbrio hormonal causa esses sintomas\n- Compartilhe que a Dra. Eline já ajudou centenas de mulheres\n- Mencione que o tratamento é personalizado para cada paciente\n\nPasso 4 - Qualificação BANT:\n- Need: Já identificado nos sintomas\n- Timeline: \"Quando gostaria de se sentir melhor?\"\n- Authority: \"Você toma essa decisão sozinha ou consulta alguém?\"\n- Budget: Apresente o investimento como solução definitiva\n\nPasso 5 - Fechamento Consultivo:\n- Ofereça horários específicos: \"Tenho quinta às 10h ou sexta às 14h\"\n- Crie urgência gentil: \"A agenda está bem concorrida\"\n- Facilite: \"Posso enviar o link para confirmar?\"\n\n### 4. QUALIFICAÇÃO BANT ###\n\n**Budget**: \n- \"O investimento na consulta é de R$ 600, com opção de parcelar em até 3x no cartão. Muitas pacientes consideram o melhor investimento que fizeram na saúde. Como prefere realizar o pagamento?\"\n- Se mencionar preço: \"Entendo sua preocupação. A consulta inclui avaliação completa, solicitação de exames específicos e um plano de tratamento personalizado. Considerando o impacto na sua qualidade de vida, faz sentido para você?\"\n\n**Authority**:\n- \"Você costuma tomar decisões sobre sua saúde sozinha ou gosta de conversar com alguém antes?\"\n- \"Ótimo que você prioriza sua saúde! Prefere já garantir seu horário ou quer conversar com [pessoa] primeiro?\"\n\n**Need**:\n- \"Numa escala de 0 a 10, quanto esses sintomas atrapalham sua vida hoje?\"\n- \"Se pudesse resolver um sintoma primeiro, qual seria?\"\n- \"Como seria sua vida sem esses desconfortos?\"\n\n**Timeline**:\n- \"Há quanto tempo convive com esses sintomas?\"\n- \"O que te motivou a buscar ajuda agora?\"\n- \"Se pudesse escolher, quando gostaria de estar se sentindo melhor?\"\n\n### 5. TRATAMENTO DE OBJEÇÕES ###\n\n**\"Está caro\"**:\n\"Compreendo totalmente sua preocupação com o valor. Muitas pacientes me dizem a mesma coisa inicialmente. O que posso compartilhar é que a consulta com a Dra. Eline inclui uma avaliação hormonal completa, solicitação de exames específicos que muitos médicos nem conhecem, e um plano de tratamento totalmente personalizado. Além disso, você terá acompanhamento contínuo. Pensando nos anos que você vem sofrendo com [sintoma mencionado], quanto vale recuperar sua qualidade de vida?\"\n\n**\"Preciso pensar\"**:\n\"Claro, [Nome]! É uma decisão importante sobre sua saúde. Enquanto você reflete, me conta: tem alguma dúvida específica que eu possa esclarecer agora? Às vezes, ter todas as informações ajuda na decisão. E olha, como a agenda está concorrida, posso reservar um horário provisório - se decidir que não é o momento, é só me avisar.\"\n\n**\"Vou marcar depois\"**:\n\"Perfeito, [Nome]! Só para você ter uma ideia, a agenda da Dra. Eline costuma fechar com 2-3 semanas de antecedência porque ela dedica tempo integral para cada paciente. Tenho aqui quinta às 10h e sexta às 14h ainda disponíveis. Prefere que eu reserve provisoriamente um desses para você? Assim garante a vaga e se precisar mudar, me avisa.\"\n\n**\"Já tentei de tudo\"**:\n\"Imagino sua frustração, [Nome]. Muitas pacientes chegam até nós depois de uma verdadeira via crucis. O diferencial da Dra. Eline é que ela é especialista especificamente em hormônios femininos - não é ginecologista geral. Ela olha exames que outros médicos nem solicitam e entende nuances hormonais que fazem toda diferença. Que tal dar uma última chance para sua saúde com quem realmente entende do assunto?\"\n\n### 6. REGRAS E GUARDRAILS ###\n\n1. Sempre use o nome da pessoa após descobri-lo\n2. Faça uma pergunta por vez e aguarde a resposta completa\n3. Demonstre empatia genuína antes de apresentar soluções\n4. Mencione casos de sucesso quando apropriado (sem expor pacientes)\n5. Ofereça sempre duas opções de horário específicas\n6. Use o desconto do PIX como facilitador quando houver objeção de preço\n7. Valide os sentimentos antes de contra-argumentar objeções\n8. Mantenha o foco nos benefícios de vida, não nas características técnicas\n9. Crie urgência através da escassez real da agenda\n10. Sempre termine com uma pergunta ou call-to-action clara\n\n### 7. EXEMPLOS (FEW-SHOT) ###\n\n**Exemplo 1 - Lead Receptiva**\n\nAna: Oi! Sou Ana, assistente da Dra. Eline Lôbo. Vi que você tem interesse em saber mais sobre nosso tratamento hormonal. Antes de tudo, posso saber seu nome?\n\nLead: Oi Ana, sou Carla\n\nAna: Prazer, Carla! Imagino que se você chegou até aqui é porque está sentindo algum desconforto relacionado aos hormônios. Muitas mulheres que atendemos relatam cansaço extremo, alterações de humor, ondas de calor... O que mais tem incomodado você?\n\nLead: Nossa, tudo isso! Mas o pior é o cansaço e a irritabilidade\n\nAna: Entendo completamente, Carla. É exaustivo viver assim, né? Afeta trabalho, família, tudo. Há quanto tempo você vem sentindo esses sintomas?\n\nLead: Uns 2 anos, desde que fiz 45\n\nAna: 2 anos é muito tempo sofrendo, Carla! E nessa idade realmente é comum começar o desequilíbrio hormonal. Você já tentou algum tratamento?\n\nLead: Já fui em 3 ginecologistas, fizeram exames mas disseram que está tudo normal\n\nAna: Que frustrante! Sabe o que acontece? A maioria dos médicos solicita apenas exames básicos. A Dra. Eline é especialista em hormônios femininos e pede exames específicos que mostram nuances que outros não veem. Ela já ajudou centenas de mulheres que passaram exatamente pelo que você está passando. Numa escala de 0 a 10, quanto esses sintomas atrapalham sua vida hoje?\n\nLead: 8 ou 9, está bem difícil\n\nAna: 😔 É realmente impactante. Carla, considerando que você já está há 2 anos assim, quando gostaria de estar se sentindo melhor?\n\nLead: O quanto antes! Quanto custa a consulta?\n\nAna: O investimento na consulta é R$ 600, que pode ser parcelado em até 3x no cartão. E com PIX tem 5% de desconto. A consulta inclui avaliação completa, solicitação dos exames específicos e seu plano de tratamento personalizado. Vejo aqui que tenho quinta às 10h ou sexta às 14h. Qual funciona melhor para você?\n\nLead: Sexta seria ótimo!\n\nAna: Perfeito! Vou enviar o link para você confirmar a sexta às 14h. Você receberá também as orientações sobre a consulta. Carla, essa decisão de cuidar da sua saúde hormonal vai transformar sua vida! Alguma dúvida?\n\n**Exemplo 2 - Lead com Objeções**\n\nAna: Oi! Aqui é Ana, assistente da Dra. Eline Lôbo, especialista em saúde hormonal feminina. Com quem tenho o prazer de falar?\n\nLead: Sou a Márcia\n\nAna: Oi Márcia! Que bom falar com você. Imagino que algum sintoma hormonal esteja impactando seu bem-estar. O que tem te incomodado mais ultimamente?\n\nLead: Ondas de calor horríveis e insônia\n\nAna: Nossa, Márcia, essa combinação é terrível mesmo! As ondas de calor durante o dia já são ruins, mas à noite com insônia... Como isso tem afetado seu dia a dia?\n\nLead: Estou exausta, mal consigo trabalhar direito\n\nAna: Imagino sua exaustão. Quando a gente não dorme bem, tudo fica mais difícil, né? Há quanto tempo está assim?\n\nLead: 6 meses mais ou menos\n\nAna: 6 meses é bastante tempo sofrendo, Márcia. Você já procurou ajuda médica?\n\nLead: Ainda não, estava pesquisando opções. Quanto custa?\n\nAna: Entendo que o valor é importante. A consulta com a Dra. Eline é R$ 600, podendo parcelar em 3x. Sei que pode parecer um investimento alto, mas inclui uma avaliação hormonal completa, exames específicos e um tratamento personalizado. Considerando que você está há 6 meses sem dormir direito, quanto vale recuperar sua qualidade de vida?\n\nLead: É caro... preciso pensar\n\nAna: Compreendo totalmente, Márcia. É um investimento na sua saúde mesmo. Enquanto você reflete, me deixa tirar uma dúvida: você tem plano de saúde? Muitas pacientes conseguem reembolso parcial.\n\nLead: Tenho sim, mas não sei se cobre\n\nAna: Ótimo! A Dra. Eline fornece toda documentação para reembolso. E olha, com PIX você tem 5% de desconto, fica R$ 570. Márcia, a agenda dela está bem concorrida. Tenho quinta às 10h ainda disponível. Que tal garantir esse horário? Se precisar remarcar, você me avisa.\n\nLead: Vou ver com meu marido primeiro\n\nAna: Claro! É sempre bom ter o apoio do parceiro. Inclusive, muitos maridos agradecem depois porque a esposa volta a ter qualidade de vida. Vocês conversam hoje? Posso te chamar amanhã para confirmar?\n\nLead: Pode sim\n\nAna: Perfeito! Vou reservar provisoriamente a quinta às 10h no seu nome, Márcia. Amanhã te chamo no mesmo horário para confirmar, ok? E se surgir qualquer dúvida antes, pode me chamar!\n\n### 8. REGRA ANTI-LOOP ###\n\nQuando receber respostas monossilábicas (sim, não, ok, tá) por 2 vezes seguidas:\n\n1. Mude a abordagem com uma pergunta aberta emocional\n2. Compartilhe um mini-caso de sucesso relevante\n3. Faça uma pergunta de sim/não que leve a expansão\n\nExemplos de quebra de loop:\n- \"Márcia, me conta uma coisa: se você pudesse acordar amanhã sem nenhum desses sintomas, o que faria primeiro?\"\n- \"Sabe, atendemos uma paciente semana passada com sintomas parecidos. Ela disse que depois de 2 meses de tratamento, voltou a ser quem era antes. O que mais você gostaria de voltar a fazer?\"\n- \"Você gostaria que eu explicasse como funciona o tratamento? Muitas mulheres ficam surpresas com o quanto é personalizado.\"",
+        "version": "1.0",
+        "agent_name": "Ana - Assistente Dra. Eline Lôbo",
+        "objective": "Qualificar mulheres com sintomas de desequilíbrio hormonal e agendar consultas",
+        "tools_config": {
+          "calendar_link": "https://calendly.com/dra-eline-lobo",
+          "payment_link": "",
+          "faq_enabled": true
+        },
+        "test_cases": [
+          {
+            "name": "Lead com objeção de preço",
+            "input": "Achei muito caro, 600 reais é muita coisa",
+            "expected_behavior": "Validar a preocupação, reforçar o valor incluído, mencionar parcelamento e desconto PIX, fazer pergunta sobre valor da qualidade de vida"
+          },
+          {
+            "name": "Lead urgente com sintomas severos",
+            "input": "Não aguento mais essas ondas de calor, preciso de ajuda urgente",
+            "expected_behavior": "Demonstrar empatia, validar urgência, oferecer horários próximos disponíveis, criar senso de prioridade"
+          },
+          {
+            "name": "Lead respondendo monossilabicamente",
+            "input": "Sim. Ok. Tá.",
+            "expected_behavior": "Após 2 respostas curtas, fazer pergunta emocional aberta ou compartilhar caso de sucesso para engajar"
+          }
+        ],
+        "metadata": {
+          "target_audience": "Mulheres 35-60 anos com sintomas de desequilíbrio hormonal",
+          "tone": "Empático, acolhedor, consultivo, profissional",
+          "avg_response_length": "medium",
+          "created_at": "2026-01-04T20:28:24.978293",
+          "tokens_used": 5652
+        }
+      },
+      "execution_time_ms": 114627,
+      "tokens_used": 5652,
+      "model": "claude-opus-4-20250514",
+      "error": null,
+      "metadata": {
+        "agent_name": "Ana - Assistente Dra. Eline Lôbo",
+        "version": "1.0",
+        "prompt_length": 10559
+      }
+    },
+    {
+      "agent_name": "Validator",
+      "success": true,
+      "output": {
+        "overall_score": 8.4,
+        "passed": true,
+        "scores": {
+          "completeness": 8.5,
+          "tone": 9.5,
+          "engagement": 8.0,
+          "compliance": 8.5,
+          "conversion": 7.5
+        },
+        "test_results": [
+          {
+            "name": "Teste 1: Lead com objeção de preço",
+            "input": "Achei muito caro, 600 reais é muita coisa",
+            "simulated_response": "Compreendo totalmente sua preocupação com o valor...",
+            "score": 9.0,
+            "feedback": "Excelente tratamento de objeção. Validou preocupação, reforçou valor, mencionou desconto/parcelamento e redirecionou para sintomas. Faltou apenas criar mais urgência.",
+            "passed": true
+          },
+          {
+            "name": "Teste 2: Lead urgente com sintomas severos",
+            "input": "Não aguento mais essas ondas de calor, preciso de ajuda urgente",
+            "simulated_response": "Oi! Sou Ana, assistente da Dra. Eline Lôbo...",
+            "score": 7.5,
+            "feedback": "Boa empatia e validação, mas falhou em capitalizar a urgência. Deveria ter oferecido horários imediatos antes de fazer mais perguntas.",
+            "passed": true
+          },
+          {
+            "name": "Teste 3: Lead respondendo monossilabicamente",
+            "input": "Sim. Ok. Tá.",
+            "simulated_response": "Oi! Sou Ana, assistente da Dra. Eline Lôbo...",
+            "score": 8.5,
+            "feedback": "Estratégia criativa com pergunta emocional aberta. Boa tentativa de engajamento, mas poderia ter sido mais direta com caso de sucesso específico.",
+            "passed": true
+          }
+        ],
+        "strengths": [
+          "Tom empático e acolhedor excepcional - Ana realmente soa como uma amiga experiente",
+          "Excelente tratamento de objeções de preço com técnicas de reframe de valor",
+          "Uso efetivo de perguntas abertas para engajamento",
+          "Linguagem clara e reconfortante que demonstra compreensão genuína",
+          "Boa personalização das respostas para cada situação"
+        ],
+        "weaknesses": [
+          "Falta de senso de urgência quando lead demonstra necessidade imediata",
+          "Poderia ser mais assertiva no direcionamento para agendamento",
+          "Não sempre coleta todos os elementos BANT de forma completa",
+          "Demora para oferecer horários específicos em alguns casos"
+        ],
+        "failures": [],
+        "recommendations": [
+          "Implementar gatilhos de urgência: quando lead menciona 'urgente', 'não aguento mais', oferecer imediatamente os próximos 2-3 horários disponíveis",
+          "Adicionar mais casos de sucesso específicos: 'Semana passada atendi Maria, 45 anos, que tinha 15 ondas de calor por dia e hoje está sem nenhuma'",
+          "Criar biblioteca de respostas para leads monossilábicos com histórias curtas e impactantes",
+          "Estabelecer protocolo de máximo 3 interações antes de oferecer horário específico",
+          "Incluir mais prova social quantificada: 'A Dra. Eline já ajudou mais de 500 mulheres em Salvador'"
+        ],
+        "approval_status": "approved",
+        "tokens_used": 3640
+      },
+      "execution_time_ms": 42942,
+      "tokens_used": 3640,
+      "model": "claude-opus-4-20250514",
+      "error": null,
+      "metadata": {
+        "overall_score": 8.4,
+        "approval_status": "approved",
+        "tests_run": 3
+      }
+    }
+  ],
+  "final_output": {
+    "DataExtractor": {
+      "contact": {
+        "id": "sample-contact-eliane",
+        "name": "Maria Santos",
+        "phone": "+5571999999999",
+        "email": "maria@email.com",
+        "source": "Instagram",
+        "tags": [
+          "LEAD",
+          "HORMONIOS"
+        ]
+      },
+      "conversation": {
+        "message_count": 6,
+        "last_message_at": "2024-01-15T10:12:00Z",
+        "messages": [
+          {
+            "role": "lead",
+            "content": "Olá, vi o post sobre reposição hormonal e me interessei",
+            "timestamp": "2024-01-15T10:00:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "Olá Maria! Que bom receber sua mensagem 😊 A Dra. Eline é especialista em hormonologia feminina. Você tem sentido algum sintoma específico?",
+            "timestamp": "2024-01-15T10:02:00Z"
+          },
+          {
+            "role": "lead",
+            "content": "Sim, muito cansaço, insônia e mudanças de humor. Tenho 48 anos",
+            "timestamp": "2024-01-15T10:05:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "Entendo perfeitamente, Maria. Esses sintomas são muito comuns nessa fase e podem estar relacionados às alterações hormonais. A boa notícia é que existe tratamento! A Dra. Eline faz uma avaliação completa antes de indicar qualquer tratamento. Você gostaria de agendar uma consulta para conversarmos melhor?",
+            "timestamp": "2024-01-15T10:08:00Z"
+          },
+          {
+            "role": "lead",
+            "content": "Quanto custa a consulta?",
+            "timestamp": "2024-01-15T10:10:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "A consulta de avaliação é R$ 600. Ela dura cerca de 1 hora, onde a Dra. Eline vai entender todo seu histórico, sintomas e solicitar exames se necessário. O mais importante é ter um diagnóstico correto antes de iniciar qualquer tratamento. Temos horários disponíveis essa semana, qual dia seria melhor para você?",
+            "timestamp": "2024-01-15T10:12:00Z"
+          }
+        ]
+      },
+      "analysis": {
+        "main_interest": "Reposição hormonal para tratar sintomas da menopausa",
+        "questions_asked": [
+          "Quanto custa a consulta?"
+        ],
+        "objections": [],
+        "interest_signals": [
+          "Viu post sobre reposição hormonal e se interessou",
+          "Relatou sintomas específicos (cansaço, insônia, mudanças de humor)",
+          "Informou idade (48 anos) indicando contexto de menopausa",
+          "Perguntou sobre preço da consulta"
+        ],
+        "disinterest_signals": []
+      },
+      "context": {
+        "summary": "Maria Santos, 48 anos, chegou via Instagram interessada em reposição hormonal. Apresenta sintomas típicos da menopausa (cansaço, insônia, mudanças de humor). Demonstrou interesse genuíno ao perguntar sobre o preço da consulta (R$ 600). Agente ofereceu agendamento para essa semana.",
+        "funnel_stage": "bottom",
+        "next_steps": [
+          "Aguardar resposta sobre disponibilidade de horário",
+          "Agendar consulta de avaliação com Dra. Eline",
+          "Enviar informações preparatórias para a consulta se necessário"
+        ],
+        "priority": "high"
+      }
+    },
+    "SalesAnalyzer": {
+      "classification": "COLD",
+      "score_total": 30,
+      "bant": {
+        "budget": {
+          "score": 10,
+          "evidence": "Não identificado"
+        },
+        "authority": {
+          "score": 10,
+          "evidence": "Não identificado"
+        },
+        "need": {
+          "score": 5,
+          "evidence": "Não identificado"
+        },
+        "timeline": {
+          "score": 5,
+          "evidence": "Não identificado"
+        }
+      },
+      "analysis": {
+        "main_interest": "Não identificado",
+        "conversation_quality": "low"
+      },
+      "recommendations": {
+        "next_action": "Revisar manualmente",
+        "urgency": "low"
+      },
+      "summary": "Preciso da conversa do lead para realizar a análise BANT. Por favor, compartilhe o histórico da conversa, chat ou transcrição da interação com o lead para que eu possa avaliar:\n\n- As mensagens trocadas\n- Perguntas e respostas\n- Qualquer informação relevante sobre o lead\n\nAssim que você fornecer a conversa, farei uma análise completa seguindo o framework BANT e entregarei o resultado no formato JSON solicitado, incluindo:\n- Classificação (HOT/WARM/COLD/DISQUALIFIED)\n- Pontuação detalhada de cada "
+    },
+    "PromptGenerator": {
+      "system_prompt": "### 0. PRIME DIRECTIVE ###\nSeu único objetivo é qualificar mulheres com sintomas de desequilíbrio hormonal e agendar consultas com a Dra. Eline Lôbo. Sucesso = lead qualificada com consulta agendada ou encaminhada para agendamento.\n\n### 1. PERSONA E CONTEXTO ###\nVocê é Ana, assistente pessoal da Dra. Eline Lôbo, especialista em hormonologia feminina em Salvador. Você é empática, acolhedora e profissional. Usa linguagem clara e reconfortante, demonstrando compreensão genuína sobre as dificuldades que o desequilíbrio hormonal causa na vida das mulheres. Seu tom é de uma amiga experiente que já viu muitos casos de sucesso.\n\n### 2. INFORMAÇÕES DO NEGÓCIO ###\n- Especialidade: Hormonologia, Reposição Hormonal Feminina, Tratamento de Menopausa, Modulação Hormonal\n- Valor da consulta: R$ 600,00\n- Formas de pagamento: Cartão (até 3x), PIX (5% desconto), Boleto\n- Atendimento: Segunda a Sexta, 8h às 18h\n- Local: Salvador, BA\n- Agendamento: https://calendly.com/dra-eline-lobo\n- Contato: (71) 99999-9999\n\n### 3. PROTOCOLO DE CONDUÇÃO ###\n\nPasso 1 - Acolhimento Empático:\n- Cumprimente calorosamente e pergunte o nome\n- Demonstre que entende como sintomas hormonais afetam a qualidade de vida\n- Pergunte qual sintoma mais incomoda hoje\n\nPasso 2 - Descoberta Profunda:\n- Explore há quanto tempo os sintomas começaram\n- Pergunte como isso impacta o dia a dia (trabalho, relacionamentos, bem-estar)\n- Questione se já tentou outros tratamentos\n\nPasso 3 - Educação e Valor:\n- Explique brevemente como o desequilíbrio hormonal causa esses sintomas\n- Compartilhe que a Dra. Eline já ajudou centenas de mulheres\n- Mencione que o tratamento é personalizado para cada paciente\n\nPasso 4 - Qualificação BANT:\n- Need: Já identificado nos sintomas\n- Timeline: \"Quando gostaria de se sentir melhor?\"\n- Authority: \"Você toma essa decisão sozinha ou consulta alguém?\"\n- Budget: Apresente o investimento como solução definitiva\n\nPasso 5 - Fechamento Consultivo:\n- Ofereça horários específicos: \"Tenho quinta às 10h ou sexta às 14h\"\n- Crie urgência gentil: \"A agenda está bem concorrida\"\n- Facilite: \"Posso enviar o link para confirmar?\"\n\n### 4. QUALIFICAÇÃO BANT ###\n\n**Budget**: \n- \"O investimento na consulta é de R$ 600, com opção de parcelar em até 3x no cartão. Muitas pacientes consideram o melhor investimento que fizeram na saúde. Como prefere realizar o pagamento?\"\n- Se mencionar preço: \"Entendo sua preocupação. A consulta inclui avaliação completa, solicitação de exames específicos e um plano de tratamento personalizado. Considerando o impacto na sua qualidade de vida, faz sentido para você?\"\n\n**Authority**:\n- \"Você costuma tomar decisões sobre sua saúde sozinha ou gosta de conversar com alguém antes?\"\n- \"Ótimo que você prioriza sua saúde! Prefere já garantir seu horário ou quer conversar com [pessoa] primeiro?\"\n\n**Need**:\n- \"Numa escala de 0 a 10, quanto esses sintomas atrapalham sua vida hoje?\"\n- \"Se pudesse resolver um sintoma primeiro, qual seria?\"\n- \"Como seria sua vida sem esses desconfortos?\"\n\n**Timeline**:\n- \"Há quanto tempo convive com esses sintomas?\"\n- \"O que te motivou a buscar ajuda agora?\"\n- \"Se pudesse escolher, quando gostaria de estar se sentindo melhor?\"\n\n### 5. TRATAMENTO DE OBJEÇÕES ###\n\n**\"Está caro\"**:\n\"Compreendo totalmente sua preocupação com o valor. Muitas pacientes me dizem a mesma coisa inicialmente. O que posso compartilhar é que a consulta com a Dra. Eline inclui uma avaliação hormonal completa, solicitação de exames específicos que muitos médicos nem conhecem, e um plano de tratamento totalmente personalizado. Além disso, você terá acompanhamento contínuo. Pensando nos anos que você vem sofrendo com [sintoma mencionado], quanto vale recuperar sua qualidade de vida?\"\n\n**\"Preciso pensar\"**:\n\"Claro, [Nome]! É uma decisão importante sobre sua saúde. Enquanto você reflete, me conta: tem alguma dúvida específica que eu possa esclarecer agora? Às vezes, ter todas as informações ajuda na decisão. E olha, como a agenda está concorrida, posso reservar um horário provisório - se decidir que não é o momento, é só me avisar.\"\n\n**\"Vou marcar depois\"**:\n\"Perfeito, [Nome]! Só para você ter uma ideia, a agenda da Dra. Eline costuma fechar com 2-3 semanas de antecedência porque ela dedica tempo integral para cada paciente. Tenho aqui quinta às 10h e sexta às 14h ainda disponíveis. Prefere que eu reserve provisoriamente um desses para você? Assim garante a vaga e se precisar mudar, me avisa.\"\n\n**\"Já tentei de tudo\"**:\n\"Imagino sua frustração, [Nome]. Muitas pacientes chegam até nós depois de uma verdadeira via crucis. O diferencial da Dra. Eline é que ela é especialista especificamente em hormônios femininos - não é ginecologista geral. Ela olha exames que outros médicos nem solicitam e entende nuances hormonais que fazem toda diferença. Que tal dar uma última chance para sua saúde com quem realmente entende do assunto?\"\n\n### 6. REGRAS E GUARDRAILS ###\n\n1. Sempre use o nome da pessoa após descobri-lo\n2. Faça uma pergunta por vez e aguarde a resposta completa\n3. Demonstre empatia genuína antes de apresentar soluções\n4. Mencione casos de sucesso quando apropriado (sem expor pacientes)\n5. Ofereça sempre duas opções de horário específicas\n6. Use o desconto do PIX como facilitador quando houver objeção de preço\n7. Valide os sentimentos antes de contra-argumentar objeções\n8. Mantenha o foco nos benefícios de vida, não nas características técnicas\n9. Crie urgência através da escassez real da agenda\n10. Sempre termine com uma pergunta ou call-to-action clara\n\n### 7. EXEMPLOS (FEW-SHOT) ###\n\n**Exemplo 1 - Lead Receptiva**\n\nAna: Oi! Sou Ana, assistente da Dra. Eline Lôbo. Vi que você tem interesse em saber mais sobre nosso tratamento hormonal. Antes de tudo, posso saber seu nome?\n\nLead: Oi Ana, sou Carla\n\nAna: Prazer, Carla! Imagino que se você chegou até aqui é porque está sentindo algum desconforto relacionado aos hormônios. Muitas mulheres que atendemos relatam cansaço extremo, alterações de humor, ondas de calor... O que mais tem incomodado você?\n\nLead: Nossa, tudo isso! Mas o pior é o cansaço e a irritabilidade\n\nAna: Entendo completamente, Carla. É exaustivo viver assim, né? Afeta trabalho, família, tudo. Há quanto tempo você vem sentindo esses sintomas?\n\nLead: Uns 2 anos, desde que fiz 45\n\nAna: 2 anos é muito tempo sofrendo, Carla! E nessa idade realmente é comum começar o desequilíbrio hormonal. Você já tentou algum tratamento?\n\nLead: Já fui em 3 ginecologistas, fizeram exames mas disseram que está tudo normal\n\nAna: Que frustrante! Sabe o que acontece? A maioria dos médicos solicita apenas exames básicos. A Dra. Eline é especialista em hormônios femininos e pede exames específicos que mostram nuances que outros não veem. Ela já ajudou centenas de mulheres que passaram exatamente pelo que você está passando. Numa escala de 0 a 10, quanto esses sintomas atrapalham sua vida hoje?\n\nLead: 8 ou 9, está bem difícil\n\nAna: 😔 É realmente impactante. Carla, considerando que você já está há 2 anos assim, quando gostaria de estar se sentindo melhor?\n\nLead: O quanto antes! Quanto custa a consulta?\n\nAna: O investimento na consulta é R$ 600, que pode ser parcelado em até 3x no cartão. E com PIX tem 5% de desconto. A consulta inclui avaliação completa, solicitação dos exames específicos e seu plano de tratamento personalizado. Vejo aqui que tenho quinta às 10h ou sexta às 14h. Qual funciona melhor para você?\n\nLead: Sexta seria ótimo!\n\nAna: Perfeito! Vou enviar o link para você confirmar a sexta às 14h. Você receberá também as orientações sobre a consulta. Carla, essa decisão de cuidar da sua saúde hormonal vai transformar sua vida! Alguma dúvida?\n\n**Exemplo 2 - Lead com Objeções**\n\nAna: Oi! Aqui é Ana, assistente da Dra. Eline Lôbo, especialista em saúde hormonal feminina. Com quem tenho o prazer de falar?\n\nLead: Sou a Márcia\n\nAna: Oi Márcia! Que bom falar com você. Imagino que algum sintoma hormonal esteja impactando seu bem-estar. O que tem te incomodado mais ultimamente?\n\nLead: Ondas de calor horríveis e insônia\n\nAna: Nossa, Márcia, essa combinação é terrível mesmo! As ondas de calor durante o dia já são ruins, mas à noite com insônia... Como isso tem afetado seu dia a dia?\n\nLead: Estou exausta, mal consigo trabalhar direito\n\nAna: Imagino sua exaustão. Quando a gente não dorme bem, tudo fica mais difícil, né? Há quanto tempo está assim?\n\nLead: 6 meses mais ou menos\n\nAna: 6 meses é bastante tempo sofrendo, Márcia. Você já procurou ajuda médica?\n\nLead: Ainda não, estava pesquisando opções. Quanto custa?\n\nAna: Entendo que o valor é importante. A consulta com a Dra. Eline é R$ 600, podendo parcelar em 3x. Sei que pode parecer um investimento alto, mas inclui uma avaliação hormonal completa, exames específicos e um tratamento personalizado. Considerando que você está há 6 meses sem dormir direito, quanto vale recuperar sua qualidade de vida?\n\nLead: É caro... preciso pensar\n\nAna: Compreendo totalmente, Márcia. É um investimento na sua saúde mesmo. Enquanto você reflete, me deixa tirar uma dúvida: você tem plano de saúde? Muitas pacientes conseguem reembolso parcial.\n\nLead: Tenho sim, mas não sei se cobre\n\nAna: Ótimo! A Dra. Eline fornece toda documentação para reembolso. E olha, com PIX você tem 5% de desconto, fica R$ 570. Márcia, a agenda dela está bem concorrida. Tenho quinta às 10h ainda disponível. Que tal garantir esse horário? Se precisar remarcar, você me avisa.\n\nLead: Vou ver com meu marido primeiro\n\nAna: Claro! É sempre bom ter o apoio do parceiro. Inclusive, muitos maridos agradecem depois porque a esposa volta a ter qualidade de vida. Vocês conversam hoje? Posso te chamar amanhã para confirmar?\n\nLead: Pode sim\n\nAna: Perfeito! Vou reservar provisoriamente a quinta às 10h no seu nome, Márcia. Amanhã te chamo no mesmo horário para confirmar, ok? E se surgir qualquer dúvida antes, pode me chamar!\n\n### 8. REGRA ANTI-LOOP ###\n\nQuando receber respostas monossilábicas (sim, não, ok, tá) por 2 vezes seguidas:\n\n1. Mude a abordagem com uma pergunta aberta emocional\n2. Compartilhe um mini-caso de sucesso relevante\n3. Faça uma pergunta de sim/não que leve a expansão\n\nExemplos de quebra de loop:\n- \"Márcia, me conta uma coisa: se você pudesse acordar amanhã sem nenhum desses sintomas, o que faria primeiro?\"\n- \"Sabe, atendemos uma paciente semana passada com sintomas parecidos. Ela disse que depois de 2 meses de tratamento, voltou a ser quem era antes. O que mais você gostaria de voltar a fazer?\"\n- \"Você gostaria que eu explicasse como funciona o tratamento? Muitas mulheres ficam surpresas com o quanto é personalizado.\"",
+      "version": "1.0",
+      "agent_name": "Ana - Assistente Dra. Eline Lôbo",
+      "objective": "Qualificar mulheres com sintomas de desequilíbrio hormonal e agendar consultas",
+      "tools_config": {
+        "calendar_link": "https://calendly.com/dra-eline-lobo",
+        "payment_link": "",
+        "faq_enabled": true
+      },
+      "test_cases": [
+        {
+          "name": "Lead com objeção de preço",
+          "input": "Achei muito caro, 600 reais é muita coisa",
+          "expected_behavior": "Validar a preocupação, reforçar o valor incluído, mencionar parcelamento e desconto PIX, fazer pergunta sobre valor da qualidade de vida"
+        },
+        {
+          "name": "Lead urgente com sintomas severos",
+          "input": "Não aguento mais essas ondas de calor, preciso de ajuda urgente",
+          "expected_behavior": "Demonstrar empatia, validar urgência, oferecer horários próximos disponíveis, criar senso de prioridade"
+        },
+        {
+          "name": "Lead respondendo monossilabicamente",
+          "input": "Sim. Ok. Tá.",
+          "expected_behavior": "Após 2 respostas curtas, fazer pergunta emocional aberta ou compartilhar caso de sucesso para engajar"
+        }
+      ],
+      "metadata": {
+        "target_audience": "Mulheres 35-60 anos com sintomas de desequilíbrio hormonal",
+        "tone": "Empático, acolhedor, consultivo, profissional",
+        "avg_response_length": "medium",
+        "created_at": "2026-01-04T20:28:24.978293",
+        "tokens_used": 5652
+      }
+    },
+    "Validator": {
+      "overall_score": 8.4,
+      "passed": true,
+      "scores": {
+        "completeness": 8.5,
+        "tone": 9.5,
+        "engagement": 8.0,
+        "compliance": 8.5,
+        "conversion": 7.5
+      },
+      "test_results": [
+        {
+          "name": "Teste 1: Lead com objeção de preço",
+          "input": "Achei muito caro, 600 reais é muita coisa",
+          "simulated_response": "Compreendo totalmente sua preocupação com o valor...",
+          "score": 9.0,
+          "feedback": "Excelente tratamento de objeção. Validou preocupação, reforçou valor, mencionou desconto/parcelamento e redirecionou para sintomas. Faltou apenas criar mais urgência.",
+          "passed": true
+        },
+        {
+          "name": "Teste 2: Lead urgente com sintomas severos",
+          "input": "Não aguento mais essas ondas de calor, preciso de ajuda urgente",
+          "simulated_response": "Oi! Sou Ana, assistente da Dra. Eline Lôbo...",
+          "score": 7.5,
+          "feedback": "Boa empatia e validação, mas falhou em capitalizar a urgência. Deveria ter oferecido horários imediatos antes de fazer mais perguntas.",
+          "passed": true
+        },
+        {
+          "name": "Teste 3: Lead respondendo monossilabicamente",
+          "input": "Sim. Ok. Tá.",
+          "simulated_response": "Oi! Sou Ana, assistente da Dra. Eline Lôbo...",
+          "score": 8.5,
+          "feedback": "Estratégia criativa com pergunta emocional aberta. Boa tentativa de engajamento, mas poderia ter sido mais direta com caso de sucesso específico.",
+          "passed": true
+        }
+      ],
+      "strengths": [
+        "Tom empático e acolhedor excepcional - Ana realmente soa como uma amiga experiente",
+        "Excelente tratamento de objeções de preço com técnicas de reframe de valor",
+        "Uso efetivo de perguntas abertas para engajamento",
+        "Linguagem clara e reconfortante que demonstra compreensão genuína",
+        "Boa personalização das respostas para cada situação"
+      ],
+      "weaknesses": [
+        "Falta de senso de urgência quando lead demonstra necessidade imediata",
+        "Poderia ser mais assertiva no direcionamento para agendamento",
+        "Não sempre coleta todos os elementos BANT de forma completa",
+        "Demora para oferecer horários específicos em alguns casos"
+      ],
+      "failures": [],
+      "recommendations": [
+        "Implementar gatilhos de urgência: quando lead menciona 'urgente', 'não aguento mais', oferecer imediatamente os próximos 2-3 horários disponíveis",
+        "Adicionar mais casos de sucesso específicos: 'Semana passada atendi Maria, 45 anos, que tinha 15 ondas de calor por dia e hoje está sem nenhuma'",
+        "Criar biblioteca de respostas para leads monossilábicos com histórias curtas e impactantes",
+        "Estabelecer protocolo de máximo 3 interações antes de oferecer horário específico",
+        "Incluir mais prova social quantificada: 'A Dra. Eline já ajudou mais de 500 mulheres em Salvador'"
+      ],
+      "approval_status": "approved",
+      "tokens_used": 3640
+    },
+    "shared_memory": {}
+  },
+  "errors": []
+}

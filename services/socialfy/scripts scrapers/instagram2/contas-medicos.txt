@@ -1,0 +1,13 @@
+# Contas para buscar seguidores - MÉDICOS
+# Uma conta por linha
+# Seguidores dessas contas são potenciais leads médicos
+
+# Acelerador Médico (principais)
+aceleradormedico
+grupoacelerador
+
+# Outras contas de nicho médico (adicionar conforme descobrir)
+# medicoempresario
+# medicodosucesso
+# marketingmedico
+# medicodigital

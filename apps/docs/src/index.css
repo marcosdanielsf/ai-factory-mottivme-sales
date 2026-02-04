@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* Theme configuration using CSS variables */
+@theme {
+  /* Custom colors */
+  --color-bg-primary: #111318;
+  --color-bg-secondary: #1a1d24;
+  --color-bg-tertiary: #242830;
+  --color-bg-hover: #2d323c;
+
+  --color-text-primary: #f0f2f5;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  --color-border-default: #2d323c;
+  --color-border-hover: #3d4451;
+
+  --color-accent-primary: #3b82f6;
+  --color-accent-success: #22c55e;
+  --color-accent-warning: #f59e0b;
+  --color-accent-error: #ef4444;
+
+  /* Font families */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbar for Notion feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* Mobile animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

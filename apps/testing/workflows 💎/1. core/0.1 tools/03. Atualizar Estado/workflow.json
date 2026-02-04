@@ -1,0 +1,592 @@
+{
+  "updatedAt": "2025-12-16T16:19:28.254Z",
+  "createdAt": "2025-11-18T13:03:38.243Z",
+  "id": "3Dd8d5AnpD4iLPwG",
+  "name": "Atualizar Work Permit GHL (Otimizado)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "API_KEY"
+            },
+            {
+              "name": "location_id"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "workPermitValue"
+            }
+          ]
+        }
+      },
+      "id": "de257c81-3583-4ed4-b29b-cd9a581c2b05",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1904,
+        -1360
+      ]
+    },
+    {
+      "parameters": {
+        "content": "v1 - tava dando erro na hora de agendar pq nao tava buscando a disponibilidade",
+        "height": 688,
+        "width": 1696
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2256,
+        -1648
+      ],
+      "typeVersion": 1,
+      "id": "1e4a0394-5539-4832-b12d-bea59c73ab2f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "contact_id",
+              "value": "={{ $json.contact_id }}"
+            },
+            {
+              "key": "workPermit",
+              "value": "={{ $json.workPermitValue }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        -1360
+      ],
+      "id": "6472e1cf-1cc1-41ad-a2aa-3834dc62d927",
+      "name": "Execution Data"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $json.fieldId }}\",\n      \"value\": \"{{ $json.workPermitValue }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        -1360
+      ],
+      "id": "7a92dcd4-6122-48d8-97db-ce98efad4191",
+      "name": "🔄 Atualizar Work Permit",
+      "notes": "Atualiza o campo customizado work_permit no contato"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dea4eade-a0b7-4fa8-be10-478ffe2fed82",
+              "name": "fieldId",
+              "value": "={{ $json.fieldId }}",
+              "type": "string"
+            },
+            {
+              "id": "8c5d3e2f-1a3b-4c5e-9f2a-7b8c9d0e1f2a",
+              "name": "contactId",
+              "value": "={{ $('Start').item.json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "3f4e5d6c-7b8a-9c0d-1e2f-3a4b5c6d7e8f",
+              "name": "workPermitValue",
+              "value": "={{ $('Start').item.json.workPermitValue }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1072,
+        -1360
+      ],
+      "id": "a788ef70-31be-4164-8db5-883178062b6d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/locations/{{ $json.location_id }}/customFields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.API_KEY }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1456,
+        -1360
+      ],
+      "id": "d58f1346-3df2-47a4-986a-e77ed26e9db7",
+      "name": "1️⃣ Listar todos os campos",
+      "alwaysOutputData": true,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega a lista de custom fields do input anterior\nconst customFields = $input.first().json.customFields;\n\n// Encontra o campo \"Work Permit\"\nconst workPermitField = customFields.find(field => \n  field.name === \"Work Permit\"\n);\n\nif (!workPermitField) {\n  throw new Error(\"Campo 'Work Permit' não encontrado!\");\n}\n\n// Retorna apenas o ID do campo\nreturn [{\n  json: {\n    fieldId: workPermitField.id  // YFFXi3ByB0DuISqrq6MW\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        -1360
+      ],
+      "id": "6f87bcc3-6154-40c8-8266-6d6cb813304f",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Data": {
+      "main": [
+        [
+          {
+            "node": "1️⃣ Listar todos os campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "🔄 Atualizar Work Permit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1️⃣ Listar todos os campos": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "API_KEY": "pit-7f333e6f-a839-4f58-b371-778fed9dc2ea",
+          "location_id": "Bgi2hFMgiLLoRlOO0K5b",
+          "contact_id": "z4KaXKrTuZmAiyb3hFcZ",
+          "workPermitValue": "Sim"
+        }
+      }
+    ]
+  },
+  "versionId": "657ebb16-bb45-4aa3-890e-59a24d12b3b9",
+  "activeVersionId": "657ebb16-bb45-4aa3-890e-59a24d12b3b9",
+  "versionCounter": 26,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-11-18T13:03:38.278Z",
+      "createdAt": "2025-11-18T13:03:38.278Z",
+      "role": "workflow:owner",
+      "workflowId": "3Dd8d5AnpD4iLPwG",
+      "projectId": "VAjodPr5Fy7WALLy",
+      "project": {
+        "updatedAt": "2025-06-18T03:44:57.988Z",
+        "createdAt": "2025-06-18T03:36:54.736Z",
+        "id": "VAjodPr5Fy7WALLy",
+        "name": "Alan Jones Rios <alan@mentorfy.io>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-06-18T03:36:54.737Z",
+            "createdAt": "2025-06-18T03:36:54.737Z",
+            "userId": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+            "projectId": "VAjodPr5Fy7WALLy",
+            "user": {
+              "updatedAt": "2026-01-26T04:01:50.000Z",
+              "createdAt": "2025-06-18T03:36:53.786Z",
+              "id": "c236702a-fb1c-471c-b22c-6b898a17bcb1",
+              "email": "alan@mentorfy.io",
+              "firstName": "Alan Jones",
+              "lastName": "Rios",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-06-18T03:45:05.123Z",
+                "personalization_survey_n8n_version": "1.98.1"
+              },
+              "settings": {
+                "userActivated": true,
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "ccHBfcfeKrXwUhIA",
+                "userActivatedAt": 1750223854201,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1768854304461
+                },
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true,
+                  "ragStarterCallout": true
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-01-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2025-11-03T19:28:46.270Z",
+      "createdAt": "2025-11-03T19:28:46.270Z",
+      "id": "3znkt8vlq1yubGAB",
+      "name": "on"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2025-12-05T18:43:11.095Z",
+    "createdAt": "2025-12-05T18:43:11.095Z",
+    "versionId": "657ebb16-bb45-4aa3-890e-59a24d12b3b9",
+    "workflowId": "3Dd8d5AnpD4iLPwG",
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "API_KEY"
+              },
+              {
+                "name": "location_id"
+              },
+              {
+                "name": "contact_id"
+              },
+              {
+                "name": "workPermitValue"
+              }
+            ]
+          }
+        },
+        "id": "de257c81-3583-4ed4-b29b-cd9a581c2b05",
+        "typeVersion": 1.1,
+        "name": "Start",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "position": [
+          -1904,
+          -1360
+        ]
+      },
+      {
+        "parameters": {
+          "content": "v1 - tava dando erro na hora de agendar pq nao tava buscando a disponibilidade",
+          "height": 688,
+          "width": 1696
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [
+          -2256,
+          -1648
+        ],
+        "typeVersion": 1,
+        "id": "1e4a0394-5539-4832-b12d-bea59c73ab2f",
+        "name": "Sticky Note"
+      },
+      {
+        "parameters": {
+          "dataToSave": {
+            "values": [
+              {
+                "key": "contact_id",
+                "value": "={{ $json.contact_id }}"
+              },
+              {
+                "key": "workPermit",
+                "value": "={{ $json.workPermitValue }}"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executionData",
+        "typeVersion": 1.1,
+        "position": [
+          -1680,
+          -1360
+        ],
+        "id": "6472e1cf-1cc1-41ad-a2aa-3834dc62d927",
+        "name": "Execution Data"
+      },
+      {
+        "parameters": {
+          "method": "PUT",
+          "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{ $('Start').item.json.API_KEY }}"
+              },
+              {
+                "name": "Version",
+                "value": "2021-04-15"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"customFields\": [\n    {\n      \"id\": \"{{ $json.fieldId }}\",\n      \"value\": \"{{ $json.workPermitValue }}\"\n    }\n  ]\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -800,
+          -1360
+        ],
+        "id": "7a92dcd4-6122-48d8-97db-ce98efad4191",
+        "name": "🔄 Atualizar Work Permit",
+        "notes": "Atualiza o campo customizado work_permit no contato"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "dea4eade-a0b7-4fa8-be10-478ffe2fed82",
+                "name": "fieldId",
+                "value": "={{ $json.fieldId }}",
+                "type": "string"
+              },
+              {
+                "id": "8c5d3e2f-1a3b-4c5e-9f2a-7b8c9d0e1f2a",
+                "name": "contactId",
+                "value": "={{ $('Start').item.json.contact_id }}",
+                "type": "string"
+              },
+              {
+                "id": "3f4e5d6c-7b8a-9c0d-1e2f-3a4b5c6d7e8f",
+                "name": "workPermitValue",
+                "value": "={{ $('Start').item.json.workPermitValue }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -1072,
+          -1360
+        ],
+        "id": "a788ef70-31be-4164-8db5-883178062b6d",
+        "name": "Edit Fields1"
+      },
+      {
+        "parameters": {
+          "url": "=https://services.leadconnectorhq.com/locations/{{ $json.location_id }}/customFields",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{ $json.API_KEY }}"
+              },
+              {
+                "name": "Version",
+                "value": "2021-07-28"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -1456,
+          -1360
+        ],
+        "id": "d58f1346-3df2-47a4-986a-e77ed26e9db7",
+        "name": "1️⃣ Listar todos os campos",
+        "alwaysOutputData": true,
+        "retryOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Pega a lista de custom fields do input anterior\nconst customFields = $input.first().json.customFields;\n\n// Encontra o campo \"Work Permit\"\nconst workPermitField = customFields.find(field => \n  field.name === \"Work Permit\"\n);\n\nif (!workPermitField) {\n  throw new Error(\"Campo 'Work Permit' não encontrado!\");\n}\n\n// Retorna apenas o ID do campo\nreturn [{\n  json: {\n    fieldId: workPermitField.id  // YFFXi3ByB0DuISqrq6MW\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1248,
+          -1360
+        ],
+        "id": "6f87bcc3-6154-40c8-8266-6d6cb813304f",
+        "name": "Code in JavaScript"
+      }
+    ],
+    "connections": {
+      "Start": {
+        "main": [
+          [
+            {
+              "node": "Execution Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execution Data": {
+        "main": [
+          [
+            {
+              "node": "1️⃣ Listar todos os campos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields1": {
+        "main": [
+          [
+            {
+              "node": "🔄 Atualizar Work Permit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "1️⃣ Listar todos os campos": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "system migration",
+    "name": null,
+    "description": null,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2025-11-26T00:04:39.000Z",
+        "id": 114,
+        "workflowId": "3Dd8d5AnpD4iLPwG",
+        "versionId": "657ebb16-bb45-4aa3-890e-59a24d12b3b9",
+        "event": "activated",
+        "userId": null
+      }
+    ]
+  }
+}

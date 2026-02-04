@@ -1,0 +1,292 @@
+{
+  "name": "Social Seller Instagram - Dr Thauan v2 (CRITICS)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/social-seller-thauan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Instagram",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "social-seller-thauan-v2"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Mensagem recebida\" } }}"
+      },
+      "id": "response-webhook",
+      "name": "Response Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1620, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://cliente-a1.mentorfy.io/webhook/segundo-cerebro",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"search\",\n  \"params\": {\n    \"query\": \"SELECT * FROM agent_versions WHERE agent_name = 'Dr. Thauan Santos - Social Seller Instagram' AND is_active = true AND status = 'active'\",\n    \"project_key\": \"ai-factory\",\n    \"limit\": 1\n  }\n}",
+        "options": {}
+      },
+      "id": "get-agent-version",
+      "name": "Get Agent Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "notes": "Busca versao ativa do agente no RAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta os blocos XML esperados pelo CRITICS Framework\n\nconst webhookData = $input.first().json;\nconst agentVersion = $input.last().json;\n\n// Dados do lead\nconst leadName = webhookData.lead_name || 'Visitante';\nconst leadPhone = webhookData.lead_phone || '';\nconst ddd = leadPhone ? leadPhone.substring(0, 2) : '51';\nconst canal = webhookData.canal || 'instagram';\nconst mensagem = webhookData.message || '';\n\n// Data/hora atual\nconst agora = new Date();\nconst periodos = { \n  0: 'domingo', 1: 'segunda', 2: 'terca', 3: 'quarta', 4: 'quinta', 5: 'sexta', 6: 'sabado' \n};\nconst diaSemana = periodos[agora.getDay()];\nconst dataFormatada = agora.toLocaleDateString('pt-BR', { \n  weekday: 'long', \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric', \n  hour: '2-digit', \n  minute: '2-digit' \n});\n\n// Saudacao por periodo\nconst hora = agora.getHours();\nlet saudacao = 'boa noite';\nif (hora >= 6 && hora < 12) saudacao = 'bom dia';\nelse if (hora >= 12 && hora < 18) saudacao = 'boa tarde';\n\n// Historico de conversa (se existir)\nconst historico = webhookData.conversation_history || [];\nconst temHistorico = historico.length > 0;\n\n// Monta blocos XML\nconst blocos = {\n  contexto_conversa: `<contexto_conversa>\nLEAD: ${leadName}\nCANAL: ${canal}\nDDD: ${ddd}\nDATA/HORA: ${dataFormatada}\nETIQUETAS: ${webhookData.tags || 'nova_conversa'}\nSTATUS PAGAMENTO: ${webhookData.payment_status || 'nenhum'}\nMODO ATIVO: social_seller_instagram\n</contexto_conversa>`,\n  \n  hiperpersonalizacao: `<hiperpersonalizacao>\n[REGIAO ${ddd}] Rio Grande do Sul\nSaudacao recomendada: \"E ai, ${saudacao}\"\n</hiperpersonalizacao>`,\n  \n  calendarios_disponiveis: `<calendarios_disponiveis>\n- Instituto Abadi Santos: ID 5ScyRQN1jn6OOCRteIrC\n\nHorarios: Segunda a Sexta, 8h-12h e 14h-18h\nDuracao consulta: 1 hora\n</calendarios_disponiveis>`,\n  \n  mensagem_atual: `<mensagem_atual>\nLEAD: ${mensagem}\n</mensagem_atual>`\n};\n\n// Adiciona historico se existir\nif (temHistorico) {\n  const historicoFormatado = historico.map(msg => \n    `${msg.role === 'lead' ? 'LEAD' : 'DR. THAUAN'}: ${msg.content}`\n  ).join('\\n');\n  blocos.historico_conversa = `<historico_conversa>\n${historicoFormatado}\n</historico_conversa>`;\n}\n\n// System prompt do agente\nconst systemPrompt = agentVersion.system_prompt || '';\n\n// User prompt completo (blocos XML + mensagem)\nconst userPrompt = Object.values(blocos).join('\\n\\n');\n\nreturn {\n  json: {\n    lead_name: leadName,\n    lead_phone: leadPhone,\n    tem_historico: temHistorico,\n    saudacao: saudacao,\n    system_prompt: systemPrompt,\n    user_prompt: userPrompt,\n    mensagem_atual: mensagem\n  }\n};"
+      },
+      "id": "montar-prompts",
+      "name": "Montar Prompts Finais",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Monta os blocos XML conforme CRITICS Framework"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o",
+        "messages": "={{ [{ \"role\": \"system\", \"content\": $json.system_prompt }, { \"role\": \"user\", \"content\": $json.user_prompt }] }}",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "call-openai",
+      "name": "Chamar OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openai",
+      "typeVersion": 1.4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processa resposta da IA e detecta tool calls\n\nconst openaiResponse = $input.first().json;\nconst mensagemLead = $('Montar Prompts Finais').item.json.mensagem_atual;\n\nif (!openaiResponse || !openaiResponse.choices) {\n  return { json: { erro: 'Sem resposta da IA' } };\n}\n\nconst choice = openaiResponse.choices[0];\nconst mensagem = choice.message.content || '';\nconst toolCalls = choice.message.tool_calls || [];\n\n// Detecta ferramentas chamadas\nconst ferramentas = [];\nfor (const toolCall of toolCalls) {\n  const functionName = toolCall.function.name;\n  const args = JSON.parse(toolCall.function.arguments);\n  \n  ferramentas.push({\n    nome: functionName,\n    argumentos: args,\n    tool_call_id: toolCall.id,\n    raw: toolCall.function\n  });\n}\n\nreturn {\n  json: {\n    resposta_ia: mensagem,\n    tool_calls: ferramentas,\n    tem_tool_calls: ferramentas.length > 0,\n    lead_name: $('Montar Prompts Finais').item.json.lead_name,\n    finish_reason: choice.finish_reason\n  }\n};"
+      },
+      "id": "processar-resposta",
+      "name": "Processar Resposta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tem_tool_calls }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-tools",
+      "name": "Tem Tool Calls?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.instagram.com/v18.0/me/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $webhook.lead_ig_id }}\"\n  },\n  \"message\": {\n    \"text\": \"{{ $('Processar Resposta IA').item.json.resposta_ia }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "enviar-instagram",
+      "name": "Enviar Resposta Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://cliente-a1.mentorfy.io/webhook/segundo-cerebro",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"ingest\",\n  \"params\": {\n    \"category\": \"pattern\",\n    \"title\": \"Conversa Instagram - {{ $('Processar Resposta IA').item.json.lead_name }}\",\n    \"content\": \"{{ $('Montar Prompts Finais').item.json.user_prompt }}\",\n    \"project_key\": \"thauan-instagram\",\n    \"tags\": [\"instagram\", \"conversa\"]\n  }\n}",
+        "options": {}
+      },
+      "id": "salvar-rag",
+      "name": "Salvar Conversa no RAG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://sandbox.asaas.com/api/v3/payments",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customer\": \"{{ $json.argumentos.nome }}\",\n  \"value\": {{ $json.argumentos.cobranca_valor }},\n  \"billingType\": \"PIX\",\n  \"dueDate\": \"{{ $now.plus({days: 1}).toFormat('yyyy-MM-dd') }}\",\n  \"externalReference\": \"sinal-consulta-dr-thauan\"\n}",
+        "options": {}
+      },
+      "id": "tool-asaas",
+      "name": "Tool: Criar Cobranca Asaas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 500]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/calendars/events/available-slots/5ScyRQN1jn6OOCRteIrC",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "goHighLevelOAuth2Api",
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "tool-calendar",
+      "name": "Tool: Buscar Disponibilidade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Instagram": {
+      "main": [
+        [
+          {
+            "node": "Get Agent Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Agent Version": {
+      "main": [
+        [
+          {
+            "node": "Montar Prompts Finais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Prompts Finais": {
+      "main": [
+        [
+          {
+            "node": "Chamar OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Processar Resposta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resposta IA": {
+      "main": [
+        [
+          {
+            "node": "Tem Tool Calls?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Tool Calls?": {
+      "main": [
+        [
+          {
+            "node": "Tool: Criar Cobranca Asaas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tool: Buscar Disponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Resposta Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Salvar Conversa no RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Resposta Instagram": {
+      "main": [
+        [
+          {
+            "node": "Response Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-22T00:00:00.000Z",
+      "updatedAt": "2026-01-22T00:00:00.000Z",
+      "id": "social-seller",
+      "name": "Social Seller"
+    },
+    {
+      "createdAt": "2026-01-22T00:00:00.000Z",
+      "updatedAt": "2026-01-22T00:00:00.000Z",
+      "id": "dr-thauan",
+      "name": "Dr Thauan"
+    },
+    {
+      "createdAt": "2026-01-22T00:00:00.000Z",
+      "updatedAt": "2026-01-22T00:00:00.000Z",
+      "id": "critics",
+      "name": "CRITICS"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-22T00:00:00.000Z",
+  "versionId": "v2.0.0"
+}

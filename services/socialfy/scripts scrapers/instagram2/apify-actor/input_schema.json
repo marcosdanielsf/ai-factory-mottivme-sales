@@ -1,0 +1,54 @@
+{
+    "title": "MOTTIVME Instagram Scraper v3",
+    "description": "Busca seguidores de um perfil e/ou dados de perfis específicos",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "targetUsername": {
+            "title": "Perfil Alvo (para buscar seguidores)",
+            "type": "string",
+            "description": "Username do perfil para buscar seguidores (ex: aceleradormedico)",
+            "editor": "textfield"
+        },
+        "usernames": {
+            "title": "Lista de Usernames (para buscar dados de perfis)",
+            "type": "array",
+            "description": "Lista de usernames para buscar dados completos",
+            "editor": "stringList",
+            "items": {
+                "type": "string"
+            }
+        },
+        "sessionId": {
+            "title": "Session ID do Instagram",
+            "type": "string",
+            "description": "Cookie 'sessionid' do Instagram. OBRIGATÓRIO para buscar seguidores. Obtenha em DevTools > Cookies após fazer login.",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "maxFollowers": {
+            "title": "Máximo de Seguidores",
+            "type": "integer",
+            "description": "Limite de seguidores para buscar (padrão: 100)",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 10000
+        },
+        "filterKeywords": {
+            "title": "Keywords para Filtrar",
+            "type": "array",
+            "description": "Filtrar seguidores por keywords no nome (ex: dr., médico, crm)",
+            "editor": "stringList",
+            "items": {
+                "type": "string"
+            }
+        },
+        "mode": {
+            "title": "Modo de Operação",
+            "type": "string",
+            "description": "auto = detecta automaticamente, profiles = só busca dados, followers = busca seguidores",
+            "default": "auto",
+            "enum": ["auto", "profiles", "followers"]
+        }
+    }
+}
