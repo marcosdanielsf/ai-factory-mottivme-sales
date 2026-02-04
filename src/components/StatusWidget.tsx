@@ -7,30 +7,30 @@ import { usePendingInterviews } from '../hooks/usePendingInterviews';
  * Widget resumido da Central de Status para o Dashboard
  */
 export const StatusWidget = () => {
-  const { interviews, stats, loading, updateStatus } = usePendingInterviews();
+  const { interviews, metrics, loading, updateStatus } = usePendingInterviews();
 
   const statusCards = [
     { 
       label: 'Pendentes', 
-      value: stats.pending, 
+      value: metrics.pending, 
       icon: Clock, 
       color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' 
     },
     { 
       label: 'Compareceram', 
-      value: stats.completed, 
+      value: metrics.compareceu, 
       icon: CheckCircle, 
       color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
     },
     { 
       label: 'No Show', 
-      value: stats.noShow, 
+      value: metrics.no_show, 
       icon: XCircle, 
       color: 'text-red-400 bg-red-500/10 border-red-500/20' 
     },
     { 
       label: 'Sem Interesse', 
-      value: stats.notInterested, 
+      value: metrics.sem_interesse, 
       icon: Ban, 
       color: 'text-gray-400 bg-gray-500/10 border-gray-500/20' 
     },
@@ -51,6 +51,28 @@ export const StatusWidget = () => {
       </div>
     );
   }
+
+  // Filtrar apenas pendentes (status pending ou sent)
+  const pendingInterviews = interviews.filter(i => i.status === 'pending' || i.status === 'sent');
+
+  // Formatar data
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
@@ -84,12 +106,11 @@ export const StatusWidget = () => {
       </div>
 
       {/* Lista resumida de pendentes */}
-      {stats.pending > 0 && (
+      {pendingInterviews.length > 0 && (
         <div className="border-t border-border-default pt-3">
           <p className="text-xs text-text-muted mb-2">Próximas entrevistas pendentes:</p>
           <div className="space-y-2">
-            {interviews
-              .filter(i => i.status === 'pending')
+            {pendingInterviews
               .slice(0, 3)
               .map((interview) => (
                 <div 
@@ -98,18 +119,18 @@ export const StatusWidget = () => {
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-accent-primary/20 flex items-center justify-center text-accent-primary text-xs font-bold">
-                      {interview.name?.charAt(0) || '?'}
+                      {interview.lead_name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{interview.name}</p>
+                      <p className="text-sm font-medium text-text-primary">{interview.lead_name || 'Sem nome'}</p>
                       <p className="text-[10px] text-text-muted">
-                        {interview.scheduled_date} às {interview.scheduled_time}
+                        {formatDate(interview.interview_date)} às {formatTime(interview.interview_date)}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-1">
                     <button
-                      onClick={() => updateStatus(interview.id, 'completed')}
+                      onClick={() => updateStatus(interview.id, 'realizada')}
                       className="p-1.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
                       title="Compareceu"
                     >
@@ -126,14 +147,21 @@ export const StatusWidget = () => {
                 </div>
               ))}
           </div>
-          {stats.pending > 3 && (
+          {pendingInterviews.length > 3 && (
             <Link 
               to="/status" 
               className="block text-center text-xs text-accent-primary hover:underline mt-2"
             >
-              +{stats.pending - 3} mais pendentes
+              +{pendingInterviews.length - 3} mais pendentes
             </Link>
           )}
+        </div>
+      )}
+
+      {/* Mensagem quando não há pendentes */}
+      {pendingInterviews.length === 0 && (
+        <div className="border-t border-border-default pt-3 text-center">
+          <p className="text-xs text-text-muted">✅ Nenhuma entrevista pendente</p>
         </div>
       )}
     </div>
