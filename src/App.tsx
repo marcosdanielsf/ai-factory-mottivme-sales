@@ -26,6 +26,7 @@ import { SalesOps } from './pages/SalesOps';
 import { Agendamentos } from './pages/Agendamentos';
 import { Login } from './pages/Login';
 import { ClientPortal } from './pages/ClientPortal';
+import { StatusCenter } from './pages/StatusCenter';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -76,6 +77,13 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Agendamentos />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/status" element={
+              <ProtectedRoute>
+                <Layout>
+                  <StatusCenter />
                 </Layout>
               </ProtectedRoute>
             } />

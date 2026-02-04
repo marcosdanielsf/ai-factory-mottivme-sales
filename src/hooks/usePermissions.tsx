@@ -1,0 +1,249 @@
+import { useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+
+// Tipos de usuário
+export type UserRole = 'admin' | 'manager' | 'client' | 'recruiter';
+
+// Definição de permissões por feature
+export interface Permissions {
+  // Páginas
+  canAccessDashboard: boolean;
+  canAccessSupervision: boolean;
+  canAccessPromptEditor: boolean;
+  canAccessAgendamentos: boolean;
+  canAccessFunilLeads: boolean;
+  canAccessFollowUps: boolean;
+  canAccessStatusCenter: boolean;
+  canAccessLogs: boolean;
+  canAccessConfiguracoes: boolean;
+  canAccessValidation: boolean;
+  canAccessKnowledgeBase: boolean;
+  canAccessNotifications: boolean;
+  canAccessLeads: boolean;
+  canAccessCalls: boolean;
+  
+  // Ações
+  canWriteMessages: boolean;
+  canEditPrompts: boolean;
+  canManageAgents: boolean;
+  canViewAllClients: boolean;
+  canExportData: boolean;
+  canManageUsers: boolean;
+}
+
+// Permissões por role
+const rolePermissions: Record<UserRole, Permissions> = {
+  admin: {
+    // Páginas - Admin vê TUDO
+    canAccessDashboard: true,
+    canAccessSupervision: true,
+    canAccessPromptEditor: true,
+    canAccessAgendamentos: true,
+    canAccessFunilLeads: true,
+    canAccessFollowUps: true,
+    canAccessStatusCenter: true,
+    canAccessLogs: true,
+    canAccessConfiguracoes: true,
+    canAccessValidation: true,
+    canAccessKnowledgeBase: true,
+    canAccessNotifications: true,
+    canAccessLeads: true,
+    canAccessCalls: true,
+    // Ações
+    canWriteMessages: true,
+    canEditPrompts: true,
+    canManageAgents: true,
+    canViewAllClients: true,
+    canExportData: true,
+    canManageUsers: true,
+  },
+  
+  manager: {
+    // Páginas - Manager vê quase tudo, menos config avançada
+    canAccessDashboard: true,
+    canAccessSupervision: true,
+    canAccessPromptEditor: false,
+    canAccessAgendamentos: true,
+    canAccessFunilLeads: true,
+    canAccessFollowUps: true,
+    canAccessStatusCenter: true,
+    canAccessLogs: true,
+    canAccessConfiguracoes: false,
+    canAccessValidation: true,
+    canAccessKnowledgeBase: true,
+    canAccessNotifications: true,
+    canAccessLeads: true,
+    canAccessCalls: true,
+    // Ações
+    canWriteMessages: true,
+    canEditPrompts: false,
+    canManageAgents: false,
+    canViewAllClients: true,
+    canExportData: true,
+    canManageUsers: false,
+  },
+  
+  client: {
+    // Páginas - Cliente vê métricas e status
+    canAccessDashboard: true,
+    canAccessSupervision: false,
+    canAccessPromptEditor: false,
+    canAccessAgendamentos: true,
+    canAccessFunilLeads: true,
+    canAccessFollowUps: false,
+    canAccessStatusCenter: true,
+    canAccessLogs: false,
+    canAccessConfiguracoes: false,
+    canAccessValidation: false,
+    canAccessKnowledgeBase: false,
+    canAccessNotifications: true,
+    canAccessLeads: true,
+    canAccessCalls: false,
+    // Ações
+    canWriteMessages: false,
+    canEditPrompts: false,
+    canManageAgents: false,
+    canViewAllClients: false,
+    canExportData: false,
+    canManageUsers: false,
+  },
+  
+  recruiter: {
+    // Páginas - Recrutador vê só o essencial
+    canAccessDashboard: true,
+    canAccessSupervision: false,
+    canAccessPromptEditor: false,
+    canAccessAgendamentos: true,
+    canAccessFunilLeads: false,
+    canAccessFollowUps: false,
+    canAccessStatusCenter: true,
+    canAccessLogs: false,
+    canAccessConfiguracoes: false,
+    canAccessValidation: false,
+    canAccessKnowledgeBase: false,
+    canAccessNotifications: true,
+    canAccessLeads: true,
+    canAccessCalls: false,
+    // Ações
+    canWriteMessages: false,
+    canEditPrompts: false,
+    canManageAgents: false,
+    canViewAllClients: false,
+    canExportData: false,
+    canManageUsers: false,
+  },
+};
+
+// Itens de navegação por role
+export interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+  permission: keyof Permissions;
+  badge?: string;
+}
+
+export const allNavItems: NavItem[] = [
+  { path: '/', label: 'Dashboard', icon: 'LayoutDashboard', permission: 'canAccessDashboard' },
+  { path: '/supervision', label: 'Supervisão IA', icon: 'MessageSquare', permission: 'canAccessSupervision' },
+  { path: '/agendamentos', label: 'Agendamentos', icon: 'Calendar', permission: 'canAccessAgendamentos' },
+  { path: '/funil', label: 'Funil de Leads', icon: 'Filter', permission: 'canAccessFunilLeads' },
+  { path: '/leads', label: 'Leads', icon: 'Users', permission: 'canAccessLeads' },
+  { path: '/status', label: 'Central de Status', icon: 'CheckCircle', permission: 'canAccessStatusCenter' },
+  { path: '/follow-ups', label: 'Follow-ups', icon: 'Clock', permission: 'canAccessFollowUps' },
+  { path: '/calls', label: 'Calls Realizadas', icon: 'Phone', permission: 'canAccessCalls' },
+  { path: '/prompt-editor', label: 'Prompt Studio', icon: 'Wand2', permission: 'canAccessPromptEditor' },
+  { path: '/validation', label: 'Testes & Qualidade', icon: 'FlaskConical', permission: 'canAccessValidation' },
+  { path: '/knowledge', label: 'Base de Conhecimento', icon: 'BookOpen', permission: 'canAccessKnowledgeBase' },
+  { path: '/logs', label: 'Logs de Conversa', icon: 'FileText', permission: 'canAccessLogs' },
+  { path: '/notifications', label: 'Alertas', icon: 'Bell', permission: 'canAccessNotifications' },
+  { path: '/configuracoes', label: 'Configurações', icon: 'Settings', permission: 'canAccessConfiguracoes' },
+];
+
+// Hook principal
+export const usePermissions = () => {
+  const { user } = useAuth();
+  
+  // Pegar role do user_metadata (Supabase Auth) - SEM tabela extra!
+  const role = useMemo((): UserRole => {
+    if (!user) return 'client';
+    
+    // 1. Tentar pegar do user_metadata (definido na criação do usuário)
+    const metadataRole = user.user_metadata?.role as UserRole | undefined;
+    if (metadataRole && rolePermissions[metadataRole]) {
+      return metadataRole;
+    }
+    
+    // 2. Verificar se é admin pelo email (fallback - lista de admins conhecidos)
+    const adminEmails = [
+      'marcos@mottivme.com',
+      'marcos@socialfy.me',
+      'admin@mottivme.com',
+      'gustavo@mottivme.com'
+    ];
+    if (user.email && adminEmails.includes(user.email.toLowerCase())) {
+      return 'admin';
+    }
+    
+    // 3. Verificar domínio do email (opcional - todos @mottivme.com são managers)
+    if (user.email?.endsWith('@mottivme.com')) {
+      return 'manager';
+    }
+    
+    // 4. Default: client
+    return 'client';
+  }, [user]);
+  
+  // Pegar location_id do metadata (para filtrar dados do cliente)
+  const locationId = useMemo(() => {
+    return user?.user_metadata?.location_id as string | undefined;
+  }, [user]);
+  
+  // Permissões baseadas no role
+  const permissions = useMemo(() => rolePermissions[role], [role]);
+  
+  // Itens de navegação filtrados
+  const navItems = useMemo(() => {
+    return allNavItems.filter(item => permissions[item.permission]);
+  }, [permissions]);
+  
+  // Helper para verificar permissão específica
+  const hasPermission = (permission: keyof Permissions): boolean => {
+    return permissions[permission];
+  };
+  
+  // Helper para verificar se pode acessar rota
+  const canAccessRoute = (path: string): boolean => {
+    const item = allNavItems.find(i => i.path === path);
+    if (!item) return true; // Rotas não listadas são acessíveis
+    return permissions[item.permission];
+  };
+  
+  return {
+    role,
+    locationId,
+    permissions,
+    navItems,
+    hasPermission,
+    canAccessRoute,
+    isAdmin: role === 'admin',
+    isManager: role === 'manager',
+    isClient: role === 'client',
+    isRecruiter: role === 'recruiter',
+  };
+};
+
+// Componente para proteger rotas
+export const RequirePermission: React.FC<{
+  permission: keyof Permissions;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ permission, children, fallback = null }) => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission(permission)) {
+    return <>{fallback}</>;
+  }
+  
+  return <>{children}</>;
+};

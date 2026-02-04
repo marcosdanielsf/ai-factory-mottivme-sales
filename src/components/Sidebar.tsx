@@ -1,26 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
-  ChevronRight,
   ChevronDown,
-  ChevronLeft,
+  ChevronRight,
   Settings,
   Box,
   Phone,
   Users,
   Database,
-  Bell,
   TestTube2,
-  MessageSquare,
-  ScrollText,
   RefreshCw,
   BookOpen,
   ExternalLink,
   LogOut,
   DollarSign,
   Trophy,
-  UserPlus,
   Eye,
   BarChart3,
   X,
@@ -28,9 +23,17 @@ import {
   PanelLeftClose,
   PanelLeft,
   CalendarCheck,
-  Sparkles
+  Sparkles,
+  ScrollText,
+  CheckCircle,
+  LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions, Permissions } from '../hooks/usePermissions';
+
+// ============================================
+// TIPOS
+// ============================================
 
 interface SidebarProps {
   isMobile?: boolean;
@@ -40,101 +43,171 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
+interface NavItemConfig {
+  icon: LucideIcon;
+  label: string;
+  to: string;
+  permission?: keyof Permissions;
+  badge?: string;
+}
+
+interface NavSection {
+  title: string;
+  permission?: keyof Permissions; // Se a seção inteira requer permissão
+  items: NavItemConfig[];
+}
+
+// ============================================
+// CONFIGURAÇÃO DE NAVEGAÇÃO
+// ============================================
+
+const navSections: NavSection[] = [
+  {
+    title: '', // Sem título = itens no topo
+    items: [
+      { icon: Home, label: 'Control Tower', to: '/', permission: 'canAccessDashboard' },
+    ]
+  },
+  {
+    title: 'SALES OS',
+    items: [
+      { icon: BarChart3, label: 'Sales Ops', to: '/sales-ops', permission: 'canAccessDashboard' },
+      { icon: Eye, label: 'Supervisão IA', to: '/supervision', permission: 'canAccessSupervision' },
+      { icon: Phone, label: 'Calls Realizadas', to: '/calls', permission: 'canAccessCalls' },
+      { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
+      { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
+    ]
+  },
+  {
+    title: 'AI FACTORY',
+    permission: 'canAccessPromptEditor', // Seção inteira só para quem pode editar prompts
+    items: [
+      { icon: Box, label: 'Prompt Studio', to: '/prompt-studio', permission: 'canAccessPromptEditor' },
+      { icon: TestTube2, label: 'Testes & Qualidade', to: '/validacao', permission: 'canAccessValidation' },
+      { icon: RefreshCw, label: 'Reflection Loop', to: '/reflection-loop', permission: 'canAccessPromptEditor' },
+      { icon: Sparkles, label: 'Evolução Agente', to: '/evolution', permission: 'canAccessPromptEditor' },
+      { icon: Send, label: 'Follow-ups', to: '/follow-ups', permission: 'canAccessFollowUps' },
+      { icon: ScrollText, label: 'Logs de Conversa', to: '/logs', permission: 'canAccessLogs' },
+      { icon: Database, label: 'Artifacts & Docs', to: '/knowledge-base', permission: 'canAccessKnowledgeBase' },
+    ]
+  },
+  {
+    title: 'GAMIFICATION',
+    permission: 'canManageAgents',
+    items: [
+      { icon: Users, label: 'Squads RPG', to: '/team-rpg' },
+    ]
+  },
+  {
+    title: 'SISTEMA',
+    permission: 'canViewAllClients',
+    items: [
+      { icon: Trophy, label: 'Performance Clientes', to: '/performance', permission: 'canViewAllClients' },
+      { icon: DollarSign, label: 'Custos por Cliente', to: '/custos', permission: 'canViewAllClients' },
+      { icon: Settings, label: 'Configurações', to: '/configuracoes', permission: 'canAccessConfiguracoes' },
+    ]
+  },
+];
+
+// ============================================
+// COMPONENTES
+// ============================================
+
 const SidebarItem = ({ 
   icon: Icon, 
   label, 
   to, 
-  hasSubmenu = false, 
-  isOpen = false, 
-  onToggle,
   badge,
-  indent = 0,
   onNavigate,
   isCollapsed = false
-}: any) => {
+}: {
+  icon: LucideIcon;
+  label: string;
+  to: string;
+  badge?: string;
+  onNavigate?: () => void;
+  isCollapsed?: boolean;
+}) => {
   const location = useLocation();
-  const isActive = to ? location.pathname === to || location.pathname.startsWith(to + '/') : false;
+  const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
   
   const handleClick = () => {
-    if (!hasSubmenu && onNavigate) {
-      onNavigate();
-    }
+    if (onNavigate) onNavigate();
   };
   
   // Collapsed state - show only icon with tooltip
   if (isCollapsed) {
     return (
-      <div className="select-none">
-        <div 
-          className={`
-            flex items-center justify-center p-2 mx-2 rounded-md cursor-pointer text-sm transition-colors relative group
-            ${isActive && !hasSubmenu ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
-          `}
-          onClick={hasSubmenu ? onToggle : handleClick}
-          title={label}
-        >
-          {to && !hasSubmenu ? (
-            <NavLink to={to} className="flex items-center justify-center">
-              {Icon && <Icon size={18} />}
-            </NavLink>
-          ) : (
-            <div className="flex items-center justify-center">
-              {Icon && <Icon size={18} />}
-            </div>
-          )}
-          {badge && (
-            <span className="absolute -top-1 -right-1 bg-accent-primary text-white text-[8px] w-4 h-4 flex items-center justify-center rounded-full">
-              {badge}
-            </span>
-          )}
-          {/* Tooltip */}
-          <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
-            {label}
-          </div>
+      <NavLink 
+        to={to} 
+        onClick={handleClick}
+        className={`
+          flex items-center justify-center p-2 mx-2 rounded-md text-sm transition-colors relative group
+          ${isActive ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+        `}
+        title={label}
+      >
+        <Icon size={18} />
+        {badge && (
+          <span className="absolute -top-1 -right-1 bg-accent-primary text-white text-[8px] w-4 h-4 flex items-center justify-center rounded-full">
+            {badge}
+          </span>
+        )}
+        {/* Tooltip */}
+        <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+          {label}
         </div>
-      </div>
+      </NavLink>
     );
   }
   
   return (
-    <div className="select-none">
-      <div 
-        className={`
-          flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm transition-colors
-          ${isActive && !hasSubmenu ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
-        `}
-        style={{ paddingLeft: `${indent * 12 + 12}px` }}
-        onClick={hasSubmenu ? onToggle : handleClick}
-      >
-        {to && !hasSubmenu ? (
-          <NavLink to={to} className="flex items-center gap-2 flex-1 truncate">
-            {Icon && <Icon size={16} />}
-            <span className="truncate">{label}</span>
-          </NavLink>
-        ) : (
-          <div className="flex items-center gap-2 flex-1 truncate">
-             {hasSubmenu && (
-              <span className="text-text-muted">
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-            )}
-            {Icon && <Icon size={16} />}
-            <span className="truncate">{label}</span>
-          </div>
-        )}
-        {badge && (
-          <span className="ml-auto bg-accent-primary text-white text-[10px] px-1.5 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
-      </div>
+    <NavLink 
+      to={to}
+      onClick={handleClick}
+      className={`
+        flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md text-sm transition-colors
+        ${isActive ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+      `}
+    >
+      <Icon size={16} />
+      <span className="truncate">{label}</span>
+      {badge && (
+        <span className="ml-auto bg-accent-primary text-white text-[10px] px-1.5 py-0.5 rounded-full">
+          {badge}
+        </span>
+      )}
+    </NavLink>
+  );
+};
+
+const SectionTitle = ({ title, isCollapsed }: { title: string; isCollapsed: boolean }) => {
+  if (!title) return null;
+  
+  if (isCollapsed) {
+    return <div className="pt-2 border-t border-border-default mx-2 mt-2" />;
+  }
+  
+  return (
+    <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
+      {title}
     </div>
   );
 };
 
-export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed = false, onToggleCollapse }: SidebarProps) => {
-  const [clientsOpen, setClientsOpen] = useState(true);
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+
+export const Sidebar = ({ 
+  isMobile = false, 
+  isOpen = false, 
+  onClose, 
+  isCollapsed = false, 
+  onToggleCollapse 
+}: SidebarProps) => {
   const { user, signOut } = useAuth();
+  const { hasPermission, role, isAdmin, isClient } = usePermissions();
 
   const handleLogout = async () => {
     await signOut();
@@ -169,6 +242,36 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
     return 'Usuário';
   };
 
+  // Get role label
+  const getRoleLabel = () => {
+    const labels = {
+      admin: 'Administrador',
+      manager: 'Gerente',
+      client: 'Cliente',
+      recruiter: 'Recrutador'
+    };
+    return labels[role] || 'Usuário';
+  };
+
+  // Filtrar seções e itens baseado em permissões
+  const filteredSections = navSections
+    .filter(section => {
+      // Se a seção tem permissão requerida, verificar
+      if (section.permission && !hasPermission(section.permission)) {
+        return false;
+      }
+      // Verificar se pelo menos um item é visível
+      return section.items.some(item => 
+        !item.permission || hasPermission(item.permission)
+      );
+    })
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => 
+        !item.permission || hasPermission(item.permission)
+      )
+    }));
+
   // Classes condicionais para mobile/desktop/collapsed
   const sidebarClasses = isMobile
     ? `fixed left-0 top-0 h-screen w-[280px] bg-bg-secondary border-r border-border-default flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${
@@ -180,7 +283,7 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
     <aside className={sidebarClasses}>
       {/* Header */}
       <div className={`h-[52px] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 border-b border-border-default`}>
-        <div className={`flex items-center gap-2 font-semibold text-text-primary ${isCollapsed ? '' : ''}`}>
+        <div className="flex items-center gap-2 font-semibold text-text-primary">
           <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center flex-shrink-0">
             <span className="text-bg-primary text-xs font-bold">M</span>
           </div>
@@ -218,82 +321,68 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
         </button>
       )}
 
-      {/* Nav */}
+      {/* Role Badge (quando não collapsed e não é admin) */}
+      {!isCollapsed && !isAdmin && (
+        <div className="mx-4 mt-3 mb-1">
+          <span className={`
+            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+            ${isClient 
+              ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20' 
+              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+            }
+          `}>
+            {getRoleLabel()}
+          </span>
+        </div>
+      )}
+
+      {/* Nav - Filtrado por permissões */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-        <SidebarItem icon={Home} label="Control Tower" to="/" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Bell} label="Alertas & Monitor" to="/notificacoes" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        
-        {!isCollapsed && (
-          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-            SALES OS
+        {filteredSections.map((section, sectionIndex) => (
+          <div key={sectionIndex}>
+            <SectionTitle title={section.title} isCollapsed={isCollapsed} />
+            {section.items.map((item) => (
+              <SidebarItem
+                key={item.to}
+                icon={item.icon}
+                label={item.label}
+                to={item.to}
+                badge={item.badge}
+                onNavigate={handleNavigate}
+                isCollapsed={isCollapsed}
+              />
+            ))}
           </div>
-        )}
-        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
-        <SidebarItem icon={BarChart3} label="Sales Ops" to="/sales-ops" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Eye} label="Supervisao IA" to="/supervision" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Users} label="Funil de Leads" to="/leads" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={UserPlus} label="Novos Seguidores" to="/new-followers" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Phone} label="Calls Realizadas" to="/calls" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={CalendarCheck} label="Agendamentos" to="/agendamentos" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
+        ))}
 
-        {!isCollapsed && (
-          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-            AI FACTORY
-          </div>
-        )}
-        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
-        <SidebarItem icon={Box} label="Prompt Studio" to="/prompt-studio" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={TestTube2} label="Testes & Qualidade" to="/validacao" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={RefreshCw} label="Reflection Loop" to="/reflection-loop" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Sparkles} label="Evolucao Agente" to="/evolution" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Send} label="Follow-ups" to="/follow-ups" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={ScrollText} label="Logs de Conversa" to="/logs" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Database} label="Artifacts & Docs" to="/knowledge-base" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        
-        {!isCollapsed && (
-          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-            GAMIFICATION
-          </div>
-        )}
-        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
-        <SidebarItem icon={Users} label="Squads RPG" to="/team-rpg" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        
-        {!isCollapsed && (
-          <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-            SISTEMA
-          </div>
-        )}
-        {isCollapsed && <div className="pt-2 border-t border-border-default mx-2 mt-2" />}
-        <SidebarItem icon={Trophy} label="Performance Clientes" to="/performance" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={DollarSign} label="Custos por Cliente" to="/custos" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-        <SidebarItem icon={Settings} label="Configurações" to="/configuracoes" onNavigate={handleNavigate} isCollapsed={isCollapsed} />
-
-        {/* Link externo para documentação */}
-        {isCollapsed ? (
-          <a
-            href="https://docs-jet-delta.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center p-2 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors relative group"
-            title="Documentação"
-          >
-            <BookOpen size={18} />
-            <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
-              Documentação
-            </div>
-          </a>
-        ) : (
-          <a
-            href="https://docs-jet-delta.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-            onClick={handleNavigate}
-          >
-            <BookOpen size={16} />
-            <span>Documentação</span>
-            <ExternalLink size={12} className="ml-auto opacity-50" />
-          </a>
+        {/* Link externo para documentação - só para admins/managers */}
+        {hasPermission('canEditPrompts') && (
+          isCollapsed ? (
+            <a
+              href="https://docs-jet-delta.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center p-2 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors relative group"
+              title="Documentação"
+            >
+              <BookOpen size={18} />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+                Documentação
+              </div>
+            </a>
+          ) : (
+            <a
+              href="https://docs-jet-delta.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              onClick={handleNavigate}
+            >
+              <BookOpen size={16} />
+              <span>Documentação</span>
+              <ExternalLink size={12} className="ml-auto opacity-50" />
+            </a>
+          )
         )}
       </nav>
 
@@ -307,7 +396,8 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
             >
               {getUserInitials()}
               <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
-                {getDisplayName()}
+                <div>{getDisplayName()}</div>
+                <div className="text-text-muted">{getRoleLabel()}</div>
               </div>
             </div>
             <button
@@ -325,7 +415,7 @@ export const Sidebar = ({ isMobile = false, isOpen = false, onClose, isCollapsed
             </div>
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-sm font-medium text-text-primary truncate">{getDisplayName()}</span>
-              <span className="text-xs text-text-muted truncate">{user?.email || 'user@example.com'}</span>
+              <span className="text-xs text-text-muted truncate">{getRoleLabel()}</span>
             </div>
             <button
               onClick={handleLogout}
