@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { TestReportModal } from '../components/TestReportModal';
 import { DrilldownModal } from '../components/DrilldownModal';
 import { useDrilldownLeads, MetricType } from '../hooks/useDrilldownLeads';
+import { StatusWidget } from '../components/StatusWidget';
 import { 
   LineChart, 
   Line, 
@@ -322,6 +323,9 @@ export const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Central de Status */}
+      <StatusWidget />
 
       {/* Funil de Conversão + Métricas de Engajamento */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
