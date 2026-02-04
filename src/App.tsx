@@ -25,6 +25,7 @@ import { Supervision } from './pages/Supervision';
 import { SalesOps } from './pages/SalesOps';
 import { Agendamentos } from './pages/Agendamentos';
 import { Login } from './pages/Login';
+import { ClientPortal } from './pages/ClientPortal';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -39,6 +40,13 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<OnboardingWizard />} />
             <Route path="/welcome" element={<OnboardingWizard skipIntro />} />
+
+            {/* Portal do Cliente - View simplificada de resultados */}
+            <Route path="/portal" element={
+              <ProtectedRoute>
+                <ClientPortal />
+              </ProtectedRoute>
+            } />
 
             {/* Protected Routes */}
             <Route path="/" element={
