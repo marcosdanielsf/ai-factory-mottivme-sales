@@ -19,9 +19,11 @@ import {
   Search,
   AlertCircle,
   UserX,
-  ChevronUp,
-  Filter,
+  Users,
+  Target,
+  Percent,
 } from 'lucide-react';
+import { MetricCard } from '../components/MetricCard';
 import {
   BarChart,
   Bar,
@@ -222,80 +224,6 @@ const ResponsavelSelector: React.FC<ResponsavelSelectorProps> = ({
   );
 };
 
-// ==========================================
-// METRIC CARD COMPONENT
-// ==========================================
-interface MetricCardProps {
-  title: string;
-  value: number | string;
-  icon: React.ReactNode;
-  suffix?: string;
-  trend?: number;
-  onClick?: () => void;
-  isActive?: boolean;
-  color?: string;
-  healthLabel?: string;
-  healthColor?: string;
-  subtitle?: string;
-}
-
-const MetricCard: React.FC<MetricCardProps> = ({
-  title,
-  value,
-  icon,
-  suffix = '',
-  trend,
-  onClick,
-  isActive,
-  color = 'blue',
-  healthLabel,
-  healthColor,
-  subtitle,
-}) => {
-  const colorClasses: Record<string, { bg: string; icon: string; active: string }> = {
-    blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400', active: 'ring-blue-500' },
-    green: { bg: 'bg-green-500/10', icon: 'text-green-400', active: 'ring-green-500' },
-    orange: { bg: 'bg-orange-500/10', icon: 'text-orange-400', active: 'ring-orange-500' },
-    purple: { bg: 'bg-purple-500/10', icon: 'text-purple-400', active: 'ring-purple-500' },
-    red: { bg: 'bg-red-500/10', icon: 'text-red-400', active: 'ring-red-500' },
-    yellow: { bg: 'bg-yellow-500/10', icon: 'text-yellow-400', active: 'ring-yellow-500' },
-    emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-400', active: 'ring-emerald-500' },
-    gray: { bg: 'bg-gray-500/10', icon: 'text-gray-400', active: 'ring-gray-500' },
-  };
-  const colors = colorClasses[color] || colorClasses.blue;
-
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4 cursor-pointer hover:bg-bg-hover transition-all ${
-        isActive ? `ring-2 ${colors.active}` : ''
-      }`}
-    >
-      <div className="flex items-start justify-between mb-2">
-        <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
-          <span className={colors.icon}>{icon}</span>
-        </div>
-        {trend !== undefined && (
-          <div className={`flex items-center gap-1 text-xs ${trend >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {trend >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-            <span>{Math.abs(trend)}%</span>
-          </div>
-        )}
-      </div>
-      <p className="text-xl md:text-2xl font-bold text-text-primary mb-0.5">
-        {value}
-        {suffix && <span className="text-sm text-text-muted ml-1">{suffix}</span>}
-        {healthLabel && (
-          <span className={`ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full ${healthColor || 'text-gray-400'} bg-current/10`}>
-            {healthLabel}
-          </span>
-        )}
-      </p>
-      <p className="text-xs text-text-muted">{title}</p>
-      {subtitle && <p className="text-[10px] text-text-muted mt-0.5">{subtitle}</p>}
-    </div>
-  );
-};
 
 // ==========================================
 // LEAD DETAIL MODAL
@@ -320,7 +248,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
   const status = lead.status?.toLowerCase() || 'booked';
   const statusConfig = statusColors[status] || statusColors.booked;
   const origem = getOrigem(lead.fonte_do_lead_bposs);
-  const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
+  const agendamentoDate = lead.agendamento_data || lead.scheduled_at;
 
   return (
     <>
@@ -497,7 +425,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
                 const status = lead.status?.toLowerCase() || 'booked';
                 const statusConfig = statusColors[status] || statusColors.booked;
                 const origem = getOrigem(lead.fonte_do_lead_bposs);
-                const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
+                const agendamentoDate = lead.agendamento_data || lead.scheduled_at;
 
                 return (
                   <div
@@ -564,7 +492,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 };
 
 // ==========================================
-// MAIN PAGE COMPONENT
+// MAIN PAGE COMPONENT - Enhanced UX with funnel hierarchy
 // ==========================================
 export const Agendamentos: React.FC = () => {
   const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
@@ -574,7 +502,6 @@ export const Agendamentos: React.FC = () => {
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
-  const [headerExpanded, setHeaderExpanded] = useState(false);
 
   // Date range state - default últimos 30 dias
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -593,9 +520,8 @@ export const Agendamentos: React.FC = () => {
     const defaultStart = new Date();
     defaultStart.setDate(now.getDate() - 30);
     defaultStart.setHours(0, 0, 0, 0);
-    // Compare just the date parts
     const startDiff = Math.abs(dateRange.startDate.getTime() - defaultStart.getTime());
-    return startDiff > 24 * 60 * 60 * 1000; // More than 1 day difference
+    return startDiff > 24 * 60 * 60 * 1000;
   }, [dateRange]);
 
   // O hook agora retorna a lista de responsáveis junto com as stats
@@ -721,42 +647,23 @@ export const Agendamentos: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Floating Filter Button - Fixed position */}
-      <div
-        className="fixed top-2 right-4 z-30"
-        onMouseEnter={() => setHeaderExpanded(true)}
-        onMouseLeave={() => setHeaderExpanded(false)}
-      >
-        {/* Collapsed: just a small button */}
-        <div className={`transition-all duration-300 ${headerExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <button
-            className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary/90 backdrop-blur border border-border-default rounded-full shadow-lg text-xs hover:bg-bg-hover transition-colors"
-          >
-            <Filter size={14} className="text-purple-400" />
-            <span className="text-text-muted">{dateRangeLabel}</span>
-            {selectedResponsavel && (
-              <span className="text-purple-400 truncate max-w-[80px]">{selectedResponsavel}</span>
-            )}
-          </button>
-        </div>
-
-        {/* Expanded: full filter panel */}
-        <div className={`absolute top-0 right-0 transition-all duration-300 ${headerExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
-          <div className="bg-bg-secondary/95 backdrop-blur border border-border-default rounded-xl shadow-2xl p-3 min-w-[320px]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-text-primary flex items-center gap-2">
-                <CalendarCheck size={14} className="text-purple-400" />
-                Filtros
-              </span>
-              <button
-                onClick={() => refetch()}
-                disabled={loading}
-                className="p-1 hover:bg-bg-hover rounded transition-colors disabled:opacity-50"
-              >
-                <RefreshCw size={14} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
-              </button>
+      {/* INLINE HEADER - Filtros sempre visíveis */}
+      <div className="sticky top-0 z-20 bg-bg-primary/95 backdrop-blur border-b border-border-default">
+        <div className="px-4 md:px-6 py-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            {/* Title & Date Range Label */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                <CalendarCheck size={20} className="text-violet-400" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-text-primary">Agendamentos</h1>
+                <p className="text-xs text-text-muted">{dateRangeLabel}</p>
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
+
+            {/* Filters - inline */}
+            <div className="flex items-center gap-2 flex-wrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
               <ResponsavelSelector
                 responsaveis={responsaveis}
@@ -764,123 +671,109 @@ export const Agendamentos: React.FC = () => {
                 onChange={setSelectedResponsavel}
                 isLoading={loading && responsaveis.length === 0}
               />
-            </div>
-            {/* Quick stats */}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border-default">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
-                {stats.totalAgendados} agendados
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400">
-                {stats.taxaConversao}% conversão
-              </span>
+              <button
+                onClick={() => refetch()}
+                disabled={loading}
+                className="p-2 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-50 border border-border-default"
+                title="Atualizar dados"
+              >
+                <RefreshCw size={16} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-3 md:p-4 space-y-3">
-        {/* Row 1: Volume & Conversão (4 cards) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="p-4 md:p-6 space-y-4">
+        {/* ROW 1: Volume & Conversão */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Total de Leads"
             value={stats.totalLeads.toLocaleString()}
-            icon={<User size={18} />}
-            color="gray"
+            icon={Users}
+            subtext="No período"
             onClick={() => handleCardClick('leads')}
-            isActive={activeMetric === 'leads'}
+            clickable
           />
           <MetricCard
             title="Total Agendados"
             value={stats.totalAgendados.toLocaleString()}
-            icon={<CalendarCheck size={18} />}
-            color="blue"
+            icon={CalendarCheck}
+            subtext="Agendamentos"
             onClick={() => handleCardClick('mes')}
-            isActive={activeMetric === 'mes'}
+            clickable
           />
           <MetricCard
             title="Taxa de Conversão"
-            value={stats.taxaConversao}
-            suffix="%"
-            icon={<TrendingUp size={18} />}
-            color={stats.taxaConversao >= 35 ? 'emerald' : stats.taxaConversao >= 25 ? 'green' : stats.taxaConversao >= 20 ? 'yellow' : 'red'}
-            healthLabel={getConversaoHealth(stats.taxaConversao).label}
-            healthColor={getConversaoHealth(stats.taxaConversao).color}
-            subtitle="Meta: 25-35%"
+            value={`${stats.taxaConversao}%`}
+            icon={Target}
+            subtext={`Meta: 25-35% · ${getConversaoHealth(stats.taxaConversao).label}`}
             onClick={() => handleCardClick('conversao')}
-            isActive={activeMetric === 'conversao'}
+            clickable
           />
           <MetricCard
-            title="Taxa de Comparecimento"
-            value={stats.taxaComparecimento}
-            suffix="%"
-            icon={<CheckCircle size={18} />}
-            color={stats.taxaComparecimento >= 50 ? 'green' : 'red'}
-            healthLabel={getComparecimentoHealth(stats.taxaComparecimento).label}
-            healthColor={getComparecimentoHealth(stats.taxaComparecimento).color}
-            subtitle="Meta: ≥50%"
+            title="Taxa Comparecimento"
+            value={`${stats.taxaComparecimento}%`}
+            icon={CheckCircle}
+            subtext={`Meta: ≥50% · ${getComparecimentoHealth(stats.taxaComparecimento).label}`}
             onClick={() => handleCardClick('comparecimento')}
-            isActive={activeMetric === 'comparecimento'}
+            clickable
           />
         </div>
 
-        {/* Row 2: Status breakdown (6 cards compactos) */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* ROW 2: Status breakdown */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
           <MetricCard
             title={isCustomDateFilter ? "No Período" : "Hoje"}
             value={stats.hoje}
-            icon={<CalendarDays size={18} />}
-            color="blue"
+            icon={CalendarDays}
             onClick={() => handleCardClick('hoje')}
-            isActive={activeMetric === 'hoje'}
+            clickable
           />
           <MetricCard
-            title={isCustomDateFilter ? "7d no Período" : "Últimos 7 dias"}
+            title={isCustomDateFilter ? "7d Período" : "Últimos 7 dias"}
             value={stats.semana}
-            icon={<CalendarRange size={18} />}
-            color="purple"
+            icon={CalendarRange}
             onClick={() => handleCardClick('semana')}
-            isActive={activeMetric === 'semana'}
+            clickable
           />
           <MetricCard
-            title={isCustomDateFilter ? "30d no Período" : "Últimos 30 dias"}
+            title={isCustomDateFilter ? "30d Período" : "Últimos 30 dias"}
             value={stats.mes}
-            icon={<Calendar size={18} />}
-            color="orange"
+            icon={Calendar}
             onClick={() => handleCardClick('mes')}
-            isActive={activeMetric === 'mes'}
+            clickable
           />
           <MetricCard
             title="Compareceram"
             value={stats.totalCompleted}
-            icon={<CheckCircle size={18} />}
-            color="green"
+            icon={CheckCircle}
             onClick={() => handleCardClick('comparecimento')}
-            isActive={activeMetric === 'comparecimento'}
+            clickable
           />
           <MetricCard
             title="No-Show"
             value={stats.totalNoShow}
-            icon={<UserX size={18} />}
-            color="red"
-            subtitle={`${stats.taxaNoShow}% dos resolvidos`}
+            icon={UserX}
+            subtext={`${stats.taxaNoShow}% dos resolvidos`}
             onClick={() => handleCardClick('noshow')}
-            isActive={activeMetric === 'noshow'}
+            clickable
           />
           <MetricCard
             title="Aguardando"
             value={stats.totalBooked + stats.totalPendingFeedback}
-            icon={<AlertCircle size={18} />}
-            color="yellow"
-            subtitle={`${stats.totalBooked} futuros · ${stats.totalPendingFeedback} s/ feedback`}
+            icon={AlertCircle}
+            subtext={`${stats.totalBooked} futuros · ${stats.totalPendingFeedback} s/ feedback`}
             onClick={() => handleCardClick('pendentes')}
-            isActive={activeMetric === 'pendentes'}
+            clickable
           />
         </div>
 
-        {/* Charts Row - Agendamentos CRIADOS no dia + Leads + Origem */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4">
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+          {/* Chart: Agendamentos CRIADOS no dia */}
+          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h3 className="text-sm font-semibold text-text-primary">Agendamentos Criados no Dia</h3>
@@ -898,25 +791,25 @@ export const Agendamentos: React.FC = () => {
               </div>
             </div>
             {loading ? (
-              <div className="h-48 flex items-center justify-center">
+              <div className="h-72 flex items-center justify-center">
                 <RefreshCw size={20} className="animate-spin text-text-muted" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={porDiaCriacao} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                   <XAxis
                     dataKey="data"
                     tickFormatter={formatDayLabel}
-                    tick={{ fontSize: 9, fill: '#888' }}
+                    tick={{ fontSize: 10, fill: '#888' }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis tick={{ fontSize: 9, fill: '#888' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={8} />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
                           <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
-                            <p className="font-medium text-text-primary">{formatDayLabel(label)}</p>
+                            <p className="font-medium text-text-primary">{formatDayLabel(String(label))}</p>
                             <p className="text-blue-400">{payload[0]?.value} agendamentos</p>
                             <p className="text-emerald-400">{payload[1]?.value} leads</p>
                           </div>
@@ -925,7 +818,7 @@ export const Agendamentos: React.FC = () => {
                       return null;
                     }}
                   />
-                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Agendamentos" barSize={12} />
+                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Agendamentos" barSize={20} />
                   <Line type="monotone" dataKey="leads" stroke="#34d399" strokeWidth={2} dot={false} name="Leads" />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -933,7 +826,7 @@ export const Agendamentos: React.FC = () => {
           </div>
 
           {/* Donut Chart - Origem */}
-          <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4">
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
             <h3 className="text-sm font-semibold text-text-primary mb-2">Origem dos Leads</h3>
             {loading ? (
               <div className="h-48 flex items-center justify-center">
@@ -982,8 +875,8 @@ export const Agendamentos: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart Row 2 - Agendamentos PARA o dia */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4">
+        {/* Chart: Agendamentos PARA o dia */}
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold text-text-primary">Agendamentos Para o Dia</h3>
@@ -991,27 +884,27 @@ export const Agendamentos: React.FC = () => {
             </div>
           </div>
           {loading ? (
-            <div className="h-40 flex items-center justify-center">
+            <div className="h-56 flex items-center justify-center">
               <RefreshCw size={20} className="animate-spin text-text-muted" />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={porDia} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                 <XAxis
                   dataKey="data"
                   tickFormatter={formatDayLabel}
-                  tick={{ fontSize: 9, fill: '#888' }}
+                  tick={{ fontSize: 10, fill: '#888' }}
                   interval="preserveStartEnd"
                 />
-                <YAxis tick={{ fontSize: 9, fill: '#888' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={6} />
                 <Tooltip content={<CustomBarTooltip />} />
                 <Bar
                   dataKey="quantidade"
                   fill="#8b5cf6"
-                  radius={[3, 3, 0, 0]}
+                  radius={[4, 4, 0, 0]}
                   cursor="pointer"
                   onClick={handleBarClick}
-                  barSize={12}
+                  barSize={20}
                 />
               </BarChart>
             </ResponsiveContainer>
