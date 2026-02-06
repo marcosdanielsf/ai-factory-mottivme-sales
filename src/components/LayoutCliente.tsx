@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { useAccount } from '../contexts/AccountContext';
 
 interface LayoutClienteProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   const { user, signOut } = useAuth();
   const isAdmin = useIsAdmin();
   const isMobile = useIsMobile();
+  const { selectedAccount, backToAdmin, isViewingSubconta } = useAccount();
 
   // Fechar sidebar ao mudar de página no mobile
   useEffect(() => {
@@ -111,19 +113,28 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
             </NavLink>
           ))}
 
-          {/* Admin Access Button */}
-          {isAdmin && (
+          {/* Admin Access Button - Only show when admin is viewing subconta */}
+          {isAdmin && isViewingSubconta && (
             <>
               <div className="my-4 border-t border-border-default" />
               <p className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider">
                 Administrador
               </p>
+              {selectedAccount && (
+                <div className="mx-3 mb-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <p className="text-[10px] text-blue-400 uppercase tracking-wider">Visualizando</p>
+                  <p className="text-sm font-medium text-text-primary truncate">{selectedAccount.location_name}</p>
+                </div>
+              )}
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => {
+                  backToAdmin();
+                  navigate('/');
+                }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all bg-gradient-to-r from-purple-500/10 to-accent-primary/10 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 group"
               >
                 <Shield size={18} />
-                <span className="flex-1 text-left">Área Administrativa</span>
+                <span className="flex-1 text-left">Voltar para Admin</span>
                 <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </>
@@ -180,14 +191,17 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
             </div>
           </div>
 
-          {/* Admin Quick Access (Desktop) */}
-          {isAdmin && !isMobile && (
+          {/* Admin Quick Access (Desktop) - Only when viewing subconta */}
+          {isAdmin && isViewingSubconta && !isMobile && (
             <button
-              onClick={() => navigate('/admin')}
+              onClick={() => {
+                backToAdmin();
+                navigate('/');
+              }}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 transition-all"
             >
               <Shield size={14} />
-              Admin
+              Voltar Admin
             </button>
           )}
         </header>

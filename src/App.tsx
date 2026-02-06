@@ -33,6 +33,7 @@ import { AccountProvider } from './contexts/AccountContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Invite } from './pages/Invite';
 import { LayoutCliente } from './components/LayoutCliente';
+import { ConditionalLayout } from './components/ConditionalLayout';
 
 const App = () => {
   return (
@@ -54,16 +55,16 @@ const App = () => {
               </ProtectedRoute>
             } />
 
-            {/* Protected Routes */}
+            {/* Protected Routes - Conditional Layout (Admin vs Client) */}
             <Route path="/" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <Dashboard />
-                </Layout>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
 
-            {/* Sales OS */}
+            {/* Sales OS - Uses ConditionalLayout (accessible by clients) */}
             <Route path="/leads" element={
               <ProtectedRoute>
                 <Layout>
@@ -73,23 +74,23 @@ const App = () => {
             } />
             <Route path="/sales-ops" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <SalesOps />
-                </Layout>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
             <Route path="/agendamentos" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <Agendamentos />
-                </Layout>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
             <Route path="/status" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <StatusCenter />
-                </Layout>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
 
