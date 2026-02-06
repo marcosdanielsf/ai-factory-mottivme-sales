@@ -176,6 +176,9 @@ export const usePermissions = () => {
     
     // 2. Verificar se é admin pelo email (fallback - lista de admins conhecidos)
     const adminEmails = [
+      'ceo@marcosdaniels.com',
+      'marcos@mottiv.me',
+      'marcosdanielsf@gmail.com',
       'marcos@mottivme.com',
       'marcos@socialfy.me',
       'admin@mottivme.com',
