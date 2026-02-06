@@ -12,7 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { EstadoMetrics, WorkPermitMetrics } from '../../hooks/useLeadSegmentation';
-import { MapPin, Shield, TrendingUp } from 'lucide-react';
+import { MapPin, Shield } from 'lucide-react';
 
 // ============================================================================
 // CHARTS: LeadSegmentationCharts
@@ -50,8 +50,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       {payload.map((entry: any, index: number) => (
         <p key={index} className="text-text-secondary">
           {entry.dataKey === 'totalLeads' && `Total: ${entry.value}`}
-          {entry.dataKey === 'agendados' && `Agendados: ${entry.value}`}
-          {entry.dataKey === 'convertidos' && `Convertidos: ${entry.value}`}
+          {entry.dataKey === 'convertidos' && `Fechados (Won): ${entry.value}`}
+          {entry.dataKey === 'perdidos' && `Perdidos (Lost): ${entry.value}`}
           {entry.dataKey === 'taxaConversao' && `Conversão: ${entry.value}%`}
         </p>
       ))}
@@ -208,8 +208,8 @@ export function EstadoMetricsTable({ data, loading }: EstadoTableProps) {
           <tr className="border-b border-border-default">
             <th className="text-left py-2 px-1 text-text-muted font-medium">Estado</th>
             <th className="text-right py-2 px-1 text-text-muted font-medium">Leads</th>
-            <th className="text-right py-2 px-1 text-text-muted font-medium">Agend.</th>
-            <th className="text-right py-2 px-1 text-text-muted font-medium">Conv.</th>
+            <th className="text-right py-2 px-1 text-text-muted font-medium">Won</th>
+            <th className="text-right py-2 px-1 text-text-muted font-medium">Lost</th>
             <th className="text-right py-2 px-1 text-text-muted font-medium">%</th>
           </tr>
         </thead>
@@ -229,8 +229,8 @@ export function EstadoMetricsTable({ data, loading }: EstadoTableProps) {
                 </div>
               </td>
               <td className="text-right py-1.5 px-1 text-text-secondary">{item.totalLeads}</td>
-              <td className="text-right py-1.5 px-1 text-blue-400">{item.agendados}</td>
               <td className="text-right py-1.5 px-1 text-emerald-400">{item.convertidos}</td>
+              <td className="text-right py-1.5 px-1 text-red-400">{item.perdidos}</td>
               <td className="text-right py-1.5 px-1">
                 <span className={`font-medium ${
                   item.taxaConversao >= 20 ? 'text-emerald-400' :

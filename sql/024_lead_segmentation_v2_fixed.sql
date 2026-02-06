@@ -1,10 +1,11 @@
 -- =====================================================
 -- 024: Lead Segmentation v2 - From app_dash_principal
 -- =====================================================
+-- FIXED VERSION: Uses only valid enum values (won, lost)
 -- Views para segmentação de leads por:
 -- - Estado normalizado (Florida/FL/Flórida → Florida)
 -- - Work Permit (Possui/Não possui)
--- - Status no funil
+-- - Status no funil (won/lost)
 -- =====================================================
 
 -- 1. Função para normalizar nomes de estados
@@ -103,6 +104,7 @@ END;
 $$;
 
 -- 3. View principal de segmentação de leads
+-- FIXED: Only uses valid enum values (won, lost)
 CREATE OR REPLACE VIEW vw_lead_segmentation AS
 SELECT
   id,
@@ -121,31 +123,26 @@ SELECT
   data_criada,
   data_da_atualizacao,
   scheduled_at AS agendamento_data,
-  -- Classificação de status para funil
+  -- Classificação de status para funil (ONLY won/lost exist)
   CASE
-    WHEN status = 'won' THEN 'Fechado'
-    WHEN status IN ('completed', 'no_show') THEN 'Compareceu/No-Show'
-    WHEN status = 'booked' THEN 'Agendado'
-    WHEN status IN ('qualifying', 'qualified') THEN 'Qualificando'
-    WHEN status = 'lost' THEN 'Perdido'
-    ELSE 'Lead'
+    WHEN status::text = 'won' THEN 'Fechado'
+    WHEN status::text = 'lost' THEN 'Perdido'
+    ELSE 'Em Andamento'
   END AS etapa_funil
 FROM app_dash_principal;
 
 -- 4. View agregada por Estado
+-- FIXED: Only uses valid enum values (won, lost)
 CREATE OR REPLACE VIEW vw_leads_por_estado AS
 SELECT
   location_id,
   estado,
   COUNT(*) AS total_leads,
-  COUNT(*) FILTER (WHERE status = 'new_lead') AS novos,
-  COUNT(*) FILTER (WHERE status IN ('qualifying', 'qualified')) AS qualificando,
-  COUNT(*) FILTER (WHERE status = 'booked') AS agendados,
-  COUNT(*) FILTER (WHERE status IN ('completed', 'won')) AS convertidos,
-  COUNT(*) FILTER (WHERE status = 'no_show') AS no_show,
-  COUNT(*) FILTER (WHERE status = 'lost') AS perdidos,
+  COUNT(*) FILTER (WHERE status::text = 'won') AS convertidos,
+  COUNT(*) FILTER (WHERE status::text = 'lost') AS perdidos,
+  -- Taxa de conversão = won / total
   ROUND(
-    100.0 * COUNT(*) FILTER (WHERE status IN ('completed', 'won')) /
+    100.0 * COUNT(*) FILTER (WHERE status::text = 'won') /
     NULLIF(COUNT(*), 0), 1
   ) AS taxa_conversao
 FROM vw_lead_segmentation
@@ -153,19 +150,17 @@ GROUP BY location_id, estado
 ORDER BY total_leads DESC;
 
 -- 5. View agregada por Work Permit
+-- FIXED: Only uses valid enum values (won, lost)
 CREATE OR REPLACE VIEW vw_leads_por_work_permit AS
 SELECT
   location_id,
   work_permit,
   COUNT(*) AS total_leads,
-  COUNT(*) FILTER (WHERE status = 'new_lead') AS novos,
-  COUNT(*) FILTER (WHERE status IN ('qualifying', 'qualified')) AS qualificando,
-  COUNT(*) FILTER (WHERE status = 'booked') AS agendados,
-  COUNT(*) FILTER (WHERE status IN ('completed', 'won')) AS convertidos,
-  COUNT(*) FILTER (WHERE status = 'no_show') AS no_show,
-  COUNT(*) FILTER (WHERE status = 'lost') AS perdidos,
+  COUNT(*) FILTER (WHERE status::text = 'won') AS convertidos,
+  COUNT(*) FILTER (WHERE status::text = 'lost') AS perdidos,
+  -- Taxa de conversão = won / total
   ROUND(
-    100.0 * COUNT(*) FILTER (WHERE status IN ('completed', 'won')) /
+    100.0 * COUNT(*) FILTER (WHERE status::text = 'won') /
     NULLIF(COUNT(*), 0), 1
   ) AS taxa_conversao
 FROM vw_lead_segmentation
@@ -173,16 +168,17 @@ GROUP BY location_id, work_permit
 ORDER BY total_leads DESC;
 
 -- 6. View combinada Estado x Work Permit
+-- FIXED: Only uses valid enum values (won, lost)
 CREATE OR REPLACE VIEW vw_leads_estado_work_permit AS
 SELECT
   location_id,
   estado,
   work_permit,
   COUNT(*) AS total_leads,
-  COUNT(*) FILTER (WHERE status = 'booked') AS agendados,
-  COUNT(*) FILTER (WHERE status IN ('completed', 'won')) AS convertidos,
+  COUNT(*) FILTER (WHERE status::text = 'won') AS convertidos,
+  COUNT(*) FILTER (WHERE status::text = 'lost') AS perdidos,
   ROUND(
-    100.0 * COUNT(*) FILTER (WHERE status IN ('completed', 'won')) /
+    100.0 * COUNT(*) FILTER (WHERE status::text = 'won') /
     NULLIF(COUNT(*), 0), 1
   ) AS taxa_conversao
 FROM vw_lead_segmentation
@@ -192,6 +188,7 @@ HAVING COUNT(*) >= 3  -- Mínimo de 3 leads para aparecer
 ORDER BY total_leads DESC;
 
 -- 7. Função RPC para buscar segmentação completa
+-- FIXED: Only uses valid enum values (won, lost)
 CREATE OR REPLACE FUNCTION get_lead_segmentation(
   p_location_id TEXT DEFAULT NULL,
   p_start_date TIMESTAMPTZ DEFAULT NULL,
@@ -211,8 +208,8 @@ BEGIN
     'total_leads', COUNT(*),
     'com_estado', COUNT(*) FILTER (WHERE estado != 'Não informado'),
     'com_work_permit', COUNT(*) FILTER (WHERE work_permit != 'Não informado'),
-    'agendados', COUNT(*) FILTER (WHERE status = 'booked'),
-    'convertidos', COUNT(*) FILTER (WHERE status IN ('completed', 'won'))
+    'convertidos', COUNT(*) FILTER (WHERE status::text = 'won'),
+    'perdidos', COUNT(*) FILTER (WHERE status::text = 'lost')
   )
   INTO v_totals
   FROM vw_lead_segmentation
@@ -227,8 +224,8 @@ BEGIN
     SELECT
       estado,
       SUM(total_leads)::int AS total_leads,
-      SUM(agendados)::int AS agendados,
       SUM(convertidos)::int AS convertidos,
+      SUM(perdidos)::int AS perdidos,
       ROUND(AVG(taxa_conversao), 1) AS taxa_conversao
     FROM vw_leads_por_estado
     WHERE (p_location_id IS NULL OR location_id = p_location_id)
@@ -245,8 +242,8 @@ BEGIN
     SELECT
       work_permit,
       SUM(total_leads)::int AS total_leads,
-      SUM(agendados)::int AS agendados,
       SUM(convertidos)::int AS convertidos,
+      SUM(perdidos)::int AS perdidos,
       ROUND(AVG(taxa_conversao), 1) AS taxa_conversao
     FROM vw_leads_por_work_permit
     WHERE (p_location_id IS NULL OR location_id = p_location_id)
@@ -274,6 +271,6 @@ GRANT EXECUTE ON FUNCTION get_lead_segmentation TO anon, authenticated;
 
 -- Comments
 COMMENT ON VIEW vw_lead_segmentation IS 'Dados de leads com estado e work permit normalizados';
-COMMENT ON VIEW vw_leads_por_estado IS 'Agregação de leads por estado com funil';
-COMMENT ON VIEW vw_leads_por_work_permit IS 'Agregação de leads por work permit com funil';
+COMMENT ON VIEW vw_leads_por_estado IS 'Agregação de leads por estado (won/lost)';
+COMMENT ON VIEW vw_leads_por_work_permit IS 'Agregação de leads por work permit (won/lost)';
 COMMENT ON FUNCTION get_lead_segmentation IS 'Retorna segmentação completa de leads';

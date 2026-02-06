@@ -10,18 +10,16 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 export interface EstadoMetrics {
   estado: string;
   totalLeads: number;
-  agendados: number;
-  convertidos: number;
-  noShow: number;
+  convertidos: number;  // won
+  perdidos: number;     // lost
   taxaConversao: number;
 }
 
 export interface WorkPermitMetrics {
   status: string;
   totalLeads: number;
-  agendados: number;
-  convertidos: number;
-  noShow: number;
+  convertidos: number;  // won
+  perdidos: number;     // lost
   taxaConversao: number;
 }
 
@@ -29,8 +27,8 @@ export interface SegmentationTotals {
   totalLeads: number;
   comEstado: number;
   comWorkPermit: number;
-  agendados: number;
-  convertidos: number;
+  convertidos: number;  // won
+  perdidos: number;     // lost
 }
 
 interface UseLeadSegmentationReturn {
@@ -195,26 +193,25 @@ export const useLeadSegmentation = (
   }, [fetchData]);
 
   // Processar dados para métricas
+  // NOTA: Apenas status 'won' e 'lost' existem no enum
   const { estados, workPermit, totals } = useMemo(() => {
     const estadoMap: Record<string, {
       total: number;
-      agendados: number;
       convertidos: number;
-      noShow: number;
+      perdidos: number;
     }> = {};
 
     const workPermitMap: Record<string, {
       total: number;
-      agendados: number;
       convertidos: number;
-      noShow: number;
+      perdidos: number;
     }> = {};
 
     let totalLeads = 0;
     let comEstado = 0;
     let comWorkPermit = 0;
-    let totalAgendados = 0;
     let totalConvertidos = 0;
+    let totalPerdidos = 0;
 
     rawData.forEach((lead) => {
       totalLeads++;
@@ -223,36 +220,34 @@ export const useLeadSegmentation = (
       const wp = normalizeWorkPermit(lead.permissao_de_trabalho);
       const status = (lead.status || '').toLowerCase();
 
-      const isAgendado = ['booked', 'no_show', 'completed', 'won'].includes(status);
-      const isConvertido = ['completed', 'won'].includes(status);
-      const isNoShow = status === 'no_show';
+      // Apenas 'won' e 'lost' existem no enum
+      const isConvertido = status === 'won';
+      const isPerdido = status === 'lost';
 
-      if (isAgendado) totalAgendados++;
       if (isConvertido) totalConvertidos++;
+      if (isPerdido) totalPerdidos++;
 
       // Contagem por estado
       if (estado !== 'Não informado') {
         comEstado++;
       }
       if (!estadoMap[estado]) {
-        estadoMap[estado] = { total: 0, agendados: 0, convertidos: 0, noShow: 0 };
+        estadoMap[estado] = { total: 0, convertidos: 0, perdidos: 0 };
       }
       estadoMap[estado].total++;
-      if (isAgendado) estadoMap[estado].agendados++;
       if (isConvertido) estadoMap[estado].convertidos++;
-      if (isNoShow) estadoMap[estado].noShow++;
+      if (isPerdido) estadoMap[estado].perdidos++;
 
       // Contagem por work permit
       if (wp !== 'Não informado') {
         comWorkPermit++;
       }
       if (!workPermitMap[wp]) {
-        workPermitMap[wp] = { total: 0, agendados: 0, convertidos: 0, noShow: 0 };
+        workPermitMap[wp] = { total: 0, convertidos: 0, perdidos: 0 };
       }
       workPermitMap[wp].total++;
-      if (isAgendado) workPermitMap[wp].agendados++;
       if (isConvertido) workPermitMap[wp].convertidos++;
-      if (isNoShow) workPermitMap[wp].noShow++;
+      if (isPerdido) workPermitMap[wp].perdidos++;
     });
 
     // Converter para arrays com taxas
@@ -261,9 +256,8 @@ export const useLeadSegmentation = (
       .map(([estado, metrics]) => ({
         estado,
         totalLeads: metrics.total,
-        agendados: metrics.agendados,
         convertidos: metrics.convertidos,
-        noShow: metrics.noShow,
+        perdidos: metrics.perdidos,
         taxaConversao: metrics.total > 0
           ? Math.round((metrics.convertidos / metrics.total) * 100)
           : 0,
@@ -275,9 +269,8 @@ export const useLeadSegmentation = (
       .map(([status, metrics]) => ({
         status,
         totalLeads: metrics.total,
-        agendados: metrics.agendados,
         convertidos: metrics.convertidos,
-        noShow: metrics.noShow,
+        perdidos: metrics.perdidos,
         taxaConversao: metrics.total > 0
           ? Math.round((metrics.convertidos / metrics.total) * 100)
           : 0,
@@ -291,8 +284,8 @@ export const useLeadSegmentation = (
         totalLeads,
         comEstado,
         comWorkPermit,
-        agendados: totalAgendados,
         convertidos: totalConvertidos,
+        perdidos: totalPerdidos,
       },
     };
   }, [rawData]);
