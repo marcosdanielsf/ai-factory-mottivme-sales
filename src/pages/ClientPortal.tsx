@@ -134,18 +134,14 @@ export const ClientPortal = () => {
   const [versionHistory, setVersionHistory] = useState<string[]>([]);
 
   // Multi-tenancy: determina location_id baseado no contexto
+  // Sempre filtra quando uma conta específica está selecionada
   const clientLocationId = useMemo(() => {
-    // Admin vendo subconta
-    if (isViewingSubconta && selectedAccount?.location_id) {
+    if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
-    // Cliente logado diretamente
-    if (!isAdmin && selectedAccount?.location_id) {
-      return selectedAccount.location_id;
-    }
-    // Fallback para metadata do user
+    // Fallback para metadata do user (cliente logado diretamente)
     return user?.user_metadata?.location_id || '';
-  }, [isViewingSubconta, isAdmin, selectedAccount, user]);
+  }, [selectedAccount, user]);
 
   // Agrupar versoes do agente do cliente
   const agentVersions = useMemo(() => {

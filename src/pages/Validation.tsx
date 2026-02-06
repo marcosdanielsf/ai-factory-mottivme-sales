@@ -64,15 +64,13 @@ export const Validation = () => {
   const [filterClient, setFilterClient] = useState<string>('');
 
   // Multi-tenancy: determina location ativo
+  // Sempre filtra quando uma conta específica está selecionada
   const activeLocationId = useMemo(() => {
-    if (isViewingSubconta && selectedAccount?.location_id) {
+    if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
-    if (!isAdmin && selectedAccount?.location_id) {
-      return selectedAccount.location_id;
-    }
-    return null; // Admin = todos os dados
-  }, [isViewingSubconta, isAdmin, selectedAccount]);
+    return null; // Nenhuma subconta selecionada = todos os dados
+  }, [selectedAccount]);
 
   // Filtrar testRuns por location quando necessário
   const filteredTestRuns = useMemo(() => {

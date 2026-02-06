@@ -28,19 +28,15 @@ export const SalesOps = () => {
   const { selectedAccount, isViewingSubconta } = useAccount();
   const isAdmin = useIsAdmin();
 
-  // Effective location ID: prioritize context over manual selection
-  // - If viewing subconta (admin selected a client) -> use selectedAccount.location_id
-  // - If not admin (client user) -> use selectedAccount.location_id (their assigned location)
-  // - If admin without subconta -> use manual selection (null = all)
+  // Effective location ID: prioritize context selection
+  // - If selectedAccount has location_id -> use it (works for both admin selecting subconta and client user)
+  // - Otherwise use manual dropdown selection (null = all)
   const selectedLocationId = useMemo(() => {
-    if (isViewingSubconta && selectedAccount?.location_id) {
-      return selectedAccount.location_id;
-    }
-    if (!isAdmin && selectedAccount?.location_id) {
+    if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
     return manualLocationId;
-  }, [isViewingSubconta, isAdmin, selectedAccount, manualLocationId]);
+  }, [selectedAccount, manualLocationId]);
 
   // Show client selector only for admin in admin mode
   const showClientSelector = isAdmin && !isViewingSubconta;

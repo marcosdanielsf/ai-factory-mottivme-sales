@@ -514,15 +514,14 @@ export const Agendamentos: React.FC = () => {
   const isAdmin = useIsAdmin();
 
   // Effective location ID for filtering
+  // Sempre filtra quando uma conta específica está selecionada
   const locationId = useMemo(() => {
-    if (isViewingSubconta && selectedAccount?.location_id) {
-      return selectedAccount.location_id;
-    }
-    if (!isAdmin && selectedAccount?.location_id) {
+    // Se uma subconta específica está selecionada, sempre filtrar por ela
+    if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
     return null;
-  }, [isViewingSubconta, isAdmin, selectedAccount]);
+  }, [selectedAccount]);
 
   // Date range state - default últimos 30 dias
   const [dateRange, setDateRange] = useState<DateRange>(() => {

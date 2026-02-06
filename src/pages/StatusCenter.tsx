@@ -261,15 +261,13 @@ export const StatusCenter = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Determina location_id baseado no contexto (multi-tenancy)
+  // Sempre filtra quando uma conta específica está selecionada
   const activeLocationId = useMemo(() => {
-    if (isViewingSubconta && selectedAccount?.location_id) {
+    if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
-    if (!isAdmin && selectedAccount?.location_id) {
-      return selectedAccount.location_id;
-    }
-    return null; // Admin sem subconta = todos os dados
-  }, [isViewingSubconta, isAdmin, selectedAccount]);
+    return null; // Nenhuma subconta selecionada = todos os dados
+  }, [selectedAccount]);
 
   // Fetch interviews from Supabase
   const fetchInterviews = useCallback(async () => {
