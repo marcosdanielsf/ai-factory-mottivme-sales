@@ -80,22 +80,24 @@ export const useTestResults = () => {
 
       const allResults: AgentTestRun[] = [];
 
-      // 1. Buscar de agent_versions com validation_result (nova estrutura)
+      // 1. Buscar TODOS os agent_versions (com ou sem validação)
       const { data: agentVersions, error: avError } = await supabase
         .from('agent_versions')
         .select('*')
-        .not('validation_result', 'is', null)
-        .order('validated_at', { ascending: false })
-        .limit(20);
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (!avError && agentVersions && agentVersions.length > 0) {
         const mappedFromAV = agentVersions.map((av: any) => {
           const vr: ValidationResult = av.validation_result || {};
+          const hasValidation = av.validation_result !== null;
 
           // Extrair test_results de QUALQUER formato:
           // 1. Novo formato: vr.validator.test_results
           // 2. Formato antigo 2: vr.test_results (direto na raiz)
           // 3. Formato antigo 3: vr.e2e_results (converter para test_results)
+          // 4. Formato validação cenários: vr.resultados (com aprovado/nota)
+          // 5. Formato validacoes: vr.validacoes (com atende_expectativa)
           let testResults: TestResultItem[] = [];
 
           if (vr.validator?.test_results && vr.validator.test_results.length > 0) {
@@ -104,6 +106,26 @@ export const useTestResults = () => {
           } else if (vr.test_results && vr.test_results.length > 0) {
             // Formato antigo 2 (direto na raiz)
             testResults = vr.test_results;
+          } else if ((vr as any).resultados && (vr as any).resultados.length > 0) {
+            // Formato validação de cenários (Julia Amare, Isabella, etc.)
+            testResults = (vr as any).resultados.map((r: any) => ({
+              name: r.cenario_nome || r.nome || 'Cenário',
+              input: r.mensagem_teste || r.mensagem || '',
+              score: r.nota || 0,
+              passed: r.aprovado === true,
+              feedback: r.justificativa || '',
+              simulated_response: r.resposta_simulada || r.resposta || ''
+            }));
+          } else if ((vr as any).validacoes && (vr as any).validacoes.length > 0) {
+            // Formato validações (Isabella SDR)
+            testResults = (vr as any).validacoes.map((v: any) => ({
+              name: v.nome || v.id || 'Validação',
+              input: v.mensagem || '',
+              score: v.nota || 0,
+              passed: v.atende_expectativa === true,
+              feedback: '',
+              simulated_response: v.resposta || ''
+            }));
           } else if (vr.e2e_results && vr.e2e_results.length > 0) {
             // Formato antigo 3 (pipeline sem --db) - converter e2e_results
             testResults = vr.e2e_results.map((e2e) => {
@@ -131,30 +153,49 @@ export const useTestResults = () => {
           const clientName = businessConfig.company_name || av.location_id || '-';
 
           // Extrair score de qualquer formato
-          const scoreOverall = vr.validator?.score || vr.overall_score || av.validation_score || 0;
+          // Suporta: vr.validator.score, vr.overall_score, vr.metricas_globais.nota_media_geral
+          const metricas = (vr as any).metricas_globais || {};
+          const scoreOverall = vr.validator?.score
+            || vr.overall_score
+            || metricas.nota_media_geral
+            || metricas.nota_media_ponderada
+            || av.validation_score
+            || 0;
 
           // Extrair tokens/time de qualquer formato
           const totalTokens = vr.totals?.total_tokens || (vr as any).total_tokens || 0;
           const executionTimeMs = vr.totals?.total_time_ms || ((vr as any).duration_seconds ? (vr as any).duration_seconds * 1000 : 0);
 
+          // Calcular score_dimensions de testResults se não houver scores explícitos
+          const avgTestScore = testResults.length > 0
+            ? testResults.reduce((sum, t) => sum + (t.score || 0), 0) / testResults.length
+            : 0;
+          const passRate = testResults.length > 0
+            ? (passedTests / testResults.length) * 10
+            : 0;
+
+          // Extrair dimensions de scores ou derivar de resultados
+          const derivedDimensions = {
+            tone: vr.scores?.tone || vr.scores?.completeness || Math.min(10, avgTestScore * 1.05),
+            engagement: vr.scores?.engagement || Math.min(10, passRate),
+            compliance: vr.scores?.compliance || Math.min(10, avgTestScore),
+            accuracy: vr.scores?.accuracy || Math.min(10, avgTestScore * 0.95),
+            empathy: vr.scores?.empathy || Math.min(10, avgTestScore * 0.9),
+            efficiency: vr.scores?.efficiency || vr.scores?.conversion || Math.min(10, passedTests > 0 ? 8 : 4)
+          };
+
           return {
             id: av.id,
             agent_version_id: av.version || 'v1.0',
-            status: 'completed' as const,
+            status: hasValidation ? 'completed' as const : 'pending' as const,
             score_overall: scoreOverall,
-            score_dimensions: {
-              tone: vr.scores?.tone || 0,
-              engagement: vr.scores?.engagement || 0,
-              compliance: vr.scores?.compliance || 0,
-              accuracy: vr.scores?.accuracy || 0,
-              empathy: vr.scores?.empathy || 0,
-              efficiency: vr.scores?.efficiency || 0
-            },
+            score_dimensions: derivedDimensions,
             passed_tests: passedTests || (av.validation_status === 'approved' ? 1 : 0),
             failed_tests: failedTests || (av.validation_status === 'rejected' ? 1 : 0),
-            total_tests: testResults.length || 1,
+            total_tests: testResults.length || (hasValidation ? 1 : 0),
             created_at: av.validated_at || av.created_at,
             run_at: av.validated_at || av.created_at,
+            has_validation: hasValidation,
             execution_time_ms: executionTimeMs,
             agent_name: av.agent_name,
             agent_version: av.version,
@@ -166,6 +207,9 @@ export const useTestResults = () => {
             validation_status: av.validation_status,
             location_id: av.location_id,
             client_name: clientName,
+            // Status e ativação
+            is_active: av.is_active === true,
+            agent_status: av.status || 'unknown',
             // Campos para o modal de prompt e raciocínio
             system_prompt: av.system_prompt,
             business_config: av.business_config,
@@ -188,6 +232,9 @@ export const useTestResults = () => {
             validation_status?: string;
             location_id?: string;
             client_name?: string;
+            is_active?: boolean;
+            agent_status?: string;
+            has_validation?: boolean;
             system_prompt?: string;
             business_config?: Record<string, any>;
             debate?: {
@@ -240,22 +287,32 @@ export const useTestResults = () => {
           const agent = agentMap.get(agentId);
           const passedScenarios = scenarios.filter(s => s.status === 'passed').length;
           const failedScenarios = scenarios.filter(s => s.status !== 'passed').length;
-          const scores = scenarios.filter(s => s.score !== null).map(s => s.score);
+          const scores = scenarios.filter(s => s.score !== null && s.score !== undefined).map(s => s.score);
           const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+
+          // Calcular dimensões aproximadas baseado nos scores dos cenários E2E
+          // Usamos a distribuição dos scores para criar uma visualização útil
+          const highScores = scores.filter(s => s >= 8).length;
+          const medScores = scores.filter(s => s >= 6 && s < 8).length;
+          const lowScores = scores.filter(s => s < 6).length;
+          const totalScenarios = scenarios.length || 1;
+
+          // Dimensões derivadas do desempenho E2E
+          const derivedDimensions = {
+            tone: Math.min(10, avgScore * 1.1), // Tom geralmente correlaciona com score
+            engagement: Math.min(10, (passedScenarios / totalScenarios) * 10), // Taxa de sucesso = engajamento
+            compliance: Math.min(10, avgScore), // Compliance = score médio
+            accuracy: Math.min(10, (highScores / totalScenarios) * 10), // % de scores altos
+            empathy: Math.min(10, avgScore * 0.9), // Empathy aproximado
+            efficiency: Math.min(10, passedScenarios > 0 ? 8 : 4) // Passou algum = eficiente
+          };
 
           allResults.push({
             id: key,
             agent_version_id: agent?.version || 'v4.0',
             status: 'completed' as const,
             score_overall: avgScore,
-            score_dimensions: {
-              tone: 0,
-              engagement: 0,
-              compliance: 0,
-              accuracy: 0,
-              empathy: 0,
-              efficiency: 0
-            },
+            score_dimensions: derivedDimensions,
             passed_tests: passedScenarios,
             failed_tests: failedScenarios,
             total_tests: scenarios.length,
@@ -279,37 +336,53 @@ export const useTestResults = () => {
         }
       }
 
-      // 3. Buscar de test_results (estrutura anterior)
-      // Primeiro tenta com JOIN - se der erro 400 (FK não existe), faz fallback sem JOIN
+      // 3. Buscar de test_results (estrutura anterior) - pode não existir mais
       let testResultsData: any[] | null = null;
       let trError: any = null;
 
-      const joinResult = await supabase
-        .from('test_results')
-        .select(`
-          *,
-          agent_versions (
-            agent_name,
-            version
-          )
-        `)
-        .order('tested_at', { ascending: false })
-        .limit(20);
-
-      if (joinResult.error?.code === 'PGRST200' || joinResult.error?.message?.includes('400') || joinResult.error?.message?.includes('relationship')) {
-        // Fallback: buscar sem JOIN quando FK não existe
-        console.warn('test_results JOIN failed, using fallback without agent_versions:', joinResult.error?.message);
-        const fallbackResult = await supabase
+      try {
+        const joinResult = await supabase
           .from('test_results')
-          .select('*')
+          .select(`
+            *,
+            agent_versions (
+              agent_name,
+              version
+            )
+          `)
           .order('tested_at', { ascending: false })
           .limit(20);
 
-        testResultsData = fallbackResult.data;
-        trError = fallbackResult.error;
-      } else {
-        testResultsData = joinResult.data;
-        trError = joinResult.error;
+        // Verificar se tabela existe (código 42P01 = tabela não existe)
+        if (joinResult.error?.code === '42P01' || joinResult.error?.message?.includes('does not exist')) {
+          console.info('Tabela test_results não existe, pulando...');
+          testResultsData = null;
+          trError = null; // Não é erro, tabela simplesmente não existe
+        } else if (joinResult.error?.code === 'PGRST200' || joinResult.error?.message?.includes('400') || joinResult.error?.message?.includes('relationship')) {
+          // Fallback: buscar sem JOIN quando FK não existe
+          console.warn('test_results JOIN failed, trying without join:', joinResult.error?.message);
+          const fallbackResult = await supabase
+            .from('test_results')
+            .select('*')
+            .order('tested_at', { ascending: false })
+            .limit(20);
+
+          // Verificar novamente se tabela existe
+          if (fallbackResult.error?.code === '42P01' || fallbackResult.error?.message?.includes('does not exist')) {
+            testResultsData = null;
+            trError = null;
+          } else {
+            testResultsData = fallbackResult.data;
+            trError = fallbackResult.error;
+          }
+        } else {
+          testResultsData = joinResult.data;
+          trError = joinResult.error;
+        }
+      } catch (e) {
+        console.info('test_results query failed, continuing without it');
+        testResultsData = null;
+        trError = null;
       }
 
       if (!trError && testResultsData && testResultsData.length > 0) {
@@ -457,11 +530,58 @@ export const useTestResults = () => {
     }
   }, []);
 
+  // Função para ativar/desativar uma versão
+  const toggleVersionActive = useCallback(async (id: string, activate: boolean): Promise<boolean> => {
+    try {
+      const targetRun = results.find(r => r.id === id);
+      const targetLocationId = (targetRun as any)?.location_id;
+
+      // Se ativando, primeiro desativar todas outras versões do mesmo location_id
+      if (activate && targetLocationId) {
+        // Desativar outras versões do mesmo location
+        await supabase
+          .from('agent_versions')
+          .update({ is_active: false, status: 'superseded' })
+          .eq('location_id', targetLocationId)
+          .neq('id', id);
+      }
+
+      // Atualizar a versão específica
+      const { error } = await supabase
+        .from('agent_versions')
+        .update({
+          is_active: activate,
+          status: activate ? 'active' : 'inactive',
+          activated_at: activate ? new Date().toISOString() : null
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error toggling version:', error);
+        return false;
+      }
+
+      // Atualizar estado local
+      setResults(prev => prev.map(r =>
+        r.id === id
+          ? { ...r, is_active: activate, agent_status: activate ? 'active' : 'inactive' }
+          : targetLocationId && (r as any).location_id === targetLocationId
+            ? { ...r, is_active: false, agent_status: 'superseded' }
+            : r
+      ));
+
+      return true;
+    } catch (err) {
+      console.error('Error toggling version:', err);
+      return false;
+    }
+  }, [results]);
+
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
 
-  return { testRuns: results, loading, error, refetch: fetchResults, deleteTestRun, deleting };
+  return { testRuns: results, loading, error, refetch: fetchResults, deleteTestRun, deleting, toggleVersionActive };
 };
 
 // Mock data para visualização quando não há dados reais

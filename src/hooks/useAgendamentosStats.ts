@@ -8,11 +8,13 @@ export interface AgendamentoStats {
   mes: number;
   taxaComparecimento: number;
   taxaConversao: number;
+  taxaNoShow: number;
   totalLeads: number;
   totalAgendados: number;
   totalCompleted: number;
   totalNoShow: number;
   totalBooked: number;
+  totalPendingFeedback: number; // Reunião já aconteceu mas sem feedback
 }
 
 export interface AgendamentosPorDia {
@@ -117,6 +119,7 @@ export const useAgendamentosStats = (
       }
 
       // Query 3: Leads do período (com data_criada para agrupar por dia)
+      // Nota: Esta query retorna max 1000 registros, usada apenas para gráfico diário
       let leadsQuery = supabase
         .from('app_dash_principal')
         .select('id, data_criada')
@@ -130,7 +133,21 @@ export const useAgendamentosStats = (
         leadsQuery = leadsQuery.eq('location_id', locationId);
       }
 
-      // Query 4: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
+      // Query 4: Contagem EXATA de leads (sem limite de 1000)
+      let leadsCountQuery = supabase
+        .from('app_dash_principal')
+        .select('*', { count: 'exact', head: true })
+        .gte('data_criada', startDate.toISOString())
+        .lte('data_criada', endDate.toISOString());
+
+      if (responsavel) {
+        leadsCountQuery = leadsCountQuery.eq('lead_usuario_responsavel', responsavel);
+      }
+      if (locationId) {
+        leadsCountQuery = leadsCountQuery.eq('location_id', locationId);
+      }
+
+      // Query 5: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
       let responsaveisQuery = supabase
         .from(AGENDAMENTOS_VIEW)
         .select('responsavel_nome')
@@ -141,10 +158,11 @@ export const useAgendamentosStats = (
       }
 
       // Executar queries em paralelo
-      const [agendamentosCriadosResult, agendamentosParaResult, leadsResult, responsaveisResult] = await Promise.all([
+      const [agendamentosCriadosResult, agendamentosParaResult, leadsResult, leadsCountResult, responsaveisResult] = await Promise.all([
         agendamentosCriadosQuery,
         agendamentosParaQuery,
         leadsQuery,
+        leadsCountQuery,
         responsaveisQuery,
       ]);
 
@@ -162,10 +180,15 @@ export const useAgendamentosStats = (
         console.error('Error fetching leads:', leadsResult.error);
       }
 
+      if (leadsCountResult.error) {
+        console.error('Error fetching leads count:', leadsCountResult.error);
+      }
+
       setAgendamentosCriados(agendamentosCriadosResult.data || []);
       setAgendamentosPara(agendamentosParaResult.data || []);
       setLeadsData(leadsResult.data || []);
-      setTotalLeads(leadsResult.data?.length || 0);
+      // Usar contagem exata do Supabase (sem limite de 1000)
+      setTotalLeads(leadsCountResult.count ?? leadsResult.data?.length ?? 0);
 
       // Processar responsáveis únicos com contagem
       if (responsaveisResult.data) {
@@ -215,6 +238,7 @@ export const useAgendamentosStats = (
     let totalCompleted = 0;
     let totalNoShow = 0;
     let totalBooked = 0;
+    let totalPendingFeedback = 0; // Reunião passou mas sem status definido
     let trafegoCount = 0;
     let socialSellingCount = 0;
 
@@ -272,12 +296,20 @@ export const useAgendamentosStats = (
 
       // Contagem por status
       const statusVal = item.status?.toLowerCase();
+      const isPast = scheduledAt < now;
+
       if (statusVal === 'completed' || statusVal === 'won') {
         totalCompleted++;
       } else if (statusVal === 'no_show' || statusVal === 'lost') {
         totalNoShow++;
       } else if (statusVal === 'booked') {
-        totalBooked++;
+        if (isPast) {
+          // Reunião já aconteceu mas ainda está como "booked" - precisa feedback
+          totalPendingFeedback++;
+        } else {
+          // Reunião ainda não aconteceu
+          totalBooked++;
+        }
       }
 
       // Contagem por origem
@@ -305,15 +337,20 @@ export const useAgendamentosStats = (
     // Total de agendados no período (PARA o dia)
     const totalAgendados = agendamentosPara.length;
 
-    // Taxa de comparecimento
+    // Taxa de comparecimento (dos que temos feedback)
     const totalWithStatus = totalCompleted + totalNoShow;
-    const taxaComparecimento = totalWithStatus > 0 
-      ? Math.round((totalCompleted / totalWithStatus) * 100) 
+    const taxaComparecimento = totalWithStatus > 0
+      ? Math.round((totalCompleted / totalWithStatus) * 100)
+      : 0;
+
+    // Taxa de no-show (dos que temos feedback)
+    const taxaNoShow = totalWithStatus > 0
+      ? Math.round((totalNoShow / totalWithStatus) * 100)
       : 0;
 
     // Taxa de conversão
-    const taxaConversao = totalLeads > 0 
-      ? Math.round((totalAgendados / totalLeads) * 100) 
+    const taxaConversao = totalLeads > 0
+      ? Math.round((totalAgendados / totalLeads) * 100)
       : 0;
 
     // Converter mapa para array ordenado - Agendamentos PARA o dia
@@ -342,11 +379,13 @@ export const useAgendamentosStats = (
         mes,
         taxaComparecimento,
         taxaConversao,
+        taxaNoShow,
         totalLeads,
         totalAgendados,
         totalCompleted,
         totalNoShow,
         totalBooked,
+        totalPendingFeedback,
       },
       porDia: porDiaArr,
       porDiaCriacao: porDiaCriacaoArr,
