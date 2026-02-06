@@ -19,7 +19,13 @@ import {
   ChevronDown,
   MessageCircle,
   Search,
+  AlertCircle,
+  UserX,
+  Users,
+  Target,
+  Percent,
 } from 'lucide-react';
+import { MetricCard } from '../components/MetricCard';
 import {
   BarChart,
   Bar,
@@ -41,7 +47,7 @@ import { DateRangePicker } from '../components/DateRangePicker';
 // ==========================================
 // TYPES
 // ==========================================
-type MetricType = 'hoje' | 'semana' | 'mes' | 'comparecimento' | 'conversao' | 'leads';
+type MetricType = 'hoje' | 'semana' | 'mes' | 'comparecimento' | 'conversao' | 'leads' | 'noshow' | 'pendentes' | 'pending_feedback';
 type OrigemType = 'trafego' | 'social_selling' | null;
 
 // ==========================================
@@ -60,6 +66,13 @@ const getConversaoHealth = (rate: number): { color: string; label: string; bgCla
 const getComparecimentoHealth = (rate: number): { color: string; label: string; bgClass: string } => {
   if (rate >= 70) return { color: 'text-emerald-400', label: 'Excelente', bgClass: 'bg-emerald-500/10' };
   if (rate >= 50) return { color: 'text-green-400', label: 'OK', bgClass: 'bg-green-500/10' };
+  return { color: 'text-red-400', label: 'Crítico', bgClass: 'bg-red-500/10' };
+};
+
+// Taxa de No-Show: <20% bom, >30% crítico
+const getNoShowHealth = (rate: number): { color: string; label: string; bgClass: string } => {
+  if (rate <= 20) return { color: 'text-emerald-400', label: 'Bom', bgClass: 'bg-emerald-500/10' };
+  if (rate <= 30) return { color: 'text-yellow-400', label: 'Atenção', bgClass: 'bg-yellow-500/10' };
   return { color: 'text-red-400', label: 'Crítico', bgClass: 'bg-red-500/10' };
 };
 
@@ -213,80 +226,6 @@ const ResponsavelSelector: React.FC<ResponsavelSelectorProps> = ({
   );
 };
 
-// ==========================================
-// METRIC CARD COMPONENT
-// ==========================================
-interface MetricCardProps {
-  title: string;
-  value: number | string;
-  icon: React.ReactNode;
-  suffix?: string;
-  trend?: number;
-  onClick?: () => void;
-  isActive?: boolean;
-  color?: string;
-  healthLabel?: string;
-  healthColor?: string;
-  subtitle?: string;
-}
-
-const MetricCard: React.FC<MetricCardProps> = ({
-  title,
-  value,
-  icon,
-  suffix = '',
-  trend,
-  onClick,
-  isActive,
-  color = 'blue',
-  healthLabel,
-  healthColor,
-  subtitle,
-}) => {
-  const colorClasses: Record<string, { bg: string; icon: string; active: string }> = {
-    blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400', active: 'ring-blue-500' },
-    green: { bg: 'bg-green-500/10', icon: 'text-green-400', active: 'ring-green-500' },
-    orange: { bg: 'bg-orange-500/10', icon: 'text-orange-400', active: 'ring-orange-500' },
-    purple: { bg: 'bg-purple-500/10', icon: 'text-purple-400', active: 'ring-purple-500' },
-    red: { bg: 'bg-red-500/10', icon: 'text-red-400', active: 'ring-red-500' },
-    yellow: { bg: 'bg-yellow-500/10', icon: 'text-yellow-400', active: 'ring-yellow-500' },
-    emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-400', active: 'ring-emerald-500' },
-    gray: { bg: 'bg-gray-500/10', icon: 'text-gray-400', active: 'ring-gray-500' },
-  };
-  const colors = colorClasses[color] || colorClasses.blue;
-
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6 cursor-pointer hover:bg-bg-hover transition-all ${
-        isActive ? `ring-2 ${colors.active}` : ''
-      }`}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center`}>
-          <span className={colors.icon}>{icon}</span>
-        </div>
-        {trend !== undefined && (
-          <div className={`flex items-center gap-1 text-xs ${trend >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {trend >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            <span>{Math.abs(trend)}%</span>
-          </div>
-        )}
-      </div>
-      <p className="text-2xl md:text-3xl font-bold text-text-primary mb-1">
-        {value}
-        {suffix && <span className="text-lg text-text-muted ml-1">{suffix}</span>}
-        {healthLabel && (
-          <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${healthColor || 'text-gray-400'} bg-current/10`}>
-            {healthLabel}
-          </span>
-        )}
-      </p>
-      <p className="text-sm text-text-muted">{title}</p>
-      {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
-    </div>
-  );
-};
 
 // ==========================================
 // LEAD DETAIL MODAL
@@ -311,7 +250,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ isOpen, onClose, lead
   const status = lead.status?.toLowerCase() || 'booked';
   const statusConfig = statusColors[status] || statusColors.booked;
   const origem = getOrigem(lead.fonte_do_lead_bposs);
-  const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
+  const agendamentoDate = lead.agendamento_data || lead.scheduled_at;
 
   return (
     <>
@@ -488,7 +427,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
                 const status = lead.status?.toLowerCase() || 'booked';
                 const statusConfig = statusColors[status] || statusColors.booked;
                 const origem = getOrigem(lead.fonte_do_lead_bposs);
-                const agendamentoDate = lead.data_e_hora_do_agendamento_bposs || lead.scheduled_at;
+                const agendamentoDate = lead.agendamento_data || lead.scheduled_at;
 
                 return (
                   <div
@@ -555,7 +494,7 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 };
 
 // ==========================================
-// MAIN PAGE COMPONENT
+// MAIN PAGE COMPONENT - Enhanced UX with funnel hierarchy
 // ==========================================
 export const Agendamentos: React.FC = () => {
   const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
@@ -590,6 +529,17 @@ export const Agendamentos: React.FC = () => {
     start.setHours(0, 0, 0, 0);
     return { startDate: start, endDate: end };
   });
+
+  // Check if custom date filter is active (not last 30 days)
+  const isCustomDateFilter = useMemo(() => {
+    if (!dateRange.startDate || !dateRange.endDate) return false;
+    const now = new Date();
+    const defaultStart = new Date();
+    defaultStart.setDate(now.getDate() - 30);
+    defaultStart.setHours(0, 0, 0, 0);
+    const startDiff = Math.abs(dateRange.startDate.getTime() - defaultStart.getTime());
+    return startDiff > 24 * 60 * 60 * 1000;
+  }, [dateRange]);
 
   // O hook agora retorna a lista de responsáveis junto com as stats
   const { stats, porDia, porDiaCriacao, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
@@ -646,6 +596,12 @@ export const Agendamentos: React.FC = () => {
     } else if (metric === 'comparecimento') {
       filters.status = 'completed';
       setDrawerTitle('Comparecimentos');
+    } else if (metric === 'noshow') {
+      filters.status = 'no_show';
+      setDrawerTitle('No-Show');
+    } else if (metric === 'pendentes') {
+      filters.status = 'booked';
+      setDrawerTitle('Aguardando');
     }
 
     setDrawerFilters(filters);
@@ -699,34 +655,42 @@ export const Agendamentos: React.FC = () => {
   const CustomBarTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-bg-secondary border border-border-default rounded-lg px-3 py-2 shadow-lg">
-          <p className="text-sm font-medium text-text-primary">{formatDayLabel(label)}</p>
-          <p className="text-sm text-accent-primary">{payload[0].value} agendamentos</p>
+        <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
+          <p className="font-medium text-text-primary">{formatDayLabel(label)}</p>
+          <p className="text-purple-400">{payload[0].value} agendamentos</p>
         </div>
       );
     }
     return null;
   };
 
+  // Format date range for display
+  const dateRangeLabel = useMemo(() => {
+    if (!dateRange.startDate || !dateRange.endDate) return '';
+    return `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+  }, [dateRange]);
+
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Header */}
-      <div className="border-b border-border-default bg-bg-secondary">
-        <div className="px-4 md:px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* INLINE HEADER - Filtros sempre visíveis */}
+      <div className="sticky top-0 z-20 bg-bg-primary/95 backdrop-blur border-b border-border-default">
+        <div className="px-4 md:px-6 py-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            {/* Title & Date Range Label */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <CalendarCheck size={20} className="text-purple-400" />
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                <CalendarCheck size={20} className="text-violet-400" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-text-primary">Dashboard de Agendamentos</h1>
-                <p className="text-sm text-text-muted">Acompanhe seus agendamentos e taxas de comparecimento</p>
+                <h1 className="text-lg font-bold text-text-primary">Agendamentos</h1>
+                <p className="text-xs text-text-muted">{dateRangeLabel}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            {/* Filters - inline */}
+            <div className="flex items-center gap-2 flex-wrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
-              <ResponsavelSelector 
+              <ResponsavelSelector
                 responsaveis={responsaveis}
                 selectedName={selectedResponsavel}
                 onChange={setSelectedResponsavel}
@@ -735,10 +699,10 @@ export const Agendamentos: React.FC = () => {
               <button
                 onClick={() => refetch()}
                 disabled={loading}
-                className="flex items-center gap-2 px-3 py-2 bg-bg-hover border border-border-default rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-50 border border-border-default"
+                title="Atualizar dados"
               >
-                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                <span className="hidden md:inline">Atualizar</span>
+                <RefreshCw size={16} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -746,132 +710,140 @@ export const Agendamentos: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Metric Cards - Row 1: Volumes */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="p-4 md:p-6 space-y-4">
+        {/* ROW 1: Volume & Conversão */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Total de Leads"
             value={stats.totalLeads.toLocaleString()}
-            icon={<User size={20} />}
-            color="gray"
+            icon={Users}
+            subtext="No período"
             onClick={() => handleCardClick('leads')}
-            isActive={activeMetric === 'leads'}
+            clickable
           />
           <MetricCard
             title="Total Agendados"
             value={stats.totalAgendados.toLocaleString()}
-            icon={<CalendarCheck size={20} />}
-            color="blue"
+            icon={CalendarCheck}
+            subtext="Agendamentos"
             onClick={() => handleCardClick('mes')}
-            isActive={activeMetric === 'mes'}
+            clickable
           />
           <MetricCard
             title="Taxa de Conversão"
-            value={stats.taxaConversao}
-            suffix="%"
-            icon={<TrendingUp size={20} />}
-            color={stats.taxaConversao >= 35 ? 'emerald' : stats.taxaConversao >= 25 ? 'green' : stats.taxaConversao >= 20 ? 'yellow' : 'red'}
-            healthLabel={getConversaoHealth(stats.taxaConversao).label}
-            healthColor={getConversaoHealth(stats.taxaConversao).color}
-            subtitle="Meta: 25-35%"
+            value={`${stats.taxaConversao}%`}
+            icon={Target}
+            subtext={`Meta: 25-35% · ${getConversaoHealth(stats.taxaConversao).label}`}
             onClick={() => handleCardClick('conversao')}
-            isActive={activeMetric === 'conversao'}
+            clickable
           />
           <MetricCard
-            title="Taxa de Comparecimento"
-            value={stats.taxaComparecimento}
-            suffix="%"
-            icon={<CheckCircle size={20} />}
-            color={stats.taxaComparecimento >= 50 ? 'green' : 'red'}
-            healthLabel={getComparecimentoHealth(stats.taxaComparecimento).label}
-            healthColor={getComparecimentoHealth(stats.taxaComparecimento).color}
-            subtitle="Meta: ≥50%"
+            title="Taxa Comparecimento"
+            value={`${stats.taxaComparecimento}%`}
+            icon={CheckCircle}
+            subtext={`Meta: ≥50% · ${getComparecimentoHealth(stats.taxaComparecimento).label}`}
             onClick={() => handleCardClick('comparecimento')}
-            isActive={activeMetric === 'comparecimento'}
+            clickable
           />
         </div>
 
-        {/* Metric Cards - Row 2: Por Período */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* ROW 2: Status breakdown */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
           <MetricCard
-            title="Agendamentos Hoje"
+            title={isCustomDateFilter ? "No Período" : "Hoje"}
             value={stats.hoje}
-            icon={<CalendarDays size={20} />}
-            color="blue"
+            icon={CalendarDays}
             onClick={() => handleCardClick('hoje')}
-            isActive={activeMetric === 'hoje'}
+            clickable
           />
           <MetricCard
-            title="Últimos 7 dias"
+            title={isCustomDateFilter ? "7d Período" : "Últimos 7 dias"}
             value={stats.semana}
-            icon={<CalendarRange size={20} />}
-            color="purple"
+            icon={CalendarRange}
             onClick={() => handleCardClick('semana')}
-            isActive={activeMetric === 'semana'}
+            clickable
           />
           <MetricCard
-            title="Últimos 30 dias"
+            title={isCustomDateFilter ? "30d Período" : "Últimos 30 dias"}
             value={stats.mes}
-            icon={<Calendar size={20} />}
-            color="orange"
+            icon={Calendar}
             onClick={() => handleCardClick('mes')}
-            isActive={activeMetric === 'mes'}
+            clickable
+          />
+          <MetricCard
+            title="Compareceram"
+            value={stats.totalCompleted}
+            icon={CheckCircle}
+            onClick={() => handleCardClick('comparecimento')}
+            clickable
+          />
+          <MetricCard
+            title="No-Show"
+            value={stats.totalNoShow}
+            icon={UserX}
+            subtext={`${stats.taxaNoShow}% dos resolvidos`}
+            onClick={() => handleCardClick('noshow')}
+            clickable
+          />
+          <MetricCard
+            title="Aguardando"
+            value={stats.totalBooked + stats.totalPendingFeedback}
+            icon={AlertCircle}
+            subtext={`${stats.totalBooked} futuros · ${stats.totalPendingFeedback} s/ feedback`}
+            onClick={() => handleCardClick('pendentes')}
+            clickable
           />
         </div>
 
-        {/* Charts Row 1 - Agendamentos CRIADOS no dia + Leads */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-1">
-              Agendamentos Criados no Dia
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Quantos agendamentos foram feitos em cada dia
-              {dateRange.startDate && dateRange.endDate && (
-                <span className="ml-1">
-                  ({dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})
-                </span>
-              )}
-            </p>
-            <div className="flex items-center gap-4 mb-2 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-blue-500" />
-                <span className="text-text-muted">Agendamentos</span>
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+          {/* Chart: Agendamentos CRIADOS no dia */}
+          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Agendamentos Criados no Dia</h3>
+                <p className="text-[10px] text-text-muted">{dateRangeLabel}</p>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-0.5 bg-emerald-400" />
-                <span className="text-text-muted">Leads</span>
+              <div className="flex items-center gap-3 text-[10px]">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded bg-blue-500" />
+                  <span className="text-text-muted">Agendamentos</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-0.5 bg-emerald-400" />
+                  <span className="text-text-muted">Leads</span>
+                </div>
               </div>
             </div>
             {loading ? (
-              <div className="h-64 flex items-center justify-center">
-                <RefreshCw size={24} className="animate-spin text-text-muted" />
+              <div className="h-72 flex items-center justify-center">
+                <RefreshCw size={20} className="animate-spin text-text-muted" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <ComposedChart data={porDiaCriacao} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={porDiaCriacao} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                   <XAxis
                     dataKey="data"
                     tickFormatter={formatDayLabel}
                     tick={{ fontSize: 10, fill: '#888' }}
                     interval="preserveStartEnd"
                   />
-                  <YAxis tick={{ fontSize: 10, fill: '#888' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={8} />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
-                          <div className="bg-bg-secondary border border-border-default rounded-lg px-3 py-2 shadow-lg">
-                            <p className="text-sm font-medium text-text-primary">{formatDayLabel(label)}</p>
-                            <p className="text-sm text-blue-400">{payload[0]?.value} agendamentos criados</p>
-                            <p className="text-sm text-emerald-400">{payload[1]?.value} leads</p>
+                          <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
+                            <p className="font-medium text-text-primary">{formatDayLabel(String(label))}</p>
+                            <p className="text-blue-400">{payload[0]?.value} agendamentos</p>
+                            <p className="text-emerald-400">{payload[1]?.value} leads</p>
                           </div>
                         );
                       }
                       return null;
                     }}
                   />
-                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Agendamentos" />
+                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Agendamentos" barSize={20} />
                   <Line type="monotone" dataKey="leads" stroke="#34d399" strokeWidth={2} dot={false} name="Leads" />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -879,28 +851,28 @@ export const Agendamentos: React.FC = () => {
           </div>
 
           {/* Donut Chart - Origem */}
-          <div className="bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Origem dos Leads</h3>
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Origem dos Leads</h3>
             {loading ? (
-              <div className="h-64 flex items-center justify-center">
-                <RefreshCw size={24} className="animate-spin text-text-muted" />
+              <div className="h-48 flex items-center justify-center">
+                <RefreshCw size={20} className="animate-spin text-text-muted" />
               </div>
             ) : donutData.every((d) => d.value === 0) ? (
-              <div className="h-64 flex flex-col items-center justify-center text-text-muted">
-                <CalendarCheck size={48} className="mb-4 opacity-50" />
-                <p>Sem dados de origem</p>
+              <div className="h-48 flex flex-col items-center justify-center text-text-muted">
+                <CalendarCheck size={32} className="mb-2 opacity-50" />
+                <p className="text-xs">Sem dados de origem</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
                     data={donutData}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
+                    cy="45%"
+                    innerRadius={45}
+                    outerRadius={70}
                     paddingAngle={3}
                     cursor="pointer"
                     onClick={handlePieClick}
@@ -913,13 +885,14 @@ export const Agendamentos: React.FC = () => {
                     contentStyle={{
                       backgroundColor: '#1a1a1a',
                       border: '1px solid #333',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
                     }}
                   />
                   <Legend
                     verticalAlign="bottom"
-                    height={36}
-                    formatter={(value) => <span className="text-text-primary text-sm">{value}</span>}
+                    height={28}
+                    formatter={(value) => <span className="text-text-primary text-xs">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -927,33 +900,28 @@ export const Agendamentos: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart Row 2 - Agendamentos PARA o dia */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-1">
-            Agendamentos Para o Dia
-          </h3>
-          <p className="text-xs text-text-muted mb-4">
-            Quantos agendamentos estão marcados para acontecer em cada dia
-            {dateRange.startDate && dateRange.endDate && (
-              <span className="ml-1">
-                ({dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})
-              </span>
-            )}
-          </p>
+        {/* Chart: Agendamentos PARA o dia */}
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">Agendamentos Para o Dia</h3>
+              <p className="text-[10px] text-text-muted">Marcados para acontecer em cada dia · {dateRangeLabel}</p>
+            </div>
+          </div>
           {loading ? (
-            <div className="h-64 flex items-center justify-center">
-              <RefreshCw size={24} className="animate-spin text-text-muted" />
+            <div className="h-56 flex items-center justify-center">
+              <RefreshCw size={20} className="animate-spin text-text-muted" />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={porDia} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={porDia} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                 <XAxis
                   dataKey="data"
                   tickFormatter={formatDayLabel}
                   tick={{ fontSize: 10, fill: '#888' }}
                   interval="preserveStartEnd"
                 />
-                <YAxis tick={{ fontSize: 10, fill: '#888' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={6} />
                 <Tooltip content={<CustomBarTooltip />} />
                 <Bar
                   dataKey="quantidade"
@@ -961,35 +929,11 @@ export const Agendamentos: React.FC = () => {
                   radius={[4, 4, 0, 0]}
                   cursor="pointer"
                   onClick={handleBarClick}
+                  barSize={20}
                 />
               </BarChart>
             </ResponsiveContainer>
           )}
-        </div>
-
-        {/* Status Cards */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
-            <div className="w-10 h-10 rounded-full bg-green-500/20 mx-auto mb-3 flex items-center justify-center">
-              <CheckCircle size={20} className="text-green-400" />
-            </div>
-            <p className="text-2xl font-bold text-green-400">{stats.totalCompleted}</p>
-            <p className="text-sm text-text-muted">Compareceram / Ganhos</p>
-          </div>
-          <div className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
-            <div className="w-10 h-10 rounded-full bg-red-500/20 mx-auto mb-3 flex items-center justify-center">
-              <XCircle size={20} className="text-red-400" />
-            </div>
-            <p className="text-2xl font-bold text-red-400">{stats.totalNoShow}</p>
-            <p className="text-sm text-text-muted">Não Compareceram / Perdidos</p>
-          </div>
-          <div className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 mx-auto mb-3 flex items-center justify-center">
-              <Calendar size={20} className="text-blue-400" />
-            </div>
-            <p className="text-2xl font-bold text-blue-400">{stats.totalBooked}</p>
-            <p className="text-sm text-text-muted">Pendentes</p>
-          </div>
         </div>
       </div>
 
