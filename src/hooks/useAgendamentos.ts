@@ -109,6 +109,11 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
         query = query.or('fonte.ilike.%prospecção%,fonte.ilike.%prospeccao%,fonte.ilike.%social%');
       }
 
+      // Filtro por location (multi-tenancy)
+      if (filters.locationId) {
+        query = query.eq('location_id', filters.locationId);
+      }
+
       // Ordenação
       query = query.order('agendamento_data', { ascending: false });
 
@@ -145,6 +150,7 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
     filters.origem,
     filters.status,
     filters.day,
+    filters.locationId,
   ]);
 
   useEffect(() => {

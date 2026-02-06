@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useAccount } from '../contexts/AccountContext';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import {
   CalendarCheck,
   RefreshCw,
@@ -563,7 +565,22 @@ export const Agendamentos: React.FC = () => {
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
-  
+
+  // Account context for multi-tenancy
+  const { selectedAccount, isViewingSubconta } = useAccount();
+  const isAdmin = useIsAdmin();
+
+  // Effective location ID for filtering
+  const locationId = useMemo(() => {
+    if (isViewingSubconta && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    if (!isAdmin && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    return null;
+  }, [isViewingSubconta, isAdmin, selectedAccount]);
+
   // Date range state - default últimos 30 dias
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const end = new Date();
@@ -577,13 +594,15 @@ export const Agendamentos: React.FC = () => {
   // O hook agora retorna a lista de responsáveis junto com as stats
   const { stats, porDia, porDiaCriacao, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
     selectedResponsavel,
-    dateRange
+    dateRange,
+    locationId
   );
 
   // Gerar filtros para drawer baseado no estado atual
   const buildFilters = useCallback((): AgendamentosFilters => {
     const filters: AgendamentosFilters = {
       responsavel: selectedResponsavel,
+      locationId: locationId,
     };
 
     if (selectedOrigem) {
@@ -595,7 +614,7 @@ export const Agendamentos: React.FC = () => {
     }
 
     return filters;
-  }, [selectedResponsavel, selectedOrigem, selectedDay]);
+  }, [selectedResponsavel, selectedOrigem, selectedDay, locationId]);
 
   // Handlers para clicks
   const handleCardClick = useCallback((metric: MetricType) => {

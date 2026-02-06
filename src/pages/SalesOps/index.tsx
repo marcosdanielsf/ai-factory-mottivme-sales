@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { BarChart3, RefreshCw, Download } from 'lucide-react';
 import { exportToCSV, generateFilename } from '../../lib/export-utils';
 import { salesOpsDAO, type ClientInfo, type TrendData } from '../../lib/supabase-sales-ops';
@@ -14,13 +14,36 @@ import { AlertBanner } from './components/AlertBanner';
 import { PeriodFilter } from './components/PeriodFilter';
 import { AgentLeaderboard } from './components/AgentLeaderboard';
 import { LeadDemographicsWidget } from '../../components/LeadDemographicsWidget';
+import { useAccount } from '../../contexts/AccountContext';
+import { useIsAdmin } from '../../hooks/useIsAdmin';
 
 export const SalesOps = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [manualLocationId, setManualLocationId] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [periodDays, setPeriodDays] = useState(30);
+
+  // Account context for multi-tenancy
+  const { selectedAccount, isViewingSubconta } = useAccount();
+  const isAdmin = useIsAdmin();
+
+  // Effective location ID: prioritize context over manual selection
+  // - If viewing subconta (admin selected a client) -> use selectedAccount.location_id
+  // - If not admin (client user) -> use selectedAccount.location_id (their assigned location)
+  // - If admin without subconta -> use manual selection (null = all)
+  const selectedLocationId = useMemo(() => {
+    if (isViewingSubconta && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    if (!isAdmin && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    return manualLocationId;
+  }, [isViewingSubconta, isAdmin, selectedAccount, manualLocationId]);
+
+  // Show client selector only for admin in admin mode
+  const showClientSelector = isAdmin && !isViewingSubconta;
 
   // Dashboard data
   const [totals, setTotals] = useState({ totalAtivos: 0, totalInativos: 0, totalLeads: 0, mediaFollowUps: 0 });
@@ -169,12 +192,14 @@ export const SalesOps = () => {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4">
-              <ClientSelector
-                clients={clients}
-                selectedId={selectedLocationId}
-                onChange={setSelectedLocationId}
-                isLoading={isLoading}
-              />
+              {showClientSelector && (
+                <ClientSelector
+                  clients={clients}
+                  selectedId={manualLocationId}
+                  onChange={setManualLocationId}
+                  isLoading={isLoading}
+                />
+              )}
               <PeriodFilter
                 selected={periodDays}
                 onChange={setPeriodDays}

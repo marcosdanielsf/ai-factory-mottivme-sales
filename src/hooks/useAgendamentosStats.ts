@@ -52,7 +52,8 @@ export interface DateRange {
 
 export const useAgendamentosStats = (
   responsavel?: string | null,
-  dateRange?: DateRange | null
+  dateRange?: DateRange | null,
+  locationId?: string | null
 ): UseAgendamentosStatsReturn => {
   const [agendamentosCriados, setAgendamentosCriados] = useState<any[]>([]); // Por data_criacao
   const [agendamentosPara, setAgendamentosPara] = useState<any[]>([]); // Por agendamento_data
@@ -97,6 +98,9 @@ export const useAgendamentosStats = (
       if (responsavel) {
         agendamentosCriadosQuery = agendamentosCriadosQuery.eq('responsavel_nome', responsavel);
       }
+      if (locationId) {
+        agendamentosCriadosQuery = agendamentosCriadosQuery.eq('location_id', locationId);
+      }
 
       // Query 2: Agendamentos por DATA DO AGENDAMENTO (para gráfico "Para o dia")
       let agendamentosParaQuery = supabase
@@ -107,6 +111,9 @@ export const useAgendamentosStats = (
 
       if (responsavel) {
         agendamentosParaQuery = agendamentosParaQuery.eq('responsavel_nome', responsavel);
+      }
+      if (locationId) {
+        agendamentosParaQuery = agendamentosParaQuery.eq('location_id', locationId);
       }
 
       // Query 3: Leads do período (com data_criada para agrupar por dia)
@@ -119,12 +126,19 @@ export const useAgendamentosStats = (
       if (responsavel) {
         leadsQuery = leadsQuery.eq('lead_usuario_responsavel', responsavel);
       }
+      if (locationId) {
+        leadsQuery = leadsQuery.eq('location_id', locationId);
+      }
 
       // Query 4: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
-      const responsaveisQuery = supabase
+      let responsaveisQuery = supabase
         .from(AGENDAMENTOS_VIEW)
         .select('responsavel_nome')
         .not('responsavel_nome', 'is', null);
+
+      if (locationId) {
+        responsaveisQuery = responsaveisQuery.eq('location_id', locationId);
+      }
 
       // Executar queries em paralelo
       const [agendamentosCriadosResult, agendamentosParaResult, leadsResult, responsaveisResult] = await Promise.all([
@@ -173,7 +187,7 @@ export const useAgendamentosStats = (
     } finally {
       setLoading(false);
     }
-  }, [responsavel, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
+  }, [responsavel, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId]);
 
   useEffect(() => {
     fetchData();
