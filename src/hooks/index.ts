@@ -26,3 +26,5 @@ export * from './useFollowUpMetrics';
 export { useLocations } from './useLocations';
 export * from './useAgendamentos';
 export * from './useAgendamentosStats';
+export * from './useAccountData';
+export * from './useIsAdmin';

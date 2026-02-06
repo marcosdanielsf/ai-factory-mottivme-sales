@@ -30,6 +30,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
+import { AccountSwitcher } from './AccountSwitcher';
+import { useAccount } from '../contexts/AccountContext';
+import { useLocations } from '../hooks/useLocations';
 
 // ============================================
 // TIPOS
@@ -199,15 +202,17 @@ const SectionTitle = ({ title, isCollapsed }: { title: string; isCollapsed: bool
 // COMPONENTE PRINCIPAL
 // ============================================
 
-export const Sidebar = ({ 
-  isMobile = false, 
-  isOpen = false, 
-  onClose, 
-  isCollapsed = false, 
-  onToggleCollapse 
+export const Sidebar = ({
+  isMobile = false,
+  isOpen = false,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse
 }: SidebarProps) => {
   const { user, signOut } = useAuth();
   const { hasPermission, role, isAdmin, isClient } = usePermissions();
+  const { selectedAccount, selectSubconta, backToAdmin, loading: accountLoading } = useAccount();
+  const { locations, loading: locationsLoading } = useLocations();
 
   const handleLogout = async () => {
     await signOut();
@@ -321,13 +326,27 @@ export const Sidebar = ({
         </button>
       )}
 
+      {/* Account Switcher - só para admins */}
+      {isAdmin && (
+        <div className={`${isCollapsed ? 'px-2' : 'px-3'} py-2 border-b border-border-default`}>
+          <AccountSwitcher
+            locations={locations}
+            selectedAccount={selectedAccount}
+            onSelectAccount={selectSubconta}
+            onBackToAdmin={backToAdmin}
+            isCollapsed={isCollapsed}
+            loading={accountLoading || locationsLoading}
+          />
+        </div>
+      )}
+
       {/* Role Badge (quando não collapsed e não é admin) */}
       {!isCollapsed && !isAdmin && (
         <div className="mx-4 mt-3 mb-1">
           <span className={`
             inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-            ${isClient 
-              ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20' 
+            ${isClient
+              ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
               : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
             }
           `}>

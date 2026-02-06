@@ -29,18 +29,23 @@ import { ClientPortal } from './pages/ClientPortal';
 import { StatusCenter } from './pages/StatusCenter';
 import { ToastProvider } from './hooks/useToast';
 import { AuthProvider } from './contexts/AuthContext';
+import { AccountProvider } from './contexts/AccountContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Invite } from './pages/Invite';
+import { LayoutCliente } from './components/LayoutCliente';
 
 const App = () => {
   return (
     <AuthProvider>
-      <ToastProvider>
-        <HashRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/onboarding" element={<OnboardingWizard />} />
-            <Route path="/welcome" element={<OnboardingWizard skipIntro />} />
+      <AccountProvider>
+        <ToastProvider>
+          <HashRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/onboarding" element={<OnboardingWizard />} />
+              <Route path="/welcome" element={<OnboardingWizard skipIntro />} />
+              <Route path="/invite/:token" element={<Invite />} />
 
             {/* Portal do Cliente - View simplificada de resultados */}
             <Route path="/portal" element={
@@ -239,9 +244,10 @@ const App = () => {
                 </Layout>
               </ProtectedRoute>
             } />
-          </Routes>
-        </HashRouter>
-      </ToastProvider>
+            </Routes>
+          </HashRouter>
+        </ToastProvider>
+      </AccountProvider>
     </AuthProvider>
   );
 };
