@@ -25,6 +25,7 @@ interface PendingInterview {
   lead_id: string;
   lead_name: string;
   lead_phone: string;
+  lead_email?: string;
   recruiter_name: string;
   interview_date: string;
   status: InterviewStatus;
@@ -314,9 +315,10 @@ export const StatusCenter = () => {
         return {
           id: item.id,
           lead_id: item.lead_id || item.id,
-          lead_name: item.contato_nome || item.contato_principal || 'Sem nome',
+          lead_name: item.contato_nome || item.contato_principal || '',
           lead_phone: item.contato_telefone || item.celular_contato || '',
-          recruiter_name: item.responsavel_nome || item.lead_usuario_responsavel || 'Não atribuído',
+          lead_email: item.contato_email || '',
+          recruiter_name: item.responsavel_nome || item.lead_usuario_responsavel || 'unknown',
           interview_date: item.agendamento_data,
           status: displayStatus,
           fonte: item.fonte,
@@ -324,7 +326,47 @@ export const StatusCenter = () => {
         };
       });
 
-      setInterviews(mappedData);
+      // Deduplicate by email - keep record with most complete data (has name)
+      const emailMap = new Map<string, PendingInterview>();
+      const noEmailRecords: PendingInterview[] = [];
+
+      mappedData.forEach(item => {
+        const email = (item as any).lead_email?.toLowerCase();
+
+        if (!email) {
+          noEmailRecords.push(item);
+          return;
+        }
+
+        const existing = emailMap.get(email);
+        if (!existing) {
+          emailMap.set(email, item);
+        } else {
+          // Prefer record with name/phone over empty one
+          const existingHasData = existing.lead_name && existing.lead_name !== 'Sem nome';
+          const newHasData = item.lead_name && item.lead_name !== 'Sem nome';
+
+          if (newHasData && !existingHasData) {
+            emailMap.set(email, item);
+          } else if (newHasData && existingHasData) {
+            // Both have data - keep the one with more recent interview
+            if (new Date(item.interview_date) > new Date(existing.interview_date)) {
+              emailMap.set(email, item);
+            }
+          }
+        }
+      });
+
+      const deduplicatedData = [...emailMap.values(), ...noEmailRecords];
+
+      // Apply fallback for empty names - use email prefix as name
+      const finalData = deduplicatedData.map(item => ({
+        ...item,
+        lead_name: item.lead_name || ((item as any).lead_email?.split('@')[0] || 'Sem nome'),
+        recruiter_name: item.recruiter_name === 'unknown' ? 'Não atribuído' : item.recruiter_name
+      }));
+
+      setInterviews(finalData);
     } catch (err: any) {
       console.error('Error fetching interviews:', err);
       setError(err.message || 'Erro ao carregar entrevistas');
