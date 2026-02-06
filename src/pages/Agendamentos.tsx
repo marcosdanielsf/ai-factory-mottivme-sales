@@ -42,7 +42,9 @@ import {
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
 import { useAgendamentosStats, type ResponsavelInfo, type DateRange } from '../hooks/useAgendamentosStats';
+import { useCriativoPerformance } from '../hooks/useCriativoPerformance';
 import { DateRangePicker } from '../components/DateRangePicker';
+import { CriativoMetricsTable, OrigemPerformanceChart } from '../components/charts/CriativoPerformanceChart';
 
 // ==========================================
 // TYPES
@@ -548,6 +550,12 @@ export const Agendamentos: React.FC = () => {
     locationId
   );
 
+  // Hook para Performance por Criativo (UTM tracking)
+  const { criativos, origens, totals: criativoTotals, loading: loadingCriativos } = useCriativoPerformance(
+    dateRange,
+    locationId
+  );
+
   // Gerar filtros para drawer baseado no estado atual
   const buildFilters = useCallback((): AgendamentosFilters => {
     const filters: AgendamentosFilters = {
@@ -897,6 +905,63 @@ export const Agendamentos: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             )}
+          </div>
+        </div>
+
+        {/* Performance por Criativo (UTM Tracking) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+          {/* Summary Cards */}
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+            <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              Performance por Criativo
+            </h3>
+            {loadingCriativos ? (
+              <div className="space-y-2 animate-pulse">
+                <div className="h-8 bg-bg-tertiary rounded" />
+                <div className="h-8 bg-bg-tertiary rounded" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Leads c/ UTM:</span>
+                  <span className="text-text-primary font-medium">{criativoTotals.comUtmContent}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Leads s/ UTM:</span>
+                  <span className="text-text-secondary">{criativoTotals.semUtmContent}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Paid Social:</span>
+                  <span className="text-blue-400 font-medium">{criativoTotals.totalPaidSocial}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Orgânico:</span>
+                  <span className="text-emerald-400">{criativoTotals.totalOrganic}</span>
+                </div>
+                {criativoTotals.comUtmContent === 0 && (
+                  <p className="text-[10px] text-amber-400 mt-2 p-2 bg-amber-500/10 rounded">
+                    UTM tracking recém implementado. Dados aparecerão para novos leads.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Leads por Origem (session_source) */}
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Leads por Origem</h3>
+            <p className="text-[10px] text-text-muted mb-2">Session Source do GHL</p>
+            <OrigemPerformanceChart data={origens} loading={loadingCriativos} />
+          </div>
+
+          {/* Tabela de Criativos */}
+          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4 lg:col-span-1">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">Funil por Criativo</h3>
+            <p className="text-[10px] text-text-muted mb-2">utm_content do Meta Ads</p>
+            <div className="max-h-[250px] overflow-y-auto">
+              <CriativoMetricsTable data={criativos} loading={loadingCriativos} />
+            </div>
           </div>
         </div>
 

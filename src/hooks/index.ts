@@ -28,3 +28,4 @@ export * from './useAgendamentos';
 export * from './useAgendamentosStats';
 export * from './useAccountData';
 export * from './useIsAdmin';
+export * from './useCriativoPerformance';
