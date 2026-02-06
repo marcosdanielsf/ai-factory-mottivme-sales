@@ -67,7 +67,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       { title: 'Logs de Conversa', icon: MessageSquare, path: '/logs', type: 'Logs' },
       { title: 'Base de Conhecimento', icon: FileText, path: '/knowledge-base', type: 'Docs' },
       { title: 'Funil de Leads', icon: User, path: '/leads', type: 'Vendas' },
-      { title: 'Calls Realizadas', icon: Phone, path: '/calls', type: 'Vendas' },
+      { title: 'Cold Calls', icon: Phone, path: '/cold-calls', type: 'Vendas' },
       { title: 'Configurações', icon: Settings, path: '/configuracoes', type: 'Sistema' },
     ];
 

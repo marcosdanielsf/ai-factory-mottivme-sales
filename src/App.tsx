@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
@@ -14,6 +14,7 @@ import { Validation } from './pages/Validation';
 import { Logs } from './pages/Logs';
 import { FollowUps } from './pages/FollowUps';
 import { CallsRealizadas } from './pages/CallsRealizadas';
+// ColdCallDashboard loaded via lazy() below
 import { Configuracoes } from './pages/Configuracoes';
 import { AgentDetail } from './pages/AgentDetail';
 import { ReflectionLoop } from './pages/ReflectionLoop';
@@ -34,6 +35,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Invite } from './pages/Invite';
 import { LayoutCliente } from './components/LayoutCliente';
 import { ConditionalLayout } from './components/ConditionalLayout';
+
+// Cold Call pages (lazy loaded)
+const ColdCallDashboard = lazy(() => import('./pages/ColdCallDashboard'));
+const ColdCallCampaigns = lazy(() => import('./pages/ColdCallCampaigns'));
 
 const App = () => {
   return (
@@ -171,6 +176,25 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <Notifications />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            {/* Cold Calls */}
+            <Route path="/cold-calls" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ColdCallDashboard />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/cold-calls/campaigns" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ColdCallCampaigns />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             } />

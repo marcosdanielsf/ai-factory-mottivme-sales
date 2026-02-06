@@ -7,6 +7,7 @@ import {
   Settings,
   Box,
   Phone,
+  PhoneCall,
   Users,
   Database,
   TestTube2,
@@ -76,7 +77,7 @@ const navSections: NavSection[] = [
     items: [
       { icon: BarChart3, label: 'Sales Ops', to: '/sales-ops', permission: 'canAccessDashboard' },
       { icon: Eye, label: 'Supervisão IA', to: '/supervision', permission: 'canAccessSupervision' },
-      { icon: Phone, label: 'Calls Realizadas', to: '/calls', permission: 'canAccessCalls' },
+      { icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls' },
       { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
       { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
     ]

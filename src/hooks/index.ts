@@ -30,3 +30,6 @@ export * from './useAccountData';
 export * from './useIsAdmin';
 export * from './useCriativoPerformance';
 export * from './useLeadSegmentation';
+export * from './useColdCalls';
+export * from './useColdCallMetrics';
+export * from './usePendingRetries';
