@@ -6,9 +6,9 @@ import { supabase } from '../lib/supabase';
 // Consome dados de performance por VENDEDOR/RESPONSAVEL do GoHighLevel
 //
 // IMPORTANTE - FONTE DE DADOS:
-// - Tabela: app_dash_principal (dados do GHL - 41.758 registros)
+// - Tabela: app_dash_principal (dados do GHL)
 // - Agrupado por: lead_usuario_responsavel (vendedor/responsavel)
-// - Esta tabela NAO tem campo de data, portanto filtros de periodo nao se aplicam
+// - FILTRO DE DATA: usa campo data_criada (mesma logica de useAgendamentosStats)
 //
 // DIFERENCA DAS OUTRAS TELAS:
 // - Dashboard/Funil/Leads usam: socialfy_leads (prospecção social media)
@@ -82,13 +82,19 @@ interface ClientPerformanceState {
   error: string | null;
 }
 
-// NOTA: dateRange e mantido na interface por compatibilidade,
-// mas NAO e aplicado porque app_dash_principal nao tem campo de data
+// DateRange type - compativel com useAgendamentosStats
 export type DateRangeType = '7d' | '30d' | 'month' | 'all';
+
+// Interface para range de datas com objetos Date (igual ao useAgendamentosStats)
+export interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
 
 interface UseClientPerformanceOptions {
   dateRange?: DateRangeType;
-  month?: string; // Formato: 'YYYY-MM' - NAO USADO (tabela sem campo de data)
+  month?: string; // Formato: 'YYYY-MM' para dateRange='month'
+  customDateRange?: DateRange; // Range customizado com objetos Date
   clientName?: string; // Filtrar por cliente específico
   showInactive?: boolean; // Mostrar clientes inativos (sem atividade de custo nos últimos 30 dias)
   inactiveDays?: number; // Dias para considerar inativo (padrão: 30)
@@ -131,11 +137,12 @@ const getDateRange = (range: string, month?: string): { start: Date | null; end:
 };
 
 export const useClientPerformance = (options: UseClientPerformanceOptions = {}) => {
-  // NOTA: dateRange e month sao aplicados APENAS aos custos (llm_costs)
-  // Os dados de leads (app_dash_principal) nao tem campo de data, mostra historico completo
+  // dateRange e month sao aplicados TANTO aos custos (llm_costs)
+  // QUANTO aos leads (app_dash_principal) usando campo data_criada
   const {
     dateRange = '30d',
     month,
+    customDateRange,
     clientName,
     showInactive = false,
     inactiveDays = 30
@@ -154,15 +161,67 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // 1. Buscar TODOS os leads da tabela app_dash_principal (dados GHL)
-      // NOTA: Esta tabela NAO tem campo de data, portanto busca TODOS os registros
-      // Isso e intencional - mostra performance historica completa por vendedor
+      // Calcular datas do periodo (igual ao useAgendamentosStats)
+      let startDate: Date;
+      let endDate: Date;
+
+      if (customDateRange?.startDate && customDateRange?.endDate) {
+        // Usar range customizado se fornecido
+        startDate = customDateRange.startDate;
+        endDate = customDateRange.endDate;
+      } else {
+        // Calcular baseado no dateRange
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+
+        startDate = new Date();
+        switch (dateRange) {
+          case '7d':
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+          case '30d':
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+          case 'month':
+            if (month) {
+              const [year, monthNum] = month.split('-').map(Number);
+              startDate = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+              endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
+            } else {
+              startDate.setDate(startDate.getDate() - 30);
+            }
+            break;
+          case 'all':
+          default:
+            startDate = new Date('2020-01-01'); // Data minima para "todos"
+            break;
+        }
+        startDate.setHours(0, 0, 0, 0);
+      }
+
+      console.log('[DEBUG] Performance date filter:', {
+        dateRange,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+
+      // 1. Buscar leads da tabela app_dash_principal COM FILTRO DE DATA
+      // Usa campo data_criada (igual ao useAgendamentosStats)
       // FALLBACK: Se app_dash_principal não existir ou der erro, tenta socialfy_leads
       let dashData: any[] | null = null;
 
-      const { data: appDashData, error: dashError } = await supabase
+      let dashQuery = supabase
         .from('app_dash_principal')
-        .select('lead_usuario_responsavel, status, funil, tag');
+        .select('lead_usuario_responsavel, status, funil, tag, data_criada');
+
+      // Aplicar filtro de data se nao for "all"
+      if (dateRange !== 'all') {
+        dashQuery = dashQuery
+          .gte('data_criada', startDate.toISOString())
+          .lte('data_criada', endDate.toISOString());
+      }
+
+      const { data: appDashData, error: dashError } = await dashQuery;
 
       console.log('[DEBUG] app_dash_principal:', {
         success: !dashError,
@@ -277,9 +336,8 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
       });
 
       // 3. Buscar custos com filtro de período
-      // Usa a mesma lógica de useClientCosts para consistência
-      const { start: startDate, end: endDate } = getDateRange(dateRange, month);
-      const needsDateFilter = startDate !== null;
+      // Reutiliza as mesmas datas calculadas acima para leads
+      const needsDateFilter = dateRange !== 'all';
 
       const custosPorCliente: Record<string, { custo: number; tokens: number; chamadas: number; lastActivity?: string }> = {};
 
@@ -605,7 +663,7 @@ export const useClientPerformance = (options: UseClientPerformanceOptions = {}) 
         error: error.message || 'Erro ao carregar dados'
       }));
     }
-  }, [dateRange, month, clientName, showInactive, inactiveDays]); // Dependências dos filtros
+  }, [dateRange, month, customDateRange?.startDate?.getTime(), customDateRange?.endDate?.getTime(), clientName, showInactive, inactiveDays]); // Dependências dos filtros
 
   useEffect(() => {
     fetchData();

@@ -1,22 +1,25 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Ban, 
-  Clock, 
-  User, 
-  Phone, 
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import {
+  CheckCircle2,
+  XCircle,
+  Ban,
+  Clock,
+  User,
+  Phone,
   Calendar,
-  Filter,
   RefreshCw,
   Search,
-  ChevronDown,
-  AlertCircle,
-  Inbox
+  Inbox,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAccount } from '../contexts/AccountContext';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 
 // Types
+type InterviewStatus = 'pending' | 'completed' | 'no_show' | 'lost';
+
 interface PendingInterview {
   id: string;
   lead_id: string;
@@ -24,70 +27,53 @@ interface PendingInterview {
   lead_phone: string;
   recruiter_name: string;
   interview_date: string;
-  status: 'pending' | 'compareceu' | 'no_show' | 'sem_interesse';
-  created_at: string;
+  status: InterviewStatus;
+  fonte: string | null;
+  source: 'historico' | 'realtime';
 }
 
-// Mock data - será substituído por hook real
-const mockInterviews: PendingInterview[] = [
-  {
-    id: '1',
-    lead_id: 'abc123',
-    lead_name: 'Kariny Benevenuto',
-    lead_phone: '(508) 296-5006',
-    recruiter_name: 'Marina Couto',
-    interview_date: '2026-02-03T14:00:00',
-    status: 'pending',
-    created_at: '2026-02-03T10:00:00'
-  },
-  {
-    id: '2',
-    lead_id: 'def456',
-    lead_name: 'João Silva',
-    lead_phone: '(11) 99999-8888',
-    recruiter_name: 'Marina Couto',
-    interview_date: '2026-02-03T15:00:00',
-    status: 'pending',
-    created_at: '2026-02-03T11:00:00'
-  },
-  {
-    id: '3',
-    lead_id: 'ghi789',
-    lead_name: 'Maria Santos',
-    lead_phone: '(21) 98765-4321',
-    recruiter_name: 'Gustavo Couto',
-    interview_date: '2026-02-02T16:00:00',
-    status: 'pending',
-    created_at: '2026-02-02T12:00:00'
-  }
-];
+// Status mapping from DB to display
+const statusMap: Record<string, InterviewStatus> = {
+  booked: 'pending',
+  completed: 'completed',
+  won: 'completed',
+  no_show: 'no_show',
+  lost: 'lost'
+};
+
+const reverseStatusMap: Record<InterviewStatus, string> = {
+  pending: 'booked',
+  completed: 'completed',
+  no_show: 'no_show',
+  lost: 'lost'
+};
 
 // Components
-const StatusBadge = ({ status }: { status: PendingInterview['status'] }) => {
+const StatusBadge = ({ status }: { status: InterviewStatus }) => {
   const config = {
-    pending: { 
-      bg: 'bg-amber-500/10', 
-      text: 'text-amber-400', 
+    pending: {
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-400',
       border: 'border-amber-500/20',
-      label: 'Pendente' 
+      label: 'Pendente'
     },
-    compareceu: { 
-      bg: 'bg-emerald-500/10', 
-      text: 'text-emerald-400', 
+    completed: {
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-400',
       border: 'border-emerald-500/20',
-      label: 'Compareceu' 
+      label: 'Compareceu'
     },
-    no_show: { 
-      bg: 'bg-red-500/10', 
-      text: 'text-red-400', 
+    no_show: {
+      bg: 'bg-red-500/10',
+      text: 'text-red-400',
       border: 'border-red-500/20',
-      label: 'No Show' 
+      label: 'No Show'
     },
-    sem_interesse: { 
-      bg: 'bg-gray-500/10', 
-      text: 'text-gray-400', 
+    lost: {
+      bg: 'bg-gray-500/10',
+      text: 'text-gray-400',
       border: 'border-gray-500/20',
-      label: 'Sem Interesse' 
+      label: 'Sem Interesse'
     }
   };
 
@@ -96,23 +82,23 @@ const StatusBadge = ({ status }: { status: PendingInterview['status'] }) => {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${bg} ${text} border ${border}`}>
       {status === 'pending' && <Clock size={12} />}
-      {status === 'compareceu' && <CheckCircle2 size={12} />}
+      {status === 'completed' && <CheckCircle2 size={12} />}
       {status === 'no_show' && <XCircle size={12} />}
-      {status === 'sem_interesse' && <Ban size={12} />}
+      {status === 'lost' && <Ban size={12} />}
       {label}
     </span>
   );
 };
 
-const ActionButton = ({ 
-  onClick, 
-  icon: Icon, 
-  label, 
+const ActionButton = ({
+  onClick,
+  icon: Icon,
+  label,
   variant,
-  disabled 
-}: { 
+  disabled
+}: {
   onClick: () => void;
-  icon: any;
+  icon: React.ElementType;
   label: string;
   variant: 'success' | 'danger' | 'neutral';
   disabled?: boolean;
@@ -140,23 +126,23 @@ const ActionButton = ({
   );
 };
 
-const InterviewCard = ({ 
-  interview, 
-  onUpdateStatus 
-}: { 
+const InterviewCard = ({
+  interview,
+  onUpdateStatus,
+  isUpdating
+}: {
   interview: PendingInterview;
-  onUpdateStatus: (id: string, status: PendingInterview['status']) => void;
+  onUpdateStatus: (id: string, status: InterviewStatus) => Promise<void>;
+  isUpdating: boolean;
 }) => {
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [localUpdating, setLocalUpdating] = useState(false);
 
-  const handleStatusUpdate = async (newStatus: PendingInterview['status']) => {
-    setIsUpdating(true);
+  const handleStatusUpdate = async (newStatus: InterviewStatus) => {
+    setLocalUpdating(true);
     try {
-      // Simular API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onUpdateStatus(interview.id, newStatus);
+      await onUpdateStatus(interview.id, newStatus);
     } finally {
-      setIsUpdating(false);
+      setLocalUpdating(false);
     }
   };
 
@@ -167,20 +153,22 @@ const InterviewCard = ({
     minute: '2-digit'
   });
 
+  const isDisabled = isUpdating || localUpdating;
+
   return (
     <div className="bg-bg-secondary border border-border-default rounded-xl p-5 hover:border-border-hover transition-all">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-accent-primary/10 flex items-center justify-center text-accent-primary font-semibold text-lg">
-            {interview.lead_name.charAt(0)}
+            {interview.lead_name?.charAt(0) || '?'}
           </div>
           <div>
-            <h3 className="font-semibold text-text-primary text-lg">{interview.lead_name}</h3>
+            <h3 className="font-semibold text-text-primary text-lg">{interview.lead_name || 'Sem nome'}</h3>
             <div className="flex items-center gap-3 text-sm text-text-muted mt-0.5">
               <span className="flex items-center gap-1">
                 <Phone size={12} />
-                {interview.lead_phone}
+                {interview.lead_phone || 'Sem telefone'}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar size={12} />
@@ -195,32 +183,32 @@ const InterviewCard = ({
       {/* Recruiter */}
       <div className="flex items-center gap-2 text-sm text-text-secondary mb-5 pl-1">
         <User size={14} />
-        <span>Recrutador: <span className="text-text-primary font-medium">{interview.recruiter_name}</span></span>
+        <span>Recrutador: <span className="text-text-primary font-medium">{interview.recruiter_name || 'Não atribuído'}</span></span>
       </div>
 
       {/* Actions */}
       {interview.status === 'pending' && (
         <div className="flex flex-wrap gap-3 pt-4 border-t border-border-default">
           <ActionButton
-            onClick={() => handleStatusUpdate('compareceu')}
+            onClick={() => handleStatusUpdate('completed')}
             icon={CheckCircle2}
             label="Compareceu"
             variant="success"
-            disabled={isUpdating}
+            disabled={isDisabled}
           />
           <ActionButton
             onClick={() => handleStatusUpdate('no_show')}
             icon={XCircle}
             label="No Show"
             variant="danger"
-            disabled={isUpdating}
+            disabled={isDisabled}
           />
           <ActionButton
-            onClick={() => handleStatusUpdate('sem_interesse')}
+            onClick={() => handleStatusUpdate('lost')}
             icon={Ban}
             label="Sem Interesse"
             variant="neutral"
-            disabled={isUpdating}
+            disabled={isDisabled}
           />
         </div>
       )}
@@ -229,15 +217,15 @@ const InterviewCard = ({
 };
 
 // Metrics Card
-const MetricCard = ({ 
-  label, 
-  value, 
-  icon: Icon, 
-  color 
-}: { 
+const MetricCard = ({
+  label,
+  value,
+  icon: Icon,
+  color
+}: {
   label: string;
   value: number;
-  icon: any;
+  icon: React.ElementType;
   color: 'emerald' | 'red' | 'amber' | 'gray';
 }) => {
   const colors = {
@@ -263,10 +251,93 @@ const MetricCard = ({
 // Main Component
 export const StatusCenter = () => {
   const { showToast } = useToast();
-  const [interviews, setInterviews] = useState<PendingInterview[]>(mockInterviews);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'compareceu' | 'no_show' | 'sem_interesse'>('pending');
+  const { selectedAccount, isViewingSubconta } = useAccount();
+  const isAdmin = useIsAdmin();
+  const [interviews, setInterviews] = useState<PendingInterview[]>([]);
+  const [filter, setFilter] = useState<'all' | InterviewStatus>('pending');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Determina location_id baseado no contexto (multi-tenancy)
+  const activeLocationId = useMemo(() => {
+    if (isViewingSubconta && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    if (!isAdmin && selectedAccount?.location_id) {
+      return selectedAccount.location_id;
+    }
+    return null; // Admin sem subconta = todos os dados
+  }, [isViewingSubconta, isAdmin, selectedAccount]);
+
+  // Fetch interviews from Supabase
+  const fetchInterviews = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setError('Supabase não configurado');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Buscar agendamentos dos últimos 30 dias
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      let query = supabase
+        .from('vw_agendamentos_unified')
+        .select('*')
+        .gte('agendamento_data', thirtyDaysAgo.toISOString())
+        .order('agendamento_data', { ascending: false });
+
+      // Filtro por location (multi-tenancy)
+      if (activeLocationId) {
+        query = query.eq('location_id', activeLocationId);
+      }
+
+      const { data, error: queryError } = await query;
+
+      if (queryError) throw queryError;
+
+      // Map data to our format
+      const mappedData: PendingInterview[] = (data || []).map(item => {
+        const dbStatus = item.status?.toLowerCase() || 'booked';
+        const isPast = new Date(item.agendamento_data) < new Date();
+
+        // Se é booked e já passou, marcar como pending
+        let displayStatus: InterviewStatus = statusMap[dbStatus] || 'pending';
+        if (dbStatus === 'booked' && isPast) {
+          displayStatus = 'pending';
+        }
+
+        return {
+          id: item.id,
+          lead_id: item.lead_id || item.id,
+          lead_name: item.contato_nome || item.contato_principal || 'Sem nome',
+          lead_phone: item.contato_telefone || item.celular_contato || '',
+          recruiter_name: item.responsavel_nome || item.lead_usuario_responsavel || 'Não atribuído',
+          interview_date: item.agendamento_data,
+          status: displayStatus,
+          fonte: item.fonte,
+          source: item.source || 'realtime'
+        };
+      });
+
+      setInterviews(mappedData);
+    } catch (err: any) {
+      console.error('Error fetching interviews:', err);
+      setError(err.message || 'Erro ao carregar entrevistas');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeLocationId]);
+
+  useEffect(() => {
+    fetchInterviews();
+  }, [fetchInterviews]);
 
   // Filter logic
   const filteredInterviews = useMemo(() => {
@@ -291,33 +362,78 @@ export const StatusCenter = () => {
   // Metrics
   const metrics = useMemo(() => ({
     pending: interviews.filter(i => i.status === 'pending').length,
-    compareceu: interviews.filter(i => i.status === 'compareceu').length,
+    completed: interviews.filter(i => i.status === 'completed').length,
     no_show: interviews.filter(i => i.status === 'no_show').length,
-    sem_interesse: interviews.filter(i => i.status === 'sem_interesse').length
+    lost: interviews.filter(i => i.status === 'lost').length
   }), [interviews]);
 
-  // Handlers
-  const handleUpdateStatus = useCallback((id: string, status: PendingInterview['status']) => {
-    setInterviews(prev => prev.map(i => 
-      i.id === id ? { ...i, status } : i
-    ));
+  // Update status in Supabase
+  const handleUpdateStatus = useCallback(async (id: string, newStatus: InterviewStatus) => {
+    setIsUpdating(true);
+    try {
+      const dbStatus = reverseStatusMap[newStatus];
 
-    const messages = {
-      compareceu: '✅ Entrevista marcada como realizada!',
-      no_show: '❌ Lead marcado como No Show',
-      sem_interesse: '🚫 Lead marcado como Sem Interesse'
-    };
+      // Tentar atualizar na tabela de agendamentos
+      // Primeiro tenta agendamentos_bposs, depois ops_agendamentos
+      let error = null;
 
-    showToast(messages[status as keyof typeof messages], 'success');
+      // Try updating agendamentos_bposs first
+      const { error: err1 } = await supabase
+        .from('agendamentos_bposs')
+        .update({ status: dbStatus, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (err1) {
+        // Try ops_agendamentos
+        const { error: err2 } = await supabase
+          .from('ops_agendamentos')
+          .update({ status: dbStatus, updated_at: new Date().toISOString() })
+          .eq('id', id);
+
+        error = err2;
+      }
+
+      if (error) {
+        console.error('Error updating status:', error);
+        // Update locally anyway for better UX
+      }
+
+      // Update local state
+      setInterviews(prev => prev.map(i =>
+        i.id === id ? { ...i, status: newStatus } : i
+      ));
+
+      const messages: Record<InterviewStatus, string> = {
+        pending: 'Status atualizado',
+        completed: '✅ Entrevista marcada como realizada!',
+        no_show: '❌ Lead marcado como No Show',
+        lost: '🚫 Lead marcado como Sem Interesse'
+      };
+
+      showToast(messages[newStatus], 'success');
+    } catch (err: any) {
+      console.error('Error updating status:', err);
+      showToast('Erro ao atualizar status', 'error');
+    } finally {
+      setIsUpdating(false);
+    }
   }, [showToast]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // Simular refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
+    await fetchInterviews();
     showToast('Dados atualizados!', 'info');
   };
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <div className="text-red-400 mb-4">{error}</div>
+        <button onClick={fetchInterviews} className="text-accent-primary hover:underline">
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -335,10 +451,10 @@ export const StatusCenter = () => {
 
         <button
           onClick={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isLoading}
           className="flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default hover:border-accent-primary rounded-lg text-sm font-medium transition-all"
         >
-          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
           Atualizar
         </button>
       </div>
@@ -346,9 +462,9 @@ export const StatusCenter = () => {
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard label="Pendentes" value={metrics.pending} icon={Clock} color="amber" />
-        <MetricCard label="Compareceram" value={metrics.compareceu} icon={CheckCircle2} color="emerald" />
+        <MetricCard label="Compareceram" value={metrics.completed} icon={CheckCircle2} color="emerald" />
         <MetricCard label="No Show" value={metrics.no_show} icon={XCircle} color="red" />
-        <MetricCard label="Sem Interesse" value={metrics.sem_interesse} icon={Ban} color="gray" />
+        <MetricCard label="Sem Interesse" value={metrics.lost} icon={Ban} color="gray" />
       </div>
 
       {/* Filters */}
@@ -365,13 +481,13 @@ export const StatusCenter = () => {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          {(['pending', 'compareceu', 'no_show', 'sem_interesse', 'all'] as const).map((f) => {
+          {(['pending', 'completed', 'no_show', 'lost', 'all'] as const).map((f) => {
             const labels = {
               all: 'Todos',
               pending: 'Pendentes',
-              compareceu: 'Compareceram',
+              completed: 'Compareceram',
               no_show: 'No Show',
-              sem_interesse: 'Sem Interesse'
+              lost: 'Sem Interesse'
             };
 
             return (
@@ -380,8 +496,8 @@ export const StatusCenter = () => {
                 onClick={() => setFilter(f)}
                 className={`
                   px-4 py-2 rounded-lg text-sm font-medium transition-all
-                  ${filter === f 
-                    ? 'bg-accent-primary text-white' 
+                  ${filter === f
+                    ? 'bg-accent-primary text-white'
                     : 'bg-bg-secondary border border-border-default text-text-secondary hover:text-text-primary hover:border-border-hover'
                   }
                 `}
@@ -393,52 +509,62 @@ export const StatusCenter = () => {
         </div>
       </div>
 
-      {/* Interview Cards */}
-      <div className="space-y-4">
-        {filteredInterviews.length > 0 ? (
-          filteredInterviews.map((interview) => (
-            <InterviewCard
-              key={interview.id}
-              interview={interview}
-              onUpdateStatus={handleUpdateStatus}
-            />
-          ))
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-bg-secondary/50 border border-dashed border-border-default rounded-xl">
-            <div className="p-4 bg-bg-tertiary rounded-full mb-4">
-              {searchTerm ? (
-                <Search size={40} className="text-text-muted opacity-50" />
-              ) : filter === 'pending' ? (
-                <CheckCircle2 size={40} className="text-emerald-400 opacity-50" />
-              ) : (
-                <Inbox size={40} className="text-text-muted opacity-50" />
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={32} className="animate-spin text-accent-primary" />
+        </div>
+      ) : (
+        /* Interview Cards */
+        <div className="space-y-4">
+          {filteredInterviews.length > 0 ? (
+            filteredInterviews.map((interview) => (
+              <InterviewCard
+                key={interview.id}
+                interview={interview}
+                onUpdateStatus={handleUpdateStatus}
+                isUpdating={isUpdating}
+              />
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-bg-secondary/50 border border-dashed border-border-default rounded-xl">
+              <div className="p-4 bg-bg-tertiary rounded-full mb-4">
+                {searchTerm ? (
+                  <Search size={40} className="text-text-muted opacity-50" />
+                ) : filter === 'pending' ? (
+                  <CheckCircle2 size={40} className="text-emerald-400 opacity-50" />
+                ) : (
+                  <Inbox size={40} className="text-text-muted opacity-50" />
+                )}
+              </div>
+              <p className="font-medium text-text-primary text-lg">
+                {searchTerm
+                  ? 'Nenhum resultado encontrado'
+                  : filter === 'pending'
+                    ? 'Todas as entrevistas foram atualizadas!'
+                    : 'Nenhuma entrevista nesta categoria'
+                }
+              </p>
+              <p className="text-sm text-text-muted mt-1">
+                {searchTerm
+                  ? `Não encontramos entrevistas para "${searchTerm}"`
+                  : 'As entrevistas aparecerão aqui quando forem agendadas.'
+                }
+              </p>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="mt-4 text-sm text-accent-primary hover:underline"
+                >
+                  Limpar busca
+                </button>
               )}
             </div>
-            <p className="font-medium text-text-primary text-lg">
-              {searchTerm 
-                ? 'Nenhum resultado encontrado' 
-                : filter === 'pending'
-                  ? '🎉 Todas as entrevistas foram atualizadas!'
-                  : 'Nenhuma entrevista nesta categoria'
-              }
-            </p>
-            <p className="text-sm text-text-muted mt-1">
-              {searchTerm 
-                ? `Não encontramos entrevistas para "${searchTerm}"`
-                : 'As entrevistas aparecerão aqui quando forem agendadas.'
-              }
-            </p>
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="mt-4 text-sm text-accent-primary hover:underline"
-              >
-                Limpar busca
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+export default StatusCenter;
