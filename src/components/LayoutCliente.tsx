@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
+import AISupportWidget from './AISupportWidget';
 
 interface LayoutClienteProps {
   children: React.ReactNode;
@@ -211,6 +212,14 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
           {children}
         </div>
       </main>
+
+      {/* AI Support Widget */}
+      <AISupportWidget
+        currentPage={CLIENT_NAV_ITEMS.find(item =>
+          item.path === location.pathname ||
+          (item.path === '/sales-ops' && location.pathname === '/')
+        )?.label || 'Dashboard'}
+      />
     </div>
   );
 };

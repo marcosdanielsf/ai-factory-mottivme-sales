@@ -54,23 +54,26 @@ export function useLeadDemographics(locationId?: string): UseLeadDemographicsRet
           const stateMap = new Map<string, { total: number; ativos: number }>();
 
           (rawData || []).forEach((lead: { work_permit: string | null; state: string | null; ativo: boolean }) => {
-            // Work permit processing
+            // Work permit processing - treat "NULL" string as not informed
             let wpStatus = 'Não informado';
-            const wp = (lead.work_permit || '').toLowerCase().trim();
-            if (['sim', 'yes', 'true', '1'].includes(wp)) wpStatus = 'Sim';
-            else if (['nao', 'não', 'no', 'false', '0'].includes(wp)) wpStatus = 'Não';
-            else if (wp && wp !== 'null') wpStatus = 'Outro';
+            const wp = (lead.work_permit || '').trim();
+            const wpLower = wp.toLowerCase();
+            if (['sim', 'yes', 'true', '1'].includes(wpLower)) wpStatus = 'Sim';
+            else if (['nao', 'não', 'no', 'false', '0'].includes(wpLower)) wpStatus = 'Não';
+            else if (wp && wpLower !== 'null' && wp !== 'NULL') wpStatus = 'Outro';
 
             const wpCurrent = workPermitMap.get(wpStatus) || { total: 0, ativos: 0 };
             wpCurrent.total++;
             if (lead.ativo) wpCurrent.ativos++;
             workPermitMap.set(wpStatus, wpCurrent);
 
-            // State processing
+            // State processing - treat "NULL" string as not informed
             let stateName = 'Não informado';
             const st = (lead.state || '').trim();
-            if (st && st.toLowerCase() !== 'null') {
-              stateName = st.charAt(0).toUpperCase() + st.slice(1).toLowerCase();
+            if (st && st.toLowerCase() !== 'null' && st !== 'NULL') {
+              // Normalize state names (Florida, Flórida -> Florida)
+              const normalized = st.charAt(0).toUpperCase() + st.slice(1).toLowerCase();
+              stateName = normalized.replace('ó', 'o').replace('á', 'a'); // Normalize accents
             }
 
             const stCurrent = stateMap.get(stateName) || { total: 0, ativos: 0 };
