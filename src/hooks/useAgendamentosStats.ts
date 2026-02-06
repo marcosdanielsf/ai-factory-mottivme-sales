@@ -118,31 +118,29 @@ export const useAgendamentosStats = (
         agendamentosParaQuery = agendamentosParaQuery.eq('location_id', locationId);
       }
 
-      // Query 3: Leads do período (com data_criada para agrupar por dia)
+      // Query 3: Leads do período (com created_at para agrupar por dia)
+      // Usa n8n_schedule_tracking que é atualizado em tempo real pelo n8n
       // Nota: Esta query retorna max 1000 registros, usada apenas para gráfico diário
       let leadsQuery = supabase
-        .from('app_dash_principal')
-        .select('id, data_criada')
-        .gte('data_criada', startDate.toISOString())
-        .lte('data_criada', endDate.toISOString());
+        .from('n8n_schedule_tracking')
+        .select('id, created_at')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
-      if (responsavel) {
-        leadsQuery = leadsQuery.eq('lead_usuario_responsavel', responsavel);
-      }
+      // n8n_schedule_tracking não tem campo responsavel, pular filtro
       if (locationId) {
         leadsQuery = leadsQuery.eq('location_id', locationId);
       }
 
       // Query 4: Contagem EXATA de leads (sem limite de 1000)
+      // Usa n8n_schedule_tracking como fonte de verdade
       let leadsCountQuery = supabase
-        .from('app_dash_principal')
+        .from('n8n_schedule_tracking')
         .select('*', { count: 'exact', head: true })
-        .gte('data_criada', startDate.toISOString())
-        .lte('data_criada', endDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
-      if (responsavel) {
-        leadsCountQuery = leadsCountQuery.eq('lead_usuario_responsavel', responsavel);
-      }
+      // n8n_schedule_tracking não tem campo responsavel, pular filtro
       if (locationId) {
         leadsCountQuery = leadsCountQuery.eq('location_id', locationId);
       }
@@ -261,11 +259,11 @@ export const useAgendamentosStats = (
       leadsPorDiaMap[dateKey] = 0;
     }
 
-    // Processar leads por dia
+    // Processar leads por dia (usando created_at de n8n_schedule_tracking)
     leadsData.forEach((lead) => {
-      const dataCriada = lead.data_criada;
-      if (!dataCriada) return;
-      const dateKey = new Date(dataCriada).toISOString().split('T')[0];
+      const createdAt = lead.created_at;
+      if (!createdAt) return;
+      const dateKey = new Date(createdAt).toISOString().split('T')[0];
       if (leadsPorDiaMap[dateKey] !== undefined) {
         leadsPorDiaMap[dateKey]++;
       }
