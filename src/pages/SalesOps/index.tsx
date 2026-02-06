@@ -13,6 +13,7 @@ import type { LeadFilterType } from '../../lib/supabase-sales-ops';
 import { AlertBanner } from './components/AlertBanner';
 import { PeriodFilter } from './components/PeriodFilter';
 import { AgentLeaderboard } from './components/AgentLeaderboard';
+import { LeadDemographicsWidget } from '../../components/LeadDemographicsWidget';
 
 export const SalesOps = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -234,6 +235,9 @@ export const SalesOps = () => {
             onClick={handleFuuQueueClick}
           />
         </div>
+
+        {/* Lead Demographics - Work Permit & State Distribution */}
+        <LeadDemographicsWidget locationId={selectedLocationId ?? undefined} />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
