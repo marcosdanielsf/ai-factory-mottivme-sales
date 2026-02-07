@@ -21,14 +21,17 @@ export interface ColdCallMetricsAggregated {
 
 interface ColdCallMetricRow {
   location_id: string | null;
-  day: string;
-  total_calls: number;
-  answered: number;
-  connected: number;
-  scheduled: number;
-  avg_duration: number;
-  answer_rate: number;
-  conversion_rate: number;
+  // View columns are in Portuguese
+  dia: string;
+  total_chamadas: number;
+  agendamentos: number;
+  interessados: number;
+  nao_atenderam: number;
+  recusaram: number;
+  caixa_postal: number;
+  erros: number;
+  taxa_agendamento_pct: number;
+  duracao_media_seg: number;
 }
 
 export interface ColdCallMetricsFilters {
@@ -66,18 +69,18 @@ export function useColdCallMetrics(filters?: ColdCallMetricsFilters): UseColdCal
       let query = supabase
         .from('cold_call_metrics')
         .select('*')
-        .order('day', { ascending: true });
+        .order('dia', { ascending: true });
 
       if (filters?.locationId) {
         query = query.eq('location_id', filters.locationId);
       }
 
       if (filters?.dateRange?.from) {
-        query = query.gte('day', filters.dateRange.from.toISOString().split('T')[0]);
+        query = query.gte('dia', filters.dateRange.from.toISOString().split('T')[0]);
       }
 
       if (filters?.dateRange?.to) {
-        query = query.lte('day', filters.dateRange.to.toISOString().split('T')[0]);
+        query = query.lte('dia', filters.dateRange.to.toISOString().split('T')[0]);
       }
 
       const { data, error: queryError } = await query;
@@ -98,22 +101,22 @@ export function useColdCallMetrics(filters?: ColdCallMetricsFilters): UseColdCal
       let durationCount = 0;
 
       const dailyData: ColdCallDailyData[] = rows.map((row) => {
-        totalCalls += row.total_calls || 0;
-        totalAnswered += row.answered || 0;
-        totalConnected += row.connected || 0;
-        totalScheduled += row.scheduled || 0;
+        totalCalls += row.total_chamadas || 0;
+        totalAnswered += (row.total_chamadas || 0) - (row.nao_atenderam || 0) - (row.erros || 0);
+        totalConnected += (row.total_chamadas || 0) - (row.nao_atenderam || 0);
+        totalScheduled += row.agendamentos || 0;
 
-        if (row.avg_duration > 0) {
-          durationSum += row.avg_duration * (row.total_calls || 1);
-          durationCount += row.total_calls || 1;
+        if (row.duracao_media_seg > 0) {
+          durationSum += row.duracao_media_seg * (row.total_chamadas || 1);
+          durationCount += row.total_chamadas || 1;
         }
 
         return {
-          date: row.day,
-          totalCalls: row.total_calls || 0,
-          answered: row.answered || 0,
-          scheduled: row.scheduled || 0,
-          avgDuration: row.avg_duration || 0,
+          date: row.dia,
+          totalCalls: row.total_chamadas || 0,
+          answered: (row.total_chamadas || 0) - (row.nao_atenderam || 0),
+          scheduled: row.agendamentos || 0,
+          avgDuration: row.duracao_media_seg || 0,
         };
       });
 
