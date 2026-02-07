@@ -527,37 +527,36 @@ export const PromptEditor = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-52px)]">
       {/* Studio Header */}
-      <div className="h-14 border-b border-border-default flex items-center justify-between px-6 bg-bg-secondary shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="font-semibold text-text-primary flex items-center gap-2">
-            <Box size={20} className="text-accent-primary" />
-            Prompt Studio
-          </h1>
-          
+      <div className="h-12 border-b border-border-default flex items-center justify-between px-4 bg-bg-secondary shrink-0">
+        {/* Esquerda: Identidade + Agente */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <Box size={18} className="text-accent-primary" />
+            <h1 className="font-semibold text-sm text-text-primary whitespace-nowrap">Prompt Studio</h1>
+          </div>
+
           <button 
             onClick={handleRefresh}
             disabled={agentsLoading || versionsLoading}
-            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-bg-tertiary rounded transition-all active:scale-95 disabled:opacity-50"
+            className="p-1 text-text-muted hover:text-text-primary hover:bg-bg-tertiary rounded transition-all active:scale-95 disabled:opacity-50 shrink-0"
             title="Atualizar agentes e versões"
           >
-            <RefreshCw size={16} className={(agentsLoading || versionsLoading) ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={(agentsLoading || versionsLoading) ? 'animate-spin' : ''} />
           </button>
 
-          <div className="h-4 w-px bg-border-default"></div>
-          
           {/* Agent Selector - Dropdown rico com busca */}
-          <div className="relative" ref={agentMenuRef}>
+          <div className="relative shrink-0" ref={agentMenuRef}>
             <button 
               onClick={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-3 py-1.5 rounded-lg border border-transparent hover:border-border-default transition-all"
+              className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary pl-3 pr-2 py-1 rounded-md border border-border-default hover:border-text-muted/30 transition-all"
             >
-              <Building2 size={16} className="text-accent-primary" />
-              {selectedAgent ? selectedAgent.name : 'Selecione um Agente'}
-              <ChevronDown size={14} className={`text-text-muted transition-transform duration-200 ${isAgentMenuOpen ? 'rotate-180' : ''}`} />
+              <Building2 size={14} className="text-accent-primary shrink-0" />
+              <span className="truncate max-w-[180px]">{selectedAgent ? selectedAgent.name : 'Selecione'}</span>
+              <ChevronDown size={12} className={`text-text-muted transition-transform duration-200 shrink-0 ${isAgentMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isAgentMenuOpen && (
-              <div className="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
                 {/* Search */}
                 <div className="p-2 border-b border-border-default bg-bg-primary/50">
                   <div className="relative">
@@ -614,149 +613,134 @@ export const PromptEditor = () => {
               </div>
             )}
           </div>
-
-          <div className="h-4 w-px bg-border-default"></div>
-
-          {/* Tab Selector - Conteúdo */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">Conteúdo</span>
-            <div className="flex bg-bg-tertiary p-1 rounded-md">
-              <button 
-                onClick={() => handleTabChange('prompt')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'prompt' ? 'bg-cyan-500/20 text-cyan-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="System Prompt"
-              >
-                <FileText size={14} />
-              </button>
-              <button 
-                onClick={() => handleTabChange('modes')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'modes' ? 'bg-violet-500/20 text-violet-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title={activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 
-                  ? `${Object.keys(activeVersion.prompts_por_modo).length} modo(s) configurado(s)` 
-                  : 'Nenhum modo específico configurado'}
-              >
-                <GitBranch size={14} />
-                {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
-                  <span className="ml-0.5 text-[8px] bg-violet-500/30 text-violet-300 px-1 rounded">
-                    {Object.keys(activeVersion.prompts_por_modo).length}
-                  </span>
-                )}
-              </button>
-              <button 
-                onClick={() => handleTabChange('config')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'config' ? 'bg-pink-500/20 text-pink-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Hiperpersonalização"
-              >
-                <Sparkles size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* Tab Selector - Configs do Agente */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">Configs</span>
-            <div className="flex bg-bg-tertiary p-1 rounded-md">
-              <button 
-                onClick={() => handleTabChange('tools')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'tools' ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Tools Config"
-              >
-                <Code size={14} />
-              </button>
-              <button 
-                onClick={() => handleTabChange('compliance')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'compliance' ? 'bg-red-500/20 text-red-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Compliance Rules"
-              >
-                <Shield size={14} />
-              </button>
-              <button 
-                onClick={() => handleTabChange('personality')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'personality' ? 'bg-purple-500/20 text-purple-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Personality Config"
-              >
-                <Brain size={14} />
-              </button>
-              <button 
-                onClick={() => handleTabChange('qualification')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'qualification' ? 'bg-green-500/20 text-green-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Qualification Config"
-              >
-                <Target size={14} />
-              </button>
-              <button 
-                onClick={() => handleTabChange('business')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${activeTab === 'business' ? 'bg-orange-500/20 text-orange-400 shadow-sm' : 'text-text-muted hover:text-text-secondary'}`}
-                title="Business Config"
-              >
-                <Briefcase size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="h-4 w-px bg-border-default"></div>
-
-          {activeTab === 'modes' && (
-            <div className="flex items-center gap-2">
-              <select 
-                value={selectedMode}
-                onChange={(e) => handleModeChange(e.target.value)}
-                className="bg-bg-tertiary border border-border-default text-xs rounded px-2 py-1 text-text-primary focus:outline-none"
-              >
-                {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 ? (
-                  Object.keys(activeVersion.prompts_por_modo).map(mode => (
-                    <option key={mode} value={mode}>{mode}</option>
-                  ))
-                ) : (
-                  <option value="">Sem modos configurados</option>
-                )}
-              </select>
-            </div>
-          )}
-
-          <div className="h-4 w-px bg-border-default"></div>
-
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-             <span>Versão:</span>
-             <span className="text-text-primary font-mono bg-bg-tertiary px-1.5 py-0.5 rounded border border-border-default">
-                {activeVersion ? (activeVersion.version_number || activeVersion.version) : '---'}
-             </span>
-          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Centro: Tabs unificadas */}
+        <div className="flex items-center gap-3">
+          <div className="flex bg-bg-tertiary p-0.5 rounded-md">
+            <button 
+              onClick={() => handleTabChange('prompt')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'prompt' ? 'bg-cyan-500/20 text-cyan-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="System Prompt"
+            >
+              <FileText size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('modes')}
+              className={`px-2 py-1 text-xs rounded transition-colors flex items-center ${activeTab === 'modes' ? 'bg-violet-500/20 text-violet-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title={activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 
+                ? `${Object.keys(activeVersion.prompts_por_modo).length} modo(s)` 
+                : 'Modos'}
+            >
+              <GitBranch size={14} />
+              {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
+                <span className="ml-0.5 text-[8px] bg-violet-500/30 text-violet-300 px-1 rounded">
+                  {Object.keys(activeVersion.prompts_por_modo).length}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => handleTabChange('config')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'config' ? 'bg-pink-500/20 text-pink-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Hiperpersonalização"
+            >
+              <Sparkles size={14} />
+            </button>
+
+            <div className="w-px h-4 bg-border-default mx-0.5 self-center"></div>
+
+            <button 
+              onClick={() => handleTabChange('tools')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'tools' ? 'bg-blue-500/20 text-blue-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Tools Config"
+            >
+              <Code size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('compliance')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'compliance' ? 'bg-red-500/20 text-red-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Compliance Rules"
+            >
+              <Shield size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('personality')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'personality' ? 'bg-purple-500/20 text-purple-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Personality Config"
+            >
+              <Brain size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('qualification')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'qualification' ? 'bg-green-500/20 text-green-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Qualification Config"
+            >
+              <Target size={14} />
+            </button>
+            <button 
+              onClick={() => handleTabChange('business')}
+              className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'business' ? 'bg-orange-500/20 text-orange-400' : 'text-text-muted hover:text-text-secondary'}`}
+              title="Business Config"
+            >
+              <Briefcase size={14} />
+            </button>
+          </div>
+
+          {activeTab === 'modes' && (
+            <select 
+              value={selectedMode}
+              onChange={(e) => handleModeChange(e.target.value)}
+              className="bg-bg-tertiary border border-border-default text-xs rounded px-2 py-1 text-text-primary focus:outline-none"
+            >
+              {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 ? (
+                Object.keys(activeVersion.prompts_por_modo).map(mode => (
+                  <option key={mode} value={mode}>{mode}</option>
+                ))
+              ) : (
+                <option value="">Sem modos</option>
+              )}
+            </select>
+          )}
+
+          <span className="text-text-primary font-mono text-xs bg-bg-tertiary px-1.5 py-0.5 rounded border border-border-default">
+            {activeVersion ? (activeVersion.version_number || activeVersion.version) : '---'}
+          </span>
+        </div>
+
+        {/* Direita: Ações */}
+        <div className="flex items-center gap-1.5 shrink-0">
            <button
             onClick={() => setShowAdjustmentsChat(!showAdjustmentsChat)}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors ${
               showAdjustmentsChat
                 ? 'bg-accent-primary text-white'
                 : 'text-text-secondary hover:bg-bg-hover'
             }`}
             title="Chat de Ajustes para CS"
            >
-            <MessageSquare size={16} />
-            <span className="hidden sm:inline">Chat CS</span>
+            <MessageSquare size={14} />
+            <span className="hidden sm:inline text-xs">Chat CS</span>
           </button>
            <button
             onClick={handleSandbox}
             disabled={isSandboxLoading}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-hover rounded transition-colors ${isSandboxLoading ? 'opacity-50 cursor-wait' : ''}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs text-text-secondary hover:bg-bg-hover rounded transition-colors ${isSandboxLoading ? 'opacity-50 cursor-wait' : ''}`}
            >
-            <Play size={16} className={isSandboxLoading ? 'animate-pulse' : ''} />
-            <span className="hidden sm:inline">{isSandboxLoading ? 'Iniciando...' : 'Sandbox'}</span>
+            <Play size={14} className={isSandboxLoading ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isSandboxLoading ? '...' : 'Sandbox'}</span>
           </button>
           <button 
             onClick={handleSave}
             disabled={!isDirty || isSaving}
             className={`
-              flex items-center gap-2 px-4 py-1.5 text-sm rounded transition-colors ml-2
+              flex items-center gap-1.5 px-3 py-1 text-xs rounded transition-colors
               ${isDirty 
                 ? 'bg-text-primary text-bg-primary hover:bg-white/90' 
                 : 'bg-bg-tertiary text-text-muted cursor-not-allowed'}
             `}
           >
-            <Save size={16} className={isSaving ? 'animate-spin' : ''} />
-            {isSaving ? 'Salvando...' : 'Salvar'}
+            <Save size={14} className={isSaving ? 'animate-spin' : ''} />
+            {isSaving ? '...' : 'Salvar'}
           </button>
 
           {activeVersion?.status !== 'production' && (
@@ -764,15 +748,15 @@ export const PromptEditor = () => {
               onClick={handlePublish}
               disabled={isPublishing || isDirty}
               className={`
-                flex items-center gap-2 px-4 py-1.5 text-sm rounded transition-colors ml-2
+                flex items-center gap-1.5 px-3 py-1 text-xs rounded transition-colors
                 ${!isDirty && !isPublishing
                   ? 'bg-accent-primary text-white hover:bg-accent-primary/90' 
                   : 'bg-bg-tertiary text-text-muted cursor-not-allowed'}
               `}
-              title={isDirty ? "Salve as alterações antes de publicar" : "Publicar esta versão em produção"}
+              title={isDirty ? "Salve antes de publicar" : "Publicar em produção"}
             >
-              <Zap size={16} className={isPublishing ? 'animate-pulse' : ''} />
-              {isPublishing ? 'Publicando...' : 'Publicar'}
+              <Zap size={14} className={isPublishing ? 'animate-pulse' : ''} />
+              {isPublishing ? '...' : 'Publicar'}
             </button>
           )}
         </div>
