@@ -42,6 +42,13 @@ const ColdCallCampaigns = lazy(() => import('./pages/ColdCallCampaigns'));
 const ColdCallPrompts = lazy(() => import('./pages/ColdCallPrompts'));
 const ColdCallNewCall = lazy(() => import('./pages/ColdCallNewCall'));
 
+// Prospector pages (lazy loaded)
+const ProspectorDashboard = lazy(() => import('./pages/ProspectorDashboard'));
+const ProspectorQueue = lazy(() => import('./pages/ProspectorQueue'));
+const ProspectorTemplates = lazy(() => import('./pages/ProspectorTemplates'));
+const ProspectorAnalytics = lazy(() => import('./pages/ProspectorAnalytics'));
+const ProspectorCampaignDetail = lazy(() => import('./pages/ProspectorCampaignDetail'));
+
 const App = () => {
   return (
     <AuthProvider>
@@ -218,6 +225,54 @@ const App = () => {
                 </ConditionalLayout>
               </ProtectedRoute>
             } />
+
+            {/* Prospector */}
+            <Route path="/prospector" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ProspectorDashboard />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/prospector/queue" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ProspectorQueue />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/prospector/templates" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ProspectorTemplates />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/prospector/analytics" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ProspectorAnalytics />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/prospector/campaign/:id" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ProspectorCampaignDetail />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+
             <Route path="/calls" element={
               <ProtectedRoute>
                 <Layout>

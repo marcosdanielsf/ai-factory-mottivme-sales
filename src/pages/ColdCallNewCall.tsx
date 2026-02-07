@@ -28,30 +28,46 @@ interface ColdCallPrompt {
   is_active: boolean;
 }
 
-// ─── Phone mask helpers ───────────────────────────────────────────────
+// ─── Phone helpers ────────────────────────────────────────────────────
 
-function formatPhoneBR(value: string): string {
+function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, '');
-  // Always prefix with 55
-  const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
-  const d = withCountry.slice(2); // digits after country code
+  if (digits.length === 0) return '+';
 
-  if (d.length === 0) return '+55 ';
-  if (d.length <= 2) return `+55 (${d}`;
-  if (d.length <= 6) return `+55 (${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10)
-    return `+55 (${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `+55 (${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
+  // BR formatting
+  if (digits.startsWith('55')) {
+    const d = digits.slice(2);
+    if (d.length === 0) return '+55 ';
+    if (d.length <= 2) return `+55 (${d}`;
+    if (d.length <= 6) return `+55 (${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `+55 (${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `+55 (${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
+  }
+
+  // US formatting
+  if (digits.startsWith('1') && digits.length > 1) {
+    const d = digits.slice(1);
+    if (d.length <= 3) return `+1 (${d}`;
+    if (d.length <= 6) return `+1 (${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+  }
+
+  // Generic international
+  return `+${digits}`;
 }
 
 function extractDigits(masked: string): string {
   return masked.replace(/\D/g, '');
 }
 
-function isValidBRPhone(masked: string): boolean {
+function isValidPhone(masked: string): boolean {
   const digits = extractDigits(masked);
-  // 55 + DDD (2) + number (8 or 9) = 12 or 13 digits total
-  return digits.startsWith('55') && (digits.length === 12 || digits.length === 13);
+  // BR: 55 + 2 DDD + 8-9 number = 12-13
+  if (digits.startsWith('55')) return digits.length === 12 || digits.length === 13;
+  // US/CA: 1 + 10 = 11
+  if (digits.startsWith('1')) return digits.length === 11;
+  // Other: at least 8 digits with country code
+  return digits.length >= 8 && digits.length <= 15;
 }
 
 // ─── Status config ────────────────────────────────────────────────────
@@ -170,7 +186,7 @@ const ColdCallNewCall: React.FC = () => {
   const { triggerCall, callStatus, loading, error, reset } = useTriggerCall();
 
   // ─── Form state ────────────────────────────────────────────────────
-  const [phone, setPhone] = useState('+55 ');
+  const [phone, setPhone] = useState('+');
   const [leadName, setLeadName] = useState('');
   const [leadContext, setLeadContext] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState('');
@@ -241,14 +257,14 @@ const ColdCallNewCall: React.FC = () => {
   // ─── Handlers ──────────────────────────────────────────────────────
 
   const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneBR(e.target.value);
+    const formatted = formatPhone(e.target.value);
     setPhone(formatted);
   }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!isValidBRPhone(phone)) return;
+      if (!isValidPhone(phone)) return;
 
       await triggerCall({
         phoneNumber: `+${extractDigits(phone)}`,
@@ -262,7 +278,7 @@ const ColdCallNewCall: React.FC = () => {
 
   const handleReset = useCallback(() => {
     reset();
-    setPhone('+55 ');
+    setPhone('+');
     setLeadName('');
     setLeadContext('');
     setSelectedPromptId('');
@@ -327,7 +343,7 @@ const ColdCallNewCall: React.FC = () => {
                   value={phone}
                   onChange={handlePhoneChange}
                   disabled={formDisabled}
-                  placeholder="+55 (11) 99999-9999"
+                  placeholder="+55 (11) 99999-9999 ou +1 (555) 123-4567"
                   className={`
                     w-full pl-10 pr-4 py-2.5 rounded-lg
                     bg-bg-tertiary border text-text-primary
@@ -336,17 +352,17 @@ const ColdCallNewCall: React.FC = () => {
                     focus:outline-none focus:ring-2 focus:ring-accent-primary/40 focus:border-accent-primary
                     disabled:opacity-50 disabled:cursor-not-allowed
                     ${
-                      phone.length > 5 && !isValidBRPhone(phone)
+                      phone.length > 5 && !isValidPhone(phone)
                         ? 'border-accent-error'
                         : 'border-border-default'
                     }
                   `}
                 />
               </div>
-              {phone.length > 5 && !isValidBRPhone(phone) && (
+              {phone.length > 5 && !isValidPhone(phone) && (
                 <p className="text-xs text-accent-error flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  Número inválido. Use: +55 (XX) XXXXX-XXXX
+                  Número inválido. Use: +55 (XX) XXXXX-XXXX ou +1 (XXX) XXX-XXXX
                 </p>
               )}
             </div>
@@ -447,7 +463,7 @@ const ColdCallNewCall: React.FC = () => {
             {!isCallDone ? (
               <button
                 type="submit"
-                disabled={!isValidBRPhone(phone) || loading}
+                disabled={!isValidPhone(phone) || loading}
                 className="
                   w-full flex items-center justify-center gap-2
                   px-6 py-3.5 rounded-lg font-semibold text-base

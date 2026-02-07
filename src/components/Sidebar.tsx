@@ -31,6 +31,8 @@ import {
   Sparkles,
   ScrollText,
   CheckCircle,
+  Target,
+  TrendingUp,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -93,6 +95,12 @@ const navSections: NavSection[] = [
         { icon: PhoneOutgoing, label: 'Nova Ligação', to: '/cold-calls/new' },
         { icon: Megaphone, label: 'Campanhas', to: '/cold-calls/campaigns' },
         { icon: FileText, label: 'Prompts', to: '/cold-calls/prompts' },
+      ]},
+      { icon: Target, label: 'Prospecção', to: '/prospector', permission: 'canAccessCalls', subItems: [
+        { icon: LayoutDashboard, label: 'Dashboard', to: '/prospector' },
+        { icon: Users, label: 'Fila', to: '/prospector/queue' },
+        { icon: FileText, label: 'Templates', to: '/prospector/templates' },
+        { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
       ]},
       { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
       { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },

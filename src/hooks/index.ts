@@ -36,3 +36,4 @@ export * from './usePendingRetries';
 export * from './useColdCallCampaigns';
 export * from './useColdCallQueue';
 export * from './useColdCallPrompts';
+export * from './useProspector';
