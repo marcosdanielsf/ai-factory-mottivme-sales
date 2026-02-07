@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAgents, useAgentVersions } from '../hooks';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
-import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, Power } from 'lucide-react';
+import { Save, Play, Plus, CheckCircle2, AlertCircle, FileCode, ChevronDown, ChevronUp, Bot, Zap, Box, GitBranch, RefreshCw, FileText, MessageSquare, X, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, Power, Search, Building2 } from 'lucide-react';
 import { AgentVersion, Agent } from '../types';
 import { PromptEngineerChat } from '../components/PromptEngineerChat';
 
@@ -11,9 +11,40 @@ export const PromptEditor = () => {
   const { agents, loading: agentsLoading, refetch: refetchAgents } = useAgents();
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [agentSearchTerm, setAgentSearchTerm] = useState('');
+  const agentSearchInputRef = useRef<HTMLInputElement>(null);
+  const agentMenuRef = useRef<HTMLDivElement>(null);
   const [isSandboxLoading, setIsSandboxLoading] = useState(false);
   const [showAdjustmentsChat, setShowAdjustmentsChat] = useState(false);
   
+  // Filtered agents based on search
+  const filteredAgents = useMemo(() => {
+    if (!agentSearchTerm.trim()) return agents;
+    const term = agentSearchTerm.toLowerCase();
+    return agents.filter((a: Agent) => a.name.toLowerCase().includes(term));
+  }, [agents, agentSearchTerm]);
+
+  // Focus search input when agent menu opens
+  useEffect(() => {
+    if (isAgentMenuOpen && agentSearchInputRef.current) {
+      setTimeout(() => agentSearchInputRef.current?.focus(), 50);
+    }
+    if (!isAgentMenuOpen) setAgentSearchTerm('');
+  }, [isAgentMenuOpen]);
+
+  // Close agent menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (agentMenuRef.current && !agentMenuRef.current.contains(e.target as Node)) {
+        setIsAgentMenuOpen(false);
+      }
+    };
+    if (isAgentMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isAgentMenuOpen]);
+
   // Set default agent when loaded
   useEffect(() => {
     if (agents.length > 0 && !selectedAgentId) {
@@ -514,39 +545,73 @@ export const PromptEditor = () => {
 
           <div className="h-4 w-px bg-border-default"></div>
           
-          {/* Agent Selector */}
-          <div className="relative">
+          {/* Agent Selector - Dropdown rico com busca */}
+          <div className="relative" ref={agentMenuRef}>
             <button 
               onClick={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-2 py-1 rounded transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-text-primary hover:bg-bg-tertiary px-3 py-1.5 rounded-lg border border-transparent hover:border-border-default transition-all"
             >
-              <Bot size={16} />
+              <Building2 size={16} className="text-accent-primary" />
               {selectedAgent ? selectedAgent.name : 'Selecione um Agente'}
-              <ChevronDown size={14} className={`text-text-muted transition-transform ${isAgentMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`text-text-muted transition-transform duration-200 ${isAgentMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isAgentMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsAgentMenuOpen(false)}></div>
-                <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default rounded shadow-lg z-50 overflow-hidden">
-                  {agents.map(agent => (
-                    <button
-                      key={agent.id}
-                      onClick={() => {
-                        setSelectedAgentId(agent.id);
-                        setIsAgentMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                        selectedAgentId === agent.id 
-                        ? 'bg-accent-primary/10 text-accent-primary' 
-                        : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
-                      }`}
-                    >
-                      {agent.name}
-                    </button>
-                  ))}
+              <div className="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                {/* Search */}
+                <div className="p-2 border-b border-border-default bg-bg-primary/50">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      ref={agentSearchInputRef}
+                      type="text"
+                      value={agentSearchTerm}
+                      onChange={(e) => setAgentSearchTerm(e.target.value)}
+                      placeholder="Procurar por uma subconta..."
+                      className="w-full bg-bg-tertiary border border-border-default rounded-md pl-8 pr-8 py-1.5 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all"
+                    />
+                    {agentSearchTerm && (
+                      <button
+                        onClick={() => setAgentSearchTerm('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-bg-hover rounded transition-colors"
+                      >
+                        <X size={12} className="text-text-muted" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </>
+
+                {/* Lista de agentes */}
+                <div className="max-h-[320px] overflow-y-auto">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider bg-bg-primary/30">
+                    {agentSearchTerm ? 'Resultados' : 'Todas as Contas'}
+                  </div>
+
+                  {filteredAgents.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-text-muted text-sm">
+                      Nenhuma subconta encontrada
+                    </div>
+                  ) : (
+                    filteredAgents.map((agent: Agent) => (
+                      <button
+                        key={agent.id}
+                        onClick={() => {
+                          setSelectedAgentId(agent.id);
+                          setIsAgentMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all ${
+                          selectedAgentId === agent.id 
+                            ? 'bg-accent-primary/10 text-accent-primary' 
+                            : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                        }`}
+                      >
+                        <Building2 size={14} className={selectedAgentId === agent.id ? 'text-accent-primary' : 'text-text-muted'} />
+                        <span className="truncate">{agent.name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
