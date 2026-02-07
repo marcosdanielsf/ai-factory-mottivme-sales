@@ -46,6 +46,9 @@ coverage/
 # Archive
 9_archive/
 
+# Backups (large tar.gz files)
+**/backups/*.tar.gz
+
 # Logs
 *.log
 npm-debug.log*
