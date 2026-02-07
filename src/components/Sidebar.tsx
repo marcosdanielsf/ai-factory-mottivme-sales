@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -8,6 +8,7 @@ import {
   Box,
   Phone,
   PhoneCall,
+  PhoneOutgoing,
   Users,
   Database,
   TestTube2,
@@ -19,6 +20,9 @@ import {
   Trophy,
   Eye,
   BarChart3,
+  LayoutDashboard,
+  Megaphone,
+  FileText,
   X,
   Send,
   PanelLeftClose,
@@ -47,12 +51,19 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
+interface SubItemConfig {
+  icon: LucideIcon;
+  label: string;
+  to: string;
+}
+
 interface NavItemConfig {
   icon: LucideIcon;
   label: string;
   to: string;
   permission?: keyof Permissions;
   badge?: string;
+  subItems?: SubItemConfig[];
 }
 
 interface NavSection {
@@ -77,7 +88,12 @@ const navSections: NavSection[] = [
     items: [
       { icon: BarChart3, label: 'Sales Ops', to: '/sales-ops', permission: 'canAccessDashboard' },
       { icon: Eye, label: 'Supervisão IA', to: '/supervision', permission: 'canAccessSupervision' },
-      { icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls' },
+      { icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls', subItems: [
+        { icon: LayoutDashboard, label: 'Dashboard', to: '/cold-calls' },
+        { icon: PhoneOutgoing, label: 'Nova Ligação', to: '/cold-calls/new' },
+        { icon: Megaphone, label: 'Campanhas', to: '/cold-calls/campaigns' },
+        { icon: FileText, label: 'Prompts', to: '/cold-calls/prompts' },
+      ]},
       { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
       { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
     ]
@@ -182,6 +198,136 @@ const SidebarItem = ({
         </span>
       )}
     </NavLink>
+  );
+};
+
+// ============================================
+// SUBMENU EXPANDÍVEL
+// ============================================
+
+const SidebarExpandableItem = ({
+  icon: Icon,
+  label,
+  to,
+  subItems,
+  onNavigate,
+  isCollapsed = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  to: string;
+  subItems: SubItemConfig[];
+  onNavigate?: () => void;
+  isCollapsed?: boolean;
+}) => {
+  const location = useLocation();
+  const isAnyChildActive = location.pathname.startsWith(to);
+  const [isExpanded, setIsExpanded] = useState(isAnyChildActive);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  // Auto-expand when navigating into this section
+  useEffect(() => {
+    if (isAnyChildActive && !isExpanded) {
+      setIsExpanded(true);
+    }
+  }, [isAnyChildActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Measure content height for animation
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [subItems]);
+
+  // Collapsed state — show icon only with flyout on hover
+  if (isCollapsed) {
+    return (
+      <div className="relative group mx-2">
+        <div
+          className={`
+            flex items-center justify-center p-2 rounded-md text-sm transition-colors cursor-pointer
+            ${isAnyChildActive ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+          `}
+          title={label}
+        >
+          <Icon size={18} />
+        </div>
+        {/* Flyout submenu */}
+        <div className="absolute left-full top-0 ml-2 py-1 bg-bg-tertiary border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
+          <div className="px-3 py-1.5 text-xs font-medium text-text-muted border-b border-border-default mb-1">{label}</div>
+          {subItems.map((sub) => {
+            const SubIcon = sub.icon;
+            const isSubActive = location.pathname === sub.to;
+            return (
+              <NavLink
+                key={sub.to}
+                to={sub.to}
+                onClick={onNavigate}
+                className={`
+                  flex items-center gap-2 px-3 py-1.5 text-sm transition-colors
+                  ${isSubActive ? 'text-accent-primary bg-accent-primary/10' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+                `}
+              >
+                <SubIcon size={14} />
+                <span>{sub.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Parent toggle */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`
+          w-full flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md text-sm transition-colors
+          ${isAnyChildActive ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+        `}
+        style={{ width: 'calc(100% - 16px)' }}
+      >
+        <Icon size={16} className="flex-shrink-0" />
+        <span className="truncate">{label}</span>
+        <ChevronDown
+          size={14}
+          className={`ml-auto flex-shrink-0 text-text-muted transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`}
+        />
+      </button>
+
+      {/* Animated submenu */}
+      <div
+        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+        style={{ maxHeight: isExpanded ? `${contentHeight}px` : '0px' }}
+      >
+        <div ref={contentRef} className="pl-4 mt-0.5 space-y-0.5">
+          {subItems.map((sub) => {
+            const SubIcon = sub.icon;
+            const isSubActive = location.pathname === sub.to;
+            return (
+              <NavLink
+                key={sub.to}
+                to={sub.to}
+                onClick={onNavigate}
+                className={`
+                  flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md text-sm transition-colors
+                  ${isSubActive
+                    ? 'bg-accent-primary/10 text-accent-primary'
+                    : 'text-text-muted hover:bg-bg-hover hover:text-text-secondary'
+                  }
+                `}
+              >
+                <SubIcon size={14} className="flex-shrink-0" />
+                <span className="truncate">{sub.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -362,15 +508,27 @@ export const Sidebar = ({
           <div key={sectionIndex}>
             <SectionTitle title={section.title} isCollapsed={isCollapsed} />
             {section.items.map((item) => (
-              <SidebarItem
-                key={item.to}
-                icon={item.icon}
-                label={item.label}
-                to={item.to}
-                badge={item.badge}
-                onNavigate={handleNavigate}
-                isCollapsed={isCollapsed}
-              />
+              item.subItems && item.subItems.length > 0 ? (
+                <SidebarExpandableItem
+                  key={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  to={item.to}
+                  subItems={item.subItems}
+                  onNavigate={handleNavigate}
+                  isCollapsed={isCollapsed}
+                />
+              ) : (
+                <SidebarItem
+                  key={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  to={item.to}
+                  badge={item.badge}
+                  onNavigate={handleNavigate}
+                  isCollapsed={isCollapsed}
+                />
+              )
             ))}
           </div>
         ))}

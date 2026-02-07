@@ -33,3 +33,6 @@ export * from './useLeadSegmentation';
 export * from './useColdCalls';
 export * from './useColdCallMetrics';
 export * from './usePendingRetries';
+export * from './useColdCallCampaigns';
+export * from './useColdCallQueue';
+export * from './useColdCallPrompts';

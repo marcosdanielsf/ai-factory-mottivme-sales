@@ -39,6 +39,8 @@ import { ConditionalLayout } from './components/ConditionalLayout';
 // Cold Call pages (lazy loaded)
 const ColdCallDashboard = lazy(() => import('./pages/ColdCallDashboard'));
 const ColdCallCampaigns = lazy(() => import('./pages/ColdCallCampaigns'));
+const ColdCallPrompts = lazy(() => import('./pages/ColdCallPrompts'));
+const ColdCallNewCall = lazy(() => import('./pages/ColdCallNewCall'));
 
 const App = () => {
   return (
@@ -191,11 +193,29 @@ const App = () => {
             } />
             <Route path="/cold-calls/campaigns" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
                     <ColdCallCampaigns />
                   </Suspense>
-                </Layout>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/cold-calls/new" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ColdCallNewCall />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/cold-calls/prompts" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <ColdCallPrompts />
+                  </Suspense>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
             <Route path="/calls" element={

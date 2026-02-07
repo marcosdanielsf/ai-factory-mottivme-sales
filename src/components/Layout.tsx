@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './Sidebar';
-import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone, Menu } from 'lucide-react';
+import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone, PhoneOutgoing, Megaphone, LayoutDashboard, Menu } from 'lucide-react';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
@@ -68,6 +68,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       { title: 'Base de Conhecimento', icon: FileText, path: '/knowledge-base', type: 'Docs' },
       { title: 'Funil de Leads', icon: User, path: '/leads', type: 'Vendas' },
       { title: 'Cold Calls', icon: Phone, path: '/cold-calls', type: 'Vendas' },
+      { title: 'Cold Calls - Dashboard', icon: LayoutDashboard, path: '/cold-calls', type: 'Vendas' },
+      { title: 'Cold Calls - Nova Ligação', icon: PhoneOutgoing, path: '/cold-calls/new', type: 'Vendas' },
+      { title: 'Cold Calls - Campanhas', icon: Megaphone, path: '/cold-calls/campaigns', type: 'Vendas' },
+      { title: 'Cold Calls - Prompts', icon: FileText, path: '/cold-calls/prompts', type: 'Vendas' },
       { title: 'Configurações', icon: Settings, path: '/configuracoes', type: 'Sistema' },
     ];
 
