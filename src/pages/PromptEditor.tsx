@@ -591,21 +591,33 @@ export const PromptEditor = () => {
                       Nenhuma subconta encontrada
                     </div>
                   ) : (
-                    filteredAgents.map((agent: Agent) => (
+                    filteredAgents.map((agent: any) => (
                       <button
                         key={agent.id}
                         onClick={() => {
                           setSelectedAgentId(agent.id);
                           setIsAgentMenuOpen(false);
                         }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
                           selectedAgentId === agent.id 
-                            ? 'bg-accent-primary/10 text-accent-primary' 
-                            : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+                            ? 'bg-accent-primary/10' 
+                            : 'hover:bg-bg-tertiary'
                         }`}
                       >
-                        <Building2 size={14} className={selectedAgentId === agent.id ? 'text-accent-primary' : 'text-text-muted'} />
-                        <span className="truncate">{agent.name}</span>
+                        <Building2 size={14} className={`shrink-0 ${selectedAgentId === agent.id ? 'text-accent-primary' : 'text-text-muted'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-sm truncate ${selectedAgentId === agent.id ? 'text-accent-primary font-medium' : 'text-text-primary'}`}>
+                            {agent.name}
+                          </div>
+                          {agent.agentName && agent.agentName !== agent.name && (
+                            <div className="text-[11px] text-text-muted truncate">
+                              {agent.agentName}
+                            </div>
+                          )}
+                        </div>
+                        {agent.is_active && (
+                          <span className="text-[9px] bg-accent-success/20 text-accent-success px-1 py-0.5 rounded shrink-0">●</span>
+                        )}
                       </button>
                     ))
                   )}

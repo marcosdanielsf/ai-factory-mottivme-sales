@@ -12,10 +12,17 @@ export const useAgents = () => {
       setLoading(true);
       setError(null);
 
-      // Buscar da tabela agent_versions e agrupar por client_id
+      // Buscar agent_versions com JOIN na tabela clients
       const { data, error } = await supabase
         .from('agent_versions')
-        .select('*')
+        .select(`
+          *,
+          clients:client_id (
+            id,
+            nome,
+            empresa
+          )
+        `)
         .order('updated_at', { ascending: false });
 
       if (error) {
@@ -28,24 +35,23 @@ export const useAgents = () => {
         return;
       }
 
-      // Agrupar por client_id para obter agentes únicos
-      // Usar a versão mais recente de cada client_id como referência
+      // Agrupar por client_id — usar a versão mais recente como referência
       const agentMap = new Map<string, any>();
 
       for (const version of data) {
-        // Usar client_id como identificador do agente
         const agentKey = version.client_id || version.id;
-
         if (!agentMap.has(agentKey)) {
           agentMap.set(agentKey, version);
         }
-        // Como já ordenamos por updated_at desc, a primeira ocorrência é a mais recente
       }
 
-      // Mapear para o formato Agent esperado pelo Dashboard
+      // Mapear para o formato Agent
+      // name = nome do CLIENTE (tabela clients)
+      // agentName = nome do AGENTE (versão mais recente) — pra contexto
       const mappedAgents: Agent[] = Array.from(agentMap.values()).map((agent: any) => ({
-        id: agent.client_id || agent.id, // Usar client_id como ID do agente
-        name: agent.agent_name || agent.clients?.nome || 'Agente Sem Nome',
+        id: agent.client_id || agent.id,
+        name: agent.clients?.nome || agent.agent_name || 'Agente Sem Nome',
+        agentName: agent.agent_name || '',
         slug: agent.slug || agent.client_id || agent.id,
         created_at: agent.created_at,
         updated_at: agent.updated_at,
@@ -58,6 +64,9 @@ export const useAgents = () => {
         total_test_runs: agent.total_test_runs || 0,
         framework_approved: agent.framework_approved || false
       }));
+
+      // Ordenar por nome do cliente
+      mappedAgents.sort((a, b) => a.name.localeCompare(b.name));
 
       setAgents(mappedAgents);
     } catch (err: any) {
