@@ -40,26 +40,33 @@ export const useAgents = () => {
         return;
       }
 
-      // Agrupar por client_id — usar a versão mais recente como referência
-      const agentMap = new Map<string, any>();
+      // Agrupar por client_id
+      // Guardar a versão mais recente E a versão ativa (se existir)
+      const agentMap = new Map<string, { latest: any; active: any | null }>();
 
       for (const version of data) {
         const agentKey = version.client_id || version.id;
         if (!agentMap.has(agentKey)) {
-          agentMap.set(agentKey, version);
+          agentMap.set(agentKey, { latest: version, active: version.is_active ? version : null });
+        } else {
+          const entry = agentMap.get(agentKey)!;
+          if (version.is_active && !entry.active) {
+            entry.active = version;
+          }
         }
       }
 
       // Mapear para o formato Agent
-      // name = nome da LOCATION (ghl_locations) — mesmo do painel Admin
-      // agentName = nome do AGENTE (versão mais recente) — subtítulo
-      const mappedAgents: Agent[] = Array.from(agentMap.values()).map((agent: any) => {
-        const locationName = agent.location_id ? locationMap.get(agent.location_id) : null;
+      // Prioridade pro location: versão ATIVA > versão mais recente
+      const mappedAgents: Agent[] = Array.from(agentMap.values()).map(({ latest, active }) => {
+        const ref = active || latest; // preferir ativa pra resolver location
+        const locationName = ref.location_id ? locationMap.get(ref.location_id) : null;
+        const agent = latest; // dados gerais da mais recente
         return {
           id: agent.client_id || agent.id,
-          name: locationName || agent.agent_name || 'Agente Sem Nome',
-          agentName: agent.agent_name || '',
-          locationId: agent.location_id || '',
+          name: locationName || ref.agent_name || agent.agent_name || 'Agente Sem Nome',
+          agentName: ref.agent_name || agent.agent_name || '',
+          locationId: ref.location_id || agent.location_id || '',
           slug: agent.slug || agent.client_id || agent.id,
           created_at: agent.created_at,
           updated_at: agent.updated_at,
