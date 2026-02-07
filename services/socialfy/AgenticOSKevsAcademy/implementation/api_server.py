@@ -5727,6 +5727,175 @@ async def send_outreach_endpoint(request: OutreachRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================
+# DM VIA INSTAGRAM API (Instagrapi - sem Playwright)
+# ============================================
+
+class DMSendRequest(BaseModel):
+    """Request para enviar DM via Instagram API"""
+    from_username: str = Field(..., description="Instagram account to send from (must be in instagram_accounts table)")
+    to_username: str = Field(..., description="Target Instagram username to DM")
+    message: str = Field(..., description="Message text to send")
+    update_outreach_status: Optional[bool] = Field(False, description="If true, also updates new_followers_detected status")
+    follower_id: Optional[str] = Field(None, description="ID in new_followers_detected table (for status update)")
+
+@app.post("/api/dm-send")
+async def send_dm_via_api(request: DMSendRequest):
+    """
+    Envia DM via Instagram API (Instagrapi) - SEM Playwright/browser.
+    Usa proxy Decodo residencial e sessions persistidas no Supabase.
+
+    Requer conta cadastrada na tabela instagram_accounts.
+    """
+    logger.info(f"[DM-API] Sending DM from @{request.from_username} to @{request.to_username}")
+
+    try:
+        from instagram_api_dm import get_dm_service
+
+        # Initialize with Supabase REST client
+        db = SupabaseRESTClient()
+        service = get_dm_service(db)
+
+        # Send DM
+        result = service.send_dm(
+            from_username=request.from_username,
+            to_username=request.to_username,
+            message=request.message
+        )
+
+        # Update outreach status if requested
+        if request.update_outreach_status and request.follower_id and result.get("success"):
+            try:
+                resp = requests.patch(
+                    f"{SUPABASE_URL}/rest/v1/new_followers_detected?id=eq.{request.follower_id}",
+                    headers={
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "return=minimal"
+                    },
+                    json={
+                        "outreach_status": "sent",
+                        "outreach_message": request.message[:500],
+                        "outreach_sent_at": datetime.utcnow().isoformat()
+                    }
+                )
+                logger.info(f"[DM-API] Outreach status updated for follower {request.follower_id}: {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"[DM-API] Failed to update outreach status: {e}")
+
+        return result
+
+    except ImportError as e:
+        logger.error(f"[DM-API] instagrapi not installed: {e}")
+        raise HTTPException(status_code=500, detail="instagrapi library not available. Run: pip install instagrapi")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[DM-API] Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/dm-health/{username}")
+async def check_dm_session_health(username: str):
+    """Check if an Instagram session is healthy."""
+    try:
+        from instagram_api_dm import get_dm_service
+        db = SupabaseRESTClient()
+        service = get_dm_service(db)
+        return service.check_session_health(username)
+    except Exception as e:
+        return {"healthy": False, "username": username, "error": str(e)}
+
+
+class SupabaseRESTClient:
+    """Adapter to make Supabase REST API compatible with instagram_api_dm module."""
+
+    def table(self, name):
+        return SupabaseTableQuery(name)
+
+    def rpc(self, fn_name, params=None):
+        """Call a Supabase RPC function."""
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json"
+        }
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/rpc/{fn_name}",
+            headers=headers,
+            json=params or {}
+        )
+        return type('Result', (), {'data': resp.json() if resp.text else None})()
+
+
+class SupabaseTableQuery:
+    """Chainable query builder for Supabase REST API."""
+
+    def __init__(self, table_name):
+        self._table = table_name
+        self._base_url = f"{SUPABASE_URL}/rest/v1/{table_name}"
+        self._headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+        self._params = {}
+        self._select_cols = "*"
+        self._is_single = False
+        self._update_data = None
+
+    def select(self, cols="*"):
+        self._select_cols = cols
+        return self
+
+    def eq(self, col, val):
+        self._params[col] = f"eq.{val}"
+        return self
+
+    def single(self):
+        self._is_single = True
+        return self
+
+    def update(self, data):
+        self._update_data = data
+        return self
+
+    def execute(self):
+        if self._update_data:
+            # PATCH request
+            resp = requests.patch(
+                self._base_url,
+                headers=self._headers,
+                params=self._params,
+                json=self._update_data
+            )
+            data = resp.json() if resp.text else []
+            return type('Result', (), {'data': data[0] if self._is_single and data else data})()
+        else:
+            # GET request
+            params = {**self._params, "select": self._select_cols}
+            resp = requests.get(
+                self._base_url,
+                headers=self._headers,
+                params=params
+            )
+            data = resp.json() if resp.text else []
+            if self._is_single:
+                return type('Result', (), {'data': data[0] if data else None})()
+            return type('Result', (), {'data': data})()
+
+    def rpc(self, fn_name, params=None):
+        """Call a Supabase RPC function."""
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/rpc/{fn_name}",
+            headers=self._headers,
+            json=params or {}
+        )
+        return type('Result', (), {'data': resp.json() if resp.text else None})()
+
+
 @app.post("/followers/outreach/bulk")
 async def send_bulk_outreach_endpoint(
     request: BulkOutreachRequest,
