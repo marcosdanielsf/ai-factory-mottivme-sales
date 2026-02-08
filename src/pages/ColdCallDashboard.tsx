@@ -25,7 +25,7 @@ import { ColdCallStats } from '../components/coldcall/ColdCallStats';
 import { ColdCallChart } from '../components/coldcall/ColdCallChart';
 import { ColdCallTable } from '../components/coldcall/ColdCallTable';
 import { TranscriptModal } from '../components/coldcall/TranscriptModal';
-import { RetryQueue } from '../components/coldcall/RetryQueue';
+import { RetryQueuePanel } from '../components/coldcall/RetryQueuePanel';
 import { CostOverviewCards } from '../components/coldcall/CostOverviewCards';
 import { CostBreakdownChart } from '../components/coldcall/CostBreakdownChart';
 import { CostDailyTable } from '../components/coldcall/CostDailyTable';
@@ -285,16 +285,11 @@ export const ColdCallDashboard = () => {
             />
           </div>
           <div className="lg:col-span-1">
-            {retriesLoading ? (
-              <div className="bg-bg-secondary border border-border-default rounded-lg p-4 animate-pulse">
-                <div className="h-4 bg-bg-hover rounded w-32 mb-4" />
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-12 bg-bg-hover rounded mb-2" />
-                ))}
-              </div>
-            ) : (
-              <RetryQueue retries={retryQueueData} />
-            )}
+            <RetryQueuePanel 
+              botApiUrl="https://cold-call-bot-production.up.railway.app"
+              autoRefresh={true}
+              refreshInterval={30000}
+            />
           </div>
         </div>
 

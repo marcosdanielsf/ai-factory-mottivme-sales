@@ -3,6 +3,7 @@ export { TranscriptModal } from './TranscriptModal';
 export { ColdCallStats } from './ColdCallStats';
 export { ColdCallChart } from './ColdCallChart';
 export { RetryQueue } from './RetryQueue';
+export { RetryQueuePanel } from './RetryQueuePanel';
 export { ColdCallTable } from './ColdCallTable';
 export { CostOverviewCards } from './CostOverviewCards';
 export { CostBreakdownChart } from './CostBreakdownChart';
