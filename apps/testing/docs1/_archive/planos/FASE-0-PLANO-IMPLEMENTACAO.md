@@ -1,3 +1,8 @@
+---
+---
+
+::: v-pre
+
 # FASE 0 - Plano de Implementacao Detalhado
 
 ## Objetivo
@@ -1933,3 +1938,5 @@ python implementation/integration_bridge.py
 - *Secao 11.5: Novo skill get_lead_by_channel*
 - *Secao 11.6-11.7: Modificacao 05-Execution + Endpoint API*
 - *Secao 12: Implementacao completa dos 7 skills*
+
+:::

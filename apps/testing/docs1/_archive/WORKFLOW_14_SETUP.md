@@ -1,3 +1,8 @@
+---
+---
+
+::: v-pre
+
 # 🚀 Workflow 14 - Multi-Tenant Inbox Classifier
 
 ## 📋 Visão Geral
@@ -459,3 +464,5 @@ HAVING AVG(icp_score) < 50;  -- Threshold
 **Autor:** AI Factory V4 - MOTTIVME
 **Data:** 31/12/2025
 **Versão:** 1.0.0
+
+:::

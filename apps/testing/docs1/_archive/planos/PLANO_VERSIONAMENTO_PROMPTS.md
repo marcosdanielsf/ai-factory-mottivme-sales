@@ -1,3 +1,8 @@
+---
+---
+
+::: v-pre
+
 # 🎯 PLANO ESTRATÉGICO: VERSIONAMENTO DE PROMPTS NO SUPABASE
 
 ## 📋 Visão Geral
@@ -226,7 +231,7 @@ const variaveis = {
 // Substituir placeholders
 let promptFinal = promptTemplate;
 for (const [key, value] of Object.entries(variaveis)) {
-  const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi');
+  const regex = new RegExp(`\{\{\s*${key}\s*\}\}`, 'gi');
   promptFinal = promptFinal.replace(regex, value);
 }
 
@@ -594,3 +599,5 @@ $$ LANGUAGE plpgsql;
 *Documento criado em: 2026-01-01*
 *Última atualização: 2026-01-01*
 *Responsável: AI Factory V4 - MOTTIVME*
+
+:::
