@@ -130,6 +130,7 @@ export const ColdCallDashboard = () => {
   const {
     data: costData,
     loading: costLoading,
+    error: costError,
     refetch: refetchCosts,
   } = useCostSummary(30);
 
@@ -308,6 +309,19 @@ export const ColdCallDashboard = () => {
                 </div>
               ))}
             </div>
+          </div>
+        ) : costError ? (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={18} className="text-red-400" />
+              <p className="text-sm text-red-300">Erro ao carregar custos: {costError}</p>
+            </div>
+            <button
+              onClick={refetchCosts}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : costData ? (
           <div className="space-y-4 md:space-y-6">
