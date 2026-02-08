@@ -36,5 +36,7 @@ export * from './usePendingRetries';
 export * from './useColdCallCampaigns';
 export * from './useColdCallQueue';
 export * from './useColdCallPrompts';
+export * from './useAvailableContacts';
+export * from './useImportContacts';
 export * from './useProspector';
 export * from './useDailyCallDetails';

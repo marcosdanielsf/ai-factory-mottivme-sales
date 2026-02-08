@@ -17,6 +17,7 @@ import {
   Upload,
   AlertTriangle,
   Megaphone,
+  Database,
 } from 'lucide-react';
 import {
   useColdCallCampaigns,
@@ -26,6 +27,8 @@ import {
   PhoneListItem,
 } from '../hooks/useColdCallCampaigns';
 import { useColdCallQueue, ColdCallQueueItem } from '../hooks/useColdCallQueue';
+import { ContactImportModal } from '../components/coldcall/ContactImportModal';
+import { Contact } from '../hooks/useAvailableContacts';
 
 // ─── Constants ──────────────────────────────────────────────────────
 
@@ -300,12 +303,14 @@ function CampaignCard({
   onPause,
   onStop,
   onDelete,
+  onImportMore,
 }: {
   campaign: ColdCallCampaign;
   onStart: (id: string) => void;
   onPause: (id: string) => void;
   onStop: (id: string) => void;
   onDelete: (id: string) => void;
+  onImportMore: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -403,7 +408,24 @@ function CampaignCard({
       </div>
 
       {/* Expanded: queue items */}
-      {expanded && <CampaignQueueView campaignId={campaign.id} />}
+      {expanded && (
+        <>
+          {/* Import more button (only for draft/paused) */}
+          {(campaign.status === 'draft' || campaign.status === 'paused') && (
+            <div className="mt-4 pt-4 border-t border-border-default" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => onImportMore(campaign.id)}
+                className="w-full px-4 py-2 bg-accent-primary/10 border border-accent-primary/30 rounded-lg text-accent-primary hover:bg-accent-primary/15 hover:border-accent-primary/50 transition-all text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Importar Mais Contatos
+              </button>
+            </div>
+          )}
+          
+          <CampaignQueueView campaignId={campaign.id} />
+        </>
+      )}
     </div>
   );
 }
@@ -431,8 +453,27 @@ function CreateCampaignModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Import mode
+  const [importMode, setImportMode] = useState<'paste' | 'database'>('paste');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedContacts, setImportedContacts] = useState<Contact[]>([]);
 
-  const parsedItems = useMemo(() => parsePhoneList(phoneText), [phoneText]);
+  const parsedItems = useMemo(() => {
+    if (importMode === 'database' && importedContacts.length > 0) {
+      return importedContacts.map(c => ({
+        phone: c.phone,
+        name: c.name,
+        context: c.segmento,
+      }));
+    }
+    return parsePhoneList(phoneText);
+  }, [phoneText, importMode, importedContacts]);
+
+  const handleImportSuccess = (contacts: Contact[]) => {
+    setImportedContacts(contacts);
+    setShowImportModal(false);
+  };
 
   const toggleDay = (day: string) => {
     setScheduleDays((prev) =>
@@ -498,8 +539,15 @@ function CreateCampaignModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
-      <div className="bg-bg-secondary border border-border-default rounded-xl w-full max-w-2xl mx-4 animate-slide-up">
+    <>
+      <ContactImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={handleImportSuccess}
+      />
+      
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+        <div className="bg-bg-secondary border border-border-default rounded-xl w-full max-w-2xl mx-4 animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-default">
           <h2 className="text-lg font-semibold text-text-primary">Nova Campanha</h2>
@@ -543,32 +591,92 @@ function CreateCampaignModal({
 
           {/* Phone list */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium text-text-secondary">
-                Lista de telefones <span className="text-accent-error">*</span>
-              </label>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Lista de telefones <span className="text-accent-error">*</span>
+            </label>
+            
+            {/* Tabs */}
+            <div className="flex gap-2 mb-3">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-accent-primary hover:text-accent-primary/80 transition-colors"
+                onClick={() => setImportMode('paste')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg border transition-all ${
+                  importMode === 'paste'
+                    ? 'bg-accent-primary/15 border-accent-primary text-accent-primary'
+                    : 'bg-bg-tertiary border-border-default text-text-muted hover:border-border-hover'
+                }`}
               >
-                <Upload className="w-3.5 h-3.5" />
-                Upload CSV
+                📋 Colar Lista
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.txt"
-                onChange={handleCSVUpload}
-                className="hidden"
-              />
+              <button
+                onClick={() => setImportMode('database')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg border transition-all ${
+                  importMode === 'database'
+                    ? 'bg-accent-primary/15 border-accent-primary text-accent-primary'
+                    : 'bg-bg-tertiary border-border-default text-text-muted hover:border-border-hover'
+                }`}
+              >
+                <Database className="w-4 h-4 inline mr-1" />
+                Importar do Banco
+              </button>
             </div>
-            <textarea
-              value={phoneText}
-              onChange={(e) => setPhoneText(e.target.value)}
-              placeholder={"telefone,nome,contexto\n5511999990001,Dr. Silva,Clínica SP\n5511999990002,Dra. Santos,Hospital RJ"}
-              rows={5}
-              className="w-full px-3 py-2 bg-bg-tertiary border border-border-default rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-colors text-sm font-mono resize-none"
-            />
+
+            {/* Paste mode */}
+            {importMode === 'paste' && (
+              <>
+                <div className="flex items-center justify-end mb-1.5">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 text-xs text-accent-primary hover:text-accent-primary/80 transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload CSV
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.txt"
+                    onChange={handleCSVUpload}
+                    className="hidden"
+                  />
+                </div>
+                <textarea
+                  value={phoneText}
+                  onChange={(e) => setPhoneText(e.target.value)}
+                  placeholder={"telefone,nome,contexto\n5511999990001,Dr. Silva,Clínica SP\n5511999990002,Dra. Santos,Hospital RJ"}
+                  rows={5}
+                  className="w-full px-3 py-2 bg-bg-tertiary border border-border-default rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-colors text-sm font-mono resize-none"
+                />
+              </>
+            )}
+
+            {/* Database mode */}
+            {importMode === 'database' && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="w-full px-4 py-3 bg-accent-primary/10 border-2 border-dashed border-accent-primary/30 rounded-lg text-accent-primary hover:bg-accent-primary/15 hover:border-accent-primary/50 transition-all text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  <Database className="w-5 h-5" />
+                  Selecionar Contatos do Banco
+                </button>
+                
+                {importedContacts.length > 0 && (
+                  <div className="px-3 py-2 bg-accent-success/10 border border-accent-success/30 rounded-lg">
+                    <p className="text-xs text-accent-success font-medium">
+                      ✅ {importedContacts.length} contato{importedContacts.length !== 1 ? 's' : ''} importado{importedContacts.length !== 1 ? 's' : ''} do banco
+                    </p>
+                    <button
+                      onClick={() => setImportedContacts([])}
+                      className="mt-1 text-xs text-accent-error hover:underline"
+                    >
+                      Limpar seleção
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Count */}
             {parsedItems.length > 0 && (
               <p className="mt-1.5 text-xs text-accent-success font-medium">
                 ✅ {parsedItems.length} contato{parsedItems.length !== 1 ? 's' : ''} detectado{parsedItems.length !== 1 ? 's' : ''}
@@ -676,6 +784,7 @@ function CreateCampaignModal({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -690,6 +799,9 @@ const ColdCallCampaigns: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Import modal for existing campaigns
+  const [importCampaignId, setImportCampaignId] = useState<string | null>(null);
 
   // Confirm modals
   const [confirmAction, setConfirmAction] = useState<{
@@ -751,6 +863,13 @@ const ColdCallCampaigns: React.FC = () => {
       setConfirmAction({ type: 'stop', campaignId: id, campaignName: c?.name || '' });
     },
     [campaigns]
+  );
+
+  const handleImportMore = useCallback(
+    (id: string) => {
+      setImportCampaignId(id);
+    },
+    []
   );
 
   const handleDelete = useCallback(
@@ -880,6 +999,7 @@ const ColdCallCampaigns: React.FC = () => {
               onPause={handlePause}
               onStop={handleStop}
               onDelete={handleDelete}
+              onImportMore={handleImportMore}
             />
           ))}
         </div>
@@ -890,6 +1010,14 @@ const ColdCallCampaigns: React.FC = () => {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreate}
+      />
+
+      {/* Import modal for existing campaigns */}
+      <ContactImportModal
+        open={!!importCampaignId}
+        campaignId={importCampaignId || undefined}
+        onClose={() => setImportCampaignId(null)}
+        onImported={refetch}
       />
 
       {/* Confirm modal */}

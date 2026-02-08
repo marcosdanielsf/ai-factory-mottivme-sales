@@ -9,3 +9,4 @@ export { CostOverviewCards } from './CostOverviewCards';
 export { CostBreakdownChart } from './CostBreakdownChart';
 export { CostDailyTable } from './CostDailyTable';
 export { DailyCallsDrilldown } from './DailyCallsDrilldown';
+export { ContactImportModal } from './ContactImportModal';
