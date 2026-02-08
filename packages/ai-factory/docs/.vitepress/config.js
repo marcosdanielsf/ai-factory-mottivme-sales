@@ -29,7 +29,18 @@ export default defineConfig({
           items: [
             { text: 'Visao Geral', link: '/' },
             { text: 'Arquitetura', link: '/arquitetura/' },
-            { text: 'Diagrama de Fluxos', link: '/arquitetura/diagrama' }
+            { text: 'Diagrama de Fluxos', link: '/arquitetura/diagrama' },
+            {
+              text: '📞 Cold Call Bot',
+              collapsed: true,
+              items: [
+                { text: 'Visao Geral', link: '/arquitetura/cold-call-bot/' },
+                { text: 'Pipeline de Voz', link: '/arquitetura/cold-call-bot/pipeline' },
+                { text: 'Processo de Construcao', link: '/arquitetura/cold-call-bot/processo' },
+                { text: 'Metodologia Sub-Agentes', link: '/arquitetura/cold-call-bot/metodologia' },
+                { text: 'Troubleshooting', link: '/arquitetura/cold-call-bot/troubleshooting' }
+              ]
+            }
           ]
         },
         {
