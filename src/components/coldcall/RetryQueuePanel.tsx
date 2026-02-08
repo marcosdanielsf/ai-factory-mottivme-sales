@@ -7,7 +7,9 @@ import {
   Inbox,
   AlertCircle,
   Loader2,
-  PhoneOutgoing
+  PhoneOutgoing,
+  Play,
+  Pause
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────
@@ -21,10 +23,11 @@ interface RetryQueueEntry {
   attempt_number: number;
   max_attempts: number;
   next_retry_at: string;
-  status: 'pending' | 'calling' | 'completed' | 'cancelled' | 'exhausted';
+  status: 'pending' | 'paused' | 'calling' | 'completed' | 'cancelled' | 'exhausted';
   last_outcome?: string;
   minutes_until_retry?: number;
   is_due?: boolean;
+  auto_retry?: boolean;
 }
 
 interface RetryQueuePanelProps {
@@ -81,24 +84,77 @@ export function RetryQueuePanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [globalProcessing, setGlobalProcessing] = useState(false);
 
-  // Fetch retry queue
+  // Fetch retry queue (pending + paused)
   const fetchQueue = async () => {
     try {
       setError(null);
-      const res = await fetch(`${botApiUrl}/retry/queue?status=pending&limit=100`);
+      // Buscar pending e paused separadamente, depois combinar
+      const [pendingRes, pausedRes] = await Promise.all([
+        fetch(`${botApiUrl}/retry/queue?status=pending&limit=100`),
+        fetch(`${botApiUrl}/retry/queue?status=paused&limit=100`),
+      ]);
       
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+      if (!pendingRes.ok || !pausedRes.ok) {
+        throw new Error(`API error: ${pendingRes.status} / ${pausedRes.status}`);
       }
       
-      const data = await res.json();
-      setRetries(data.queue || []);
+      const [pendingData, pausedData] = await Promise.all([
+        pendingRes.json(),
+        pausedRes.json(),
+      ]);
+      
+      // Combinar e ordenar por próximo retry
+      const combined = [...(pendingData.queue || []), ...(pausedData.queue || [])];
+      setRetries(combined);
     } catch (err) {
       console.error('Failed to fetch retry queue:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar fila');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Update retry settings (toggle auto_retry ou change max_attempts)
+  const handleUpdateSettings = async (
+    retryId: string,
+    updates: { auto_retry?: boolean; max_attempts?: number }
+  ) => {
+    try {
+      setProcessingId(retryId);
+      const res = await fetch(`${botApiUrl}/retry/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retry_id: retryId, ...updates }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || `Erro ${res.status}`);
+      }
+
+      // Atualizar localmente
+      setRetries((prev) =>
+        prev.map((r) =>
+          r.id === retryId
+            ? {
+                ...r,
+                ...(updates.auto_retry !== undefined && { auto_retry: updates.auto_retry, status: updates.auto_retry ? 'pending' : 'paused' }),
+                ...(updates.max_attempts !== undefined && { max_attempts: updates.max_attempts }),
+              }
+            : r
+        )
+      );
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      alert(
+        `Erro ao atualizar configurações: ${
+          err instanceof Error ? err.message : 'Erro desconhecido'
+        }`
+      );
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -162,6 +218,98 @@ export function RetryQueuePanel({
     }
   };
 
+  // Process queue (global)
+  const handleProcessQueue = async () => {
+    try {
+      setGlobalProcessing(true);
+      const res = await fetch(`${botApiUrl}/retry/process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || `Erro ${res.status}`);
+      }
+
+      const result = await res.json();
+      alert(
+        `Processamento concluído!\n\n` +
+        `✅ Processados: ${result.processed?.length || 0}\n` +
+        `❌ Falhados: ${result.failed?.length || 0}\n` +
+        `⏭️ Ignorados: ${result.skipped?.length || 0}`
+      );
+
+      // Refresh queue
+      await fetchQueue();
+    } catch (err) {
+      console.error('Failed to process queue:', err);
+      alert(
+        `Erro ao processar fila: ${
+          err instanceof Error ? err.message : 'Erro desconhecido'
+        }`
+      );
+    } finally {
+      setGlobalProcessing(false);
+    }
+  };
+
+  // Pause all (global)
+  const handlePauseAll = async () => {
+    if (!confirm('Pausar TODOS os retries ativos?')) return;
+
+    try {
+      setGlobalProcessing(true);
+      // Pausar cada retry individualmente (batch update seria melhor, mas não há endpoint)
+      const updates = retries
+        .filter((r) => r.status === 'pending')
+        .map((r) =>
+          fetch(`${botApiUrl}/retry/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ retry_id: r.id, auto_retry: false }),
+          })
+        );
+
+      await Promise.all(updates);
+      alert(`${updates.length} retries pausados com sucesso!`);
+      await fetchQueue();
+    } catch (err) {
+      console.error('Failed to pause all:', err);
+      alert('Erro ao pausar retries');
+    } finally {
+      setGlobalProcessing(false);
+    }
+  };
+
+  // Update default max_attempts (global)
+  const handleChangeDefaultAttempts = async (maxAttempts: number) => {
+    if (!confirm(`Atualizar TODOS os retries para ${maxAttempts} tentativas?`)) return;
+
+    try {
+      setGlobalProcessing(true);
+      const updates = retries
+        .filter((r) => r.status === 'pending')
+        .map((r) =>
+          fetch(`${botApiUrl}/retry/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ retry_id: r.id, max_attempts: maxAttempts }),
+          })
+        );
+
+      await Promise.all(updates);
+      alert(`${updates.length} retries atualizados para ${maxAttempts} tentativas!`);
+      await fetchQueue();
+    } catch (err) {
+      console.error('Failed to update default attempts:', err);
+      alert('Erro ao atualizar tentativas');
+    } finally {
+      setGlobalProcessing(false);
+    }
+  };
+
   // Auto-refresh
   useEffect(() => {
     fetchQueue();
@@ -173,7 +321,9 @@ export function RetryQueuePanel({
   }, [autoRefresh, refreshInterval]);
 
   // Count pending due now
-  const dueNowCount = retries.filter((r) => r.is_due).length;
+  const dueNowCount = retries.filter((r) => r.is_due && r.status !== 'paused').length;
+  const pausedCount = retries.filter((r) => r.status === 'paused').length;
+  const activeCount = retries.filter((r) => r.status === 'pending').length;
 
   return (
     <div
@@ -188,7 +338,7 @@ export function RetryQueuePanel({
               🔄 Fila de Retries
             </h3>
             <p className="text-xs text-text-muted mt-0.5">
-              Ligações automáticas agendadas
+              {activeCount} ativo{activeCount !== 1 ? 's' : ''} · {pausedCount} pausado{pausedCount !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -208,6 +358,78 @@ export function RetryQueuePanel({
           )}
         </div>
       </div>
+
+      {/* Global Controls */}
+      {!loading && !error && retries.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-white/[0.02] border border-border-default flex flex-wrap items-center gap-3">
+          {/* Process Queue */}
+          {dueNowCount > 0 && (
+            <button
+              onClick={handleProcessQueue}
+              disabled={globalProcessing}
+              className="
+                inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
+                bg-emerald-500/20 text-emerald-400 border border-emerald-500/30
+                hover:bg-emerald-500/30 hover:border-emerald-500/50
+                disabled:opacity-50 disabled:cursor-not-allowed
+                active:scale-95 transition-all duration-150
+              "
+            >
+              {globalProcessing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" />
+                  Processar Fila ({dueNowCount})
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Pause All */}
+          <button
+            onClick={handlePauseAll}
+            disabled={globalProcessing || activeCount === 0}
+            className="
+              inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
+              bg-yellow-500/10 text-yellow-400 border border-yellow-500/20
+              hover:bg-yellow-500/20 hover:border-yellow-500/40
+              disabled:opacity-50 disabled:cursor-not-allowed
+              active:scale-95 transition-all duration-150
+            "
+          >
+            <Pause className="w-3.5 h-3.5" />
+            Pausar Todos
+          </button>
+
+          {/* Default Attempts */}
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs text-text-muted">Tentativas padrão:</span>
+            <select
+              onChange={(e) => handleChangeDefaultAttempts(Number(e.target.value))}
+              disabled={globalProcessing || activeCount === 0}
+              className="
+                px-2 py-1 rounded-md text-xs font-medium
+                bg-white/5 border border-white/10 text-text-primary
+                hover:bg-white/10 hover:border-white/20
+                focus:outline-none focus:ring-2 focus:ring-accent-primary/50
+                disabled:opacity-50 disabled:cursor-not-allowed
+              "
+              defaultValue=""
+            >
+              <option value="" disabled>Selecione</option>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n} tentativa{n > 1 ? 's' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -252,6 +474,7 @@ export function RetryQueuePanel({
                 <th className="px-4 py-3 text-center">Tentativa</th>
                 <th className="px-4 py-3">Próximo Retry</th>
                 <th className="px-4 py-3">Último Outcome</th>
+                <th className="px-4 py-3 text-center">Auto-Retry</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
@@ -260,16 +483,19 @@ export function RetryQueuePanel({
                 const outcome = getOutcomeBadge(retry.last_outcome);
                 const isProcessing = processingId === retry.id;
                 const isDue = retry.is_due || (retry.minutes_until_retry ?? 0) <= 0;
+                const isPaused = retry.status === 'paused';
 
                 return (
                   <tr
                     key={retry.id}
-                    className="hover:bg-white/[0.02] transition-colors"
+                    className={`hover:bg-white/[0.02] transition-colors ${
+                      isPaused ? 'opacity-60' : ''
+                    }`}
                   >
                     {/* Lead */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {isDue && (
+                        {isDue && !isPaused && (
                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                         )}
                         <span className="font-medium text-text-primary">
@@ -283,26 +509,56 @@ export function RetryQueuePanel({
                       {retry.phone}
                     </td>
 
-                    {/* Tentativa */}
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.05] text-text-muted text-xs font-medium">
-                        <RotateCcw className="w-3 h-3" />
-                        {retry.attempt_number}/{retry.max_attempts}
-                      </span>
+                    {/* Tentativa + Dropdown Max Attempts */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-xs text-text-muted">
+                          {retry.attempt_number} de
+                        </span>
+                        <select
+                          value={retry.max_attempts}
+                          onChange={(e) =>
+                            handleUpdateSettings(retry.id, {
+                              max_attempts: Number(e.target.value),
+                            })
+                          }
+                          disabled={isProcessing}
+                          className="
+                            px-1.5 py-0.5 rounded text-xs font-medium
+                            bg-white/5 border border-white/10 text-text-primary
+                            hover:bg-white/10 hover:border-white/20
+                            focus:outline-none focus:ring-1 focus:ring-accent-primary/50
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                          "
+                        >
+                          {[1, 2, 3, 4, 5, 6].map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
 
                     {/* Próximo Retry */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-text-muted" />
-                        <span
-                          className={`text-xs font-medium ${
-                            isDue ? 'text-red-400' : 'text-text-muted'
-                          }`}
-                        >
-                          {isDue ? 'Agora' : formatCountdown(retry.minutes_until_retry)}
+                      {isPaused ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-400 text-xs font-medium border border-yellow-500/30">
+                          <Pause className="w-3 h-3" />
+                          Pausado
                         </span>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-text-muted" />
+                          <span
+                            className={`text-xs font-medium ${
+                              isDue ? 'text-red-400' : 'text-text-muted'
+                            }`}
+                          >
+                            {isDue ? 'Agora' : formatCountdown(retry.minutes_until_retry)}
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     {/* Último Outcome */}
@@ -323,6 +579,41 @@ export function RetryQueuePanel({
                       </span>
                     </td>
 
+                    {/* Toggle Auto-Retry */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={() =>
+                            handleUpdateSettings(retry.id, {
+                              auto_retry: !retry.auto_retry,
+                            })
+                          }
+                          disabled={isProcessing}
+                          className={`
+                            relative inline-flex h-5 w-9 items-center rounded-full transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:ring-offset-2 focus:ring-offset-bg-secondary
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                            ${
+                              retry.auto_retry
+                                ? 'bg-emerald-500/20'
+                                : 'bg-white/5'
+                            }
+                          `}
+                        >
+                          <span
+                            className={`
+                              inline-block h-3 w-3 transform rounded-full transition-transform
+                              ${
+                                retry.auto_retry
+                                  ? 'translate-x-5 bg-emerald-400'
+                                  : 'translate-x-1 bg-white/40'
+                              }
+                            `}
+                          />
+                        </button>
+                      </div>
+                    </td>
+
                     {/* Ações */}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
@@ -332,8 +623,8 @@ export function RetryQueuePanel({
                           disabled={isProcessing}
                           className="
                             inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                            bg-green-500/10 text-green-400 border border-green-500/20
-                            hover:bg-green-500/20 hover:border-green-500/40
+                            bg-emerald-500/20 text-emerald-400 border border-emerald-500/30
+                            hover:bg-emerald-500/30 hover:border-emerald-500/50
                             disabled:opacity-50 disabled:cursor-not-allowed
                             active:scale-95 transition-all duration-150
                           "
@@ -356,15 +647,14 @@ export function RetryQueuePanel({
                           onClick={() => handleCancel(retry.id)}
                           disabled={isProcessing}
                           className="
-                            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                            bg-red-500/10 text-red-400 border border-red-500/20
-                            hover:bg-red-500/20 hover:border-red-500/40
+                            inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium
+                            text-red-400 hover:bg-red-500/10
                             disabled:opacity-50 disabled:cursor-not-allowed
                             active:scale-95 transition-all duration-150
                           "
+                          title="Cancelar retry"
                         >
-                          <X className="w-3 h-3" />
-                          Cancelar
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
