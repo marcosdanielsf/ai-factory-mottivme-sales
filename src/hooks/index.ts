@@ -37,3 +37,4 @@ export * from './useColdCallCampaigns';
 export * from './useColdCallQueue';
 export * from './useColdCallPrompts';
 export * from './useProspector';
+export * from './useDailyCallDetails';

@@ -1,5 +1,6 @@
-import React from 'react';
-import { Calendar, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, TrendingUp, MousePointer } from 'lucide-react';
+import { DailyCallsDrilldown } from './DailyCallsDrilldown';
 
 interface CostDailyTableProps {
   daily: Array<{ date: string; calls: number; cost: number; avg_cost: number }>;
@@ -13,6 +14,7 @@ export function CostDailyTable({
   daily,
   className = ''
 }: CostDailyTableProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   // Ordenar por data decrescente (mais recente primeiro)
   const sortedDaily = [...daily].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -38,11 +40,16 @@ export function CostDailyTable({
   const formatBRL = (value: number) => `R$${(value * USD_TO_BRL).toFixed(2)}`;
 
   return (
-    <div className={`bg-white/5 border border-white/10 rounded-xl p-6 ${className}`}>
-      <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-        <Calendar size={20} className="text-purple-400" />
-        Custos Diários
-      </h3>
+    <>
+      <div className={`bg-white/5 border border-white/10 rounded-xl p-6 ${className}`}>
+        <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+          <Calendar size={20} className="text-purple-400" />
+          Custos Diários
+          <span className="text-xs text-gray-400 font-normal ml-2 flex items-center gap-1">
+            <MousePointer size={12} />
+            Clique em um dia para ver detalhes
+          </span>
+        </h3>
 
       {sortedDaily.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-400">
@@ -79,11 +86,14 @@ export function CostDailyTable({
                 return (
                   <tr
                     key={row.date}
+                    onClick={() => setSelectedDate(row.date)}
                     className={`
                       border-b border-white/10 last:border-b-0
                       hover:bg-white/[0.07] transition-all duration-200
+                      cursor-pointer
                       ${index % 2 === 0 ? 'bg-white/[0.02]' : ''}
                       ${isAboveAverage ? 'bg-yellow-500/5 border-l-2 border-l-yellow-500/40' : ''}
+                      ${selectedDate === row.date ? 'bg-purple-500/10 border-l-2 border-l-purple-500' : ''}
                     `}
                   >
                     <td className="py-3 pr-4 text-sm text-white">
@@ -143,6 +153,14 @@ export function CostDailyTable({
           </div>
         </div>
       )}
-    </div>
+      </div>
+
+      {/* Drill-down Modal */}
+      <DailyCallsDrilldown
+        isOpen={!!selectedDate}
+        onClose={() => setSelectedDate(null)}
+        date={selectedDate}
+      />
+    </>
   );
 }

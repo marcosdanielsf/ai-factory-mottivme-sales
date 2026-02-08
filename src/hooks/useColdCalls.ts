@@ -18,6 +18,8 @@ export interface ColdCallLog {
   prompt_used: string | null;
   attempt_number: number | null;
   next_action: string | null;
+  cost_usd: number | null;
+  cost_breakdown: Record<string, unknown> | null;
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
