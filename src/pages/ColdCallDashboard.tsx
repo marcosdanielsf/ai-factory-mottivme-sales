@@ -18,6 +18,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { useColdCalls, ColdCallFilters, ColdCallLog } from '../hooks/useColdCalls';
 import { useColdCallMetrics, ColdCallMetricsFilters } from '../hooks/useColdCallMetrics';
 import { usePendingRetries } from '../hooks/usePendingRetries';
+import { useCostSummary } from '../hooks/useCostSummary';
 
 // ─── Components (Created by cold-call-components agent) ───────────────
 import { ColdCallStats } from '../components/coldcall/ColdCallStats';
@@ -25,6 +26,9 @@ import { ColdCallChart } from '../components/coldcall/ColdCallChart';
 import { ColdCallTable } from '../components/coldcall/ColdCallTable';
 import { TranscriptModal } from '../components/coldcall/TranscriptModal';
 import { RetryQueue } from '../components/coldcall/RetryQueue';
+import { CostOverviewCards } from '../components/coldcall/CostOverviewCards';
+import { CostBreakdownChart } from '../components/coldcall/CostBreakdownChart';
+import { CostDailyTable } from '../components/coldcall/CostDailyTable';
 
 // ─── Constants ────────────────────────────────────────────────────────
 
@@ -123,15 +127,22 @@ export const ColdCallDashboard = () => {
     refetch: refetchRetries,
   } = usePendingRetries();
 
+  const {
+    data: costData,
+    loading: costLoading,
+    refetch: refetchCosts,
+  } = useCostSummary(30);
+
   // ─── Auto-refresh every 30s ───────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       refetchCalls();
       refetchMetrics();
       refetchRetries();
+      refetchCosts();
     }, AUTO_REFRESH_MS);
     return () => clearInterval(interval);
-  }, [refetchCalls, refetchMetrics, refetchRetries]);
+  }, [refetchCalls, refetchMetrics, refetchRetries, refetchCosts]);
 
   // ─── Reset page on filter change ─────────────────────────────────
   useEffect(() => {
@@ -142,9 +153,9 @@ export const ColdCallDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([refetchCalls(), refetchMetrics(), refetchRetries()]);
+    await Promise.all([refetchCalls(), refetchMetrics(), refetchRetries(), refetchCosts()]);
     setTimeout(() => setIsRefreshing(false), 500);
-  }, [refetchCalls, refetchMetrics, refetchRetries]);
+  }, [refetchCalls, refetchMetrics, refetchRetries, refetchCosts]);
 
   // ─── Active filter count ──────────────────────────────────────────
   const activeFilterCount = [statusFilter, outcomeFilter, searchTerm].filter(Boolean).length;
@@ -285,6 +296,33 @@ export const ColdCallDashboard = () => {
             )}
           </div>
         </div>
+
+        {/* ─── COSTS SECTION ────────────────────────────────────────── */}
+        {costLoading ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-bg-secondary border border-border-default rounded-lg p-4 animate-pulse">
+                  <div className="h-3 bg-bg-hover rounded w-20 mb-3" />
+                  <div className="h-7 bg-bg-hover rounded w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : costData ? (
+          <div className="space-y-4 md:space-y-6">
+            <CostOverviewCards
+              totalCost={costData.total_cost}
+              avgCostPerCall={costData.avg_cost_per_call}
+              totalCalls={costData.total_calls}
+              breakdown={costData.breakdown}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+              <CostBreakdownChart breakdown={costData.breakdown} />
+              <CostDailyTable daily={costData.daily} />
+            </div>
+          </div>
+        ) : null}
 
         {/* ─── FILTERS ─────────────────────────────────────────────── */}
         <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
