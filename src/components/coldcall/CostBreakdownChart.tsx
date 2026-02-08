@@ -1,4 +1,5 @@
 import React from 'react';
+import { PieChart } from 'lucide-react';
 
 interface CostBreakdownChartProps {
   breakdown: { stt: number; llm: number; tts: number; telephony: number };
@@ -9,27 +10,39 @@ export function CostBreakdownChart({
   breakdown,
   className = ''
 }: CostBreakdownChartProps) {
+  const [isVisible, setIsVisible] = React.useState(false);
+  
+  // Fade in animation trigger
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   const total = breakdown.stt + breakdown.llm + breakdown.tts + breakdown.telephony;
   
   // Evitar divisão por zero
   if (total === 0) {
     return (
       <div className={`bg-white/5 border border-white/10 rounded-xl p-6 ${className}`}>
-        <h3 className="text-lg font-semibold text-white mb-6">
+        <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+          <PieChart size={20} className="text-purple-400" />
           Breakdown de Custos
         </h3>
-        <div className="flex items-center justify-center h-64 text-gray-400">
-          Sem dados disponíveis
+        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+          <PieChart size={48} className="opacity-20 mb-3" />
+          <p className="text-sm">Sem dados disponíveis</p>
+          <p className="text-xs text-gray-500 mt-1">Aguardando primeiras chamadas</p>
         </div>
       </div>
     );
   }
 
+  // Cores melhoradas para dark theme (mais vibrantes e com melhor contraste)
   const segments = [
-    { name: 'STT', value: breakdown.stt, color: '#8b5cf6', hoverColor: '#a78bfa' },
-    { name: 'LLM', value: breakdown.llm, color: '#ec4899', hoverColor: '#f472b6' },
-    { name: 'TTS', value: breakdown.tts, color: '#06b6d4', hoverColor: '#22d3ee' },
-    { name: 'Telephony', value: breakdown.telephony, color: '#10b981', hoverColor: '#34d399' }
+    { name: 'STT', value: breakdown.stt, color: '#a78bfa', hoverColor: '#c4b5fd' },      // purple-400 → purple-300
+    { name: 'LLM', value: breakdown.llm, color: '#f472b6', hoverColor: '#f9a8d4' },      // pink-400 → pink-300
+    { name: 'TTS', value: breakdown.tts, color: '#22d3ee', hoverColor: '#67e8f9' },      // cyan-400 → cyan-300
+    { name: 'Telephony', value: breakdown.telephony, color: '#34d399', hoverColor: '#6ee7b7' } // emerald-400 → emerald-300
   ];
 
   // Calcular ângulos para cada segmento
@@ -85,8 +98,9 @@ export function CostBreakdownChart({
   const [hoveredSegment, setHoveredSegment] = React.useState<string | null>(null);
 
   return (
-    <div className={`bg-white/5 border border-white/10 rounded-xl p-6 ${className}`}>
-      <h3 className="text-lg font-semibold text-white mb-6">
+    <div className={`bg-white/5 border border-white/10 rounded-xl p-6 transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} ${className}`}>
+      <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <PieChart size={20} className="text-purple-400" />
         Breakdown de Custos
       </h3>
       
@@ -97,20 +111,25 @@ export function CostBreakdownChart({
             {/* Círculo interno para criar efeito donut */}
             <circle cx="120" cy="120" r="50" fill="rgb(0 0 0 / 0.5)" />
             
-            {/* Segmentos do gráfico */}
-            {segmentsWithAngles.map((segment) => (
+            {/* Segmentos do gráfico com animação */}
+            {segmentsWithAngles.map((segment, index) => (
               <g key={segment.name}>
                 <path
                   d={describeArc(120, 120, 100, segment.startAngle, segment.endAngle)}
                   fill={hoveredSegment === segment.name ? segment.hoverColor : segment.color}
-                  className="transition-all duration-200 cursor-pointer"
-                  onMouseEnter={() => setHoveredSegment(segment.name)}
-                  onMouseLeave={() => setHoveredSegment(null)}
+                  className="cursor-pointer"
                   style={{
                     filter: hoveredSegment === segment.name 
-                      ? 'brightness(1.2) drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))' 
-                      : 'none'
+                      ? `brightness(1.1) drop-shadow(0 0 12px ${segment.color})` 
+                      : 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: isVisible ? 1 : 0,
+                    transform: isVisible ? 'scale(1)' : 'scale(0.8)',
+                    transformOrigin: '120px 120px',
+                    transitionDelay: `${index * 100}ms`
                   }}
+                  onMouseEnter={() => setHoveredSegment(segment.name)}
+                  onMouseLeave={() => setHoveredSegment(null)}
                 />
               </g>
             ))}
@@ -119,35 +138,59 @@ export function CostBreakdownChart({
             <circle cx="120" cy="120" r="50" fill="transparent" />
           </svg>
           
-          {/* Valor total no centro */}
+          {/* Valor total no centro com tooltip */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-white">
-              ${total.toFixed(4)}
-            </span>
-            <span className="text-xs text-gray-400 mt-1">Total</span>
+            {hoveredSegment ? (
+              <>
+                <span className="text-sm text-gray-400">
+                  {hoveredSegment}
+                </span>
+                <span className="text-2xl font-bold text-white">
+                  ${segmentsWithAngles.find(s => s.name === hoveredSegment)?.value.toFixed(4)}
+                </span>
+                <span className="text-xs text-gray-400 mt-1">
+                  {segmentsWithAngles.find(s => s.name === hoveredSegment)?.percentage.toFixed(1)}% do total
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl font-bold text-white">
+                  ${total.toFixed(2)}
+                </span>
+                <span className="text-xs text-gray-400 mt-1">Total</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Legenda */}
         <div className="flex flex-col gap-3 min-w-[200px]">
-          {segmentsWithAngles.map((segment) => (
+          {segmentsWithAngles.map((segment, index) => (
             <div
               key={segment.name}
               className={`
                 flex items-center justify-between p-3 rounded-lg
                 transition-all duration-200 cursor-pointer
                 ${hoveredSegment === segment.name 
-                  ? 'bg-white/10 border border-white/20' 
+                  ? 'bg-white/10 border border-white/20 scale-105' 
                   : 'bg-white/5 border border-white/10'
                 }
               `}
+              style={{
+                opacity: isVisible ? 1 : 0,
+                transform: isVisible ? 'translateX(0)' : 'translateX(-20px)',
+                transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${index * 80}ms`
+              }}
               onMouseEnter={() => setHoveredSegment(segment.name)}
               onMouseLeave={() => setHoveredSegment(null)}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: segment.color }}
+                  className="w-4 h-4 rounded-full transition-all duration-200"
+                  style={{ 
+                    backgroundColor: segment.color,
+                    boxShadow: hoveredSegment === segment.name ? `0 0 8px ${segment.color}` : 'none'
+                  }}
                 />
                 <span className="text-sm text-white font-medium">
                   {segment.name}

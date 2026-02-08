@@ -299,44 +299,81 @@ export const ColdCallDashboard = () => {
         </div>
 
         {/* ─── COSTS SECTION ────────────────────────────────────────── */}
-        {costLoading ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-bg-secondary border border-border-default rounded-lg p-4 animate-pulse">
-                  <div className="h-3 bg-bg-hover rounded w-20 mb-3" />
-                  <div className="h-7 bg-bg-hover rounded w-16" />
+        <div className="pt-6 border-t border-border-default">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+              <span className="text-2xl">💰</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-text-primary">Custos</h2>
+              <p className="text-xs text-text-muted">Análise detalhada de gastos por componente</p>
+            </div>
+          </div>
+
+          {costLoading ? (
+            <div className="space-y-6">
+              {/* Skeleton Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 bg-purple-500/20 rounded-lg" />
+                    </div>
+                    <div className="h-8 bg-bg-hover rounded w-20 mb-2" />
+                    <div className="h-4 bg-bg-hover rounded w-24 mb-1" />
+                    <div className="h-3 bg-bg-hover rounded w-28" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Skeleton Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-6 animate-pulse">
+                    <div className="h-5 bg-bg-hover rounded w-40 mb-6" />
+                    <div className="h-64 bg-bg-hover rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : costError ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle size={24} className="text-red-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-red-300 mb-1">
+                      Erro ao carregar dados de custos
+                    </h3>
+                    <p className="text-xs text-red-300/80">{costError}</p>
+                  </div>
                 </div>
-              ))}
+                <button
+                  onClick={refetchCosts}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-lg text-sm font-medium text-red-300 transition-all active:scale-95"
+                >
+                  <RefreshCw size={16} />
+                  Tentar Novamente
+                </button>
+              </div>
             </div>
-          </div>
-        ) : costError ? (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertTriangle size={18} className="text-red-400" />
-              <p className="text-sm text-red-300">Erro ao carregar custos: {costError}</p>
+          ) : costData ? (
+            <div className="space-y-4 md:space-y-6">
+              <CostOverviewCards
+                totalCost={costData.total_cost}
+                avgCostPerCall={costData.avg_cost_per_call}
+                totalCalls={costData.total_calls}
+                breakdown={costData.breakdown}
+              />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                <CostBreakdownChart breakdown={costData.breakdown} />
+                <CostDailyTable daily={costData.daily} />
+              </div>
             </div>
-            <button
-              onClick={refetchCosts}
-              className="text-xs text-red-400 hover:text-red-300 underline"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : costData ? (
-          <div className="space-y-4 md:space-y-6">
-            <CostOverviewCards
-              totalCost={costData.total_cost}
-              avgCostPerCall={costData.avg_cost_per_call}
-              totalCalls={costData.total_calls}
-              breakdown={costData.breakdown}
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-              <CostBreakdownChart breakdown={costData.breakdown} />
-              <CostDailyTable daily={costData.daily} />
-            </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         {/* ─── FILTERS ─────────────────────────────────────────────── */}
         <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
