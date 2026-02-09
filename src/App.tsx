@@ -49,6 +49,11 @@ const ProspectorTemplates = lazy(() => import('./pages/ProspectorTemplates'));
 const ProspectorAnalytics = lazy(() => import('./pages/ProspectorAnalytics'));
 const ProspectorCampaignDetail = lazy(() => import('./pages/ProspectorCampaignDetail'));
 
+// Video Producer pages (lazy loaded)
+const VideoProducerDashboard = lazy(() => import('./pages/VideoProducerDashboard'));
+const VideoProducerNew = lazy(() => import('./pages/VideoProducerNew'));
+const VideoProducerDetail = lazy(() => import('./pages/VideoProducerDetail'));
+
 const App = () => {
   return (
     <AuthProvider>
@@ -268,6 +273,35 @@ const App = () => {
                 <ConditionalLayout>
                   <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
                     <ProspectorCampaignDetail />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Video Producer */}
+            <Route path="/video-producer" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <VideoProducerDashboard />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/video-producer/new" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <VideoProducerNew />
+                  </Suspense>
+                </ConditionalLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/video-producer/:id" element={
+              <ProtectedRoute>
+                <ConditionalLayout>
+                  <Suspense fallback={<div className="p-8 text-text-muted">Carregando...</div>}>
+                    <VideoProducerDetail />
                   </Suspense>
                 </ConditionalLayout>
               </ProtectedRoute>

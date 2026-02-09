@@ -33,6 +33,8 @@ import {
   CheckCircle,
   Target,
   TrendingUp,
+  Video,
+  Plus,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -101,6 +103,10 @@ const navSections: NavSection[] = [
         { icon: Users, label: 'Fila', to: '/prospector/queue' },
         { icon: FileText, label: 'Templates', to: '/prospector/templates' },
         { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
+      ]},
+      { icon: Video, label: 'Video Producer', to: '/video-producer', permission: 'canAccessCalls', subItems: [
+        { icon: LayoutDashboard, label: 'Dashboard', to: '/video-producer' },
+        { icon: Plus, label: 'Novo Vídeo', to: '/video-producer/new' },
       ]},
       { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
       { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
