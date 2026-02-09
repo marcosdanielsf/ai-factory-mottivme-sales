@@ -38,6 +38,7 @@ export default defineConfig({
                 { text: 'Pipeline de Voz', link: '/arquitetura/cold-call-bot/pipeline' },
                 { text: 'Processo de Construção', link: '/arquitetura/cold-call-bot/processo' },
                 { text: 'Metodologia', link: '/arquitetura/cold-call-bot/metodologia' },
+                { text: 'Reengenharia Reversa', link: '/arquitetura/cold-call-bot/reengenharia-reversa' },
                 { text: 'Troubleshooting', link: '/arquitetura/cold-call-bot/troubleshooting' }
               ]
             }
