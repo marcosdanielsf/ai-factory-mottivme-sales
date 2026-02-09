@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Search, Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { RefreshCw, Search, Filter, ChevronDown, ChevronUp, X, SlidersHorizontal } from 'lucide-react';
 import { SupervisionFilters, SupervisionStatus, FilterOption } from '../../types/supervision';
 import { SupervisionFiltersBar } from './SupervisionFilters';
 
@@ -35,6 +35,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
 }) => {
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showStatusPills, setShowStatusPills] = useState(!isMobile);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const statusOptions: { value: SupervisionStatus | 'all'; label: string; shortLabel: string; count: number }[] = [
     { value: 'all', label: 'Todos', shortLabel: 'Todos', count: stats.total },
@@ -44,47 +45,53 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
     { value: 'converted', label: 'Convertidos', shortLabel: 'Conv.', count: stats.converted },
   ];
 
-  // Conta quantos filtros estão ativos
-  const activeFiltersCount = [
-    filters.status !== 'all',
+  // Conta quantos filtros avançados estão ativos (excluindo status e search)
+  const advancedFiltersCount = [
     filters.locationId,
     filters.channel,
     filters.etapaFunil,
-    filters.responsavelId,
-    filters.search,
+    filters.responsavelId || filters.responsavel,
+    filters.dateFrom || filters.dateTo,
+    filters.hasQualityIssues,
+    filters.noResponse,
+  ].filter(Boolean).length;
+
+  // Conta total de filtros ativos
+  const activeFiltersCount = [
+    filters.status !== 'all',
+    ...([
+      filters.locationId,
+      filters.channel,
+      filters.etapaFunil,
+      filters.responsavelId,
+      filters.search,
+    ]),
   ].filter(Boolean).length;
 
   // Status atual selecionado
   const currentStatus = statusOptions.find(s => s.value === filters.status);
 
   return (
-    <div className="bg-bg-secondary border-b border-border-default p-3 md:p-4">
-      {/* Header Top Row */}
-      <div className="flex items-center justify-between mb-3 md:mb-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg md:text-xl font-semibold text-text-primary truncate">
-            {isMobile ? 'Supervisão' : 'Painel de Supervisão'}
-          </h1>
-          {!isMobile && (
-            <p className="text-sm text-text-muted">
-              Monitore e gerencie conversas da IA em tempo real
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="bg-bg-secondary border-b border-border-default p-3">
+      {/* Row 1: Title + Actions — compact */}
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-base font-semibold text-text-primary truncate">
+          {isMobile ? 'Supervisão' : 'Supervisão IA'}
+        </h1>
+        <div className="flex items-center gap-1.5">
           {/* Botão de filtros - Mobile */}
           {isMobile && (
             <button
               onClick={() => setShowFiltersModal(true)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                 activeFiltersCount > 0 
                   ? 'bg-accent-primary/10 text-accent-primary' 
                   : 'bg-bg-hover text-text-secondary hover:bg-border-default'
               }`}
             >
-              <Filter size={16} />
+              <Filter size={14} />
               {activeFiltersCount > 0 && (
-                <span className="w-5 h-5 flex items-center justify-center bg-accent-primary text-white text-xs rounded-full">
+                <span className="w-4 h-4 flex items-center justify-center bg-accent-primary text-white text-[10px] rounded-full">
                   {activeFiltersCount}
                 </span>
               )}
@@ -93,29 +100,29 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-bg-hover hover:bg-border-default rounded-lg text-sm text-text-secondary transition-colors disabled:opacity-50"
+            className="p-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-text-secondary transition-colors disabled:opacity-50"
+            title="Atualizar"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            {!isMobile && 'Atualizar'}
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* Status Pills - Mobile: botão colapsável / Desktop: sempre visível */}
+      {/* Row 2: Status pills — compact inline chips */}
       {isMobile ? (
-        <div className="mb-3">
+        <div className="mb-2">
           <button
             onClick={() => setShowStatusPills(!showStatusPills)}
-            className="w-full flex items-center justify-between px-3 py-2 bg-bg-hover rounded-lg text-sm"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-bg-hover rounded-lg text-xs"
           >
             <span className="text-text-secondary">
               {currentStatus?.label || 'Todos'} 
               <span className="ml-1 text-text-muted">({currentStatus?.count || stats.total})</span>
             </span>
             {showStatusPills ? (
-              <ChevronUp size={16} className="text-text-muted" />
+              <ChevronUp size={14} className="text-text-muted" />
             ) : (
-              <ChevronDown size={16} className="text-text-muted" />
+              <ChevronDown size={14} className="text-text-muted" />
             )}
           </button>
           
@@ -129,7 +136,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                     setShowStatusPills(false);
                   }}
                   className={`
-                    px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors
+                    px-2 py-1 rounded-full text-[11px] font-medium transition-colors
                     ${
                       filters.status === option.value
                         ? 'bg-accent-primary text-white'
@@ -138,7 +145,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                   `}
                 >
                   {option.shortLabel}
-                  <span className="ml-1 px-1 py-0.5 rounded-full bg-black/20 text-[10px]">
+                  <span className="ml-1 opacity-70 text-[10px]">
                     {option.count}
                   </span>
                 </button>
@@ -147,13 +154,13 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-2">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => onFilterChange({ ...filters, status: option.value })}
               className={`
-                px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                px-2.5 py-1 rounded-full text-xs font-medium transition-colors
                 ${
                   filters.status === option.value
                     ? 'bg-accent-primary text-white'
@@ -161,8 +168,8 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                 }
               `}
             >
-              {option.label}
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-black/20 text-xs">
+              {option.shortLabel}
+              <span className="ml-1 opacity-70 text-[10px]">
                 {option.count}
               </span>
             </button>
@@ -170,29 +177,54 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-        <input
-          type="text"
-          placeholder={isMobile ? "Buscar..." : "Buscar por nome, telefone ou mensagem..."}
-          value={filters.search || ''}
-          onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
-          className="w-full pl-10 pr-4 py-2 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
-        />
+      {/* Row 3: Search + Filter toggle button */}
+      <div className="flex items-center gap-1.5">
+        <div className="relative flex-1">
+          <Search
+            size={14}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            type="text"
+            placeholder="Buscar..."
+            value={filters.search || ''}
+            onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+            className="w-full pl-8 pr-3 py-1.5 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
+          />
+        </div>
+        {/* Toggle filtros avançados — Desktop */}
+        {!isMobile && filterOptions && (
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`
+              flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-all shrink-0
+              ${showAdvancedFilters || advancedFiltersCount > 0
+                ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
+                : 'bg-bg-hover text-text-muted hover:text-text-secondary border border-transparent'
+              }
+            `}
+            title="Filtros avançados"
+          >
+            <SlidersHorizontal size={13} />
+            {advancedFiltersCount > 0 && (
+              <span className="w-4 h-4 flex items-center justify-center bg-accent-primary text-white text-[10px] rounded-full">
+                {advancedFiltersCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Filtros Avancados - Desktop apenas */}
-      {!isMobile && filterOptions && (
-        <SupervisionFiltersBar
-          filters={filters}
-          onFilterChange={onFilterChange}
-          options={filterOptions}
-          loading={loading}
-        />
+      {/* Filtros Avancados — Desktop, colapsável */}
+      {!isMobile && filterOptions && showAdvancedFilters && (
+        <div className="mt-2 pt-2 border-t border-border-default/50">
+          <SupervisionFiltersBar
+            filters={filters}
+            onFilterChange={onFilterChange}
+            options={filterOptions}
+            loading={loading}
+          />
+        </div>
       )}
 
       {/* Modal de Filtros - Mobile */}
