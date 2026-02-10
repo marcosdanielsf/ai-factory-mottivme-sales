@@ -64,6 +64,17 @@ export const useConversationMessages = (
         throw fetchError;
       }
 
+      // Debug: log raw message types to help diagnose role mapping
+      if (data && data.length > 0) {
+        const typeCounts: Record<string, number> = {};
+        data.forEach((msg: any) => {
+          const t = msg.message?.type || 'undefined';
+          typeCounts[t] = (typeCounts[t] || 0) + 1;
+        });
+        console.log('[ConversationMessages] message.type distribution:', typeCounts);
+        console.log('[ConversationMessages] sample raw message:', JSON.stringify(data[0]?.message).slice(0, 300));
+      }
+
       // Formatar mensagens (sem ordenação no cliente - já vem ordenado)
       const formatted: SupervisionMessage[] = (data || []).map((msg: any) => ({
         message_id: String(msg.id),

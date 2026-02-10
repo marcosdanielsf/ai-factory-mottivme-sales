@@ -562,9 +562,18 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
       return;
     }
 
-    // If lead already has session_id from raw data, use directly
+    // Priority 1: use unique_id directly (it IS the session_id in n8n_historico_mensagens)
+    if (lead.unique_id) {
+      console.log('[LeadChatModal] Using unique_id as session_id:', lead.unique_id);
+      setSessionId(lead.unique_id);
+      setLookupDone(true);
+      return;
+    }
+
+    // Priority 2: if raw data has session_id, use directly
     const rawLead = lead as any;
     if (rawLead.session_id) {
+      console.log('[LeadChatModal] Using raw session_id:', rawLead.session_id);
       setSessionId(rawLead.session_id);
       setLookupDone(true);
       return;
