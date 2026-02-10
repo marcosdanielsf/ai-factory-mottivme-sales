@@ -15,6 +15,7 @@ interface DateRangePickerProps {
 const defaultPresets = [
   { label: 'Hoje', days: 0 },
   { label: '7 dias', days: 7 },
+  { label: 'Este mês', days: -1 }, // Special: 1st of month to today
   { label: '30 dias', days: 30 },
   { label: '90 dias', days: 90 },
 ];
@@ -41,26 +42,37 @@ const parseInputDate = (value: string): Date | null => {
 const getPresetRange = (days: number): DateRange => {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
-  
+
   const start = new Date();
-  start.setDate(start.getDate() - days);
+  if (days === -1) {
+    // "Este mês": dia 1 do mês atual até hoje
+    start.setDate(1);
+  } else {
+    start.setDate(start.getDate() - days);
+  }
   start.setHours(0, 0, 0, 0);
-  
+
   return { startDate: start, endDate: end };
 };
 
 const getActivePreset = (range: DateRange, presets: typeof defaultPresets): number | null => {
   if (!range.startDate || !range.endDate) return null;
-  
+
   const now = new Date();
-  const diffDays = Math.round((now.getTime() - range.startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Verificar se endDate é hoje
   const isEndToday = range.endDate.toDateString() === now.toDateString();
   if (!isEndToday) return null;
-  
+
+  // Check "Este mês" (day 1 of current month)
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (range.startDate.toDateString() === firstOfMonth.toDateString()) {
+    return -1;
+  }
+
+  const diffDays = Math.round((now.getTime() - range.startDate.getTime()) / (1000 * 60 * 60 * 24));
   for (const preset of presets) {
-    if (diffDays === preset.days) return preset.days;
+    if (preset.days >= 0 && diffDays === preset.days) return preset.days;
   }
   return null;
 };
@@ -143,11 +155,11 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-72 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1 w-80 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
           {/* Presets */}
           <div className="p-2 border-b border-border-default">
             <p className="text-xs text-text-muted mb-2 px-1">Atalhos</p>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {presets.map((preset) => (
                 <button
                   key={preset.days}
