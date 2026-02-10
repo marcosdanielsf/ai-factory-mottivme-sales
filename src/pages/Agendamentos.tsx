@@ -43,6 +43,9 @@ import {
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
 import { useAgendamentosStats, type ResponsavelInfo, type DateRange } from '../hooks/useAgendamentosStats';
 import { useCriativoPerformance, type CriativoLead } from '../hooks/useCriativoPerformance';
+import { useConversationMessages } from '../hooks/useConversationMessages';
+import { MessageBubble } from '../components/supervision/MessageBubble';
+import { supabase } from '../lib/supabase';
 import { useLeadSegmentation } from '../hooks/useLeadSegmentation';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { CriativoMetricsTable, OrigemPerformanceChart } from '../components/charts/CriativoPerformanceChart';
@@ -505,31 +508,180 @@ interface CriativoLeadsDrawerProps {
   onClose: () => void;
   criativoName: string;
   leads: CriativoLead[];
+  locationId: string | null;
 }
 
 const FUNNEL_STAGES: Record<string, { label: string; color: string; bg: string; order: number }> = {
-  won: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 5 },
-  fechou: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 5 },
-  completed: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 4 },
-  compareceu: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 4 },
-  no_show: { label: 'No-Show', color: 'text-red-400', bg: 'bg-red-500/20', order: 3 },
+  won: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 6 },
+  fechou: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 6 },
+  fechado: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 6 },
+  completed: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 5 },
+  compareceu: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 5 },
+  no_show: { label: 'No-Show', color: 'text-red-400', bg: 'bg-red-500/20', order: 4 },
   booked: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
   agendou: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
   agendado: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
+  confirmado: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
+  'em contato': { label: 'Em Contato', color: 'text-cyan-400', bg: 'bg-cyan-500/20', order: 2 },
   respondeu: { label: 'Respondeu', color: 'text-purple-400', bg: 'bg-purple-500/20', order: 2 },
   novo: { label: 'Novo', color: 'text-blue-400', bg: 'bg-blue-500/20', order: 1 },
 };
 
-const getFunnelStage = (etapa: string | null) => {
-  if (!etapa) return { label: 'Novo', color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
-  const lower = etapa.toLowerCase();
+// Resolve funnel stage using status (primary) + etapa_funil (fallback)
+const getLeadStage = (lead: CriativoLead) => {
+  const primary = lead.status || lead.etapa_funil;
+  if (!primary) return { label: 'Novo', color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
+  const lower = primary.toLowerCase();
   for (const [key, config] of Object.entries(FUNNEL_STAGES)) {
     if (lower.includes(key)) return config;
   }
-  return { label: etapa, color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
+  return { label: primary, color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
 };
 
-const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClose, criativoName, leads }) => {
+// ==========================================
+// LEAD CHAT MODAL - Historico de conversa
+// ==========================================
+interface LeadChatModalProps {
+  lead: CriativoLead | null;
+  onClose: () => void;
+  locationId: string | null;
+}
+
+const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId }) => {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupDone, setLookupDone] = useState(false);
+  const { messages, loading: messagesLoading } = useConversationMessages(sessionId);
+
+  // Lookup session_id by phone
+  useEffect(() => {
+    if (!lead?.phone) {
+      setSessionId(null);
+      setLookupDone(true);
+      return;
+    }
+
+    const lookup = async () => {
+      setLookupLoading(true);
+      setLookupDone(false);
+      try {
+        // Clean phone for matching
+        const cleanPhone = lead.phone!.replace(/\D/g, '');
+        const phoneVariants = [cleanPhone];
+        if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
+          phoneVariants.push(cleanPhone.slice(2)); // sem DDI
+        }
+        if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
+          phoneVariants.push('55' + cleanPhone); // com DDI
+        }
+
+        // Try each variant
+        for (const phone of phoneVariants) {
+          const { data } = await supabase
+            .from('n8n_historico_mensagens')
+            .select('session_id')
+            .like('message', `%${phone}%`)
+            .not('session_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (data && data.length > 0) {
+            setSessionId(data[0].session_id);
+            return;
+          }
+        }
+        setSessionId(null);
+      } catch (err) {
+        console.error('[LeadChatModal] Lookup error:', err);
+        setSessionId(null);
+      } finally {
+        setLookupLoading(false);
+        setLookupDone(true);
+      }
+    };
+
+    lookup();
+  }, [lead?.phone]);
+
+  if (!lead) return null;
+
+  const stage = getLeadStage(lead);
+  const isLoading = lookupLoading || messagesLoading;
+  const ghlUrl = locationId && lead.contact_id
+    ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/${lead.contact_id}`
+    : null;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
+      <div className="fixed inset-4 md:inset-8 z-[70] flex flex-col bg-bg-secondary border border-border-default rounded-xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border-default bg-bg-tertiary">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+              <User size={18} className="text-accent-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-text-primary truncate">{lead.first_name || 'Sem nome'}</p>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${stage.bg} ${stage.color}`}>{stage.label}</span>
+                {lead.phone && <span className="text-xs text-text-muted">{formatPhone(lead.phone)}</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {ghlUrl && (
+              <button
+                onClick={() => window.open(ghlUrl, '_blank')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs rounded-lg transition-colors"
+              >
+                <ExternalLink size={14} />
+                Abrir no CRM
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-bg-hover transition-colors">
+              <X size={18} className="text-text-muted" />
+            </button>
+          </div>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <RefreshCw size={24} className="animate-spin text-text-muted" />
+            </div>
+          ) : lookupDone && !sessionId ? (
+            <div className="flex flex-col items-center justify-center h-full text-text-muted">
+              <MessageCircle size={48} className="mb-4 opacity-30" />
+              <p className="text-sm">Nenhuma conversa encontrada para este lead</p>
+              <p className="text-xs mt-1">O historico aparece quando o lead tem mensagens registradas</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-text-muted">
+              <MessageCircle size={48} className="mb-4 opacity-30" />
+              <p className="text-sm">Conversa sem mensagens</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.message_id} message={msg} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ==========================================
+// CRIATIVO LEADS DRAWER COMPONENT
+// ==========================================
+const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClose, criativoName, leads, locationId }) => {
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [chatLead, setChatLead] = useState<CriativoLead | null>(null);
+
   if (!isOpen) return null;
 
   // Filtrar leads pelo criativo selecionado
@@ -543,19 +695,22 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
 
   // Ordenar por etapa do funil (mais avancados primeiro)
   const sortedLeads = [...filteredLeads].sort((a, b) => {
-    const orderA = getFunnelStage(a.etapa_funil).order;
-    const orderB = getFunnelStage(b.etapa_funil).order;
+    const orderA = getLeadStage(a).order;
+    const orderB = getLeadStage(b).order;
     return orderB - orderA;
   });
 
+  // Aplicar filtro de badge
+  const displayLeads = activeFilter
+    ? sortedLeads.filter((lead) => getLeadStage(lead).label === activeFilter)
+    : sortedLeads;
+
   // Contadores por etapa
   const funnelCounts = filteredLeads.reduce((acc, lead) => {
-    const stage = getFunnelStage(lead.etapa_funil);
+    const stage = getLeadStage(lead);
     acc[stage.label] = (acc[stage.label] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-
-  const responderam = filteredLeads.filter((l) => l.responded === true).length;
 
   return (
     <>
@@ -572,42 +727,49 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
             </button>
           </div>
           <p className="text-sm text-accent-primary truncate" title={criativoName}>{criativoName}</p>
-          <p className="text-xs text-text-muted mt-1">{filteredLeads.length} leads encontrados</p>
+          <p className="text-xs text-text-muted mt-1">
+            {activeFilter ? `${displayLeads.length} de ${filteredLeads.length} leads` : `${filteredLeads.length} leads encontrados`}
+          </p>
 
-          {/* Mini funnel summary */}
+          {/* Clickable funnel badges */}
           <div className="flex flex-wrap gap-2 mt-3">
-            {responderam > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
-                {responderam} responderam
-              </span>
-            )}
-            {Object.entries(funnelCounts).map(([label, count]) => {
-              const stage = Object.values(FUNNEL_STAGES).find((s) => s.label === label) || { bg: 'bg-bg-tertiary', color: 'text-text-muted' };
-              return (
-                <span key={label} className={`text-xs px-2 py-0.5 rounded-full ${stage.bg} ${stage.color}`}>
-                  {count} {label.toLowerCase()}
-                </span>
-              );
-            })}
+            {Object.entries(funnelCounts)
+              .sort(([, a], [, b]) => b - a)
+              .map(([label, count]) => {
+                const stage = Object.values(FUNNEL_STAGES).find((s) => s.label === label) || { bg: 'bg-bg-tertiary', color: 'text-text-muted' };
+                const isActive = activeFilter === label;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => setActiveFilter(isActive ? null : label)}
+                    className={`text-xs px-2 py-0.5 rounded-full transition-all cursor-pointer ${stage.bg} ${stage.color} ${
+                      isActive ? 'ring-2 ring-white/50 scale-105' : 'hover:ring-1 hover:ring-white/20'
+                    }`}
+                  >
+                    {count} {label.toLowerCase()}
+                  </button>
+                );
+              })}
           </div>
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {sortedLeads.length === 0 ? (
+          {displayLeads.length === 0 ? (
             <div className="text-center py-12">
               <Users size={48} className="mx-auto text-text-muted mb-4" />
-              <p className="text-text-muted">Nenhum lead encontrado para este criativo</p>
+              <p className="text-text-muted">Nenhum lead encontrado</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedLeads.map((lead) => {
-                const stage = getFunnelStage(lead.etapa_funil);
+              {displayLeads.map((lead) => {
+                const stage = getLeadStage(lead);
                 const cleanPhone = (lead.phone || '').replace(/\D/g, '');
                 return (
                   <div
                     key={lead.id}
-                    className="bg-bg-tertiary border border-border-default rounded-lg p-4 hover:bg-bg-hover transition-all"
+                    onClick={() => setChatLead(lead)}
+                    className="bg-bg-tertiary border border-border-default rounded-lg p-4 hover:bg-bg-hover transition-all cursor-pointer group"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3 min-w-0">
@@ -623,11 +785,7 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
                           </span>
                         </div>
                       </div>
-                      {lead.responded && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 flex-shrink-0">
-                          Respondeu
-                        </span>
-                      )}
+                      <ExternalLink size={16} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-text-muted mt-2 flex-wrap">
@@ -649,10 +807,10 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
                       </div>
                     </div>
 
-                    {/* WhatsApp button */}
+                    {/* Quick actions */}
                     {cleanPhone && (
                       <button
-                        onClick={() => window.open(`https://wa.me/${cleanPhone}`, '_blank')}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${cleanPhone}`, '_blank'); }}
                         className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs rounded-lg transition-colors"
                       >
                         <MessageCircle size={14} />
@@ -666,6 +824,13 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
           )}
         </div>
       </div>
+
+      {/* Lead Chat Modal */}
+      <LeadChatModal
+        lead={chatLead}
+        onClose={() => setChatLead(null)}
+        locationId={locationId}
+      />
 
       <style>{`
         @keyframes slide-in-right {
@@ -1252,6 +1417,7 @@ export const Agendamentos: React.FC = () => {
         onClose={() => setCriativoDrawerOpen(false)}
         criativoName={selectedCriativo}
         leads={criativoLeads}
+        locationId={locationId}
       />
     </div>
   );

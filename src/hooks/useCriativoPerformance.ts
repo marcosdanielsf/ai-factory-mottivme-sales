@@ -12,12 +12,14 @@ export interface CriativoLead {
   first_name: string | null;
   phone: string | null;
   unique_id: string | null;
+  contact_id: string | null;
   utm_content: string | null;
   utm_source: string | null;
   utm_campaign: string | null;
   ad_id: string | null;
   session_source: string | null;
   responded: boolean | null;
+  status: string | null;
   etapa_funil: string | null;
   state: string | null;
   created_at: string;
@@ -123,12 +125,14 @@ export const useCriativoPerformance = (
           first_name,
           phone,
           unique_id,
+          contact_id,
           utm_content,
           utm_source,
           utm_campaign,
           ad_id,
           session_source,
           responded,
+          status,
           etapa_funil,
           state,
           created_at
@@ -191,14 +195,16 @@ export const useCriativoPerformance = (
       const utmContent = normalizeUtmContent(lead.utm_content);
       const sessionSource = normalizeSessionSource(lead.session_source);
       const adId = lead.ad_id && lead.ad_id !== 'NULL' ? lead.ad_id : null;
-      const etapaFunil = (lead.etapa_funil || '').toLowerCase();
+      const statusVal = (lead.status || '').toLowerCase();
+      const etapaVal = (lead.etapa_funil || '').toLowerCase();
 
-      // Determinar status do funil
-      const agendou = ['agendou', 'agendado', 'booked', 'no_show', 'completed', 'won'].some(
-        s => etapaFunil.includes(s)
-      );
-      const compareceu = ['completed', 'won', 'compareceu'].some(s => etapaFunil.includes(s));
-      const fechou = etapaFunil.includes('won') || etapaFunil.includes('fechou');
+      // Determinar status do funil — status (primary) + etapa_funil (fallback)
+      const agendou = ['agendado', 'confirmado', 'compareceu', 'fechado', 'booked', 'no_show', 'completed', 'won'].includes(statusVal)
+        || ['agendou', 'agendado', 'booked', 'no_show', 'completed', 'won'].some(s => etapaVal.includes(s));
+      const compareceu = ['compareceu', 'fechado', 'completed', 'won'].includes(statusVal)
+        || ['completed', 'won', 'compareceu'].some(s => etapaVal.includes(s));
+      const fechou = ['fechado', 'won'].includes(statusVal)
+        || etapaVal.includes('won') || etapaVal.includes('fechou');
 
       // responded: campo explícito OU implícito (se avançou no funil, respondeu)
       const responded = lead.responded === true || lead.responded === 'true' || agendou;
