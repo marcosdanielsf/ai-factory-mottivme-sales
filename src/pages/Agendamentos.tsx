@@ -25,6 +25,7 @@ import {
   Users,
   Target,
   Percent,
+  Mail,
 } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
 import {
@@ -823,6 +824,7 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
               {displayLeads.map((lead) => {
                 const stage = getLeadStage(lead);
                 const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+                const fullName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Sem nome';
                 return (
                   <div
                     key={lead.id}
@@ -835,9 +837,7 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
                           <User size={18} className="text-accent-primary" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-text-primary truncate">
-                            {lead.first_name || 'Sem nome'}
-                          </p>
+                          <p className="font-medium text-text-primary truncate">{fullName}</p>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${stage.bg} ${stage.color}`}>
                             {stage.label}
                           </span>
@@ -846,35 +846,60 @@ const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClo
                       <ExternalLink size={16} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-text-muted mt-2 flex-wrap">
+                    {/* Contact info */}
+                    <div className="space-y-1 mt-2">
                       {lead.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone size={12} />
+                        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                          <Phone size={12} className="text-text-muted flex-shrink-0" />
                           <span>{formatPhone(lead.phone)}</span>
                         </div>
                       )}
+                      {(lead as any).email && (
+                        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                          <Mail size={12} className="text-text-muted flex-shrink-0" />
+                          <span className="truncate">{(lead as any).email}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Meta info */}
+                    <div className="flex items-center gap-2 text-[11px] text-text-muted mt-2 flex-wrap">
                       {lead.state && (
-                        <span className="text-text-secondary">{lead.state}</span>
+                        <span className="px-1.5 py-0.5 bg-bg-hover rounded">{lead.state}</span>
                       )}
                       {lead.session_source && (
-                        <span className="text-blue-400">{lead.session_source}</span>
+                        <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded">{lead.session_source}</span>
+                      )}
+                      {lead.source && lead.source !== lead.session_source && (
+                        <span className="px-1.5 py-0.5 bg-bg-hover rounded">{lead.source}</span>
                       )}
                       <div className="flex items-center gap-1">
-                        <Clock size={12} />
+                        <Clock size={10} />
                         <span>{formatDate(lead.created_at)}</span>
                       </div>
                     </div>
 
                     {/* Quick actions */}
-                    {cleanPhone && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${cleanPhone}`, '_blank'); }}
-                        className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs rounded-lg transition-colors"
-                      >
-                        <MessageCircle size={14} />
-                        WhatsApp
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2 mt-3">
+                      {cleanPhone && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${cleanPhone}`, '_blank'); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs rounded-lg transition-colors"
+                        >
+                          <MessageCircle size={12} />
+                          WhatsApp
+                        </button>
+                      )}
+                      {locationId && lead.contact_id && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.open(`https://app.gohighlevel.com/v2/location/${locationId}/contacts/${lead.contact_id}`, '_blank'); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs rounded-lg transition-colors"
+                        >
+                          <ExternalLink size={12} />
+                          CRM
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

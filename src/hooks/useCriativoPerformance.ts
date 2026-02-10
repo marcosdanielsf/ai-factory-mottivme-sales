@@ -10,9 +10,13 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 export interface CriativoLead {
   id: string;
   first_name: string | null;
+  last_name: string | null;
+  email: string | null;
   phone: string | null;
   unique_id: string | null;
   contact_id: string | null;
+  source: string | null;
+  location_name: string | null;
   utm_content: string | null;
   utm_source: string | null;
   utm_campaign: string | null;
