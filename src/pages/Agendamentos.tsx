@@ -719,7 +719,10 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
           ) : (
             <div className="space-y-1">
               {messages.map((msg) => (
-                <MessageBubble key={msg.message_id} message={msg} />
+                <MessageBubble key={msg.message_id} message={{
+                  ...msg,
+                  role: msg.role === 'user' ? 'assistant' : 'user',
+                }} />
               ))}
             </div>
           )}
