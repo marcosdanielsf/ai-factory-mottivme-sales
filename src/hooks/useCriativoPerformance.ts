@@ -120,23 +120,7 @@ export const useCriativoPerformance = (
       // Buscar leads da n8n_schedule_tracking com dados UTM
       let query = supabase
         .from('n8n_schedule_tracking')
-        .select(`
-          id,
-          first_name,
-          phone,
-          unique_id,
-          contact_id,
-          utm_content,
-          utm_source,
-          utm_campaign,
-          ad_id,
-          session_source,
-          responded,
-          status,
-          etapa_funil,
-          state,
-          created_at
-        `)
+        .select('*')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
