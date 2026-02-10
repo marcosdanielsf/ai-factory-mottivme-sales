@@ -5,9 +5,9 @@ Catalogo de processos documentados e validados pela equipe.
 ## O que sao Processos?
 
 Processos sao procedimentos padronizados que foram:
-- Testados e validados
+- Testados e validados em producao
 - Documentados para replicacao
-- Salvos no RAG (Segundo Cerebro)
+- Incluem troubleshooting e checklist de verificacao
 
 ## Categorias
 
@@ -21,13 +21,14 @@ Processos sao procedimentos padronizados que foram:
 | `rule` | Regras de negocio |
 | `api` | Integracoes e endpoints |
 
-## Como adicionar novo processo
-
-1. Salvar no RAG via endpoint `/webhook/rag-ingest`
-2. O script automatico gera o `.md` nesta pasta
-3. Deploy automatico no Vercel
-
 ## Processos Disponiveis
 
-> Os processos serao listados abaixo conforme forem adicionados.
+| Processo | Categoria | Projeto | Data |
+|----------|-----------|---------|------|
+| [Como Documentar Processos](/processos/como-documentar-processos) | `pattern` | mottivme-geral | 2026-02-10 |
+| [Backup Supabase Automatico](/processos/backup-supabase-automatico) | `workflow` | mottivme-geral | 2026-01-11 |
+| [Normalizacao de Nomes n8n](/processos/normalizacao-nomes-n8n) | `workflow` | mottivme-sales | 2026-02-10 |
 
+## Como adicionar novo processo
+
+Ver o guia completo: [Como Documentar Processos](/processos/como-documentar-processos)

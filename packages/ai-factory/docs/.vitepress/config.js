@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'AI Factory V3',
   description: 'Documentacao do Sistema de Agentes IA - Mottivme Sales',
   ignoreDeadLinks: true,
-  srcExclude: ['**/*( *)*', '**/_archive/**'],
+  srcExclude: ['**/*no claude*', '**/_archive/**'],
 
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
@@ -95,6 +95,7 @@ export default defineConfig({
           text: 'Processos',
           collapsed: false,
           items: [
+            { text: 'Como Documentar', link: '/processos/como-documentar-processos' },
             { text: 'Backup Supabase Automatico', link: '/processos/backup-supabase-automatico' },
             { text: 'Normalizacao de Nomes', link: '/processos/normalizacao-nomes-n8n' },
             { text: 'Catalogo', link: '/processos/' }
