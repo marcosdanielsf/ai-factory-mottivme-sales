@@ -183,7 +183,7 @@ function useLiveTimer(active: boolean): number {
 
 const ColdCallNewCall: React.FC = () => {
   const navigate = useNavigate();
-  const { triggerCall, callStatus, loading, error, reset } = useTriggerCall();
+  const { triggerCall, hangup, callStatus, loading, hangingUp, error, reset } = useTriggerCall();
 
   // ─── Form state ────────────────────────────────────────────────────
   const [phone, setPhone] = useState('+');
@@ -459,8 +459,51 @@ const ColdCallNewCall: React.FC = () => {
               </div>
             </div>
 
-            {/* Submit / Reset */}
-            {!isCallDone ? (
+            {/* Submit / Hangup / Reset */}
+            {isCallDone ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="
+                  w-full flex items-center justify-center gap-2
+                  px-6 py-3.5 rounded-lg font-semibold text-base
+                  bg-bg-tertiary border border-border-default text-text-primary
+                  hover:bg-bg-hover hover:border-border-hover
+                  active:scale-[0.98]
+                  transition-all duration-200
+                "
+              >
+                <RotateCcw className="w-5 h-5" />
+                Nova Ligação
+              </button>
+            ) : callStatus && !isCallDone ? (
+              <button
+                type="button"
+                onClick={hangup}
+                disabled={hangingUp}
+                className="
+                  w-full flex items-center justify-center gap-2
+                  px-6 py-3.5 rounded-lg font-semibold text-base
+                  bg-red-600 text-white
+                  hover:bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]
+                  active:scale-[0.98]
+                  transition-all duration-200
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
+              >
+                {hangingUp ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Desligando...
+                  </>
+                ) : (
+                  <>
+                    <PhoneOff className="w-5 h-5" />
+                    Desligar
+                  </>
+                )}
+              </button>
+            ) : (
               <button
                 type="submit"
                 disabled={!isValidPhone(phone) || loading}
@@ -485,22 +528,6 @@ const ColdCallNewCall: React.FC = () => {
                     📞 Ligar Agora
                   </>
                 )}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="
-                  w-full flex items-center justify-center gap-2
-                  px-6 py-3.5 rounded-lg font-semibold text-base
-                  bg-bg-tertiary border border-border-default text-text-primary
-                  hover:bg-bg-hover hover:border-border-hover
-                  active:scale-[0.98]
-                  transition-all duration-200
-                "
-              >
-                <RotateCcw className="w-5 h-5" />
-                Nova Ligação
               </button>
             )}
 

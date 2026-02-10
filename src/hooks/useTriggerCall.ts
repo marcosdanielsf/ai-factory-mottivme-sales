@@ -29,8 +29,10 @@ export interface CallStatus {
 
 interface UseTriggerCallReturn {
   triggerCall: (params: TriggerCallParams) => Promise<void>;
+  hangup: () => Promise<void>;
   callStatus: CallStatus | null;
   loading: boolean;
+  hangingUp: boolean;
   error: string | null;
   reset: () => void;
 }
@@ -52,6 +54,7 @@ const TERMINAL_STATUSES: ReadonlySet<CallStatusValue> = new Set([
 export function useTriggerCall(): UseTriggerCallReturn {
   const [callStatus, setCallStatus] = useState<CallStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hangingUp, setHangingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -191,6 +194,25 @@ export function useTriggerCall(): UseTriggerCallReturn {
     [fetchPrompt, startPolling],
   );
 
+  // ─── Hangup ──────────────────────────────────────────────────────
+
+  const hangup = useCallback(async () => {
+    const callId = callStatus?.callId;
+    if (!callId) return;
+
+    setHangingUp(true);
+    try {
+      await fetch(`${PIPECAT_API_URL}/calls/${callId}/hangup`, {
+        method: 'POST',
+        signal: abortRef.current?.signal,
+      });
+    } catch {
+      // Ignore errors — call may already be ended
+    } finally {
+      setHangingUp(false);
+    }
+  }, [callStatus?.callId]);
+
   // ─── Reset ───────────────────────────────────────────────────────
 
   const reset = useCallback(() => {
@@ -204,5 +226,5 @@ export function useTriggerCall(): UseTriggerCallReturn {
     setError(null);
   }, []);
 
-  return { triggerCall, callStatus, loading, error, reset };
+  return { triggerCall, hangup, callStatus, loading, hangingUp, error, reset };
 }
