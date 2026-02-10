@@ -95,6 +95,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Backup Supabase Automatico', link: '/processos/backup-supabase-automatico' },
+            { text: 'Normalizacao de Nomes', link: '/processos/normalizacao-nomes-n8n' },
             { text: 'Catalogo', link: '/processos/' }
           ]
         },
