@@ -42,7 +42,7 @@ import {
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
 import { useAgendamentosStats, type ResponsavelInfo, type DateRange } from '../hooks/useAgendamentosStats';
-import { useCriativoPerformance } from '../hooks/useCriativoPerformance';
+import { useCriativoPerformance, type CriativoLead } from '../hooks/useCriativoPerformance';
 import { useLeadSegmentation } from '../hooks/useLeadSegmentation';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { CriativoMetricsTable, OrigemPerformanceChart } from '../components/charts/CriativoPerformanceChart';
@@ -498,6 +498,187 @@ const LeadsDrawer: React.FC<LeadsDrawerProps> = ({ isOpen, onClose, title, filte
 };
 
 // ==========================================
+// CRIATIVO LEADS DRAWER - Drill-down por UTM
+// ==========================================
+interface CriativoLeadsDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  criativoName: string;
+  leads: CriativoLead[];
+}
+
+const FUNNEL_STAGES: Record<string, { label: string; color: string; bg: string; order: number }> = {
+  won: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 5 },
+  fechou: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 5 },
+  completed: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 4 },
+  compareceu: { label: 'Compareceu', color: 'text-emerald-400', bg: 'bg-emerald-500/20', order: 4 },
+  no_show: { label: 'No-Show', color: 'text-red-400', bg: 'bg-red-500/20', order: 3 },
+  booked: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
+  agendou: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
+  agendado: { label: 'Agendou', color: 'text-amber-400', bg: 'bg-amber-500/20', order: 3 },
+  respondeu: { label: 'Respondeu', color: 'text-purple-400', bg: 'bg-purple-500/20', order: 2 },
+  novo: { label: 'Novo', color: 'text-blue-400', bg: 'bg-blue-500/20', order: 1 },
+};
+
+const getFunnelStage = (etapa: string | null) => {
+  if (!etapa) return { label: 'Novo', color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
+  const lower = etapa.toLowerCase();
+  for (const [key, config] of Object.entries(FUNNEL_STAGES)) {
+    if (lower.includes(key)) return config;
+  }
+  return { label: etapa, color: 'text-text-muted', bg: 'bg-bg-tertiary', order: 0 };
+};
+
+const CriativoLeadsDrawer: React.FC<CriativoLeadsDrawerProps> = ({ isOpen, onClose, criativoName, leads }) => {
+  if (!isOpen) return null;
+
+  // Filtrar leads pelo criativo selecionado
+  const filteredLeads = leads.filter((lead) => {
+    if (criativoName === 'Sem Criativo (UTM vazio)') {
+      const utm = lead.utm_content;
+      return !utm || utm === 'NULL' || utm === 'null' || utm.trim() === '';
+    }
+    return lead.utm_content === criativoName;
+  });
+
+  // Ordenar por etapa do funil (mais avancados primeiro)
+  const sortedLeads = [...filteredLeads].sort((a, b) => {
+    const orderA = getFunnelStage(a.etapa_funil).order;
+    const orderB = getFunnelStage(b.etapa_funil).order;
+    return orderB - orderA;
+  });
+
+  // Contadores por etapa
+  const funnelCounts = filteredLeads.reduce((acc, lead) => {
+    const stage = getFunnelStage(lead.etapa_funil);
+    acc[stage.label] = (acc[stage.label] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const responderam = filteredLeads.filter((l) => l.responded === true).length;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-full md:max-w-lg bg-bg-secondary border-l border-border-default z-50 flex flex-col shadow-2xl animate-slide-in-right">
+        {/* Header */}
+        <div className="px-4 md:px-6 py-4 border-b border-border-default">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold text-text-primary truncate pr-4">
+              Leads do Criativo
+            </h2>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-bg-hover transition-colors flex-shrink-0">
+              <X size={18} className="text-text-muted" />
+            </button>
+          </div>
+          <p className="text-sm text-accent-primary truncate" title={criativoName}>{criativoName}</p>
+          <p className="text-xs text-text-muted mt-1">{filteredLeads.length} leads encontrados</p>
+
+          {/* Mini funnel summary */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {responderam > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                {responderam} responderam
+              </span>
+            )}
+            {Object.entries(funnelCounts).map(([label, count]) => {
+              const stage = Object.values(FUNNEL_STAGES).find((s) => s.label === label) || { bg: 'bg-bg-tertiary', color: 'text-text-muted' };
+              return (
+                <span key={label} className={`text-xs px-2 py-0.5 rounded-full ${stage.bg} ${stage.color}`}>
+                  {count} {label.toLowerCase()}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {sortedLeads.length === 0 ? (
+            <div className="text-center py-12">
+              <Users size={48} className="mx-auto text-text-muted mb-4" />
+              <p className="text-text-muted">Nenhum lead encontrado para este criativo</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sortedLeads.map((lead) => {
+                const stage = getFunnelStage(lead.etapa_funil);
+                const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+                return (
+                  <div
+                    key={lead.id}
+                    className="bg-bg-tertiary border border-border-default rounded-lg p-4 hover:bg-bg-hover transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0">
+                          <User size={18} className="text-accent-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-text-primary truncate">
+                            {lead.first_name || 'Sem nome'}
+                          </p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${stage.bg} ${stage.color}`}>
+                            {stage.label}
+                          </span>
+                        </div>
+                      </div>
+                      {lead.responded && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 flex-shrink-0">
+                          Respondeu
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-text-muted mt-2 flex-wrap">
+                      {lead.phone && (
+                        <div className="flex items-center gap-1">
+                          <Phone size={12} />
+                          <span>{formatPhone(lead.phone)}</span>
+                        </div>
+                      )}
+                      {lead.state && (
+                        <span className="text-text-secondary">{lead.state}</span>
+                      )}
+                      {lead.session_source && (
+                        <span className="text-blue-400">{lead.session_source}</span>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>{formatDate(lead.created_at)}</span>
+                      </div>
+                    </div>
+
+                    {/* WhatsApp button */}
+                    {cleanPhone && (
+                      <button
+                        onClick={() => window.open(`https://wa.me/${cleanPhone}`, '_blank')}
+                        className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs rounded-lg transition-colors"
+                      >
+                        <MessageCircle size={14} />
+                        WhatsApp
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        .animate-slide-in-right { animation: slide-in-right 0.3s ease-out; }
+      `}</style>
+    </>
+  );
+};
+
+// ==========================================
 // MAIN PAGE COMPONENT - Enhanced UX with funnel hierarchy
 // ==========================================
 export const Agendamentos: React.FC = () => {
@@ -508,6 +689,8 @@ export const Agendamentos: React.FC = () => {
   const [drawerTitle, setDrawerTitle] = useState('');
   const [drawerFilters, setDrawerFilters] = useState<AgendamentosFilters>({});
   const [activeMetric, setActiveMetric] = useState<MetricType | null>(null);
+  const [criativoDrawerOpen, setCriativoDrawerOpen] = useState(false);
+  const [selectedCriativo, setSelectedCriativo] = useState('');
 
   // Account context for multi-tenancy
   const { selectedAccount, isViewingSubconta } = useAccount();
@@ -552,7 +735,7 @@ export const Agendamentos: React.FC = () => {
   );
 
   // Hook para Performance por Criativo (UTM tracking)
-  const { criativos, origens, totals: criativoTotals, loading: loadingCriativos } = useCriativoPerformance(
+  const { criativos, origens, leads: criativoLeads, totals: criativoTotals, loading: loadingCriativos } = useCriativoPerformance(
     dateRange,
     locationId
   );
@@ -648,6 +831,11 @@ export const Agendamentos: React.FC = () => {
     setDrawerTitle(origem === 'trafego' ? '📣 Tráfego Pago' : '🤝 Social Selling');
     setDrawerOpen(true);
   }, [buildFilters]);
+
+  const handleCriativoClick = useCallback((criativo: string) => {
+    setSelectedCriativo(criativo);
+    setCriativoDrawerOpen(true);
+  }, []);
 
   const handleCloseDrawer = useCallback(() => {
     setDrawerOpen(false);
@@ -967,7 +1155,7 @@ export const Agendamentos: React.FC = () => {
             <h3 className="text-sm font-semibold text-text-primary mb-2">Funil por Criativo</h3>
             <p className="text-[10px] text-text-muted mb-2">utm_content do Meta Ads</p>
             <div className="max-h-[250px] overflow-y-auto">
-              <CriativoMetricsTable data={criativos} loading={loadingCriativos} />
+              <CriativoMetricsTable data={criativos} loading={loadingCriativos} onCriativoClick={handleCriativoClick} />
             </div>
           </div>
         </div>
@@ -1056,6 +1244,14 @@ export const Agendamentos: React.FC = () => {
         onClose={handleCloseDrawer}
         title={drawerTitle}
         filters={drawerFilters}
+      />
+
+      {/* Criativo Leads Drawer - Drill-down por UTM */}
+      <CriativoLeadsDrawer
+        isOpen={criativoDrawerOpen}
+        onClose={() => setCriativoDrawerOpen(false)}
+        criativoName={selectedCriativo}
+        leads={criativoLeads}
       />
     </div>
   );

@@ -186,9 +186,10 @@ export function OrigemPerformanceChart({ data, loading }: OrigemPerformanceChart
 interface CriativoMetricsTableProps {
   data: CriativoMetrics[];
   loading?: boolean;
+  onCriativoClick?: (criativo: string) => void;
 }
 
-export function CriativoMetricsTable({ data, loading }: CriativoMetricsTableProps) {
+export function CriativoMetricsTable({ data, loading, onCriativoClick }: CriativoMetricsTableProps) {
   if (loading) {
     return (
       <div className="animate-pulse space-y-2">
@@ -225,7 +226,8 @@ export function CriativoMetricsTable({ data, loading }: CriativoMetricsTableProp
           {data.map((item, index) => (
             <tr
               key={index}
-              className="border-b border-border-default/50 hover:bg-bg-tertiary transition-colors"
+              onClick={() => onCriativoClick?.(item.criativo)}
+              className={`border-b border-border-default/50 hover:bg-bg-tertiary transition-colors ${onCriativoClick ? 'cursor-pointer' : ''}`}
             >
               <td className="py-2 px-2 text-text-primary" title={item.criativo}>
                 <span className="truncate block max-w-[200px]">{item.criativo}</span>

@@ -7,6 +7,22 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 // Permite rastrear ROI real: criativo → lead → agendamento → conversão
 // ============================================================================
 
+export interface CriativoLead {
+  id: string;
+  first_name: string | null;
+  phone: string | null;
+  unique_id: string | null;
+  utm_content: string | null;
+  utm_source: string | null;
+  utm_campaign: string | null;
+  ad_id: string | null;
+  session_source: string | null;
+  responded: boolean | null;
+  etapa_funil: string | null;
+  state: string | null;
+  created_at: string;
+}
+
 export interface CriativoMetrics {
   criativo: string;        // utm_content ou "Orgânico" / "Outros"
   adId: string | null;     // ad_id do Meta
@@ -32,6 +48,7 @@ export interface OrigemMetrics {
 interface UseCriativoPerformanceReturn {
   criativos: CriativoMetrics[];
   origens: OrigemMetrics[];
+  leads: CriativoLead[];
   totals: {
     totalLeads: number;
     totalPaidSocial: number;
@@ -277,7 +294,7 @@ export const useCriativoPerformance = (
     };
   }, [rawData]);
 
-  return { criativos, origens, totals, loading, error, refetch: fetchData };
+  return { criativos, origens, leads: rawData as CriativoLead[], totals, loading, error, refetch: fetchData };
 };
 
 export default useCriativoPerformance;
