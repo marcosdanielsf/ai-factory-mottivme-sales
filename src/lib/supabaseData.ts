@@ -128,7 +128,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 // Fetch score history for charts
 export async function fetchScoreHistory(days: number = 30): Promise<ScoreHistory[]> {
   const { data: testResults, error } = await supabase
-    .from('test_results')
+    .from('vw_latest_test_results')
     .select('overall_score, tested_at')
     .order('tested_at', { ascending: true })
     .limit(100);
@@ -169,7 +169,7 @@ export async function fetchScoreHistory(days: number = 30): Promise<ScoreHistory
 // Fetch test results for an agent
 export async function fetchTestResultsByAgent(agentId: string): Promise<TestResult[]> {
   const { data, error } = await supabase
-    .from('test_results')
+    .from('vw_latest_test_results')
     .select('*')
     .eq('agent_version_id', agentId)
     .order('tested_at', { ascending: false });
@@ -185,14 +185,8 @@ export async function fetchTestResultsByAgent(agentId: string): Promise<TestResu
 // Fetch all test results
 export async function fetchAllTestResults(limit: number = 20): Promise<TestResult[]> {
   const { data, error } = await supabase
-    .from('test_results')
-    .select(`
-      *,
-      agent_versions (
-        agent_name,
-        version
-      )
-    `)
+    .from('vw_latest_test_results')
+    .select('*')
     .order('tested_at', { ascending: false })
     .limit(limit);
 

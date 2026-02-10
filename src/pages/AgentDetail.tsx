@@ -78,7 +78,7 @@ export const AgentDetail = () => {
 
       // Buscar resultados de testes
       const { data: testsData, error: testsError } = await supabase
-        .from('test_results')
+        .from('vw_latest_test_results')
         .select('*')
         .eq('agent_version_id', id)
         .order('tested_at', { ascending: false })

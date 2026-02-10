@@ -336,51 +336,21 @@ export const useTestResults = () => {
         }
       }
 
-      // 3. Buscar de test_results (estrutura anterior) - pode não existir mais
+      // 3. Buscar de vw_latest_test_results (view que já faz JOIN com agent_versions)
       let testResultsData: any[] | null = null;
       let trError: any = null;
 
       try {
-        const joinResult = await supabase
-          .from('test_results')
-          .select(`
-            *,
-            agent_versions (
-              agent_name,
-              version
-            )
-          `)
+        const viewResult = await supabase
+          .from('vw_latest_test_results')
+          .select('*')
           .order('tested_at', { ascending: false })
           .limit(20);
 
-        // Verificar se tabela existe (código 42P01 = tabela não existe)
-        if (joinResult.error?.code === '42P01' || joinResult.error?.message?.includes('does not exist')) {
-          console.info('Tabela test_results não existe, pulando...');
-          testResultsData = null;
-          trError = null; // Não é erro, tabela simplesmente não existe
-        } else if (joinResult.error?.code === 'PGRST200' || joinResult.error?.message?.includes('400') || joinResult.error?.message?.includes('relationship')) {
-          // Fallback: buscar sem JOIN quando FK não existe
-          console.warn('test_results JOIN failed, trying without join:', joinResult.error?.message);
-          const fallbackResult = await supabase
-            .from('test_results')
-            .select('*')
-            .order('tested_at', { ascending: false })
-            .limit(20);
-
-          // Verificar novamente se tabela existe
-          if (fallbackResult.error?.code === '42P01' || fallbackResult.error?.message?.includes('does not exist')) {
-            testResultsData = null;
-            trError = null;
-          } else {
-            testResultsData = fallbackResult.data;
-            trError = fallbackResult.error;
-          }
-        } else {
-          testResultsData = joinResult.data;
-          trError = joinResult.error;
-        }
+        testResultsData = viewResult.data;
+        trError = viewResult.error;
       } catch (e) {
-        console.info('test_results query failed, continuing without it');
+        console.info('vw_latest_test_results query failed, continuing without it');
         testResultsData = null;
         trError = null;
       }
@@ -392,25 +362,25 @@ export const useTestResults = () => {
 
           return {
             id: result.id,
-            agent_version_id: result.agent_versions?.version || result.agent_version_id?.slice(0, 8) || 'v1.0',
+            agent_version_id: result.version || result.agent_version_id?.slice(0, 8) || 'v1.0',
             status: 'completed' as const,
             score_overall: result.overall_score || 0,
             score_dimensions: {
-              tone: result.tone || 0,
-              engagement: result.engagement || 0,
-              compliance: result.compliance || 0,
-              accuracy: result.completeness || 0,
+              tone: result.score_tone || 0,
+              engagement: result.score_engagement || 0,
+              compliance: result.score_compliance || 0,
+              accuracy: result.score_completeness || 0,
               empathy: 0,
-              efficiency: result.conversion || 0
+              efficiency: result.score_conversion || 0
             },
             passed_tests: passed,
             failed_tests: failed,
             total_tests: passed + failed,
             created_at: result.tested_at || result.created_at,
             run_at: result.tested_at || result.created_at,
-            html_report_url: result.html_report_url,
-            agent_name: result.agent_versions?.agent_name,
-            agent_version: result.agent_versions?.version,
+            html_report_url: result.report_url,
+            agent_name: result.agent_name,
+            agent_version: result.version,
             strengths: result.strengths || [],
             weaknesses: result.weaknesses || [],
             summary: result.strengths?.length > 0
@@ -506,9 +476,9 @@ export const useTestResults = () => {
           .eq('id', id);
 
         if (avError) {
-          // Se não encontrou em agent_versions, tentar test_results
+          // Se não encontrou em agent_versions, tentar e2e_test_results
           const { error: trError } = await supabase
-            .from('test_results')
+            .from('e2e_test_results')
             .delete()
             .eq('id', id);
 
