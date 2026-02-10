@@ -1079,11 +1079,11 @@ export const Agendamentos: React.FC = () => {
 
       {/* Content */}
       <div className="p-4 md:p-6 space-y-4">
-        {/* ROW 1: Volume & Conversão */}
+        {/* ROW 1: Volume & Conversão (fonte única: n8n_schedule_tracking) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <MetricCard
             title="Total de Leads"
-            value={stats.totalLeads.toLocaleString()}
+            value={criativoTotals.totalLeads.toLocaleString()}
             icon={Users}
             subtext="No período"
             onClick={() => handleCardClick('leads')}
@@ -1091,32 +1091,39 @@ export const Agendamentos: React.FC = () => {
           />
           <MetricCard
             title="Total Agendados"
-            value={stats.totalAgendados.toLocaleString()}
+            value={criativoTotals.totalAgendaram.toLocaleString()}
             icon={CalendarCheck}
-            subtext="Agendamentos"
+            subtext={`${criativoTotals.totalLeads > 0 ? Math.round((criativoTotals.totalAgendaram / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
             onClick={() => handleCardClick('mes')}
             clickable
           />
           <MetricCard
-            title="Taxa de Conversão"
-            value={`${stats.taxaConversao}%`}
-            icon={Target}
-            subtext={`Meta: 25-35% · ${getConversaoHealth(stats.taxaConversao).label}`}
-            onClick={() => handleCardClick('conversao')}
+            title="Compareceram"
+            value={criativoTotals.totalCompareceram.toLocaleString()}
+            icon={CheckCircle}
+            subtext={`${criativoTotals.totalAgendaram > 0 ? Math.round((criativoTotals.totalCompareceram / criativoTotals.totalAgendaram) * 100) : 0}% dos agendados`}
+            onClick={() => handleCardClick('comparecimento')}
             clickable
           />
           <MetricCard
-            title="Taxa Comparecimento"
-            value={`${stats.taxaComparecimento}%`}
-            icon={CheckCircle}
-            subtext={`Meta: ≥50% · ${getComparecimentoHealth(stats.taxaComparecimento).label}`}
-            onClick={() => handleCardClick('comparecimento')}
+            title="Fecharam"
+            value={criativoTotals.totalFecharam.toLocaleString()}
+            icon={Target}
+            subtext={`${criativoTotals.totalCompareceram > 0 ? Math.round((criativoTotals.totalFecharam / criativoTotals.totalCompareceram) * 100) : 0}% dos que compareceram`}
+            onClick={() => handleCardClick('conversao')}
             clickable
           />
         </div>
 
-        {/* ROW 2: Status breakdown */}
+        {/* ROW 2: Funil detalhado + agendamentos GHL */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+          <MetricCard
+            title="Responderam"
+            value={criativoTotals.totalResponderam}
+            icon={MessageCircle}
+            subtext={`${criativoTotals.totalLeads > 0 ? Math.round((criativoTotals.totalResponderam / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
+            clickable
+          />
           <MetricCard
             title={isCustomDateFilter ? "No Período" : "Hoje"}
             value={stats.hoje}
@@ -1136,13 +1143,6 @@ export const Agendamentos: React.FC = () => {
             value={stats.mes}
             icon={Calendar}
             onClick={() => handleCardClick('mes')}
-            clickable
-          />
-          <MetricCard
-            title="Compareceram"
-            value={stats.totalCompleted}
-            icon={CheckCircle}
-            onClick={() => handleCardClick('comparecimento')}
             clickable
           />
           <MetricCard

@@ -53,6 +53,10 @@ interface UseCriativoPerformanceReturn {
   leads: CriativoLead[];
   totals: {
     totalLeads: number;
+    totalResponderam: number;
+    totalAgendaram: number;
+    totalCompareceram: number;
+    totalFecharam: number;
     totalPaidSocial: number;
     totalOrganic: number;
     comUtmContent: number;
@@ -168,6 +172,10 @@ export const useCriativoPerformance = (
     }> = {};
 
     let totalLeads = 0;
+    let totalResponderam = 0;
+    let totalAgendaram = 0;
+    let totalCompareceram = 0;
+    let totalFecharam = 0;
     let totalPaidSocial = 0;
     let totalOrganic = 0;
     let comUtmContent = 0;
@@ -192,6 +200,12 @@ export const useCriativoPerformance = (
 
       // responded: campo explícito OU implícito (se avançou no funil, respondeu)
       const responded = lead.responded === true || lead.responded === 'true' || agendou;
+
+      // Totais globais de funil
+      if (responded) totalResponderam++;
+      if (agendou) totalAgendaram++;
+      if (compareceu) totalCompareceram++;
+      if (fechou) totalFecharam++;
 
       // Contagem por origem
       if (sessionSource === 'Paid Social') {
@@ -278,6 +292,10 @@ export const useCriativoPerformance = (
       origens: origensArr,
       totals: {
         totalLeads,
+        totalResponderam,
+        totalAgendaram,
+        totalCompareceram,
+        totalFecharam,
         totalPaidSocial,
         totalOrganic,
         comUtmContent,
