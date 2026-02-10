@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAccount } from '../contexts/AccountContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import {
@@ -553,10 +554,18 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
   const [lookupDone, setLookupDone] = useState(false);
   const { messages, loading: messagesLoading } = useConversationMessages(sessionId);
 
-  // Lookup session_id by phone
+  // Lookup session_id: try contact_id first, then phone, then unique_id
   useEffect(() => {
-    if (!lead?.phone) {
+    if (!lead) {
       setSessionId(null);
+      setLookupDone(false);
+      return;
+    }
+
+    // If lead already has session_id from raw data, use directly
+    const rawLead = lead as any;
+    if (rawLead.session_id) {
+      setSessionId(rawLead.session_id);
       setLookupDone(true);
       return;
     }
@@ -565,31 +574,61 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
       setLookupLoading(true);
       setLookupDone(false);
       try {
-        // Clean phone for matching
-        const cleanPhone = lead.phone!.replace(/\D/g, '');
-        const phoneVariants = [cleanPhone];
-        if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
-          phoneVariants.push(cleanPhone.slice(2)); // sem DDI
-        }
-        if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
-          phoneVariants.push('55' + cleanPhone); // com DDI
-        }
-
-        // Try each variant
-        for (const phone of phoneVariants) {
+        // Strategy 1: Search by contact_id in message JSONB
+        if (lead.contact_id) {
           const { data } = await supabase
             .from('n8n_historico_mensagens')
             .select('session_id')
-            .like('message', `%${phone}%`)
+            .like('message', `%${lead.contact_id}%`)
             .not('session_id', 'is', null)
             .order('created_at', { ascending: false })
             .limit(1);
-
-          if (data && data.length > 0) {
+          if (data && data.length > 0 && data[0].session_id) {
             setSessionId(data[0].session_id);
             return;
           }
         }
+
+        // Strategy 2: Search by phone
+        if (lead.phone) {
+          const cleanPhone = lead.phone.replace(/\D/g, '');
+          const phoneVariants = [cleanPhone];
+          if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
+            phoneVariants.push(cleanPhone.slice(2));
+          }
+          if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
+            phoneVariants.push('55' + cleanPhone);
+          }
+          for (const phone of phoneVariants) {
+            const { data } = await supabase
+              .from('n8n_historico_mensagens')
+              .select('session_id')
+              .like('message', `%${phone}%`)
+              .not('session_id', 'is', null)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            if (data && data.length > 0 && data[0].session_id) {
+              setSessionId(data[0].session_id);
+              return;
+            }
+          }
+        }
+
+        // Strategy 3: Search by unique_id
+        if (lead.unique_id) {
+          const { data } = await supabase
+            .from('n8n_historico_mensagens')
+            .select('session_id')
+            .like('message', `%${lead.unique_id}%`)
+            .not('session_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (data && data.length > 0 && data[0].session_id) {
+            setSessionId(data[0].session_id);
+            return;
+          }
+        }
+
         setSessionId(null);
       } catch (err) {
         console.error('[LeadChatModal] Lookup error:', err);
@@ -601,7 +640,7 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
     };
 
     lookup();
-  }, [lead?.phone]);
+  }, [lead?.id]);
 
   if (!lead) return null;
 
@@ -611,10 +650,11 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
     ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/${lead.contact_id}`
     : null;
 
-  return (
+  // Render via Portal to avoid z-index issues with drawer
+  return createPortal(
     <>
-      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
-      <div className="fixed inset-4 md:inset-8 z-[70] flex flex-col bg-bg-secondary border border-border-default rounded-xl shadow-2xl overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 z-[9998]" onClick={onClose} />
+      <div className="fixed inset-4 md:inset-8 z-[9999] flex flex-col bg-bg-secondary border border-border-default rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border-default bg-bg-tertiary">
           <div className="flex items-center gap-3 min-w-0">
@@ -657,7 +697,7 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
               <p className="text-sm">Nenhuma conversa encontrada para este lead</p>
               <p className="text-xs mt-1">O historico aparece quando o lead tem mensagens registradas</p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-text-muted">
               <MessageCircle size={48} className="mb-4 opacity-30" />
               <p className="text-sm">Conversa sem mensagens</p>
@@ -671,7 +711,8 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 
