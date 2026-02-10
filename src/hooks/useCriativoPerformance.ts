@@ -191,7 +191,6 @@ export const useCriativoPerformance = (
       const utmContent = normalizeUtmContent(lead.utm_content);
       const sessionSource = normalizeSessionSource(lead.session_source);
       const adId = lead.ad_id && lead.ad_id !== 'NULL' ? lead.ad_id : null;
-      const responded = lead.responded === true;
       const etapaFunil = (lead.etapa_funil || '').toLowerCase();
 
       // Determinar status do funil
@@ -200,6 +199,9 @@ export const useCriativoPerformance = (
       );
       const compareceu = ['completed', 'won', 'compareceu'].some(s => etapaFunil.includes(s));
       const fechou = etapaFunil.includes('won') || etapaFunil.includes('fechou');
+
+      // responded: campo explícito OU implícito (se avançou no funil, respondeu)
+      const responded = lead.responded === true || lead.responded === 'true' || agendou;
 
       // Contagem por origem
       if (sessionSource === 'Paid Social') {

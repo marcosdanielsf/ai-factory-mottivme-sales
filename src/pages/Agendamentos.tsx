@@ -1144,19 +1144,19 @@ export const Agendamentos: React.FC = () => {
           </div>
 
           {/* Leads por Origem (session_source) */}
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
             <h3 className="text-sm font-semibold text-text-primary mb-2">Leads por Origem</h3>
             <p className="text-[10px] text-text-muted mb-2">Session Source do GHL</p>
             <OrigemPerformanceChart data={origens} loading={loadingCriativos} />
           </div>
+        </div>
 
-          {/* Tabela de Criativos */}
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4 lg:col-span-1">
-            <h3 className="text-sm font-semibold text-text-primary mb-2">Funil por Criativo</h3>
-            <p className="text-[10px] text-text-muted mb-2">utm_content do Meta Ads</p>
-            <div className="max-h-[250px] overflow-y-auto">
-              <CriativoMetricsTable data={criativos} loading={loadingCriativos} onCriativoClick={handleCriativoClick} />
-            </div>
+        {/* Tabela de Criativos - Full width para nao truncar */}
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Funil por Criativo</h3>
+          <p className="text-[10px] text-text-muted mb-3">utm_content do Meta Ads · Clique para ver os leads</p>
+          <div className="max-h-[400px] overflow-y-auto">
+            <CriativoMetricsTable data={criativos} loading={loadingCriativos} onCriativoClick={handleCriativoClick} />
           </div>
         </div>
 
