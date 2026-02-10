@@ -184,7 +184,7 @@ Apos aplicar as correcoes, verificar com execucoes reais:
 ### Follow-up chama por nome completo
 
 1. Verificar node "Sem Resposta" — query deve ter `SPLIT_PART(..., ' ', 1)`
-2. Verificar nodes downstream — devem usar `{{ $json.first_name }}` e nao `{{ $json.contact_name }}`
+2. Verificar nodes downstream — devem usar <code v-pre>{{ $json.first_name }}</code> e nao <code v-pre>{{ $json.contact_name }}</code>
 
 ### Cadencia identica nos 2 canais
 

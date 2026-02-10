@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'AI Factory V3',
   description: 'Documentacao do Sistema de Agentes IA - Mottivme Sales',
   ignoreDeadLinks: true,
+  srcExclude: ['**/*( *)*', '**/_archive/**'],
 
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }]
