@@ -171,114 +171,100 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-bg-secondary">
-      {/* Header */}
-      <div className={`flex items-center justify-between p-3 md:p-4 border-b border-border-default ${isMobile ? 'sticky top-0 z-10 bg-bg-secondary' : ''}`}>
-        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-          {/* Botão Voltar - Mobile */}
-          {isMobile && (
-            <button
-              onClick={onClose}
-              className="p-2 -ml-2 hover:bg-bg-hover rounded-lg text-text-secondary"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          )}
-          
-          <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-bg-hover flex items-center justify-center text-sm md:text-lg font-semibold text-text-primary flex-shrink-0`}>
-            {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-semibold text-text-primary truncate text-sm md:text-base">
+      {/* Header — compact single bar */}
+      <div className={`flex items-center gap-2 px-3 py-2 border-b border-border-default ${isMobile ? 'sticky top-0 z-10 bg-bg-secondary' : ''}`}>
+        {/* Botão Voltar - Mobile */}
+        {isMobile && (
+          <button
+            onClick={onClose}
+            className="p-1.5 -ml-1 hover:bg-bg-hover rounded-lg text-text-secondary shrink-0"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
+        
+        <div className={`${isMobile ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-sm'} rounded-full bg-bg-hover flex items-center justify-center font-semibold text-text-primary shrink-0`}>
+          {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
+        </div>
+
+        {/* Name + Client inline */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h2 className="font-semibold text-text-primary truncate text-sm">
               {getContactDisplayName(conversation)}
             </h2>
-            <div className="flex items-center gap-2 text-xs md:text-sm text-text-muted">
-              {conversation.contact_phone && !isMobile && (
-                <>
-                  <Phone size={12} />
-                  <span>{conversation.contact_phone}</span>
-                  <span className="mx-1">•</span>
-                </>
-              )}
-              <Bot size={12} />
-              <span className="truncate">{conversation.client_name || 'Cliente'}</span>
-            </div>
-            {/* Location ID e Session ID - esconde no mobile */}
-            {!isMobile && (
-              <div className="flex items-center gap-3 mt-1 text-xs text-text-muted">
-                {conversation.location_id && (
-                  <button
-                    onClick={() => navigator.clipboard.writeText(conversation.location_id || '')}
-                    className="flex items-center gap-1 hover:text-accent-primary transition-colors"
-                    title="Copiar Location ID"
-                  >
-                    <MapPin size={10} />
-                    <span className="font-mono">{conversation.location_id.slice(0, 12)}...</span>
-                    <Copy size={10} />
-                  </button>
-                )}
-                <button
-                  onClick={() => navigator.clipboard.writeText(conversation.session_id)}
-                  className="flex items-center gap-1 hover:text-accent-primary transition-colors"
-                  title="Copiar Session ID"
-                >
-                  <span className="font-mono">#{conversation.session_id.slice(0, 8)}</span>
-                  <Copy size={10} />
-                </button>
-              </div>
-            )}
+            <span className="text-text-muted text-[10px] hidden md:inline">•</span>
+            <span className="text-text-muted text-xs truncate hidden md:inline">{conversation.client_name || 'Cliente'}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`px-2 py-1 rounded-full text-xs ${statusConfig.bgColor} ${statusConfig.color}`}>
-            {isMobile ? statusConfig.label.slice(0, 8) : statusConfig.label}
-          </span>
-          {/* Fechar - apenas desktop */}
-          {!isMobile && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-bg-hover rounded-lg text-text-muted"
-            >
-              <X size={20} />
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Action Buttons - Desktop: horizontal / Mobile: menu dropdown */}
-      {isMobile ? (
-        <div className="flex gap-2 p-2 border-b border-border-default bg-bg-primary">
-          {/* Botão principal IA */}
+        {/* Right: AI toggle + actions menu + close */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* AI toggle pill */}
           {isAIActive ? (
             <button
               onClick={onPauseAI}
               disabled={executing}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-lg text-xs transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-full text-xs transition-colors disabled:opacity-50"
+              title="Pausar IA"
             >
-              {executing ? <Loader2 size={14} className="animate-spin" /> : <Pause size={14} />}
-              Pausar
+              {executing ? <Loader2 size={12} className="animate-spin" /> : <Pause size={12} />}
+              <span className="hidden md:inline">Pausar</span>
             </button>
           ) : (
             <button
               onClick={onResumeAI}
               disabled={executing}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-xs transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-full text-xs transition-colors disabled:opacity-50"
+              title="Retomar IA"
             >
-              {executing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-              Retomar
+              {executing ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              <span className="hidden md:inline">Retomar</span>
             </button>
           )}
 
-          {/* Menu de ações mobile */}
+          {/* Status pill */}
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusConfig.bgColor} ${statusConfig.color}`}>
+            {statusConfig.label}
+          </span>
+
+          {/* Actions menu (both mobile and desktop) */}
           <div className="relative" ref={actionsMenuRef}>
             <button
               onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="p-2 bg-bg-hover hover:bg-border-default rounded-lg text-text-secondary"
+              className="p-1.5 hover:bg-bg-hover rounded-lg text-text-muted"
             >
-              <MoreVertical size={18} />
+              <MoreVertical size={16} />
             </button>
 
             {showActionsMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-lg z-20 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-20 overflow-hidden">
+                {/* Copy IDs */}
+                {!isMobile && conversation.location_id && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(conversation.location_id || '');
+                      setShowActionsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-muted hover:bg-bg-hover"
+                  >
+                    <Copy size={13} />
+                    <span className="font-mono truncate">Loc: {conversation.location_id.slice(0, 12)}…</span>
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(conversation.session_id);
+                      setShowActionsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-muted hover:bg-bg-hover"
+                  >
+                    <Copy size={13} />
+                    <span className="font-mono">Session: #{conversation.session_id.slice(0, 8)}</span>
+                  </button>
+                )}
+                {!isMobile && <div className="border-t border-border-default" />}
                 <button
                   onClick={() => {
                     setShowScheduleModal(true);
@@ -287,7 +273,7 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                   disabled={executing || conversation.supervision_status === 'scheduled'}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-purple-400 hover:bg-bg-hover disabled:opacity-50"
                 >
-                  <Calendar size={16} />
+                  <Calendar size={15} />
                   Agendar
                 </button>
                 <button
@@ -298,7 +284,7 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                   disabled={executing || conversation.supervision_status === 'converted'}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-emerald-400 hover:bg-bg-hover disabled:opacity-50"
                 >
-                  <CheckCircle size={16} />
+                  <CheckCircle size={15} />
                   Convertido
                 </button>
                 <button
@@ -309,8 +295,8 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                   disabled={executing}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-blue-400 hover:bg-bg-hover disabled:opacity-50"
                 >
-                  <StickyNote size={16} />
-                  Adicionar Nota
+                  <StickyNote size={15} />
+                  Nota
                 </button>
                 <div className="border-t border-border-default" />
                 <button
@@ -321,129 +307,63 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                   disabled={executing}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-gray-400 hover:bg-bg-hover disabled:opacity-50"
                 >
-                  <Archive size={16} />
+                  <Archive size={15} />
                   Arquivar
                 </button>
               </div>
             )}
           </div>
-        </div>
-      ) : (
-        // Desktop: botões horizontais
-        <div className="flex gap-2 p-3 border-b border-border-default bg-bg-primary">
-          {isAIActive ? (
+
+          {/* Fechar - apenas desktop */}
+          {!isMobile && (
             <button
-              onClick={onPauseAI}
-              disabled={executing}
-              className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-lg text-sm transition-colors disabled:opacity-50"
+              onClick={onClose}
+              className="p-1.5 hover:bg-bg-hover rounded-lg text-text-muted"
             >
-              {executing ? <Loader2 size={16} className="animate-spin" /> : <Pause size={16} />}
-              Pausar IA
-            </button>
-          ) : (
-            <button
-              onClick={onResumeAI}
-              disabled={executing}
-              className="flex items-center gap-2 px-3 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-sm transition-colors disabled:opacity-50"
-            >
-              {executing ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              Retomar IA
+              <X size={16} />
             </button>
           )}
+        </div>
+      </div>
 
-          <button
-            onClick={() => setShowScheduleModal(true)}
-            disabled={executing || conversation.supervision_status === 'scheduled'}
-            className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg text-sm transition-colors disabled:opacity-50"
-          >
-            <Calendar size={16} />
-            Agendar
-          </button>
-
-          <button
-            onClick={() => onMarkConverted()}
-            disabled={executing || conversation.supervision_status === 'converted'}
-            className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-sm transition-colors disabled:opacity-50"
-          >
-            <CheckCircle size={16} />
-            Convertido
-          </button>
-
-          <button
-            onClick={() => setShowNoteModal(true)}
-            disabled={executing}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-sm transition-colors disabled:opacity-50"
-          >
-            <StickyNote size={16} />
-            Nota
-          </button>
-
-          <button
-            onClick={onArchive}
-            disabled={executing}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded-lg text-sm transition-colors disabled:opacity-50 ml-auto"
-          >
-            <Archive size={16} />
-          </button>
+      {/* Notes + Scheduled — compact inline banners */}
+      {(conversation.supervision_notes || conversation.scheduled_at) && (
+        <div className="flex gap-2 px-3 py-1.5 border-b border-border-default/50 text-xs">
+          {conversation.supervision_notes && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 rounded text-blue-400 truncate flex-1 min-w-0">
+              <StickyNote size={11} className="shrink-0" />
+              <span className="truncate">{conversation.supervision_notes}</span>
+            </div>
+          )}
+          {conversation.scheduled_at && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 rounded text-purple-400 shrink-0">
+              <Calendar size={11} />
+              <span>{new Date(conversation.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Notes Display */}
-      {conversation.supervision_notes && (
-        <div className="mx-3 md:mx-4 mt-2 md:mt-3 p-2 md:p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-          <p className="text-xs text-blue-400 font-medium mb-1">Nota da Supervisao</p>
-          <p className="text-xs md:text-sm text-text-secondary">{conversation.supervision_notes}</p>
-        </div>
-      )}
-
-      {/* Scheduled Info */}
-      {conversation.scheduled_at && (
-        <div className="mx-3 md:mx-4 mt-2 md:mt-3 p-2 md:p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-          <p className="text-xs text-purple-400 font-medium mb-1">Agendamento</p>
-          <p className="text-xs md:text-sm text-text-secondary">
-            {new Date(conversation.scheduled_at).toLocaleString('pt-BR')}
-          </p>
-        </div>
-      )}
-
-      {/* Quality Issues Panel */}
+      {/* Quality Issues — compact collapsible */}
       {qualitySummary && qualitySummary.total_unresolved > 0 && (
-        <div className="mx-3 md:mx-4 mt-2 md:mt-3">
+        <div className="px-3 py-1">
           <button
             onClick={() => setShowQualityPanel(!showQualityPanel)}
-            className="w-full flex items-center justify-between p-2 md:p-3 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/15 transition-all"
+            className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 rounded text-xs text-red-400 hover:bg-red-500/15 transition-all"
           >
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={14} className="text-red-400" />
-              <span className="text-xs md:text-sm font-medium text-red-400">
-                {qualitySummary.total_unresolved} problema(s)
-              </span>
-            </div>
-            {showQualityPanel ? (
-              <ChevronUp size={14} className="text-red-400" />
-            ) : (
-              <ChevronDown size={14} className="text-red-400" />
-            )}
+            <AlertTriangle size={12} />
+            <span>{qualitySummary.total_unresolved} problema(s)</span>
+            {showQualityPanel ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
-
           {showQualityPanel && (
-            <div className="mt-2 p-2 md:p-3 bg-bg-primary border border-border-default rounded-lg">
-              <QualityFlagsList
-                flags={qualityFlags}
-                loading={flagsLoading}
-                onResolve={resolveFlag}
-              />
+            <div className="mt-1 p-2 bg-bg-primary border border-border-default rounded-lg">
+              <QualityFlagsList flags={qualityFlags} loading={flagsLoading} onResolve={resolveFlag} />
             </div>
           )}
         </div>
       )}
 
-      {/* Quality OK indicator - esconde no mobile se não tem problemas */}
-      {(!qualitySummary || qualitySummary.total_unresolved === 0) && !isMobile && (
-        <div className="mx-4 mt-3 px-3 py-2">
-          <QualityIndicator summary={qualitySummary} />
-        </div>
-      )}
+      {/* Quality OK indicator — hidden when no problems (saves space) */}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 md:p-4">
