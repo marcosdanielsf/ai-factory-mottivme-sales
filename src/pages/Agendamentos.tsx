@@ -574,56 +574,61 @@ const LeadChatModal: React.FC<LeadChatModalProps> = ({ lead, onClose, locationId
       setLookupLoading(true);
       setLookupDone(false);
       try {
-        // Strategy 1: Search by contact_id in message JSONB
-        if (lead.contact_id) {
-          const { data } = await supabase
-            .from('n8n_historico_mensagens')
-            .select('session_id')
-            .like('message', `%${lead.contact_id}%`)
-            .not('session_id', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (data && data.length > 0 && data[0].session_id) {
-            setSessionId(data[0].session_id);
-            return;
-          }
-        }
-
-        // Strategy 2: Search by phone
+        // Strategy 1: Search by phone in supervision view (phone already extracted as text)
         if (lead.phone) {
           const cleanPhone = lead.phone.replace(/\D/g, '');
-          const phoneVariants = [cleanPhone];
+          const phoneVariants = [
+            lead.phone, // original format
+            '+' + cleanPhone,
+            cleanPhone,
+          ];
           if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
+            phoneVariants.push('+' + cleanPhone.slice(2));
             phoneVariants.push(cleanPhone.slice(2));
           }
           if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
+            phoneVariants.push('+55' + cleanPhone);
             phoneVariants.push('55' + cleanPhone);
           }
+
           for (const phone of phoneVariants) {
-            const { data } = await supabase
-              .from('n8n_historico_mensagens')
+            const { data, error } = await supabase
+              .from('vw_supervision_conversations_v2')
               .select('session_id')
-              .like('message', `%${phone}%`)
+              .eq('contact_phone', phone)
               .not('session_id', 'is', null)
-              .order('created_at', { ascending: false })
               .limit(1);
-            if (data && data.length > 0 && data[0].session_id) {
+            if (!error && data && data.length > 0 && data[0].session_id) {
+              setSessionId(data[0].session_id);
+              return;
+            }
+          }
+
+          // Fallback: partial match with ilike on the view
+          for (const phone of [cleanPhone, cleanPhone.slice(-9)]) {
+            const { data, error } = await supabase
+              .from('vw_supervision_conversations_v2')
+              .select('session_id')
+              .ilike('contact_phone', `%${phone}%`)
+              .not('session_id', 'is', null)
+              .limit(1);
+            if (!error && data && data.length > 0 && data[0].session_id) {
               setSessionId(data[0].session_id);
               return;
             }
           }
         }
 
-        // Strategy 3: Search by unique_id
-        if (lead.unique_id) {
-          const { data } = await supabase
-            .from('n8n_historico_mensagens')
+        // Strategy 2: Search by contact name
+        if (lead.first_name && lead.first_name.length > 2) {
+          const { data, error } = await supabase
+            .from('vw_supervision_conversations_v2')
             .select('session_id')
-            .like('message', `%${lead.unique_id}%`)
+            .ilike('contact_name', `%${lead.first_name}%`)
             .not('session_id', 'is', null)
-            .order('created_at', { ascending: false })
+            .order('last_message_at', { ascending: false })
             .limit(1);
-          if (data && data.length > 0 && data[0].session_id) {
+          if (!error && data && data.length > 0 && data[0].session_id) {
             setSessionId(data[0].session_id);
             return;
           }
