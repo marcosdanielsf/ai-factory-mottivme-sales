@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { getOrigem } from './useAgendamentos';
 
 export interface AgendamentoStats {
   hoje: number;
@@ -44,8 +43,15 @@ interface UseAgendamentosStatsReturn {
   refetch: () => Promise<void>;
 }
 
-// Usa a VIEW unificada que combina histórico + realtime
-const AGENDAMENTOS_VIEW = 'vw_agendamentos_unified';
+// Mapeia status do GHL (appoinmentStatus) para status do dashboard
+function mapGhlStatus(rawPayload: any): string {
+  const ghlStatus = rawPayload?.calendar?.appoinmentStatus?.toLowerCase?.() || '';
+  if (ghlStatus === 'showed') return 'completed';
+  if (ghlStatus === 'noshow' || ghlStatus === 'no_show') return 'no_show';
+  if (ghlStatus === 'cancelled') return 'cancelled';
+  // confirmed, new, etc → booked
+  return 'booked';
+}
 
 export interface DateRange {
   startDate: Date | null;
@@ -83,7 +89,7 @@ export const useAgendamentosStats = (
         d.setHours(0, 0, 0, 0);
         return d;
       })();
-      
+
       const endDate = dateRange?.endDate || (() => {
         const d = new Date();
         d.setHours(23, 59, 59, 999);
@@ -91,65 +97,65 @@ export const useAgendamentosStats = (
       })();
 
       // Query 1: Agendamentos por DATA DE CRIAÇÃO (para gráfico "Criados no dia")
+      // Fonte: appointments_log (synced direto do GHL Calendar API)
       let agendamentosCriadosQuery = supabase
-        .from(AGENDAMENTOS_VIEW)
-        .select('data_criacao, status, fonte, responsavel_nome')
-        .gte('data_criacao', startDate.toISOString())
-        .lte('data_criacao', endDate.toISOString());
+        .from('appointments_log')
+        .select('created_at, location_name, location_id, raw_payload')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+        .limit(5000);
 
       if (responsavel) {
-        agendamentosCriadosQuery = agendamentosCriadosQuery.eq('responsavel_nome', responsavel);
+        agendamentosCriadosQuery = agendamentosCriadosQuery.eq('location_name', responsavel);
       }
       if (locationId) {
         agendamentosCriadosQuery = agendamentosCriadosQuery.eq('location_id', locationId);
       }
 
-      // Query 2: Agendamentos por DATA DO AGENDAMENTO (para gráfico "Para o dia")
+      // Query 2: Agendamentos por DATA DO AGENDAMENTO (para métricas e gráfico "Para o dia")
+      // Esta é a query principal — filtra por appointment_date (= agendamento_data no GHL)
       let agendamentosParaQuery = supabase
-        .from(AGENDAMENTOS_VIEW)
-        .select('agendamento_data, status, fonte, responsavel_nome')
-        .gte('agendamento_data', startDate.toISOString())
-        .lte('agendamento_data', endDate.toISOString());
+        .from('appointments_log')
+        .select('appointment_date, location_name, location_id, raw_payload, created_at')
+        .gte('appointment_date', startDate.toISOString())
+        .lte('appointment_date', endDate.toISOString())
+        .limit(5000);
 
       if (responsavel) {
-        agendamentosParaQuery = agendamentosParaQuery.eq('responsavel_nome', responsavel);
+        agendamentosParaQuery = agendamentosParaQuery.eq('location_name', responsavel);
       }
       if (locationId) {
         agendamentosParaQuery = agendamentosParaQuery.eq('location_id', locationId);
       }
 
       // Query 3: Leads do período (com created_at para agrupar por dia)
-      // Usa n8n_schedule_tracking que é atualizado em tempo real pelo n8n
-      // Nota: Esta query retorna max 1000 registros, usada apenas para gráfico diário
       let leadsQuery = supabase
         .from('n8n_schedule_tracking')
         .select('id, created_at')
         .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .lte('created_at', endDate.toISOString())
+        .limit(5000);
 
-      // n8n_schedule_tracking não tem campo responsavel, pular filtro
       if (locationId) {
         leadsQuery = leadsQuery.eq('location_id', locationId);
       }
 
-      // Query 4: Contagem EXATA de leads (sem limite de 1000)
-      // Usa n8n_schedule_tracking como fonte de verdade
+      // Query 4: Contagem EXATA de leads (sem limite)
       let leadsCountQuery = supabase
         .from('n8n_schedule_tracking')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
-      // n8n_schedule_tracking não tem campo responsavel, pular filtro
       if (locationId) {
         leadsCountQuery = leadsCountQuery.eq('location_id', locationId);
       }
 
-      // Query 5: Lista de responsáveis únicos (de todos os agendamentos na VIEW)
+      // Query 5: Lista de responsáveis únicos (de appointments_log)
       let responsaveisQuery = supabase
-        .from(AGENDAMENTOS_VIEW)
-        .select('responsavel_nome')
-        .not('responsavel_nome', 'is', null);
+        .from('appointments_log')
+        .select('location_name')
+        .not('location_name', 'is', null);
 
       if (locationId) {
         responsaveisQuery = responsaveisQuery.eq('location_id', locationId);
@@ -182,17 +188,47 @@ export const useAgendamentosStats = (
         console.error('Error fetching leads count:', leadsCountResult.error);
       }
 
-      setAgendamentosCriados(agendamentosCriadosResult.data || []);
-      setAgendamentosPara(agendamentosParaResult.data || []);
+      // Mapear appointments_log para formato esperado pelos processadores
+      const mapAppointment = (item: any, dateField: string) => ({
+        agendamento_data: item[dateField],
+        data_criacao: item.created_at,
+        status: mapGhlStatus(item.raw_payload),
+        fonte: null, // appointments_log não tem campo fonte
+        responsavel_nome: item.location_name,
+        _appointmentId: item.raw_payload?.calendar?.appointmentId || null,
+      });
+
+      // Deduplicar por appointmentId (webhook pode gerar múltiplas entradas)
+      // Mantém o registro mais recente (último created_at) para cada appointment
+      // Skip records without appointmentId — phantom/incomplete webhook entries
+      const dedup = (items: any[]) => {
+        const seen = new Map<string, any>();
+        for (const item of items) {
+          const key = item._appointmentId;
+          if (!key) continue;
+          const existing = seen.get(key);
+          if (!existing || (item.data_criacao && (!existing.data_criacao || item.data_criacao > existing.data_criacao))) {
+            seen.set(key, item);
+          }
+        }
+        // Excluir cancelados
+        return Array.from(seen.values()).filter(item => item.status !== 'cancelled');
+      };
+
+      setAgendamentosCriados(
+        dedup((agendamentosCriadosResult.data || []).map(item => mapAppointment(item, 'created_at')))
+      );
+      setAgendamentosPara(
+        dedup((agendamentosParaResult.data || []).map(item => mapAppointment(item, 'appointment_date')))
+      );
       setLeadsData(leadsResult.data || []);
-      // Usar contagem exata do Supabase (sem limite de 1000)
       setTotalLeads(leadsCountResult.count ?? leadsResult.data?.length ?? 0);
 
       // Processar responsáveis únicos com contagem
       if (responsaveisResult.data) {
         const countMap: Record<string, number> = {};
         for (const row of responsaveisResult.data) {
-          const name = row.responsavel_nome;
+          const name = row.location_name;
           if (name && name !== 'unknown') {
             countMap[name] = (countMap[name] || 0) + 1;
           }
@@ -237,8 +273,9 @@ export const useAgendamentosStats = (
     let totalNoShow = 0;
     let totalBooked = 0;
     let totalPendingFeedback = 0; // Reunião passou mas sem status definido
-    let trafegoCount = 0;
-    let socialSellingCount = 0;
+    // fonte não disponível em appointments_log
+    const trafegoCount = 0;
+    const socialSellingCount = 0;
 
     // Mapas para os dois gráficos
     const porDiaMap: Record<string, number> = {}; // Agendamentos PARA o dia
@@ -292,7 +329,7 @@ export const useAgendamentosStats = (
         mes++;
       }
 
-      // Contagem por status
+      // Contagem por status (mapeado de GHL appoinmentStatus)
       const statusVal = item.status?.toLowerCase();
       const isPast = scheduledAt < now;
 
@@ -300,6 +337,8 @@ export const useAgendamentosStats = (
         totalCompleted++;
       } else if (statusVal === 'no_show' || statusVal === 'lost') {
         totalNoShow++;
+      } else if (statusVal === 'cancelled') {
+        // Cancelados não contam como booked/noshow/completed
       } else if (statusVal === 'booked') {
         if (isPast) {
           // Reunião já aconteceu mas ainda está como "booked" - precisa feedback
@@ -308,14 +347,6 @@ export const useAgendamentosStats = (
           // Reunião ainda não aconteceu
           totalBooked++;
         }
-      }
-
-      // Contagem por origem
-      const origem = getOrigem(item.fonte);
-      if (origem === 'trafego') {
-        trafegoCount++;
-      } else if (origem === 'social_selling') {
-        socialSellingCount++;
       }
     });
 

@@ -26,6 +26,7 @@ export interface CriativoLead {
   status: string | null;
   etapa_funil: string | null;
   state: string | null;
+  work_permit: string | null;
   created_at: string;
 }
 
@@ -97,6 +98,7 @@ export const useCriativoPerformance = (
   locationId?: string | null
 ): UseCriativoPerformanceReturn => {
   const [rawData, setRawData] = useState<any[]>([]);
+  const [appointmentsData, setAppointmentsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,25 +127,47 @@ export const useCriativoPerformance = (
         return d;
       })();
 
-      // Buscar leads da n8n_schedule_tracking com dados UTM
-      let query = supabase
+      // Query 1: Leads da n8n_schedule_tracking com dados UTM
+      let leadsQuery = supabase
         .from('n8n_schedule_tracking')
         .select('*')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000);
 
       if (locationId) {
-        query = query.eq('location_id', locationId);
+        leadsQuery = leadsQuery.eq('location_id', locationId);
       }
 
-      const { data, error: queryError } = await query;
+      // Query 2: Appointments do GHL para cross-reference
+      // Range amplo: -30 dias antes do início até +60 dias após o fim
+      // Assim pega appointments de leads criados no período mesmo se a data do agendamento é fora
+      const apptStart = new Date(startDate);
+      apptStart.setDate(apptStart.getDate() - 30);
+      const apptEnd = new Date(endDate);
+      apptEnd.setDate(apptEnd.getDate() + 60);
 
-      if (queryError) {
-        throw new Error(queryError.message);
+      let apptsQuery = supabase
+        .from('appointments_log')
+        .select('raw_payload, appointment_date, created_at, manual_status')
+        .gte('appointment_date', apptStart.toISOString())
+        .lte('appointment_date', apptEnd.toISOString())
+        .limit(10000);
+
+      if (locationId) {
+        apptsQuery = apptsQuery.eq('location_id', locationId);
       }
 
-      setRawData(data || []);
+      // Executar em paralelo
+      const [leadsResult, apptsResult] = await Promise.all([leadsQuery, apptsQuery]);
+
+      if (leadsResult.error) {
+        throw new Error(leadsResult.error.message);
+      }
+
+      setRawData(leadsResult.data || []);
+      setAppointmentsData(apptsResult.data || []);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar dados de criativos');
       console.error('[CriativoPerformance Error]', err);
@@ -158,6 +182,51 @@ export const useCriativoPerformance = (
 
   // Processar dados para métricas
   const { criativos, origens, totals } = useMemo(() => {
+    // ================================================================
+    // STEP 1: Build appointment lookup from appointments_log
+    // Key: contactId (= unique_id in n8n_schedule_tracking)
+    // Dedup by appointmentId, keep most recent
+    // ================================================================
+    const contactApptMap = new Map<string, {
+      appointmentDate: string;
+      calendarStatus: string; // confirmed, new, cancelled
+      confirmedPresence: boolean; // Status Appointment = "confirmation-presence"
+      converted: boolean; // manual_status = "converted"
+    }>();
+
+    const apptDedup = new Map<string, any>();
+    for (const appt of appointmentsData) {
+      const appointmentId = appt.raw_payload?.calendar?.appointmentId;
+      if (!appointmentId) continue;
+      const existing = apptDedup.get(appointmentId);
+      if (!existing || (appt.created_at && (!existing.created_at || appt.created_at > existing.created_at))) {
+        apptDedup.set(appointmentId, appt);
+      }
+    }
+
+    for (const appt of apptDedup.values()) {
+      const contactId = appt.raw_payload?.contact_id;
+      if (!contactId) continue;
+      const calStatus = (appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
+      if (calStatus === 'cancelled') continue;
+      const apptDate = appt.appointment_date || appt.raw_payload?.calendar?.startTime;
+      const statusAppt = (appt.raw_payload?.['Status Appointment'] || '').toLowerCase();
+      const manualStatus = (appt.manual_status || '').toLowerCase();
+      const existing = contactApptMap.get(contactId);
+      // Keep the most recent appointment per contact
+      if (!existing || (apptDate && apptDate > existing.appointmentDate)) {
+        contactApptMap.set(contactId, {
+          appointmentDate: apptDate,
+          calendarStatus: calStatus,
+          confirmedPresence: statusAppt === 'confirmation-presence',
+          converted: manualStatus === 'converted',
+        });
+      }
+    }
+
+    // ================================================================
+    // STEP 2: Process leads with appointment cross-reference
+    // ================================================================
     const criativoMap: Record<string, {
       adId: string | null;
       leads: number;
@@ -185,22 +254,33 @@ export const useCriativoPerformance = (
     let comUtmContent = 0;
     let semUtmContent = 0;
 
+    const now = new Date();
+
     rawData.forEach((lead) => {
       totalLeads++;
 
       const utmContent = normalizeUtmContent(lead.utm_content);
       const sessionSource = normalizeSessionSource(lead.session_source);
       const adId = lead.ad_id && lead.ad_id !== 'NULL' ? lead.ad_id : null;
-      const statusVal = (lead.status || '').toLowerCase();
       const etapaVal = (lead.etapa_funil || '').toLowerCase();
 
-      // Determinar status do funil — status (primary) + etapa_funil (fallback)
-      const agendou = ['agendado', 'confirmado', 'compareceu', 'fechado', 'booked', 'no_show', 'completed', 'won'].includes(statusVal)
-        || ['agendou', 'agendado', 'booked', 'no_show', 'completed', 'won'].some(s => etapaVal.includes(s));
-      const compareceu = ['compareceu', 'fechado', 'completed', 'won'].includes(statusVal)
-        || ['completed', 'won', 'compareceu'].some(s => etapaVal.includes(s));
-      const fechou = ['fechado', 'won'].includes(statusVal)
-        || etapaVal.includes('won') || etapaVal.includes('fechou');
+      // Cross-reference with appointments_log
+      const apptData = lead.unique_id ? contactApptMap.get(lead.unique_id) : null;
+      const hasAppointment = apptData != null;
+      const appointmentPassed = apptData ? new Date(apptData.appointmentDate) < now : false;
+      const isNoShow = etapaVal.includes('no-show') || etapaVal.includes('no_show');
+
+      // AGENDOU: etapa_funil indica agendamento OU tem appointment real no GHL
+      const agendou = ['agendou', 'agendado', 'no-show', 'no_show'].some(s => etapaVal.includes(s))
+        || hasAppointment;
+
+      // COMPARECEU: confirmação explícita OU appointment passou e não é no-show
+      const compareceu = apptData?.confirmedPresence === true
+        || (agendou && appointmentPassed && !isNoShow);
+
+      // FECHOU: etapa_funil indica fechamento OU manual_status = converted
+      const fechou = ['fechou', 'won', 'fechado'].some(s => etapaVal.includes(s))
+        || apptData?.converted === true;
 
       // responded: campo explícito OU implícito (se avançou no funil, respondeu)
       const responded = lead.responded === true || lead.responded === 'true' || agendou;
@@ -306,7 +386,7 @@ export const useCriativoPerformance = (
         semUtmContent,
       },
     };
-  }, [rawData]);
+  }, [rawData, appointmentsData]);
 
   return { criativos, origens, leads: rawData as CriativoLead[], totals, loading, error, refetch: fetchData };
 };

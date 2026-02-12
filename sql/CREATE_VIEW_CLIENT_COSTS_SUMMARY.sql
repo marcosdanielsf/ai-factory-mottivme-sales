@@ -40,6 +40,12 @@ SELECT
   -- Modelos usados (array)
   ARRAY_AGG(DISTINCT modelo_ia) FILTER (WHERE modelo_ia IS NOT NULL) AS models_used,
 
+  -- Total de conversas (contatos únicos)
+  COUNT(DISTINCT contact_id) FILTER (WHERE contact_id IS NOT NULL) AS total_conversations,
+
+  -- Canais usados (array)
+  ARRAY_AGG(DISTINCT canal) FILTER (WHERE canal IS NOT NULL) AS canais_used,
+
   -- Última atividade
   MAX(created_at) AS last_activity,
 

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 // Tipos de usuário
-export type UserRole = 'admin' | 'manager' | 'client' | 'recruiter';
+export type UserRole = 'admin' | 'manager' | 'client' | 'recruiter' | 'employee';
 
 // Definição de permissões por feature
 export interface Permissions {
@@ -132,6 +132,31 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canExportData: false,
     canManageUsers: false,
   },
+
+  employee: {
+    // Páginas - Funcionário vê Supervisão IA + Agendamentos + Central de Status
+    canAccessDashboard: false,
+    canAccessSupervision: true,
+    canAccessPromptEditor: false,
+    canAccessAgendamentos: true,
+    canAccessFunilLeads: false,
+    canAccessFollowUps: false,
+    canAccessStatusCenter: true,
+    canAccessLogs: false,
+    canAccessConfiguracoes: false,
+    canAccessValidation: false,
+    canAccessKnowledgeBase: false,
+    canAccessNotifications: true,
+    canAccessLeads: false,
+    canAccessCalls: false,
+    // Ações
+    canWriteMessages: false,
+    canEditPrompts: false,
+    canManageAgents: false,
+    canViewAllClients: false,
+    canExportData: true,
+    canManageUsers: false,
+  },
 };
 
 // Itens de navegação por role
@@ -233,6 +258,7 @@ export const usePermissions = () => {
     isManager: role === 'manager',
     isClient: role === 'client',
     isRecruiter: role === 'recruiter',
+    isEmployee: role === 'employee',
   };
 };
 

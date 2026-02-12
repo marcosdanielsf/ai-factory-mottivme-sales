@@ -16,7 +16,8 @@ import {
   Filter,
   Eye,
   EyeOff,
-  Search
+  Search,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import {
@@ -54,16 +55,22 @@ export const ClientCosts = () => {
 
   // Novos filtros
   const [clientFilter, setClientFilter] = useState<string>(''); // Filtro por cliente específico
+  const [canalFilter, setCanalFilter] = useState<string>(''); // Filtro por canal
+  const [workflowFilter, setWorkflowFilter] = useState<string>(''); // Filtro por workflow
   const [showInactive, setShowInactive] = useState<boolean>(false); // Mostrar inativos
   const [showFilters, setShowFilters] = useState<boolean>(false); // Toggle painel de filtros
+
+  const N8N_BASE_URL = 'https://cliente-a1.mentorfy.io/workflow';
 
   const availableMonths = getAvailableMonths();
 
   // Hooks de dados
-  const { clients, allClients, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
+  const { clients, allClients, allCanais, allWorkflows, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
     dateRange,
     month: dateRange === 'month' ? selectedMonth : undefined,
     clientName: clientFilter || undefined,
+    canalFilter: canalFilter || undefined,
+    workflowFilter: workflowFilter || undefined,
     showInactive,
     inactiveDays: 30
   });
@@ -168,7 +175,7 @@ export const ClientCosts = () => {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 border rounded-lg transition-all ${
-                showFilters || clientFilter || showInactive
+                showFilters || clientFilter || canalFilter || workflowFilter || showInactive
                   ? 'text-accent-primary bg-accent-primary/10 border-accent-primary/30'
                   : 'text-text-muted hover:text-text-primary hover:bg-bg-secondary border-border-default'
               }`}
@@ -215,6 +222,42 @@ export const ClientCosts = () => {
             </select>
           </div>
 
+          {/* Dropdown de Canal */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted hidden md:inline">Canal:</label>
+            <select
+              value={canalFilter}
+              onChange={(e) => setCanalFilter(e.target.value)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[140px]"
+            >
+              <option value="">Todos os canais</option>
+              {allCanais.map((canal) => (
+                <option key={canal} value={canal}>
+                  {canal}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown de Workflow */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted hidden md:inline">Workflow:</label>
+            <select
+              value={workflowFilter}
+              onChange={(e) => setWorkflowFilter(e.target.value)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[180px]"
+            >
+              <option value="">Todos os workflows</option>
+              {allWorkflows.map((wf) => (
+                <option key={wf} value={wf}>
+                  {wf}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             {/* Toggle Mostrar Inativos */}
             <button
@@ -232,10 +275,12 @@ export const ClientCosts = () => {
             </button>
 
             {/* Limpar Filtros */}
-            {(clientFilter || showInactive) && (
+            {(clientFilter || canalFilter || workflowFilter || showInactive) && (
               <button
                 onClick={() => {
                   setClientFilter('');
+                  setCanalFilter('');
+                  setWorkflowFilter('');
                   setShowInactive(false);
                 }}
                 className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
@@ -395,21 +440,39 @@ export const ClientCosts = () => {
             {/* Modal Content */}
             <div className={`p-4 md:p-6 overflow-y-auto ${isMobile ? 'h-[calc(100%-80px)]' : 'max-h-[calc(90vh-120px)]'}`}>
               {/* Client Summary */}
-              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
                   <p className="text-[10px] md:text-xs text-text-muted">Custo Total</p>
                   <p className="text-base md:text-xl font-bold text-accent-primary truncate">{formatUSD(selectedClient.total_cost_usd)}</p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Conversas</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_conversations)}</p>
+                  <p className="text-[9px] text-text-muted mt-0.5">contatos unicos</p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
                   <p className="text-[10px] md:text-xs text-text-muted">Requisicoes</p>
                   <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_requests)}</p>
+                  <p className="text-[9px] text-text-muted mt-0.5">
+                    {selectedClient.total_conversations > 0
+                      ? `~${(selectedClient.total_requests / selectedClient.total_conversations).toFixed(1)} req/conversa`
+                      : ''}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Tokens Input</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_tokens_input)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">Tokens</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_tokens_input + selectedClient.total_tokens_output)}</p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo Medio</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Conversa</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {selectedClient.total_conversations > 0
+                      ? formatUSD(selectedClient.total_cost_usd / selectedClient.total_conversations)
+                      : '$0.00'}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Request</p>
                   <p className="text-base md:text-xl font-bold text-text-primary truncate">{formatUSD(selectedClient.avg_cost_per_request)}</p>
                 </div>
               </div>
@@ -488,7 +551,21 @@ export const ClientCosts = () => {
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs md:text-sm font-medium text-text-primary truncate">{detail.contact_name}</p>
-                            <p className="text-[10px] md:text-xs text-text-muted truncate">{detail.tipo_acao} via {detail.canal}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-[10px] md:text-xs text-text-muted truncate">{detail.tipo_acao} via {detail.canal}</p>
+                              {detail.workflow_id && (
+                                <a
+                                  href={`${N8N_BASE_URL}/${detail.workflow_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-accent-primary hover:text-accent-primary/80 flex-shrink-0"
+                                  title="Abrir workflow no n8n"
+                                >
+                                  <ExternalLink size={10} />
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 ml-2">
@@ -552,9 +629,16 @@ export const ClientCosts = () => {
                           <h3 className="font-bold text-text-primary text-sm truncate">
                             {client.location_name}
                           </h3>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
-                            {client.models_used[0] || 'N/A'}
-                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                              {client.models_used[0] || 'N/A'}
+                            </span>
+                            {client.canais_used?.map((canal) => (
+                              <span key={canal} className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                                {canal}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -598,13 +682,18 @@ export const ClientCosts = () => {
 
                       {/* Info */}
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
                             {client.location_name}
                           </h3>
                           <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
                             {client.models_used[0] || 'N/A'}
                           </span>
+                          {client.canais_used?.map((canal) => (
+                            <span key={canal} className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                              {canal}
+                            </span>
+                          ))}
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
                           <span className="flex items-center gap-1">

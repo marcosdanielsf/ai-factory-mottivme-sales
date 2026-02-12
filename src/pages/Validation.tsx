@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Play, CheckCircle, XCircle, FileText, ChevronRight, Loader2, AlertCircle, Inbox, RefreshCw, Trash2, Users, TrendingUp, Award, Power, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Play, CheckCircle, XCircle, FileText, ChevronRight, Loader2, AlertCircle, Inbox, RefreshCw, Trash2, Users, TrendingUp, Award, Power, ToggleLeft, ToggleRight, Beaker } from 'lucide-react';
 import { TestReportModal } from '../components/TestReportModal';
+import { TestRunner } from '../components/TestRunner';
 import { useTestResults } from '../hooks/useTestResults';
 import { useToast } from '../hooks/useToast';
 import { useAccount } from '../contexts/AccountContext';
@@ -56,6 +57,7 @@ export const Validation = () => {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showTestRunner, setShowTestRunner] = useState(false);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -299,6 +301,13 @@ export const Validation = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowTestRunner(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-white rounded text-sm font-medium transition-colors"
+          >
+            <Beaker size={16} />
+            ▶️ Novo Teste E2E
+          </button>
+          <button
             onClick={handleRunTests}
             disabled={running || loading}
             className="flex items-center gap-2 px-4 py-2 bg-text-primary text-bg-primary hover:bg-white/90 rounded text-sm font-medium transition-colors disabled:opacity-50"
@@ -312,6 +321,15 @@ export const Validation = () => {
           </button>
         </div>
       </div>
+
+      {/* Test Runner Modal */}
+      <TestRunner
+        isOpen={showTestRunner}
+        onClose={() => {
+          setShowTestRunner(false);
+          refetch(); // Refresh results after closing
+        }}
+      />
 
       {/* Report Modal */}
       {selectedReport && selectedRun && (

@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 // ============================================================================
 // HOOK: useLeadSegmentation
 // Busca e agrega dados de segmentação de leads por Estado e Work Permit
-// Usa app_dash_principal com normalização client-side
+// Usa n8n_schedule_tracking (fonte unificada) com normalização client-side
 // ============================================================================
 
 export interface EstadoMetrics {
@@ -156,18 +156,18 @@ export const useLeadSegmentation = (
         return d;
       })();
 
-      // Buscar leads com campos relevantes
+      // Buscar leads com campos relevantes (n8n_schedule_tracking = fonte unificada)
       let query = supabase
-        .from('app_dash_principal')
+        .from('n8n_schedule_tracking')
         .select(`
           id,
-          estado_onde_mora_contato,
-          permissao_de_trabalho,
-          status,
-          data_criada
+          state,
+          work_permit,
+          etapa_funil,
+          created_at
         `)
-        .gte('data_criada', startDate.toISOString())
-        .lte('data_criada', endDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
       if (locationId) {
         query = query.eq('location_id', locationId);
@@ -216,13 +216,13 @@ export const useLeadSegmentation = (
     rawData.forEach((lead) => {
       totalLeads++;
 
-      const estado = normalizeState(lead.estado_onde_mora_contato);
-      const wp = normalizeWorkPermit(lead.permissao_de_trabalho);
-      const status = (lead.status || '').toLowerCase();
+      const estado = normalizeState(lead.state);
+      const wp = normalizeWorkPermit(lead.work_permit);
+      const etapa = (lead.etapa_funil || '').toLowerCase();
 
-      // Apenas 'won' e 'lost' existem no enum
-      const isConvertido = status === 'won';
-      const isPerdido = status === 'lost';
+      // Mapear etapa_funil para convertido/perdido
+      const isConvertido = etapa === 'fechou' || etapa === 'won';
+      const isPerdido = etapa === 'perdido' || etapa === 'lost';
 
       if (isConvertido) totalConvertidos++;
       if (isPerdido) totalPerdidos++;

@@ -41,6 +41,7 @@ const Agendamentos = lazy(() => import('./pages/Agendamentos').then(m => ({ defa
 const ClientPortal = lazy(() => import('./pages/ClientPortal').then(m => ({ default: m.ClientPortal })));
 const StatusCenter = lazy(() => import('./pages/StatusCenter').then(m => ({ default: m.StatusCenter })));
 const Invite = lazy(() => import('./pages/Invite').then(m => ({ default: m.Invite })));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
 
 // Cold Call pages (lazy loaded)
 const ColdCallDashboard = lazy(() => import('./pages/ColdCallDashboard'));
@@ -388,11 +389,11 @@ const App = () => {
             } />
             <Route path="/supervision" element={
               <ProtectedRoute>
-                <Layout>
+                <ConditionalLayout>
                   <Suspense fallback={<LoadingFallback />}>
                     <Supervision />
                   </Suspense>
-                </Layout>
+                </ConditionalLayout>
               </ProtectedRoute>
             } />
             <Route path="/configuracoes" element={
@@ -400,6 +401,15 @@ const App = () => {
                 <Layout>
                   <Suspense fallback={<LoadingFallback />}>
                     <Configuracoes />
+                  </Suspense>
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/usuarios" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <UserManagement />
                   </Suspense>
                 </Layout>
               </ProtectedRoute>

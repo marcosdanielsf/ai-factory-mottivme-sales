@@ -103,8 +103,8 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
     onSelectAccount(location);
     setIsOpen(false);
     setSearchTerm('');
-    // Navigate to client area (LayoutCliente with 3 pages)
-    navigate('/sales-ops');
+    // Navigate to client area (LayoutCliente)
+    navigate('/agendamentos');
   };
 
   const handleBackToAdmin = () => {

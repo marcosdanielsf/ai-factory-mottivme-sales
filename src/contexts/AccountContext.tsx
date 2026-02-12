@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Location, useLocations } from '../hooks/useLocations';
+import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 
 // Types
 interface AccountState {
   selectedAccount: Location | null;
   isViewingSubconta: boolean; // true = viewing a client subconta (show 3 pages)
+  isClientUser: boolean; // true = user has role "client" in user_locations (locked to their location)
   loading: boolean;
   initialized: boolean;
 }
@@ -30,24 +33,70 @@ interface AccountProviderProps {
 
 export function AccountProvider({ children }: AccountProviderProps) {
   const { locations, loading: locationsLoading } = useLocations();
+  const { user } = useAuth();
   const [state, setState] = useState<AccountState>({
     selectedAccount: null,
     isViewingSubconta: false,
+    isClientUser: false,
     loading: true,
     initialized: false,
   });
 
-  // Initialize account state from localStorage
+  // Initialize account state from localStorage + user_locations
   useEffect(() => {
     let mounted = true;
 
-    function initializeAccount() {
+    async function initializeAccount() {
       try {
-        // Get stored location ID from localStorage
+        // Step 1: Check if this user has a role in user_locations (client vs admin)
+        let clientLocationId: string | null = null;
+        if (user?.id) {
+          const { data: userLoc } = await supabase
+            .from('user_locations')
+            .select('location_id, role')
+            .eq('user_id', user.id)
+            .in('role', ['client', 'employee'])
+            .limit(1)
+            .maybeSingle();
+
+          if (userLoc?.location_id) {
+            clientLocationId = userLoc.location_id;
+          }
+        }
+
+        // Step 2: If user is a client, force their location (ignore localStorage)
+        if (clientLocationId && locations.length > 0) {
+          const clientLocation = locations.find(
+            loc => loc.location_id === clientLocationId
+          );
+          if (mounted) {
+            if (clientLocation) {
+              localStorage.setItem(STORAGE_KEY, clientLocation.location_id);
+              setState({
+                selectedAccount: clientLocation,
+                isViewingSubconta: true,
+                isClientUser: true,
+                loading: false,
+                initialized: true,
+              });
+            } else {
+              // Location exists in user_locations but not in ghl_locations — fallback
+              setState({
+                selectedAccount: null,
+                isViewingSubconta: false,
+                isClientUser: true,
+                loading: false,
+                initialized: true,
+              });
+            }
+          }
+          return;
+        }
+
+        // Step 3: Admin user — use localStorage as before
         const storedAccountId = localStorage.getItem(STORAGE_KEY);
 
         if (storedAccountId && locations.length > 0) {
-          // Find the location that matches the stored ID
           const foundLocation = locations.find(
             loc => loc.location_id === storedAccountId
           );
@@ -57,15 +106,16 @@ export function AccountProvider({ children }: AccountProviderProps) {
               setState({
                 selectedAccount: foundLocation,
                 isViewingSubconta: true,
+                isClientUser: false,
                 loading: false,
                 initialized: true,
               });
             } else {
-              // Stored location no longer exists, clear it
               localStorage.removeItem(STORAGE_KEY);
               setState({
                 selectedAccount: null,
                 isViewingSubconta: false,
+                isClientUser: false,
                 loading: false,
                 initialized: true,
               });
@@ -74,6 +124,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
         } else if (mounted) {
           setState(prev => ({
             ...prev,
+            isClientUser: false,
             loading: false,
             initialized: true,
           }));
@@ -90,7 +141,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
       }
     }
 
-    // Only initialize when locations are loaded
+    // Only initialize when locations are loaded and user is available
     if (!locationsLoading) {
       initializeAccount();
     }
@@ -98,7 +149,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
     return () => {
       mounted = false;
     };
-  }, [locations, locationsLoading]);
+  }, [locations, locationsLoading, user?.id]);
 
   // Select a subconta to view (switches to client view with 3 pages)
   const selectSubconta = useCallback((location: Location) => {
@@ -116,10 +167,13 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }
   }, []);
 
-  // Back to admin view (shows all 24+ pages)
+  // Back to admin view (shows all 24+ pages) — blocked for client users
   const backToAdmin = useCallback(() => {
+    if (state.isClientUser) {
+      console.warn('Client users cannot switch to admin view');
+      return;
+    }
     try {
-      // Remove from localStorage
       localStorage.removeItem(STORAGE_KEY);
 
       setState(prev => ({
@@ -130,7 +184,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
     } catch (err) {
       console.error('Error returning to admin:', err);
     }
-  }, []);
+  }, [state.isClientUser]);
 
   // Legacy aliases for backward compatibility
   const selectAccount = selectSubconta;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import {
-  BarChart3,
   Calendar,
   CheckCircle2,
+  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -14,16 +14,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
+import { usePermissions } from '../hooks/usePermissions';
 import AISupportWidget from './AISupportWidget';
 
 interface LayoutClienteProps {
   children: React.ReactNode;
 }
 
-const CLIENT_NAV_ITEMS = [
-  { path: '/sales-ops', label: 'Sales Ops', icon: BarChart3 },
-  { path: '/agendamentos', label: 'Agendamentos', icon: Calendar },
-  { path: '/status', label: 'Central de Status', icon: CheckCircle2 },
+const ALL_CLIENT_NAV_ITEMS = [
+  { path: '/supervision', label: 'Supervisao IA', icon: MessageSquare, permission: 'canAccessSupervision' as const },
+  { path: '/agendamentos', label: 'Agendamentos', icon: Calendar, permission: 'canAccessAgendamentos' as const },
+  { path: '/status', label: 'Central de Status', icon: CheckCircle2, permission: 'canAccessStatusCenter' as const },
 ];
 
 export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
@@ -34,6 +35,18 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   const isAdmin = useIsAdmin();
   const isMobile = useIsMobile();
   const { selectedAccount, backToAdmin, isViewingSubconta } = useAccount();
+  const { hasPermission, role } = usePermissions();
+
+  const navItems = ALL_CLIENT_NAV_ITEMS.filter(item => hasPermission(item.permission));
+
+  // Redirecionar rotas invalidas para primeira pagina disponivel
+  useEffect(() => {
+    const validPaths = navItems.map(item => item.path);
+    if (location.pathname === '/' || location.pathname === '/sales-ops' || !validPaths.includes(location.pathname)) {
+      const defaultPath = validPaths[0] || '/agendamentos';
+      navigate(defaultPath, { replace: true });
+    }
+  }, [location.pathname, navigate, navItems]);
 
   // Fechar sidebar ao mudar de página no mobile
   useEffect(() => {
@@ -97,13 +110,13 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
           <p className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider">
             Sales OS
           </p>
-          {CLIENT_NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                ${isActive || (item.path === '/sales-ops' && location.pathname === '/')
+                ${isActive
                   ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
                 }
@@ -153,7 +166,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
                 {user?.email?.split('@')[0] || 'Usuário'}
               </p>
               <p className="text-[10px] text-text-muted truncate">
-                {isAdmin ? 'Administrador' : 'Cliente'}
+                {isAdmin ? 'Administrador' : role === 'employee' ? 'Funcionario' : 'Cliente'}
               </p>
             </div>
             <button
@@ -184,10 +197,9 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
               <span className="text-text-muted">Mottiv.me</span>
               <span className="text-text-muted/50 mx-2">/</span>
               <span className="text-text-primary font-medium">
-                {CLIENT_NAV_ITEMS.find(item =>
-                  item.path === location.pathname ||
-                  (item.path === '/sales-ops' && location.pathname === '/')
-                )?.label || 'Dashboard'}
+                {navItems.find(item =>
+                  item.path === location.pathname
+                )?.label || 'Agendamentos'}
               </span>
             </div>
           </div>
@@ -215,10 +227,9 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
 
       {/* AI Support Widget */}
       <AISupportWidget
-        currentPage={CLIENT_NAV_ITEMS.find(item =>
-          item.path === location.pathname ||
-          (item.path === '/sales-ops' && location.pathname === '/')
-        )?.label || 'Dashboard'}
+        currentPage={navItems.find(item =>
+          item.path === location.pathname
+        )?.label || 'Agendamentos'}
       />
     </div>
   );

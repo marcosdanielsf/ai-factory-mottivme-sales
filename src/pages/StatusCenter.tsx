@@ -10,7 +10,8 @@ import {
   RefreshCw,
   Search,
   Inbox,
-  Loader2
+  Loader2,
+  Trophy
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -18,7 +19,7 @@ import { useAccount } from '../contexts/AccountContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 
 // Types
-type InterviewStatus = 'pending' | 'completed' | 'no_show' | 'lost';
+type InterviewStatus = 'pending' | 'completed' | 'no_show' | 'lost' | 'converted';
 
 interface PendingInterview {
   id: string;
@@ -31,6 +32,8 @@ interface PendingInterview {
   status: InterviewStatus;
   fonte: string | null;
   source: 'historico' | 'realtime';
+  contact_id: string | null;
+  location_id: string | null;
 }
 
 // Status mapping from DB to display
@@ -39,14 +42,16 @@ const statusMap: Record<string, InterviewStatus> = {
   completed: 'completed',
   won: 'completed',
   no_show: 'no_show',
-  lost: 'lost'
+  lost: 'lost',
+  converted: 'converted'
 };
 
 const reverseStatusMap: Record<InterviewStatus, string> = {
   pending: 'booked',
   completed: 'completed',
   no_show: 'no_show',
-  lost: 'lost'
+  lost: 'lost',
+  converted: 'converted'
 };
 
 // Components
@@ -75,6 +80,12 @@ const StatusBadge = ({ status }: { status: InterviewStatus }) => {
       text: 'text-gray-400',
       border: 'border-gray-500/20',
       label: 'Sem Interesse'
+    },
+    converted: {
+      bg: 'bg-amber-400/10',
+      text: 'text-amber-300',
+      border: 'border-amber-400/20',
+      label: 'Converteu'
     }
   };
 
@@ -86,6 +97,7 @@ const StatusBadge = ({ status }: { status: InterviewStatus }) => {
       {status === 'completed' && <CheckCircle2 size={12} />}
       {status === 'no_show' && <XCircle size={12} />}
       {status === 'lost' && <Ban size={12} />}
+      {status === 'converted' && <Trophy size={12} />}
       {label}
     </span>
   );
@@ -101,13 +113,14 @@ const ActionButton = ({
   onClick: () => void;
   icon: React.ElementType;
   label: string;
-  variant: 'success' | 'danger' | 'neutral';
+  variant: 'success' | 'danger' | 'neutral' | 'gold';
   disabled?: boolean;
 }) => {
   const variants = {
     success: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/50',
     danger: 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30 hover:border-red-500/50',
-    neutral: 'bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border-gray-500/30 hover:border-gray-500/50'
+    neutral: 'bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 border-gray-500/30 hover:border-gray-500/50',
+    gold: 'bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border-amber-400/30 hover:border-amber-400/50'
   };
 
   return (
@@ -133,7 +146,7 @@ const InterviewCard = ({
   isUpdating
 }: {
   interview: PendingInterview;
-  onUpdateStatus: (id: string, status: InterviewStatus) => Promise<void>;
+  onUpdateStatus: (id: string, status: InterviewStatus, contactId?: string | null) => Promise<void>;
   isUpdating: boolean;
 }) => {
   const [localUpdating, setLocalUpdating] = useState(false);
@@ -141,7 +154,7 @@ const InterviewCard = ({
   const handleStatusUpdate = async (newStatus: InterviewStatus) => {
     setLocalUpdating(true);
     try {
-      await onUpdateStatus(interview.id, newStatus);
+      await onUpdateStatus(interview.id, newStatus, interview.contact_id);
     } finally {
       setLocalUpdating(false);
     }
@@ -188,27 +201,38 @@ const InterviewCard = ({
       </div>
 
       {/* Actions */}
-      {interview.status === 'pending' && (
+      {(interview.status === 'pending' || interview.status === 'completed') && (
         <div className="flex flex-wrap gap-3 pt-4 border-t border-border-default">
+          {interview.status === 'pending' && (
+            <>
+              <ActionButton
+                onClick={() => handleStatusUpdate('completed')}
+                icon={CheckCircle2}
+                label="Compareceu"
+                variant="success"
+                disabled={isDisabled}
+              />
+              <ActionButton
+                onClick={() => handleStatusUpdate('no_show')}
+                icon={XCircle}
+                label="No Show"
+                variant="danger"
+                disabled={isDisabled}
+              />
+              <ActionButton
+                onClick={() => handleStatusUpdate('lost')}
+                icon={Ban}
+                label="Sem Interesse"
+                variant="neutral"
+                disabled={isDisabled}
+              />
+            </>
+          )}
           <ActionButton
-            onClick={() => handleStatusUpdate('completed')}
-            icon={CheckCircle2}
-            label="Compareceu"
-            variant="success"
-            disabled={isDisabled}
-          />
-          <ActionButton
-            onClick={() => handleStatusUpdate('no_show')}
-            icon={XCircle}
-            label="No Show"
-            variant="danger"
-            disabled={isDisabled}
-          />
-          <ActionButton
-            onClick={() => handleStatusUpdate('lost')}
-            icon={Ban}
-            label="Sem Interesse"
-            variant="neutral"
+            onClick={() => handleStatusUpdate('converted')}
+            icon={Trophy}
+            label="Converteu"
+            variant="gold"
             disabled={isDisabled}
           />
         </div>
@@ -227,13 +251,14 @@ const MetricCard = ({
   label: string;
   value: number;
   icon: React.ElementType;
-  color: 'emerald' | 'red' | 'amber' | 'gray';
+  color: 'emerald' | 'red' | 'amber' | 'gray' | 'blue';
 }) => {
   const colors = {
     emerald: 'text-emerald-400 bg-emerald-500/10',
     red: 'text-red-400 bg-red-500/10',
     amber: 'text-amber-400 bg-amber-500/10',
-    gray: 'text-gray-400 bg-gray-500/10'
+    gray: 'text-gray-400 bg-gray-500/10',
+    blue: 'text-blue-400 bg-blue-500/10'
   };
 
   return (
@@ -262,12 +287,11 @@ export const StatusCenter = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Determina location_id baseado no contexto (multi-tenancy)
-  // Sempre filtra quando uma conta específica está selecionada
   const activeLocationId = useMemo(() => {
     if (selectedAccount?.location_id) {
       return selectedAccount.location_id;
     }
-    return null; // Nenhuma subconta selecionada = todos os dados
+    return null;
   }, [selectedAccount]);
 
   // Fetch interviews from Supabase
@@ -282,17 +306,16 @@ export const StatusCenter = () => {
       setIsLoading(true);
       setError(null);
 
-      // Buscar agendamentos dos últimos 30 dias
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       let query = supabase
-        .from('vw_agendamentos_unified')
-        .select('*')
-        .gte('agendamento_data', thirtyDaysAgo.toISOString())
-        .order('agendamento_data', { ascending: false });
+        .from('appointments_log')
+        .select('id, appointment_date, location_name, location_id, contact_name, contact_phone, contact_email, appointment_type, raw_payload, created_at, manual_status')
+        .gte('appointment_date', thirtyDaysAgo.toISOString())
+        .order('appointment_date', { ascending: false })
+        .limit(5000);
 
-      // Filtro por location (multi-tenancy)
       if (activeLocationId) {
         query = query.eq('location_id', activeLocationId);
       }
@@ -301,66 +324,57 @@ export const StatusCenter = () => {
 
       if (queryError) throw queryError;
 
-      // Map data to our format
-      const mappedData: PendingInterview[] = (data || []).map(item => {
-        const dbStatus = item.status?.toLowerCase() || 'booked';
-        const isPast = new Date(item.agendamento_data) < new Date();
+      // Dedup by appointmentId (keep most recent)
+      const seen = new Map<string, any>();
+      for (const item of (data || [])) {
+        const appointmentId = item.raw_payload?.calendar?.appointmentId;
+        if (!appointmentId) continue;
+        const existing = seen.get(appointmentId);
+        if (!existing || (item.created_at && (!existing.created_at || item.created_at > existing.created_at))) {
+          seen.set(appointmentId, item);
+        }
+      }
 
-        // Se é booked e já passou, marcar como pending
-        let displayStatus: InterviewStatus = statusMap[dbStatus] || 'pending';
-        if (dbStatus === 'booked' && isPast) {
+      // Map GHL status to dashboard status
+      const mapStatus = (rawPayload: any): string => {
+        const ghlStatus = rawPayload?.calendar?.appoinmentStatus?.toLowerCase?.() || '';
+        if (ghlStatus === 'showed') return 'completed';
+        if (ghlStatus === 'noshow' || ghlStatus === 'no_show') return 'no_show';
+        if (ghlStatus === 'cancelled') return 'cancelled';
+        return 'booked';
+      };
+
+      // Map to PendingInterview format
+      const mappedData: PendingInterview[] = [];
+      for (const item of seen.values()) {
+        // Priority: manual_status > GHL webhook status
+        const effectiveStatus = item.manual_status || mapStatus(item.raw_payload);
+        if (effectiveStatus === 'cancelled') continue;
+
+        const isPast = new Date(item.appointment_date) < new Date();
+        let displayStatus: InterviewStatus = statusMap[effectiveStatus] || 'pending';
+        if (effectiveStatus === 'booked' && isPast) {
           displayStatus = 'pending';
         }
 
-        return {
+        mappedData.push({
           id: item.id,
-          lead_id: item.lead_id || item.id,
-          lead_name: item.contato_nome || item.contato_principal || '',
-          lead_phone: item.contato_telefone || item.celular_contato || '',
-          lead_email: item.contato_email || '',
-          recruiter_name: item.responsavel_nome || item.lead_usuario_responsavel || 'unknown',
-          interview_date: item.agendamento_data,
+          lead_id: item.id,
+          lead_name: item.contact_name || '',
+          lead_phone: item.contact_phone || '',
+          lead_email: item.contact_email || '',
+          recruiter_name: item.location_name || 'unknown',
+          interview_date: item.appointment_date,
           status: displayStatus,
-          fonte: item.fonte,
-          source: item.source || 'realtime'
-        };
-      });
+          fonte: null,
+          source: 'realtime',
+          contact_id: item.raw_payload?.contact_id || null,
+          location_id: item.location_id || null
+        });
+      }
 
-      // Deduplicate by email - keep record with most complete data (has name)
-      const emailMap = new Map<string, PendingInterview>();
-      const noEmailRecords: PendingInterview[] = [];
-
-      mappedData.forEach(item => {
-        const email = (item as any).lead_email?.toLowerCase();
-
-        if (!email) {
-          noEmailRecords.push(item);
-          return;
-        }
-
-        const existing = emailMap.get(email);
-        if (!existing) {
-          emailMap.set(email, item);
-        } else {
-          // Prefer record with name/phone over empty one
-          const existingHasData = existing.lead_name && existing.lead_name !== 'Sem nome';
-          const newHasData = item.lead_name && item.lead_name !== 'Sem nome';
-
-          if (newHasData && !existingHasData) {
-            emailMap.set(email, item);
-          } else if (newHasData && existingHasData) {
-            // Both have data - keep the one with more recent interview
-            if (new Date(item.interview_date) > new Date(existing.interview_date)) {
-              emailMap.set(email, item);
-            }
-          }
-        }
-      });
-
-      const deduplicatedData = [...emailMap.values(), ...noEmailRecords];
-
-      // Apply fallback for empty names - use email prefix as name
-      const finalData = deduplicatedData.map(item => ({
+      // Apply fallback for empty names
+      const finalData = mappedData.map(item => ({
         ...item,
         lead_name: item.lead_name || ((item as any).lead_email?.split('@')[0] || 'Sem nome'),
         recruiter_name: item.recruiter_name === 'unknown' ? 'Não atribuído' : item.recruiter_name
@@ -404,38 +418,54 @@ export const StatusCenter = () => {
     pending: interviews.filter(i => i.status === 'pending').length,
     completed: interviews.filter(i => i.status === 'completed').length,
     no_show: interviews.filter(i => i.status === 'no_show').length,
-    lost: interviews.filter(i => i.status === 'lost').length
+    lost: interviews.filter(i => i.status === 'lost').length,
+    converted: interviews.filter(i => i.status === 'converted').length
   }), [interviews]);
 
   // Update status in Supabase
-  const handleUpdateStatus = useCallback(async (id: string, newStatus: InterviewStatus) => {
+  const handleUpdateStatus = useCallback(async (id: string, newStatus: InterviewStatus, contactId?: string | null) => {
     setIsUpdating(true);
     try {
       const dbStatus = reverseStatusMap[newStatus];
 
-      // Tentar atualizar na tabela de agendamentos
-      // Primeiro tenta agendamentos_bposs, depois ops_agendamentos
-      let error = null;
-
-      // Try updating agendamentos_bposs first
-      const { error: err1 } = await supabase
-        .from('agendamentos_bposs')
-        .update({ status: dbStatus, updated_at: new Date().toISOString() })
+      // Persist to appointments_log.manual_status
+      const { error } = await supabase
+        .from('appointments_log')
+        .update({ manual_status: dbStatus })
         .eq('id', id);
 
-      if (err1) {
-        // Try ops_agendamentos
-        const { error: err2 } = await supabase
-          .from('ops_agendamentos')
-          .update({ status: dbStatus, updated_at: new Date().toISOString() })
-          .eq('id', id);
-
-        error = err2;
+      if (error) {
+        console.error('Error updating manual_status:', error);
       }
 
-      if (error) {
-        console.error('Error updating status:', error);
-        // Update locally anyway for better UX
+      // If converted, also update n8n_schedule_tracking.etapa_funil + add GHL tag
+      if (newStatus === 'converted' && contactId) {
+        const { error: trackingError } = await supabase
+          .from('n8n_schedule_tracking')
+          .update({ etapa_funil: 'Fechou' })
+          .eq('unique_id', contactId);
+
+        if (trackingError) {
+          console.error('Error updating etapa_funil:', trackingError);
+        }
+
+        // Add GHL tag via n8n webhook
+        const interview = interviews.find(i => i.id === id);
+        try {
+          await fetch('https://cliente-a1.mentorfy.io/webhook/tag-converteu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contact_id: contactId,
+              location_id: interview?.location_id || activeLocationId,
+              lead_name: interview?.lead_name || '',
+              tag: 'converteu',
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        } catch (webhookErr) {
+          console.warn('Webhook tag-converteu failed (non-blocking):', webhookErr);
+        }
       }
 
       // Update local state
@@ -447,7 +477,8 @@ export const StatusCenter = () => {
         pending: 'Status atualizado',
         completed: '✅ Entrevista marcada como realizada!',
         no_show: '❌ Lead marcado como No Show',
-        lost: '🚫 Lead marcado como Sem Interesse'
+        lost: '🚫 Lead marcado como Sem Interesse',
+        converted: '🏆 Lead convertido - parabéns!'
       };
 
       showToast(messages[newStatus], 'success');
@@ -500,11 +531,12 @@ export const StatusCenter = () => {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <MetricCard label="Pendentes" value={metrics.pending} icon={Clock} color="amber" />
         <MetricCard label="Compareceram" value={metrics.completed} icon={CheckCircle2} color="emerald" />
         <MetricCard label="No Show" value={metrics.no_show} icon={XCircle} color="red" />
         <MetricCard label="Sem Interesse" value={metrics.lost} icon={Ban} color="gray" />
+        <MetricCard label="Converteram" value={metrics.converted} icon={Trophy} color="blue" />
       </div>
 
       {/* Filters */}
@@ -521,13 +553,14 @@ export const StatusCenter = () => {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          {(['pending', 'completed', 'no_show', 'lost', 'all'] as const).map((f) => {
+          {(['pending', 'completed', 'no_show', 'lost', 'converted', 'all'] as const).map((f) => {
             const labels = {
               all: 'Todos',
               pending: 'Pendentes',
               completed: 'Compareceram',
               no_show: 'No Show',
-              lost: 'Sem Interesse'
+              lost: 'Sem Interesse',
+              converted: 'Converteram'
             };
 
             return (

@@ -26,6 +26,7 @@ import {
   Target,
   Percent,
   Mail,
+  Download,
 } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
 import {
@@ -982,6 +983,45 @@ const LeadsUtmTable: React.FC<LeadsUtmTableProps> = ({ leads, loading, locationI
   const paged = filtered.slice(page * perPage, (page + 1) * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
+  // CSV Export function
+  const exportLeadsCsv = useCallback(() => {
+    if (filtered.length === 0) return;
+
+    const headers = [
+      'Nome', 'Sobrenome', 'Email', 'Telefone', 'Origem', 'Location',
+      'UTM Content', 'UTM Source', 'UTM Campaign', 'Ad ID', 'Session Source',
+      'Respondeu', 'Status', 'Etapa Funil', 'Work Permit', 'Data',
+    ];
+
+    const rows = filtered.map((lead) => {
+      const stage = getLeadStage(lead);
+      const email = (lead as any).email || '';
+      const responded = lead.responded === true || lead.responded === 'true' ? 'Sim' : 'Não';
+
+      return [
+        lead.first_name || '', lead.last_name || '', email, lead.phone || '',
+        lead.source || '', lead.location_name || '', lead.utm_content || '',
+        lead.utm_source || '', lead.utm_campaign || '', lead.ad_id || '',
+        lead.session_source || '', responded, stage.label, lead.etapa_funil || '',
+        lead.work_permit || '', formatDate(lead.created_at),
+      ].map((field) => {
+        const escaped = String(field).replace(/"/g, '""');
+        return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+      });
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `leads-utm-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filtered]);
+
   // Status counts for filter badges
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -1025,6 +1065,15 @@ const LeadsUtmTable: React.FC<LeadsUtmTableProps> = ({ leads, loading, locationI
           <p className="text-[10px] text-text-muted">{filtered.length} leads · Cada linha = 1 lead com seus dados de UTM e funil</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={exportLeadsCsv}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-hover hover:bg-bg-tertiary border border-border-default rounded-lg text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Exportar CSV"
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Exportar CSV</span>
+          </button>
           <div className="relative">
             <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
@@ -1079,6 +1128,7 @@ const LeadsUtmTable: React.FC<LeadsUtmTableProps> = ({ leads, loading, locationI
                 Status <SortIcon col="status" />
               </th>
               <th className="text-left py-2 px-2 font-medium">Estado</th>
+              <th className="text-left py-2 px-2 font-medium">Work Permit</th>
               <th className="text-left py-2 px-2 font-medium">Origem</th>
               <th className="text-left py-2 px-2 font-medium cursor-pointer hover:text-text-primary" onClick={() => handleSort('created_at')}>
                 Data <SortIcon col="created_at" />
@@ -1111,6 +1161,22 @@ const LeadsUtmTable: React.FC<LeadsUtmTableProps> = ({ leads, loading, locationI
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${stage.bg} ${stage.color}`}>{stage.label}</span>
                   </td>
                   <td className="py-2 px-2 text-text-secondary">{lead.state || '—'}</td>
+                  <td className="py-2 px-2">
+                    {lead.work_permit ? (
+                      (() => {
+                        const wp = lead.work_permit.toLowerCase();
+                        if (wp.includes('possui') || wp === 'sim' || wp === 'yes' || wp === 'true') {
+                          return <span className="text-emerald-400 text-[10px] font-medium">Sim</span>;
+                        }
+                        if (wp.includes('não') || wp.includes('nao') || wp === 'no' || wp === 'false') {
+                          return <span className="text-red-400 text-[10px] font-medium">Não</span>;
+                        }
+                        return <span className="text-text-muted text-[10px]">{lead.work_permit}</span>;
+                      })()
+                    ) : (
+                      <span className="text-text-muted">—</span>
+                    )}
+                  </td>
                   <td className="py-2 px-2 text-text-muted">{lead.session_source || '—'}</td>
                   <td className="py-2 px-2 text-text-muted whitespace-nowrap">{formatDate(lead.created_at)}</td>
                   <td className="py-2 px-2">
@@ -1403,9 +1469,9 @@ export const Agendamentos: React.FC = () => {
           />
           <MetricCard
             title="Total Agendados"
-            value={criativoTotals.totalAgendaram.toLocaleString()}
+            value={stats.totalAgendados.toLocaleString()}
             icon={CalendarCheck}
-            subtext={`${criativoTotals.totalLeads > 0 ? Math.round((criativoTotals.totalAgendaram / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
+            subtext={`${criativoTotals.totalLeads > 0 ? Math.round((stats.totalAgendados / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
             onClick={() => handleCardClick('mes')}
             clickable
           />

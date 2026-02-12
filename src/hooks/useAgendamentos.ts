@@ -1,26 +1,23 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-
-// Usa a VIEW unificada que combina histórico + realtime
-const AGENDAMENTOS_VIEW = 'vw_agendamentos_unified';
 
 export interface Agendamento {
   id: string;
   agendamento_data: string | null;
-  scheduled_at?: string | null; // alias para compatibilidade
+  scheduled_at?: string | null;
   status: 'completed' | 'no_show' | 'booked' | 'won' | 'lost' | string | null;
   fonte: string | null;
-  fonte_do_lead_bposs?: string | null; // alias
+  fonte_do_lead_bposs?: string | null;
   location_id: string | null;
   responsavel_nome: string | null;
-  lead_usuario_responsavel?: string | null; // alias
+  lead_usuario_responsavel?: string | null;
   contato_nome: string | null;
-  contato_principal?: string | null; // alias
+  contato_principal?: string | null;
   contato_telefone: string | null;
-  celular_contato?: string | null; // alias
+  celular_contato?: string | null;
   contato_email: string | null;
   agendamento_tipo: string | null;
-  tipo_do_agendamento?: string | null; // alias
+  tipo_do_agendamento?: string | null;
   data_criacao?: string;
   source: 'historico' | 'realtime';
 }
@@ -52,11 +49,19 @@ export const getOrigem = (fonte: string | null): 'trafego' | 'social_selling' | 
   return null;
 };
 
+// Mapeia status do GHL (appoinmentStatus) para status do dashboard
+function mapGhlStatus(rawPayload: any): string {
+  const ghlStatus = rawPayload?.calendar?.appoinmentStatus?.toLowerCase?.() || '';
+  if (ghlStatus === 'showed') return 'completed';
+  if (ghlStatus === 'noshow' || ghlStatus === 'no_show') return 'no_show';
+  if (ghlStatus === 'cancelled') return 'cancelled';
+  return 'booked';
+}
+
 export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamentosReturn => {
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
 
   const fetchAgendamentos = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -70,15 +75,16 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
       setError(null);
 
       let query = supabase
-        .from(AGENDAMENTOS_VIEW)
-        .select('*', { count: 'exact' });
+        .from('appointments_log')
+        .select('id, appointment_date, location_name, location_id, contact_name, contact_phone, contact_email, appointment_type, raw_payload, created_at')
+        .limit(5000);
 
       // Filtro por período
       if (filters.startDate) {
-        query = query.gte('agendamento_data', filters.startDate.toISOString());
+        query = query.gte('appointment_date', filters.startDate.toISOString());
       }
       if (filters.endDate) {
-        query = query.lte('agendamento_data', filters.endDate.toISOString());
+        query = query.lte('appointment_date', filters.endDate.toISOString());
       }
 
       // Filtro por dia específico
@@ -88,25 +94,13 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
         const dayEnd = new Date(filters.day);
         dayEnd.setHours(23, 59, 59, 999);
         query = query
-          .gte('agendamento_data', dayStart.toISOString())
-          .lte('agendamento_data', dayEnd.toISOString());
+          .gte('appointment_date', dayStart.toISOString())
+          .lte('appointment_date', dayEnd.toISOString());
       }
 
       // Filtro por responsável
       if (filters.responsavel) {
-        query = query.eq('responsavel_nome', filters.responsavel);
-      }
-
-      // Filtro por status
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-
-      // Filtro por origem
-      if (filters.origem === 'trafego') {
-        query = query.or('fonte.ilike.%tráfego%,fonte.ilike.%trafego%');
-      } else if (filters.origem === 'social_selling') {
-        query = query.or('fonte.ilike.%prospecção%,fonte.ilike.%prospeccao%,fonte.ilike.%social%');
+        query = query.eq('location_name', filters.responsavel);
       }
 
       // Filtro por location (multi-tenancy)
@@ -115,28 +109,16 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
       }
 
       // Ordenação
-      query = query.order('agendamento_data', { ascending: false });
+      query = query.order('appointment_date', { ascending: false });
 
-      const { data, error: queryError, count } = await query;
+      const { data, error: queryError } = await query;
 
       if (queryError) {
         console.error('Error fetching agendamentos:', queryError);
         throw queryError;
       }
 
-      // Mapear dados para incluir aliases para compatibilidade
-      const mappedData = (data || []).map(item => ({
-        ...item,
-        scheduled_at: item.agendamento_data,
-        fonte_do_lead_bposs: item.fonte,
-        lead_usuario_responsavel: item.responsavel_nome,
-        contato_principal: item.contato_nome,
-        celular_contato: item.contato_telefone,
-        tipo_do_agendamento: item.agendamento_tipo,
-      }));
-
-      setAgendamentos(mappedData);
-      setTotalCount(count || 0);
+      setRawData(data || []);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar agendamentos');
       console.error('Error fetching agendamentos:', err);
@@ -156,6 +138,56 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
   useEffect(() => {
     fetchAgendamentos();
   }, [fetchAgendamentos]);
+
+  // Dedup + map + filter client-side
+  const { agendamentos, totalCount } = useMemo(() => {
+    // Dedup by appointmentId (keep most recent)
+    // Skip records without appointmentId — they are phantom/incomplete webhook entries
+    const seen = new Map<string, any>();
+    for (const item of rawData) {
+      const appointmentId = item.raw_payload?.calendar?.appointmentId;
+      if (!appointmentId) continue;
+      const existing = seen.get(appointmentId);
+      if (!existing || (item.created_at && (!existing.created_at || item.created_at > existing.created_at))) {
+        seen.set(appointmentId, item);
+      }
+    }
+
+    // Map to Agendamento interface and filter cancelled
+    let mapped: Agendamento[] = [];
+    for (const item of seen.values()) {
+      const status = mapGhlStatus(item.raw_payload);
+      if (status === 'cancelled') continue;
+
+      mapped.push({
+        id: item.id,
+        agendamento_data: item.appointment_date,
+        scheduled_at: item.appointment_date,
+        status,
+        fonte: null,
+        fonte_do_lead_bposs: null,
+        location_id: item.location_id,
+        responsavel_nome: item.location_name,
+        lead_usuario_responsavel: item.location_name,
+        contato_nome: item.contact_name,
+        contato_principal: item.contact_name,
+        contato_telefone: item.contact_phone,
+        celular_contato: item.contact_phone,
+        contato_email: item.contact_email,
+        agendamento_tipo: item.appointment_type,
+        tipo_do_agendamento: item.appointment_type,
+        data_criacao: item.created_at,
+        source: 'realtime',
+      });
+    }
+
+    // Apply status filter client-side (since status is mapped from raw_payload)
+    if (filters.status) {
+      mapped = mapped.filter(a => a.status === filters.status);
+    }
+
+    return { agendamentos: mapped, totalCount: mapped.length };
+  }, [rawData, filters.status]);
 
   return { agendamentos, loading, error, totalCount, refetch: fetchAgendamentos };
 };

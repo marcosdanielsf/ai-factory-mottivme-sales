@@ -9,7 +9,9 @@ export interface ClientCostSummary {
   total_tokens_input: number;
   total_tokens_output: number;
   total_requests: number;
+  total_conversations: number; // Contatos únicos (distinct contact_id)
   models_used: string[];
+  canais_used: string[];
   avg_cost_per_request: number;
   last_activity?: string;
   location_ids: string[]; // Lista de todos os location_ids associados
@@ -26,6 +28,7 @@ export interface DailyCost {
 export interface ClientCostDetail {
   id: string;
   created_at: string;
+  workflow_id: string;
   workflow_name: string;
   contact_name: string;
   modelo_ia: string;
@@ -40,6 +43,8 @@ interface UseClientCostsOptions {
   dateRange?: 'today' | '7d' | '30d' | 'all' | 'month';
   month?: string; // Formato: 'YYYY-MM' (ex: '2026-01')
   clientName?: string; // Filtrar por cliente específico
+  canalFilter?: string; // Filtrar por canal (sentinel, api, whatsapp, etc.)
+  workflowFilter?: string; // Filtrar por workflow_name
   showInactive?: boolean; // Mostrar clientes inativos (sem atividade nos últimos 30 dias)
   inactiveDays?: number; // Dias para considerar inativo (padrão: 30)
 }
@@ -47,6 +52,8 @@ interface UseClientCostsOptions {
 interface UseClientCostsReturn {
   clients: ClientCostSummary[];
   allClients: ClientCostSummary[]; // Todos os clientes (para dropdown)
+  allCanais: string[]; // Todos os canais disponíveis (para dropdown)
+  allWorkflows: string[]; // Todos os workflows disponíveis (para dropdown)
   totalCost: number;
   totalRequests: number;
   loading: boolean;
@@ -86,12 +93,16 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     dateRange = '30d',
     month,
     clientName,
+    canalFilter,
+    workflowFilter,
     showInactive = false,
     inactiveDays = 30
   } = options;
 
   const [clients, setClients] = useState<ClientCostSummary[]>([]);
   const [allClients, setAllClients] = useState<ClientCostSummary[]>([]); // Para dropdown
+  const [allCanais, setAllCanais] = useState<string[]>([]); // Para dropdown de canal
+  const [allWorkflows, setAllWorkflows] = useState<string[]>([]); // Para dropdown de workflow
   const [totalCost, setTotalCost] = useState(0);
   const [totalRequests, setTotalRequests] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -114,7 +125,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
 
       let result: ClientCostSummary[] = [];
 
-      if (!needsDateFilter) {
+      if (!needsDateFilter && !workflowFilter) {
         // Usar view agregada quando não há filtro de data (resolve limite de 1000 registros)
         const { data: viewData, error: viewError } = await supabase
           .from('vw_client_costs_summary')
@@ -133,7 +144,9 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
           total_tokens_input: row.total_tokens_input || 0,
           total_tokens_output: row.total_tokens_output || 0,
           total_requests: row.total_requests || 0,
+          total_conversations: row.total_conversations || 0,
           models_used: row.models_used || [],
+          canais_used: row.canais_used || [],
           avg_cost_per_request: row.avg_cost_per_request || 0,
           last_activity: row.last_activity,
           location_ids: row.location_ids || [row.location_id || 'unknown'],
@@ -149,7 +162,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
         while (hasMore) {
           let query = supabase
             .from('llm_costs')
-            .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia, created_at')
+            .select('location_id, location_name, custo_usd, tokens_input, tokens_output, modelo_ia, canal, contact_id, workflow_name, created_at')
             .range(offset, offset + pageSize - 1);
 
           if (start) {
@@ -157,6 +170,12 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
           }
           if (end) {
             query = query.lte('created_at', end.toISOString());
+          }
+          if (canalFilter) {
+            query = query.eq('canal', canalFilter);
+          }
+          if (workflowFilter) {
+            query = query.eq('workflow_name', workflowFilter);
           }
 
           const { data, error: queryError } = await query;
@@ -175,12 +194,14 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
         // Agrupar por location_name
         const clientCosts: Record<string, {
           location_ids: Set<string>;
+          contact_ids: Set<string>;
           location_name: string;
           total_cost_usd: number;
           total_tokens_input: number;
           total_tokens_output: number;
           total_requests: number;
           models_used: Set<string>;
+          canais_used: Set<string>;
           last_activity: string;
         }> = {};
 
@@ -191,21 +212,25 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
           if (!clientCosts[clientName]) {
             clientCosts[clientName] = {
               location_ids: new Set(),
+              contact_ids: new Set(),
               location_name: clientName,
               total_cost_usd: 0,
               total_tokens_input: 0,
               total_tokens_output: 0,
               total_requests: 0,
               models_used: new Set(),
+              canais_used: new Set(),
               last_activity: row.created_at,
             };
           }
           clientCosts[clientName].location_ids.add(lid);
+          if (row.contact_id) clientCosts[clientName].contact_ids.add(row.contact_id);
           clientCosts[clientName].total_cost_usd += row.custo_usd || 0;
           clientCosts[clientName].total_tokens_input += row.tokens_input || 0;
           clientCosts[clientName].total_tokens_output += row.tokens_output || 0;
           clientCosts[clientName].total_requests += 1;
           if (row.modelo_ia) clientCosts[clientName].models_used.add(row.modelo_ia);
+          if (row.canal) clientCosts[clientName].canais_used.add(row.canal);
           if (row.created_at > clientCosts[clientName].last_activity) {
             clientCosts[clientName].last_activity = row.created_at;
           }
@@ -218,7 +243,9 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
               ...c,
               location_id: locationIdsArray[0] || 'unknown',
               location_ids: locationIdsArray,
+              total_conversations: c.contact_ids.size,
               models_used: Array.from(c.models_used),
+              canais_used: Array.from(c.canais_used),
               avg_cost_per_request: c.total_requests > 0 ? c.total_cost_usd / c.total_requests : 0,
             };
           })
@@ -228,6 +255,23 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       // Guardar todos os clientes para o dropdown
       setAllClients(result);
 
+      // Extrair canais únicos
+      const canaisSet = new Set<string>();
+      result.forEach(c => c.canais_used?.forEach((canal: string) => canaisSet.add(canal)));
+      setAllCanais(Array.from(canaisSet).sort());
+
+      // Extrair workflows únicos (query leve, apenas nomes distintos)
+      try {
+        const { data: wfData } = await supabase
+          .from('llm_costs')
+          .select('workflow_name')
+          .not('workflow_name', 'is', null)
+          .limit(1000);
+        const wfSet = new Set<string>();
+        (wfData || []).forEach((r: any) => { if (r.workflow_name) wfSet.add(r.workflow_name); });
+        setAllWorkflows(Array.from(wfSet).sort());
+      } catch { /* ignore */ }
+
       // Aplicar filtros
       let filteredResult = result;
 
@@ -235,6 +279,13 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       if (clientName) {
         filteredResult = filteredResult.filter(c =>
           c.location_name.toLowerCase() === clientName.toLowerCase()
+        );
+      }
+
+      // Filtro por canal
+      if (canalFilter) {
+        filteredResult = filteredResult.filter(c =>
+          c.canais_used?.some((canal: string) => canal === canalFilter)
         );
       }
 
@@ -261,13 +312,13 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     } finally {
       setLoading(false);
     }
-  }, [dateRange, month, clientName, showInactive, inactiveDays]);
+  }, [dateRange, month, clientName, canalFilter, workflowFilter, showInactive, inactiveDays]);
 
   useEffect(() => {
     fetchCosts();
   }, [fetchCosts]);
 
-  return { clients, allClients, totalCost, totalRequests, loading, error, refetch: fetchCosts };
+  return { clients, allClients, allCanais, allWorkflows, totalCost, totalRequests, loading, error, refetch: fetchCosts };
 };
 
 // Hook para custos detalhados de um cliente especifico
@@ -318,6 +369,7 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
         const details: ClientCostDetail[] = (data || []).map((row: any) => ({
           id: row.id,
           created_at: row.created_at,
+          workflow_id: row.workflow_id || '',
           workflow_name: row.workflow_name || 'N/A',
           contact_name: row.contact_name || 'N/A',
           modelo_ia: row.modelo_ia || 'N/A',

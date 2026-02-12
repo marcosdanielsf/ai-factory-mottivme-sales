@@ -13,8 +13,8 @@ interface ConditionalLayoutProps {
  *
  * Regras:
  * - Admin SEM subconta selecionada = Layout completo (24+ páginas)
- * - Admin COM subconta selecionada = LayoutCliente (3 páginas)
- * - Cliente = LayoutCliente (3 páginas)
+ * - Admin COM subconta selecionada = LayoutCliente (2 páginas: Agendamentos, Central de Status)
+ * - Cliente = LayoutCliente (2 páginas: Agendamentos, Central de Status)
  */
 export const ConditionalLayout: React.FC<ConditionalLayoutProps> = ({ children }) => {
   const isAdmin = useIsAdmin();

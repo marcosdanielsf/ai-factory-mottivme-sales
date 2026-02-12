@@ -35,6 +35,7 @@ import {
   TrendingUp,
   Video,
   Plus,
+  UsersRound,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -139,6 +140,7 @@ const navSections: NavSection[] = [
       { icon: Trophy, label: 'Performance Clientes', to: '/performance', permission: 'canViewAllClients' },
       { icon: DollarSign, label: 'Custos por Cliente', to: '/custos', permission: 'canViewAllClients' },
       { icon: Settings, label: 'Configurações', to: '/configuracoes', permission: 'canAccessConfiguracoes' },
+      { icon: UsersRound, label: 'Usuários', to: '/usuarios', permission: 'canManageUsers' },
     ]
   },
 ];
