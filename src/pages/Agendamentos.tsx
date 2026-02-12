@@ -1462,9 +1462,9 @@ export const Agendamentos: React.FC = () => {
         <SalesFunnelChart
           data={{
             totalLeads: criativoTotals.totalLeads,
-            totalResponderam: criativoTotals.totalResponderam,
+            totalResponderam: Math.max(criativoTotals.totalResponderam, stats.totalAgendados),
             totalAgendaram: stats.totalAgendados,
-            totalCompareceram: criativoTotals.totalCompareceram,
+            totalCompareceram: stats.totalCompleted,
             totalFecharam: criativoTotals.totalFecharam,
           }}
           loading={loadingCriativos || loading}
