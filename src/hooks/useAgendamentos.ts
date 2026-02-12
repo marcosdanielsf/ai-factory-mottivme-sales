@@ -77,7 +77,7 @@ export const useAgendamentos = (filters: AgendamentosFilters = {}): UseAgendamen
       let query = supabase
         .from('appointments_log')
         .select('id, appointment_date, location_name, location_id, contact_name, contact_phone, contact_email, appointment_type, raw_payload, created_at')
-        .limit(5000);
+        .limit(50000);
 
       // Filtro por período
       if (filters.startDate) {

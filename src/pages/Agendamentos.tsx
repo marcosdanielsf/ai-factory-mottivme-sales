@@ -44,15 +44,16 @@ import {
   Legend,
 } from 'recharts';
 import { useAgendamentos, getOrigem, type Agendamento, type AgendamentosFilters } from '../hooks/useAgendamentos';
-import { useAgendamentosStats, type ResponsavelInfo, type DateRange } from '../hooks/useAgendamentosStats';
+import { useAgendamentosStats, type ResponsavelInfo } from '../hooks/useAgendamentosStats';
 import { useCriativoPerformance, type CriativoLead } from '../hooks/useCriativoPerformance';
 import { useConversationMessages } from '../hooks/useConversationMessages';
 import { MessageBubble } from '../components/supervision/MessageBubble';
 import { supabase } from '../lib/supabase';
 import { useLeadSegmentation } from '../hooks/useLeadSegmentation';
-import { DateRangePicker } from '../components/DateRangePicker';
+import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 import { CriativoMetricsTable, OrigemPerformanceChart } from '../components/charts/CriativoPerformanceChart';
 import { EstadoChart, WorkPermitSummary, EstadoMetricsTable } from '../components/charts/LeadSegmentationCharts';
+import { SalesFunnelChart } from '../components/charts/SalesFunnelChart';
 
 // ==========================================
 // TYPES
@@ -1457,6 +1458,9 @@ export const Agendamentos: React.FC = () => {
 
       {/* Content */}
       <div className="p-4 md:p-6 space-y-4">
+        {/* Funil de Conversão - Visual Overview */}
+        <SalesFunnelChart data={criativoTotals} loading={loadingCriativos} />
+
         {/* ROW 1: Volume & Conversão (fonte única: n8n_schedule_tracking) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <MetricCard

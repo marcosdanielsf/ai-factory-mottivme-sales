@@ -72,7 +72,7 @@ interface UseCriativoPerformanceReturn {
   refetch: () => Promise<void>;
 }
 
-export interface DateRange {
+interface DateRange {
   startDate: Date | null;
   endDate: Date | null;
 }
@@ -134,7 +134,7 @@ export const useCriativoPerformance = (
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false })
-        .limit(10000);
+        .limit(50000);
 
       if (locationId) {
         leadsQuery = leadsQuery.eq('location_id', locationId);
@@ -153,7 +153,7 @@ export const useCriativoPerformance = (
         .select('raw_payload, appointment_date, created_at, manual_status')
         .gte('appointment_date', apptStart.toISOString())
         .lte('appointment_date', apptEnd.toISOString())
-        .limit(10000);
+        .limit(50000);
 
       if (locationId) {
         apptsQuery = apptsQuery.eq('location_id', locationId);

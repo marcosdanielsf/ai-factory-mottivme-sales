@@ -39,9 +39,13 @@ export interface ClientCostDetail {
   tipo_acao: string;
 }
 
+interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
 interface UseClientCostsOptions {
-  dateRange?: 'today' | '7d' | '30d' | 'all' | 'month';
-  month?: string; // Formato: 'YYYY-MM' (ex: '2026-01')
+  dateRange?: DateRange;
   clientName?: string; // Filtrar por cliente específico
   canalFilter?: string; // Filtrar por canal (sentinel, api, whatsapp, etc.)
   workflowFilter?: string; // Filtrar por workflow_name
@@ -61,37 +65,10 @@ interface UseClientCostsReturn {
   refetch: () => Promise<void>;
 }
 
-// Helper para calcular data de inicio e fim
-const getDateRange = (range: string, month?: string): { start: Date | null; end: Date | null } => {
-  const now = new Date();
-
-  switch (range) {
-    case 'today':
-      now.setHours(0, 0, 0, 0);
-      return { start: now, end: null };
-    case '7d':
-      now.setDate(now.getDate() - 7);
-      return { start: now, end: null };
-    case '30d':
-      now.setDate(now.getDate() - 30);
-      return { start: now, end: null };
-    case 'month':
-      if (month) {
-        const [year, monthNum] = month.split('-').map(Number);
-        const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
-        const end = new Date(year, monthNum, 0, 23, 59, 59, 999); // Último dia do mês
-        return { start, end };
-      }
-      return { start: null, end: null };
-    default:
-      return { start: null, end: null };
-  }
-};
 
 export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCostsReturn => {
   const {
-    dateRange = '30d',
-    month,
+    dateRange,
     clientName,
     canalFilter,
     workflowFilter,
@@ -120,7 +97,8 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       setError(null);
 
       // Verificar se precisa filtrar por data
-      const { start, end } = getDateRange(dateRange, month);
+      const start = dateRange?.startDate || null;
+      const end = dateRange?.endDate || null;
       const needsDateFilter = start !== null || end !== null;
 
       let result: ClientCostSummary[] = [];
@@ -312,7 +290,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
     } finally {
       setLoading(false);
     }
-  }, [dateRange, month, clientName, canalFilter, workflowFilter, showInactive, inactiveDays]);
+  }, [dateRange?.startDate, dateRange?.endDate, clientName, canalFilter, workflowFilter, showInactive, inactiveDays]);
 
   useEffect(() => {
     fetchCosts();
@@ -324,7 +302,7 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
 // Hook para custos detalhados de um cliente especifico
 // Agora recebe location_name ao invés de location_id
 export const useClientCostDetails = (locationName: string | null, options: UseClientCostsOptions = {}) => {
-  const { dateRange = '30d', month } = options;
+  const { dateRange } = options;
 
   const [costs, setCosts] = useState<ClientCostDetail[]>([]);
   const [dailyCosts, setDailyCosts] = useState<DailyCost[]>([]);
@@ -353,12 +331,11 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
           .limit(500);
 
         // Aplicar filtro de data
-        const { start, end } = getDateRange(dateRange, month);
-        if (start) {
-          query = query.gte('created_at', start.toISOString());
+        if (dateRange?.startDate) {
+          query = query.gte('created_at', dateRange.startDate.toISOString());
         }
-        if (end) {
-          query = query.lte('created_at', end.toISOString());
+        if (dateRange?.endDate) {
+          query = query.lte('created_at', dateRange.endDate.toISOString());
         }
 
         const { data, error: queryError } = await query;
@@ -405,7 +382,7 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
     };
 
     fetchDetails();
-  }, [locationName, dateRange, month]);
+  }, [locationName, dateRange?.startDate, dateRange?.endDate]);
 
   return { costs, dailyCosts, loading, error };
 };

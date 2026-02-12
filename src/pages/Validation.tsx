@@ -6,6 +6,7 @@ import { useTestResults } from '../hooks/useTestResults';
 import { useToast } from '../hooks/useToast';
 import { useAccount } from '../contexts/AccountContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 
 // Mapeamento de location_id para nome do cliente
 const LOCATION_NAMES: Record<string, string> = {
@@ -50,10 +51,21 @@ interface AgentInfo {
 }
 
 export const Validation = () => {
-  const { testRuns, loading, error, refetch, deleteTestRun, deleting, toggleVersionActive } = useTestResults();
   const { showToast } = useToast();
   const { selectedAccount, isViewingSubconta } = useAccount();
   const isAdmin = useIsAdmin();
+
+  // Date range state - default últimos 30 dias
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    return { startDate: start, endDate: end };
+  });
+
+  const { testRuns, loading, error, refetch, deleteTestRun, deleting, toggleVersionActive } = useTestResults(dateRange);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -300,6 +312,8 @@ export const Validation = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+
           <button
             onClick={() => setShowTestRunner(true)}
             className="flex items-center gap-2 px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-white rounded text-sm font-medium transition-colors"

@@ -14,6 +14,7 @@ interface DateRangePickerProps {
 
 const defaultPresets = [
   { label: 'Hoje', days: 0 },
+  { label: 'Ontem', days: -2 }, // Special: yesterday only
   { label: '7 dias', days: 7 },
   { label: 'Este mês', days: -1 }, // Special: 1st of month to today
   { label: '30 dias', days: 30 },
@@ -44,13 +45,18 @@ const getPresetRange = (days: number): DateRange => {
   end.setHours(23, 59, 59, 999);
 
   const start = new Date();
-  if (days === -1) {
+  if (days === -2) {
+    // "Ontem": dia anterior inteiro
+    start.setDate(start.getDate() - 1);
+    end.setDate(end.getDate() - 1);
+  } else if (days === -1) {
     // "Este mês": dia 1 do mês atual até hoje
     start.setDate(1);
   } else {
     start.setDate(start.getDate() - days);
   }
   start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
 
   return { startDate: start, endDate: end };
 };
@@ -59,6 +65,16 @@ const getActivePreset = (range: DateRange, presets: typeof defaultPresets): numb
   if (!range.startDate || !range.endDate) return null;
 
   const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Check "Ontem" (start and end are both yesterday)
+  if (
+    range.startDate.toDateString() === yesterday.toDateString() &&
+    range.endDate.toDateString() === yesterday.toDateString()
+  ) {
+    return -2;
+  }
 
   // Verificar se endDate é hoje
   const isEndToday = range.endDate.toDateString() === now.toDateString();
@@ -159,7 +175,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           {/* Presets */}
           <div className="p-2 border-b border-border-default">
             <p className="text-xs text-text-muted mb-2 px-1">Atalhos</p>
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               {presets.map((preset) => (
                 <button
                   key={preset.days}

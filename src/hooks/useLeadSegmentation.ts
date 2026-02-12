@@ -40,7 +40,7 @@ interface UseLeadSegmentationReturn {
   refetch: () => Promise<void>;
 }
 
-export interface DateRange {
+interface DateRange {
   startDate: Date | null;
   endDate: Date | null;
 }

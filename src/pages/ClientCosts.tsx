@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   DollarSign,
   Users,
@@ -27,30 +27,22 @@ import {
   ClientCostSummary
 } from '../hooks/useClientCosts';
 import { useIsMobile } from '../hooks/useMediaQuery';
-
-type DateRange = 'today' | '7d' | '30d' | 'all' | 'month';
-
-// Gerar lista de meses disponíveis (últimos 12 meses)
-const getAvailableMonths = () => {
-  const months = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
-  }
-  return months;
-};
+import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 
 export const ClientCosts = () => {
   const { showToast } = useToast();
   const isMobile = useIsMobile();
-  const [dateRange, setDateRange] = useState<DateRange>('30d');
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // Date range state - default últimos 30 dias
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    return { startDate: start, endDate: end };
   });
+
   const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
 
   // Novos filtros
@@ -62,12 +54,9 @@ export const ClientCosts = () => {
 
   const N8N_BASE_URL = 'https://cliente-a1.mentorfy.io/workflow';
 
-  const availableMonths = getAvailableMonths();
-
   // Hooks de dados
   const { clients, allClients, allCanais, allWorkflows, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
     dateRange,
-    month: dateRange === 'month' ? selectedMonth : undefined,
     clientName: clientFilter || undefined,
     canalFilter: canalFilter || undefined,
     workflowFilter: workflowFilter || undefined,
@@ -77,7 +66,7 @@ export const ClientCosts = () => {
   const { summary, loading: loadingSummary } = useGlobalCostSummary();
   const { costs: clientDetails, dailyCosts, loading: loadingDetails } = useClientCostDetails(
     selectedClient?.location_name || null,
-    { dateRange, month: dateRange === 'month' ? selectedMonth : undefined }
+    { dateRange }
   );
 
   const handleRefresh = async () => {
@@ -131,45 +120,8 @@ export const ClientCosts = () => {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3 flex-wrap w-full md:w-auto">
-          {/* Date Range Selector - Compacto no mobile */}
-          <div className="flex bg-bg-tertiary/50 rounded-lg border border-border-default p-1 overflow-x-auto flex-1 md:flex-none">
-            {[
-              { value: 'today', label: isMobile ? 'Hoje' : 'Hoje' },
-              { value: '7d', label: '7d' },
-              { value: '30d', label: '30d' },
-              { value: 'month', label: 'Mês' },
-              { value: 'all', label: 'Todos' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setDateRange(option.value as DateRange)}
-                disabled={loading}
-                className={`px-2 md:px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
-                  dateRange === option.value
-                    ? 'bg-bg-secondary text-accent-primary shadow-sm border border-border-default'
-                    : 'text-text-muted hover:text-text-primary'
-                } disabled:opacity-50`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Month Selector - só aparece quando dateRange é 'month' */}
-          {dateRange === 'month' && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              disabled={loading}
-              className="px-2 md:px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-bg-secondary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 max-w-[120px] md:max-w-none"
-            >
-              {availableMonths.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {isMobile ? month.value : month.label}
-                </option>
-              ))}
-            </select>
-          )}
+          {/* Date Range Picker */}
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
 
           <div className="flex items-center gap-2">
             <button
@@ -327,12 +279,9 @@ export const ClientCosts = () => {
             {loading ? '...' : formatUSD(totalCost)}
           </div>
           <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-            Periodo: {
-              dateRange === 'all' ? 'Todo historico' :
-              dateRange === 'today' ? 'Hoje' :
-              dateRange === 'month' ? availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth :
-              `Ultimos ${dateRange}`
-            }
+            Periodo: {dateRange.startDate && dateRange.endDate
+              ? `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+              : 'Selecione um período'}
           </p>
         </div>
 

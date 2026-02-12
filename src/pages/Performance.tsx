@@ -302,6 +302,42 @@ export const Performance = () => {
   const [dateRange, setDateRange] = useState<DateRangeType>('30d');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTH_OPTIONS[0].value);
 
+  // Converter dateRange string para objeto DateRange para useClientCosts
+  const convertToDateRange = useCallback((range: DateRangeType, month?: string): { startDate: Date | null; endDate: Date | null } => {
+    const now = new Date();
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    switch (range) {
+      case '7d': {
+        const start = new Date();
+        start.setDate(start.getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+        return { startDate: start, endDate: end };
+      }
+      case '30d': {
+        const start = new Date();
+        start.setDate(start.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+        return { startDate: start, endDate: end };
+      }
+      case 'month': {
+        if (month) {
+          const [year, monthNum] = month.split('-').map(Number);
+          const start = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+          const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+          return { startDate: start, endDate: monthEnd };
+        }
+        return { startDate: null, endDate: null };
+      }
+      case 'all':
+      default:
+        return { startDate: null, endDate: null };
+    }
+  }, []);
+
+  const dateRangeObj = convertToDateRange(dateRange, selectedMonth);
+
   // Filtros de cliente
   const [clientFilter, setClientFilter] = useState<string>('');
   const [showInactive, setShowInactive] = useState<boolean>(false);
@@ -354,8 +390,7 @@ export const Performance = () => {
     error: errorCosts,
     refetch: refetchCosts
   } = useClientCosts({
-    dateRange,
-    month: dateRange === 'month' ? selectedMonth : undefined,
+    dateRange: dateRangeObj,
     clientName: clientFilter || undefined,
     showInactive,
     inactiveDays: 30
@@ -367,7 +402,7 @@ export const Performance = () => {
   // Hook de detalhes de custo do cliente selecionado
   const { costs: clientCostDetails, dailyCosts, loading: loadingCostDetails } = useClientCostDetails(
     selectedCostClient?.location_name || null,
-    { dateRange, month: dateRange === 'month' ? selectedMonth : undefined }
+    { dateRange: dateRangeObj }
   );
 
   const {

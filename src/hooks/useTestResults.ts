@@ -67,7 +67,13 @@ interface ValidationResult {
   e2e_pass_rate?: number;
 }
 
-export const useTestResults = () => {
+// Internal DateRange type (use DateRangePicker export for external usage)
+interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+export const useTestResults = (dateRange?: DateRange) => {
   const [results, setResults] = useState<AgentTestRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,11 +87,21 @@ export const useTestResults = () => {
       const allResults: AgentTestRun[] = [];
 
       // 1. Buscar TODOS os agent_versions (com ou sem validação)
-      const { data: agentVersions, error: avError } = await supabase
+      let avQuery = supabase
         .from('agent_versions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
+
+      // Aplicar filtro de data se especificado
+      if (dateRange?.startDate) {
+        avQuery = avQuery.gte('created_at', dateRange.startDate.toISOString());
+      }
+      if (dateRange?.endDate) {
+        avQuery = avQuery.lte('created_at', dateRange.endDate.toISOString());
+      }
+
+      const { data: agentVersions, error: avError } = await avQuery;
 
       if (!avError && agentVersions && agentVersions.length > 0) {
         const mappedFromAV = agentVersions.map((av: any) => {
@@ -251,11 +267,21 @@ export const useTestResults = () => {
       }
 
       // 2. Buscar de e2e_test_results (nova estrutura com cenários)
-      const { data: e2eResults, error: e2eError } = await supabase
+      let e2eQuery = supabase
         .from('e2e_test_results')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
+
+      // Aplicar filtro de data se especificado
+      if (dateRange?.startDate) {
+        e2eQuery = e2eQuery.gte('created_at', dateRange.startDate.toISOString());
+      }
+      if (dateRange?.endDate) {
+        e2eQuery = e2eQuery.lte('created_at', dateRange.endDate.toISOString());
+      }
+
+      const { data: e2eResults, error: e2eError } = await e2eQuery;
 
       if (!e2eError && e2eResults && e2eResults.length > 0) {
         // Buscar info dos agentes
@@ -341,12 +367,21 @@ export const useTestResults = () => {
       let trError: any = null;
 
       try {
-        const viewResult = await supabase
+        let trQuery = supabase
           .from('vw_latest_test_results')
           .select('*')
           .order('tested_at', { ascending: false })
           .limit(20);
 
+        // Aplicar filtro de data se especificado
+        if (dateRange?.startDate) {
+          trQuery = trQuery.gte('tested_at', dateRange.startDate.toISOString());
+        }
+        if (dateRange?.endDate) {
+          trQuery = trQuery.lte('tested_at', dateRange.endDate.toISOString());
+        }
+
+        const viewResult = await trQuery;
         testResultsData = viewResult.data;
         trError = viewResult.error;
       } catch (e) {
@@ -433,7 +468,7 @@ export const useTestResults = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateRange?.startDate, dateRange?.endDate]);
 
   const deleteTestRun = useCallback(async (id: string, source?: string): Promise<boolean> => {
     try {

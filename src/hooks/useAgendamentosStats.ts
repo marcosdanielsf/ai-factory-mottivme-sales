@@ -53,7 +53,7 @@ function mapGhlStatus(rawPayload: any): string {
   return 'booked';
 }
 
-export interface DateRange {
+interface DateRange {
   startDate: Date | null;
   endDate: Date | null;
 }
@@ -103,7 +103,7 @@ export const useAgendamentosStats = (
         .select('created_at, location_name, location_id, raw_payload')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
-        .limit(5000);
+        .limit(50000);
 
       if (responsavel) {
         agendamentosCriadosQuery = agendamentosCriadosQuery.eq('location_name', responsavel);
@@ -119,7 +119,7 @@ export const useAgendamentosStats = (
         .select('appointment_date, location_name, location_id, raw_payload, created_at')
         .gte('appointment_date', startDate.toISOString())
         .lte('appointment_date', endDate.toISOString())
-        .limit(5000);
+        .limit(50000);
 
       if (responsavel) {
         agendamentosParaQuery = agendamentosParaQuery.eq('location_name', responsavel);
@@ -134,7 +134,7 @@ export const useAgendamentosStats = (
         .select('id, created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
-        .limit(5000);
+        .limit(50000);
 
       if (locationId) {
         leadsQuery = leadsQuery.eq('location_id', locationId);
