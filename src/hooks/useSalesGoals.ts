@@ -30,6 +30,9 @@ export interface SalesGoal {
   calc_attendance_rate: number;
   calc_conversion_rate: number;
   calc_average_ticket: number;
+  products_snapshot: any[];
+  marketing_config: Record<string, any>;
+  currency: string;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
