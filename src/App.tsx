@@ -61,6 +61,17 @@ const VideoProducerDashboard = lazy(() => import('./pages/VideoProducerDashboard
 const VideoProducerNew = lazy(() => import('./pages/VideoProducerNew'));
 const VideoProducerDetail = lazy(() => import('./pages/VideoProducerDetail'));
 
+// Social Selling Dashboard
+const SocialSellingDashboard = lazy(() => import('./pages/SocialSellingDashboard'));
+
+// Planejamento de Vendas
+const Planejamento = lazy(() => import('./pages/Planejamento'));
+
+// GHL Direct Pages
+const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
+const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
+const GHLLeads = lazy(() => import('./pages/ghl/GHLLeads'));
+
 const App = () => {
   return (
     <AuthProvider>
@@ -86,376 +97,423 @@ const App = () => {
                 </Suspense>
               } />
 
-            {/* Portal do Cliente - View simplificada de resultados */}
-            <Route path="/portal" element={
-              <ProtectedRoute>
-                <Suspense fallback={<LoadingFallback />}>
-                  <ClientPortal />
-                </Suspense>
-              </ProtectedRoute>
-            } />
+              {/* Portal do Cliente - View simplificada de resultados */}
+              <Route path="/portal" element={
+                <ProtectedRoute>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ClientPortal />
+                  </Suspense>
+                </ProtectedRoute>
+              } />
 
-            {/* Protected Routes - Conditional Layout (Admin vs Client) */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Dashboard />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
+              {/* Protected Routes - Conditional Layout (Admin vs Client) */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Dashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
 
-            {/* Sales OS - Uses ConditionalLayout (accessible by clients) */}
-            <Route path="/leads" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Leads />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/sales-ops" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <SalesOps />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/agendamentos" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Agendamentos />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/status" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <StatusCenter />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
+              {/* Sales OS - Uses ConditionalLayout (accessible by clients) */}
+              <Route path="/leads" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Leads />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/sales-ops" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SalesOps />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/agendamentos" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Agendamentos />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/status" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <StatusCenter />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/social-selling" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SocialSellingDashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/planejamento" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Planejamento />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
 
-            {/* AI Factory */}
-            <Route path="/prompt-studio" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PromptEditor />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/agents/:id" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AgentDetail />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/validacao" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Validation />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/reflection-loop" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ReflectionLoop />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/evolution" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Evolution />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/logs" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Logs />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/follow-ups" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <FollowUps />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/knowledge-base" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <KnowledgeBase />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/team-rpg" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <TeamRPG />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/super-agent" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <SuperAgentRPG />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
+              {/* AI Factory */}
+              <Route path="/prompt-studio" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PromptEditor />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/agents/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AgentDetail />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/validacao" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Validation />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/reflection-loop" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ReflectionLoop />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/evolution" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Evolution />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/logs" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Logs />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/follow-ups" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <FollowUps />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/knowledge-base" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <KnowledgeBase />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/team-rpg" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <TeamRPG />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/super-agent" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SuperAgentRPG />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-            {/* Monitoring */}
-            <Route path="/notificacoes" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Notifications />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            {/* Cold Calls */}
-            <Route path="/cold-calls" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ColdCallDashboard />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/cold-calls/campaigns" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ColdCallCampaigns />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/cold-calls/new" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ColdCallNewCall />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/cold-calls/prompts" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ColdCallPrompts />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
+              {/* Monitoring */}
+              <Route path="/notificacoes" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Notifications />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              {/* Cold Calls */}
+              <Route path="/cold-calls" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ColdCallDashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/cold-calls/campaigns" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ColdCallCampaigns />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/cold-calls/new" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ColdCallNewCall />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/cold-calls/prompts" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ColdCallPrompts />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
 
-            {/* Prospector */}
-            <Route path="/prospector" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ProspectorDashboard />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/prospector/queue" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ProspectorQueue />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/prospector/templates" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ProspectorTemplates />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/prospector/analytics" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ProspectorAnalytics />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/prospector/campaign/:id" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ProspectorCampaignDetail />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
+              {/* Prospector */}
+              <Route path="/prospector" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorDashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/queue" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorQueue />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/templates" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorTemplates />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/analytics" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorAnalytics />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/campaign/:id" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorCampaignDetail />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
 
-            {/* Video Producer */}
-            <Route path="/video-producer" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <VideoProducerDashboard />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/video-producer/new" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <VideoProducerNew />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/video-producer/:id" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <VideoProducerDetail />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
+              {/* Video Producer */}
+              <Route path="/video-producer" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <VideoProducerDashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/video-producer/new" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <VideoProducerNew />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/video-producer/:id" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <VideoProducerDetail />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
 
-            <Route path="/calls" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <CallsRealizadas />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/custos" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ClientCosts />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/performance" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Performance />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/supervision" element={
-              <ProtectedRoute>
-                <ConditionalLayout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Supervision />
-                  </Suspense>
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/configuracoes" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Configuracoes />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/usuarios" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <UserManagement />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
+              <Route path="/calls" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <CallsRealizadas />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/custos" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ClientCosts />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/performance" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Performance />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/supervision" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Supervision />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/configuracoes" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Configuracoes />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/usuarios" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <UserManagement />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-            {/* Legacy/Client Specific */}
-            <Route path="/clientes" element={
-              <ProtectedRoute>
-                <Navigate to="/" />
-              </ProtectedRoute>
-            } />
-            <Route path="/clientes/:id" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ClientDetail />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/clientes/:id/agente" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PromptEditor />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
+              {/* Legacy/Client Specific */}
+              <Route path="/clientes" element={
+                <ProtectedRoute>
+                  <Navigate to="/" />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ClientDetail />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes/:id/agente" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PromptEditor />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-            <Route path="/aprovacoes" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Approvals />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="p-8 text-text-muted">Página em construção...</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
+              <Route path="/aprovacoes" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Approvals />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              {/* GHL Direct Dashboard */}
+              <Route path="/ghl/pipeline" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GHLPipeline />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ghl/agenda" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GHLAgenda />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ghl/leads" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GHLLeads />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <div className="p-8 text-text-muted">Página em construção...</div>
+                  </Layout>
+                </ProtectedRoute>
+              } />
             </Routes>
           </HashRouter>
         </ToastProvider>

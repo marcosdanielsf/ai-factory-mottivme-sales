@@ -86,6 +86,11 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_GEMINI_API_KEY=your_gemini_key  # For AI voice support
 ```
 
+## Tipos Compartilhados
+
+- `DateRange` → fonte unica: `src/components/DateRangePicker.tsx`. NUNCA exportar DateRange de hooks.
+- Hooks usam `DateRange` internamente (sem export). Paginas importam de `DateRangePicker`.
+
 ## Notes
 
 - The app uses HashRouter for client-side routing compatibility

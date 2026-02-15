@@ -36,6 +36,8 @@ import {
   Video,
   Plus,
   UsersRound,
+  Calendar,
+  Calculator,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -93,24 +95,36 @@ const navSections: NavSection[] = [
     items: [
       { icon: BarChart3, label: 'Sales Ops', to: '/sales-ops', permission: 'canAccessDashboard' },
       { icon: Eye, label: 'Supervisão IA', to: '/supervision', permission: 'canAccessSupervision' },
-      { icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls', subItems: [
-        { icon: LayoutDashboard, label: 'Dashboard', to: '/cold-calls' },
-        { icon: PhoneOutgoing, label: 'Nova Ligação', to: '/cold-calls/new' },
-        { icon: Megaphone, label: 'Campanhas', to: '/cold-calls/campaigns' },
-        { icon: FileText, label: 'Prompts', to: '/cold-calls/prompts' },
-      ]},
-      { icon: Target, label: 'Prospecção', to: '/prospector', permission: 'canAccessCalls', subItems: [
-        { icon: LayoutDashboard, label: 'Dashboard', to: '/prospector' },
-        { icon: Users, label: 'Fila', to: '/prospector/queue' },
-        { icon: FileText, label: 'Templates', to: '/prospector/templates' },
-        { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
-      ]},
-      { icon: Video, label: 'Video Producer', to: '/video-producer', permission: 'canAccessCalls', subItems: [
-        { icon: LayoutDashboard, label: 'Dashboard', to: '/video-producer' },
-        { icon: Plus, label: 'Novo Vídeo', to: '/video-producer/new' },
-      ]},
+      {
+        icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls', subItems: [
+          { icon: LayoutDashboard, label: 'Dashboard', to: '/cold-calls' },
+          { icon: PhoneOutgoing, label: 'Nova Ligação', to: '/cold-calls/new' },
+          { icon: Megaphone, label: 'Campanhas', to: '/cold-calls/campaigns' },
+          { icon: FileText, label: 'Prompts', to: '/cold-calls/prompts' },
+        ]
+      },
+      {
+        icon: Target, label: 'Prospecção', to: '/prospector', permission: 'canAccessCalls', subItems: [
+          { icon: LayoutDashboard, label: 'Dashboard', to: '/prospector' },
+          { icon: Users, label: 'Fila', to: '/prospector/queue' },
+          { icon: FileText, label: 'Templates', to: '/prospector/templates' },
+          { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
+        ]
+      },
+      {
+        icon: Video, label: 'Video Producer', to: '/video-producer', permission: 'canAccessCalls', subItems: [
+          { icon: LayoutDashboard, label: 'Dashboard', to: '/video-producer' },
+          { icon: Plus, label: 'Novo Vídeo', to: '/video-producer/new' },
+        ]
+      },
       { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
       { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
+      { icon: Megaphone, label: 'Social Selling', to: '/social-selling', permission: 'canAccessAgendamentos' },
+      { icon: Calculator, label: 'Planejamento', to: '/planejamento', permission: 'canAccessAgendamentos' },
+      // GHL Direct
+      { icon: TrendingUp, label: 'Vendas (GHL)', to: '/ghl/pipeline', permission: 'canAccessAgendamentos' },
+      { icon: Calendar, label: 'Agenda (GHL)', to: '/ghl/agenda', permission: 'canAccessAgendamentos' },
+      { icon: Users, label: 'Leads (GHL)', to: '/ghl/leads', permission: 'canAccessAgendamentos' },
     ]
   },
   {
@@ -149,10 +163,10 @@ const navSections: NavSection[] = [
 // COMPONENTES
 // ============================================
 
-const SidebarItem = ({ 
-  icon: Icon, 
-  label, 
-  to, 
+const SidebarItem = ({
+  icon: Icon,
+  label,
+  to,
   badge,
   onNavigate,
   isCollapsed = false
@@ -166,16 +180,16 @@ const SidebarItem = ({
 }) => {
   const location = useLocation();
   const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
-  
+
   const handleClick = () => {
     if (onNavigate) onNavigate();
   };
-  
+
   // Collapsed state - show only icon with tooltip
   if (isCollapsed) {
     return (
-      <NavLink 
-        to={to} 
+      <NavLink
+        to={to}
         onClick={handleClick}
         className={`
           flex items-center justify-center p-2 mx-2 rounded-md text-sm transition-colors relative group
@@ -196,9 +210,9 @@ const SidebarItem = ({
       </NavLink>
     );
   }
-  
+
   return (
-    <NavLink 
+    <NavLink
       to={to}
       onClick={handleClick}
       className={`
@@ -349,11 +363,11 @@ const SidebarExpandableItem = ({
 
 const SectionTitle = ({ title, isCollapsed }: { title: string; isCollapsed: boolean }) => {
   if (!title) return null;
-  
+
   if (isCollapsed) {
     return <div className="pt-2 border-t border-border-default mx-2 mt-2" />;
   }
-  
+
   return (
     <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
       {title}
@@ -429,22 +443,21 @@ export const Sidebar = ({
         return false;
       }
       // Verificar se pelo menos um item é visível
-      return section.items.some(item => 
+      return section.items.some(item =>
         !item.permission || hasPermission(item.permission)
       );
     })
     .map(section => ({
       ...section,
-      items: section.items.filter(item => 
+      items: section.items.filter(item =>
         !item.permission || hasPermission(item.permission)
       )
     }));
 
   // Classes condicionais para mobile/desktop/collapsed
   const sidebarClasses = isMobile
-    ? `fixed left-0 top-0 h-screen w-[280px] bg-bg-secondary border-r border-border-default flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      }`
+    ? `fixed left-0 top-0 h-screen w-[280px] bg-bg-secondary border-r border-border-default flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
+    }`
     : `${isCollapsed ? 'w-[68px]' : 'w-[260px]'} h-screen bg-bg-secondary border-r border-border-default flex flex-col sticky top-0 transition-all duration-300 ease-in-out`;
 
   return (
@@ -458,7 +471,7 @@ export const Sidebar = ({
           {!isCollapsed && <span>MOTTIV.ME</span>}
         </div>
         {isMobile ? (
-          <button 
+          <button
             onClick={onClose}
             className="p-1.5 hover:bg-bg-hover rounded-md transition-colors"
             aria-label="Fechar menu"
@@ -466,7 +479,7 @@ export const Sidebar = ({
             <X size={20} className="text-text-secondary" />
           </button>
         ) : !isCollapsed && onToggleCollapse && (
-          <button 
+          <button
             onClick={onToggleCollapse}
             className="p-1.5 hover:bg-bg-hover rounded-md transition-colors text-text-muted hover:text-text-primary"
             aria-label="Recolher sidebar"
@@ -476,10 +489,10 @@ export const Sidebar = ({
           </button>
         )}
       </div>
-      
+
       {/* Expand button when collapsed */}
       {isCollapsed && !isMobile && onToggleCollapse && (
-        <button 
+        <button
           onClick={onToggleCollapse}
           className="mx-auto mt-2 p-2 hover:bg-bg-hover rounded-md transition-colors text-text-muted hover:text-text-primary"
           aria-label="Expandir sidebar"
@@ -584,7 +597,7 @@ export const Sidebar = ({
       <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-border-default`}>
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-2">
-            <div 
+            <div
               className="w-8 h-8 rounded-full bg-bg-hover flex items-center justify-center text-xs font-semibold text-text-primary cursor-pointer hover:bg-bg-tertiary transition-colors relative group"
               title={getDisplayName()}
             >
