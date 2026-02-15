@@ -33,6 +33,10 @@ interface ProductItem {
   ticket: number;
   salesCycleDays: number;
   targetUnits: number;
+  orderBumpTicket: number;
+  orderBumpRate: number;
+  upsellTicket: number;
+  upsellRate: number;
 }
 
 interface ChannelConfig {
@@ -76,6 +80,7 @@ interface PlanningState {
     mqlsPerSdr: number;
     callsPerCloser: number;
   };
+  scenarioConfig: ScenarioConfig;
 }
 
 interface ChannelResults {
@@ -86,6 +91,14 @@ interface ChannelResults {
   sales: number;
   revenue: number;
   investment: number;
+}
+
+type ScenarioKey = 'pessimista' | 'realista' | 'otimista';
+
+interface ScenarioConfig {
+  pessimista: number;
+  realista: number;
+  otimista: number;
 }
 
 interface PlanResults {
@@ -111,6 +124,9 @@ interface PlanResults {
     name: string;
     ticket: number;
     targetUnits: number;
+    revenueBase: number;
+    revenueBump: number;
+    revenueUpsell: number;
     revenue: number;
     estimatedLeads: number;
   }[];
@@ -211,7 +227,23 @@ const createDefaultProduct = (): ProductItem => ({
   ticket: 1000,
   salesCycleDays: 30,
   targetUnits: 10,
+  orderBumpTicket: 0,
+  orderBumpRate: 0,
+  upsellTicket: 0,
+  upsellRate: 0,
 });
+
+const DEFAULT_SCENARIO_CONFIG: ScenarioConfig = {
+  pessimista: 0.7,
+  realista: 1.0,
+  otimista: 1.3,
+};
+
+const SCENARIO_LABELS: Record<ScenarioKey, string> = {
+  pessimista: 'Aceitavel',
+  realista: 'Realista',
+  otimista: 'Otimista',
+};
 
 const DEFAULT_SUB_FUNNELS: SubFunnel[] = [
   { id: '1', name: 'Novo Seguidor', pctBudget: 25, cpl: 1.5 },
@@ -244,18 +276,20 @@ const DEFAULT_STATE: PlanningState = {
     mqlsPerSdr: 150,
     callsPerCloser: 60,
   },
+  scenarioConfig: DEFAULT_SCENARIO_CONFIG,
 };
 
 // ============================================================================
 // Calculation Engine
 // ============================================================================
 
-function calculatePlan(state: PlanningState, periodDays = 30): PlanResults {
+function calculatePlan(state: PlanningState, periodDays = 30, scenarioMultiplier = 1.0): PlanResults {
   const { marketing, sales, products } = state;
   const totalInvestment = marketing.dailyBudget * periodDays;
 
+  const clampRate = (rate: number, mult: number) => Math.min(100, rate * mult);
+
   const calcChannelLeads = (key: 'socialSelling' | 'trafego' | 'organico', investment: number): number => {
-    // Trafego usa sub-funnels se existirem
     if (key === 'trafego' && marketing.trafegoSubFunnels.length > 0) {
       return marketing.trafegoSubFunnels.reduce((total, sf) => {
         const sfInvestment = investment * sf.pctBudget / 100;
@@ -266,29 +300,39 @@ function calculatePlan(state: PlanningState, periodDays = 30): PlanResults {
     return ch.cpl > 0 ? Math.floor(investment / ch.cpl) : 0;
   };
 
+  const calcProductRevenue = (salesCount: number) => {
+    const totalTarget = products.reduce((s, p) => s + p.targetUnits, 0);
+    let revenueBase = 0;
+    let revenueBump = 0;
+    let revenueUpsell = 0;
+    products.forEach(p => {
+      const pctShare = totalTarget > 0 ? p.targetUnits / totalTarget : 1 / products.length;
+      const pSales = salesCount * pctShare;
+      revenueBase += pSales * p.ticket;
+      revenueBump += pSales * (p.orderBumpRate / 100) * p.orderBumpTicket;
+      revenueUpsell += pSales * (p.upsellRate / 100) * p.upsellTicket;
+    });
+    return { revenueBase, revenueBump, revenueUpsell, total: revenueBase + revenueBump + revenueUpsell };
+  };
+
   const calcChannel = (key: 'socialSelling' | 'trafego' | 'organico'): ChannelResults => {
     const ch = marketing.channels[key];
     const rates = sales.origins[key];
     const investment = totalInvestment * ch.pctBudget / 100;
     const leads = calcChannelLeads(key, investment);
-    const mqls = Math.floor(leads * rates.qualificationRate / 100);
-    const scheduledCalls = Math.floor(mqls * rates.schedulingRate / 100);
-    const attendedCalls = Math.floor(scheduledCalls * rates.attendanceRate / 100);
-    const salesCount = Math.floor(attendedCalls * rates.conversionRate / 100);
+    const mqls = Math.floor(leads * clampRate(rates.qualificationRate, scenarioMultiplier) / 100);
+    const scheduledCalls = Math.floor(mqls * clampRate(rates.schedulingRate, scenarioMultiplier) / 100);
+    const attendedCalls = Math.floor(scheduledCalls * clampRate(rates.attendanceRate, scenarioMultiplier) / 100);
+    const salesCount = Math.floor(attendedCalls * clampRate(rates.conversionRate, scenarioMultiplier) / 100);
 
-    const totalTarget = products.reduce((s, p) => s + p.targetUnits, 0);
-    const revenue = totalTarget > 0
-      ? products.reduce((s, p) => s + (salesCount * p.targetUnits / totalTarget) * p.ticket, 0)
-      : salesCount * (products[0]?.ticket || 1000);
-
-    return { leads, mqls, scheduledCalls, attendedCalls, sales: salesCount, revenue, investment };
+    const rev = calcProductRevenue(salesCount);
+    return { leads, mqls, scheduledCalls, attendedCalls, sales: salesCount, revenue: rev.total, investment };
   };
 
   const ss = calcChannel('socialSelling');
   const tr = calcChannel('trafego');
   const org = calcChannel('organico');
 
-  // Sub-funnel breakdown
   const trafegoBudget = totalInvestment * marketing.channels.trafego.pctBudget / 100;
   const bySubFunnel = marketing.trafegoSubFunnels.map(sf => {
     const sfInvestment = trafegoBudget * sf.pctBudget / 100;
@@ -310,20 +354,24 @@ function calculatePlan(state: PlanningState, periodDays = 30): PlanResults {
   const cac = totalSales > 0 ? totalOpCost / totalSales : 0;
   const netProfit = totalRevenue - totalOpCost;
 
-  // Per-product breakdown
   const totalTarget = products.reduce((s, p) => s + p.targetUnits, 0);
   const overallConvRate = totalLeads > 0 ? totalSales / totalLeads : 0;
-  const avgCpl = totalLeads > 0 ? totalInvestment / totalLeads : 0;
 
   const byProduct = products.map(p => {
     const pctShare = totalTarget > 0 ? p.targetUnits / totalTarget : 1 / products.length;
     const estimatedSales = Math.round(totalSales * pctShare);
     const estimatedLeads = overallConvRate > 0 ? Math.round(estimatedSales / overallConvRate) : 0;
+    const revenueBase = estimatedSales * p.ticket;
+    const revenueBump = estimatedSales * (p.orderBumpRate / 100) * p.orderBumpTicket;
+    const revenueUpsell = estimatedSales * (p.upsellRate / 100) * p.upsellTicket;
     return {
       name: p.name,
       ticket: p.ticket,
       targetUnits: p.targetUnits,
-      revenue: estimatedSales * p.ticket,
+      revenueBase,
+      revenueBump,
+      revenueUpsell,
+      revenue: revenueBase + revenueBump + revenueUpsell,
       estimatedLeads,
     };
   });
@@ -388,7 +436,15 @@ export function Planejamento() {
   const funnelData = useSocialSellingFunnel(dateRange, effectiveLocationId);
   const { products: savedProducts, createProduct, updateProduct: updateSavedProduct } = useProducts(effectiveLocationId);
 
-  const results = useMemo(() => calculatePlan(plan), [plan]);
+  const [activeScenario, setActiveScenario] = useState<ScenarioKey>('realista');
+
+  const scenarios = useMemo(() => ({
+    pessimista: calculatePlan(plan, 30, plan.scenarioConfig.pessimista),
+    realista: calculatePlan(plan, 30, plan.scenarioConfig.realista),
+    otimista: calculatePlan(plan, 30, plan.scenarioConfig.otimista),
+  }), [plan]);
+
+  const results = scenarios[activeScenario];
 
   // Load saved products into wizard when available
   React.useEffect(() => {
@@ -401,6 +457,10 @@ export function Planejamento() {
           ticket: Number(sp.ticket),
           salesCycleDays: sp.sales_cycle_days,
           targetUnits: sp.target_units,
+          orderBumpTicket: 0,
+          orderBumpRate: 0,
+          upsellTicket: 0,
+          upsellRate: 0,
         })),
       }));
     }
@@ -470,12 +530,21 @@ export function Planejamento() {
         calc_conversion_rate: plan.sales.origins.trafego.conversionRate,
         calc_average_ticket: plan.products[0]?.ticket || 1000,
         products_snapshot: plan.products,
-        marketing_config: plan.marketing,
+        marketing_config: {
+          ...plan.marketing,
+          scenarioConfig: plan.scenarioConfig,
+          scenarioResults: {
+            pessimista: { totalSales: scenarios.pessimista.totalSales, totalRevenue: scenarios.pessimista.totalRevenue, roas: scenarios.pessimista.roas, netProfit: scenarios.pessimista.netProfit },
+            realista: { totalSales: scenarios.realista.totalSales, totalRevenue: scenarios.realista.totalRevenue, roas: scenarios.realista.roas, netProfit: scenarios.realista.netProfit },
+            otimista: { totalSales: scenarios.otimista.totalSales, totalRevenue: scenarios.otimista.totalRevenue, roas: scenarios.otimista.roas, netProfit: scenarios.otimista.netProfit },
+          },
+        },
         currency: plan.currency,
       };
 
       await createGoal(newGoal);
       setShowWizard(false);
+      setActiveScenario('realista');
     } catch (err) {
       console.error('Erro ao salvar meta:', err);
     }
@@ -497,16 +566,54 @@ export function Planejamento() {
         mergedMkt.trafegoSubFunnels = DEFAULT_SUB_FUNNELS;
       }
 
+      const savedScenario = (activeGoal.marketing_config as any)?.scenarioConfig as ScenarioConfig | undefined;
+
+      // Ensure products have bump/upsell fields
+      const normalizedProds = prods.map(p => ({
+        ...p,
+        orderBumpTicket: p.orderBumpTicket ?? 0,
+        orderBumpRate: p.orderBumpRate ?? 0,
+        upsellTicket: p.upsellTicket ?? 0,
+        upsellRate: p.upsellRate ?? 0,
+      }));
+
       setPlan(prev => ({
         ...prev,
         step: 1,
         currency: (activeGoal.currency as Currency) || 'BRL',
-        products: prods,
+        products: normalizedProds,
         marketing: mergedMkt,
+        scenarioConfig: savedScenario || DEFAULT_SCENARIO_CONFIG,
       }));
     }
     setShowWizard(true);
   };
+
+  // Rebuild scenarios from saved goal for Executive Summary
+  const savedScenarios = useMemo(() => {
+    if (!activeGoal) return null;
+    const mktConfig = activeGoal.marketing_config as any;
+
+    // If we have saved scenario results, rebuild PlanResults-like objects
+    if (mktConfig?.scenarioResults) {
+      const sr = mktConfig.scenarioResults;
+      const buildFromSaved = (s: any): PlanResults => ({
+        ...scenarios.realista, // base structure
+        totalSales: s.totalSales ?? 0,
+        totalRevenue: s.totalRevenue ?? 0,
+        roas: s.roas ?? 0,
+        netProfit: s.netProfit ?? 0,
+      });
+      return {
+        pessimista: buildFromSaved(sr.pessimista),
+        realista: buildFromSaved(sr.realista),
+        otimista: buildFromSaved(sr.otimista),
+      };
+    }
+
+    // Fallback: rebuild from current plan state
+    return scenarios;
+  }, [activeGoal, scenarios]);
 
   // Actual data from funnel
   const actualData = useMemo(() => {
@@ -699,32 +806,32 @@ export function Planejamento() {
                 </div>
 
                 {/* Right: Results Sidebar */}
-                <ResultsSidebar results={results} currency={plan.currency} products={plan.products} />
+                <ResultsSidebar results={results} scenarios={scenarios} activeScenario={activeScenario} onScenarioChange={setActiveScenario} currency={plan.currency} products={plan.products} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Progresso vs Meta */}
+        {/* Executive Summary + Progresso vs Meta */}
+        {activeGoal && !showWizard && (
+          <ExecutiveSummary
+            goal={activeGoal}
+            scenarios={savedScenarios}
+            currency={(activeGoal.currency as Currency) || 'BRL'}
+            onEdit={handleEditGoal}
+            onNew={() => { setPlan(DEFAULT_STATE); setShowWizard(true); }}
+          />
+        )}
+
         {activeGoal && projections && (
           <>
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">Progresso vs Meta</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleEditGoal}
-                  className="px-3 py-1.5 text-xs bg-bg-hover hover:bg-bg-primary border border-border-default text-text-primary rounded-lg font-medium transition-colors flex items-center gap-1.5"
-                >
-                  <Edit3 size={12} /> Editar Meta
-                </button>
-                <button
-                  onClick={() => { setPlan(DEFAULT_STATE); setShowWizard(true); }}
-                  className="px-3 py-1.5 text-xs bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center gap-1.5"
-                >
-                  <PlusCircle size={12} /> Nova Meta
-                </button>
+            {showWizard && (
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-text-primary">Progresso vs Meta</h3>
               </div>
-            </div>
+            )}
+
+            {!showWizard && <h3 className="text-sm font-semibold text-text-primary mt-2">Progresso vs Meta</h3>}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <ProgressCard label="Leads" projection={projections.leads} />
@@ -902,6 +1009,100 @@ function WizardSteps({ step, onChange }: { step: 1 | 2 | 3; onChange: (s: 1 | 2 
 }
 
 // ============================================================================
+// Bump/Upsell Section (collapsible per product)
+// ============================================================================
+
+function BumpUpsellSection({ product, currency, onChange }: {
+  product: ProductItem;
+  currency: Currency;
+  onChange: (updates: Partial<ProductItem>) => void;
+}) {
+  const hasBump = product.orderBumpTicket > 0 || product.orderBumpRate > 0;
+  const hasUpsell = product.upsellTicket > 0 || product.upsellRate > 0;
+  const [open, setOpen] = useState(hasBump || hasUpsell);
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[10px] text-green-400 hover:text-green-300 font-medium transition-colors uppercase tracking-wider"
+      >
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        Ofertas adicionais (Order Bump + Upsell)
+      </button>
+
+      {open && (
+        <div className="mt-2 grid grid-cols-2 gap-3 p-3 bg-green-500/5 rounded-lg border border-green-500/20">
+          {/* Order Bump */}
+          <div>
+            <div className="text-[10px] text-green-400 font-semibold uppercase tracking-wider mb-2 flex items-center">
+              Order Bump
+              <FieldHelp text="Oferta complementar mostrada no checkout. Ex: R$ 97 por um e-book bonus. O cliente compra junto com o produto principal." />
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="text-[10px] text-text-muted">Valor</label>
+                <NumInput
+                  value={product.orderBumpTicket}
+                  onChange={v => onChange({ orderBumpTicket: v })}
+                  prefix={currency === 'BRL' ? 'R$' : '$'}
+                  min={0}
+                  className="w-full bg-bg-secondary border border-green-500/20 rounded-lg pr-3 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-text-muted">% que compram</label>
+                <div className="flex items-center gap-1">
+                  <NumInput
+                    value={product.orderBumpRate}
+                    onChange={v => onChange({ orderBumpRate: v })}
+                    min={0} max={100}
+                    className="w-full bg-bg-secondary border border-green-500/20 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-green-500"
+                  />
+                  <span className="text-[10px] text-text-muted">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Upsell */}
+          <div>
+            <div className="text-[10px] text-green-400 font-semibold uppercase tracking-wider mb-2 flex items-center">
+              Upsell
+              <FieldHelp text="Oferta premium pos-compra. Ex: R$ 497 por mentoria individual. Oferecida depois que o cliente ja comprou o produto principal." />
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="text-[10px] text-text-muted">Valor</label>
+                <NumInput
+                  value={product.upsellTicket}
+                  onChange={v => onChange({ upsellTicket: v })}
+                  prefix={currency === 'BRL' ? 'R$' : '$'}
+                  min={0}
+                  className="w-full bg-bg-secondary border border-green-500/20 rounded-lg pr-3 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-text-muted">% que compram</label>
+                <div className="flex items-center gap-1">
+                  <NumInput
+                    value={product.upsellRate}
+                    onChange={v => onChange({ upsellRate: v })}
+                    min={0} max={100}
+                    className="w-full bg-bg-secondary border border-green-500/20 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-green-500"
+                  />
+                  <span className="text-[10px] text-text-muted">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Step 1: Produtos
 // ============================================================================
 
@@ -912,7 +1113,7 @@ function ProductsStep({ products, currency, onChange }: {
 }) {
   const addProduct = () => {
     if (products.length >= 5) return;
-    onChange([...products, { id: crypto.randomUUID(), name: `Produto ${products.length + 1}`, ticket: 1000, salesCycleDays: 30, targetUnits: 5 }]);
+    onChange([...products, { id: crypto.randomUUID(), name: `Produto ${products.length + 1}`, ticket: 1000, salesCycleDays: 30, targetUnits: 5, orderBumpTicket: 0, orderBumpRate: 0, upsellTicket: 0, upsellRate: 0 }]);
   };
 
   const updateProduct = (id: string, updates: Partial<ProductItem>) => {
@@ -1015,8 +1216,27 @@ function ProductsStep({ products, currency, onChange }: {
               </div>
             </div>
 
+            {/* Order Bump + Upsell */}
+            <BumpUpsellSection product={product} currency={currency} onChange={updates => updateProduct(product.id, updates)} />
+
             <div className="mt-2 text-xs text-text-muted">
-              Receita projetada: <span className="text-purple-400 font-semibold">{formatCurrency(product.ticket * product.targetUnits, currency)}</span>/mes
+              Receita projetada: <span className="text-purple-400 font-semibold">
+                {formatCurrency(
+                  product.ticket * product.targetUnits
+                  + product.targetUnits * (product.orderBumpRate / 100) * product.orderBumpTicket
+                  + product.targetUnits * (product.upsellRate / 100) * product.upsellTicket,
+                  currency
+                )}
+              </span>/mes
+              {(product.orderBumpTicket > 0 || product.upsellTicket > 0) && (
+                <span className="text-green-400 ml-1">
+                  (+{formatCurrency(
+                    product.targetUnits * (product.orderBumpRate / 100) * product.orderBumpTicket
+                    + product.targetUnits * (product.upsellRate / 100) * product.upsellTicket,
+                    currency
+                  )} extras)
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -1433,8 +1653,11 @@ function SalesStep({ sales, onChange }: {
 // Results Sidebar
 // ============================================================================
 
-function ResultsSidebar({ results, currency, products }: {
+function ResultsSidebar({ results, scenarios, activeScenario, onScenarioChange, currency, products }: {
   results: PlanResults;
+  scenarios: Record<ScenarioKey, PlanResults>;
+  activeScenario: ScenarioKey;
+  onScenarioChange: (s: ScenarioKey) => void;
   currency: Currency;
   products: ProductItem[];
 }) {
@@ -1442,6 +1665,25 @@ function ResultsSidebar({ results, currency, products }: {
 
   return (
     <div className="lg:w-80 shrink-0 px-6 py-5 bg-bg-primary/30">
+      {/* Scenario Toggle */}
+      <div className="flex items-center gap-1 mb-4 bg-bg-secondary rounded-lg p-0.5 border border-border-default">
+        {(['pessimista', 'realista', 'otimista'] as ScenarioKey[]).map(key => (
+          <button
+            key={key}
+            onClick={() => onScenarioChange(key)}
+            className={`flex-1 px-2 py-1.5 text-[10px] font-semibold rounded-md transition-all ${
+              activeScenario === key
+                ? key === 'pessimista' ? 'bg-yellow-500/20 text-yellow-400 shadow-sm'
+                : key === 'realista' ? 'bg-purple-500 text-white shadow-sm'
+                : 'bg-green-500/20 text-green-400 shadow-sm'
+                : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            {SCENARIO_LABELS[key]}
+          </button>
+        ))}
+      </div>
+
       <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Projecao 30 dias</h4>
 
       <div className="space-y-2">
@@ -1470,8 +1712,43 @@ function ResultsSidebar({ results, currency, products }: {
         />
       </div>
 
-      {/* By channel */}
+      {/* Scenario comparison mini-table */}
       <div className="mt-4 pt-3 border-t border-border-default">
+        <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Cenarios</h5>
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr className="text-text-muted">
+              <th className="text-left py-1"></th>
+              <th className="text-center py-1 text-yellow-400">Aceit.</th>
+              <th className="text-center py-1 text-purple-400">Real.</th>
+              <th className="text-center py-1 text-green-400">Otim.</th>
+            </tr>
+          </thead>
+          <tbody className="text-text-secondary">
+            <tr>
+              <td className="py-0.5">Vendas</td>
+              <td className="text-center">{scenarios.pessimista.totalSales}</td>
+              <td className="text-center font-bold text-purple-400">{scenarios.realista.totalSales}</td>
+              <td className="text-center">{scenarios.otimista.totalSales}</td>
+            </tr>
+            <tr>
+              <td className="py-0.5">Receita</td>
+              <td className="text-center">{formatCurrency(scenarios.pessimista.totalRevenue, currency).replace(/\s/g, '')}</td>
+              <td className="text-center font-bold text-purple-400">{formatCurrency(scenarios.realista.totalRevenue, currency).replace(/\s/g, '')}</td>
+              <td className="text-center">{formatCurrency(scenarios.otimista.totalRevenue, currency).replace(/\s/g, '')}</td>
+            </tr>
+            <tr>
+              <td className="py-0.5">ROAS</td>
+              <td className="text-center">{scenarios.pessimista.roas.toFixed(1)}x</td>
+              <td className="text-center font-bold text-purple-400">{scenarios.realista.roas.toFixed(1)}x</td>
+              <td className="text-center">{scenarios.otimista.roas.toFixed(1)}x</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* By channel */}
+      <div className="mt-3 pt-3 border-t border-border-default">
         <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Por Canal</h5>
         <table className="w-full text-[11px]">
           <thead>
@@ -1510,14 +1787,22 @@ function ResultsSidebar({ results, currency, products }: {
       )}
 
       {/* By product */}
-      {products.length > 1 && r.byProduct.length > 0 && (
+      {r.byProduct.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border-default">
           <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Por Produto</h5>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {r.byProduct.map((p, i) => (
-              <div key={i} className="flex justify-between text-[11px]">
-                <span className="text-text-secondary truncate mr-2">{p.name}</span>
-                <span className="text-purple-400 font-semibold whitespace-nowrap">{formatCurrency(p.revenue, currency)}</span>
+              <div key={i}>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-text-secondary truncate mr-2">{p.name}</span>
+                  <span className="text-purple-400 font-semibold whitespace-nowrap">{formatCurrency(p.revenue, currency)}</span>
+                </div>
+                {(p.revenueBump > 0 || p.revenueUpsell > 0) && (
+                  <div className="flex gap-2 ml-2 text-[10px] text-text-muted">
+                    {p.revenueBump > 0 && <span className="text-green-400">+bump {formatCurrency(p.revenueBump, currency)}</span>}
+                    {p.revenueUpsell > 0 && <span className="text-green-400">+upsell {formatCurrency(p.revenueUpsell, currency)}</span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1543,6 +1828,181 @@ function SidebarMetric({ label, value, icon, color, bold }: {
         <span className="text-[11px] text-text-muted">{label}</span>
       </div>
       <span className={`text-xs ${bold ? 'font-bold' : 'font-semibold'} ${colorClass}`}>{value}</span>
+    </div>
+  );
+}
+
+// ============================================================================
+// Executive Summary (post-save view)
+// ============================================================================
+
+function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
+  goal: SalesGoal;
+  scenarios: { pessimista: PlanResults; realista: PlanResults; otimista: PlanResults } | null;
+  currency: Currency;
+  onEdit: () => void;
+  onNew: () => void;
+}) {
+  const r = scenarios?.realista;
+  if (!r) return null;
+
+  const p = scenarios.pessimista;
+  const o = scenarios.otimista;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-text-primary">Resumo do Planejamento</h3>
+          <p className="text-[10px] text-text-muted mt-0.5">
+            {new Date(goal.period_start).toLocaleDateString('pt-BR')} - {new Date(goal.period_end).toLocaleDateString('pt-BR')}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onEdit} className="px-3 py-1.5 text-xs bg-bg-hover hover:bg-bg-primary border border-border-default text-text-primary rounded-lg font-medium transition-colors flex items-center gap-1.5">
+            <Edit3 size={12} /> Editar
+          </button>
+          <button onClick={onNew} className="px-3 py-1.5 text-xs bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center gap-1.5">
+            <PlusCircle size={12} /> Nova Meta
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="Investimento" value={formatCurrency(r.totalInvestment, currency)} sub={`${formatCurrency(goal.calc_daily_investment, currency)}/dia`} color="purple" />
+        <KpiCard label="Vendas" value={String(r.totalSales)} sub={`${r.totalLeads} leads → ${r.totalSales} vendas`} color="purple" />
+        <KpiCard label="Faturamento" value={formatCurrency(r.totalRevenue, currency)} sub={`ROAS ${r.roas.toFixed(1)}x`} color="green" />
+        <KpiCard label="Lucro Liquido" value={formatCurrency(r.netProfit, currency)} sub={`CAC ${formatCurrency(r.cac, currency)}`} color={r.netProfit >= 0 ? 'green' : 'red'} />
+      </div>
+
+      {/* Scenarios + Funnel + Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Scenario Table */}
+        <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
+          <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Cenarios</h4>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-default">
+                <th className="text-left py-2 text-xs text-text-muted font-medium"></th>
+                <th className="text-center py-2 text-xs text-yellow-400 font-medium">Aceitavel</th>
+                <th className="text-center py-2 text-xs text-purple-400 font-medium">Realista</th>
+                <th className="text-center py-2 text-xs text-green-400 font-medium">Otimista</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border-default/50">
+                <td className="py-2 text-xs text-text-muted">Vendas</td>
+                <td className="text-center text-xs text-text-secondary">{p.totalSales}</td>
+                <td className="text-center text-xs font-bold text-purple-400">{r.totalSales}</td>
+                <td className="text-center text-xs text-text-secondary">{o.totalSales}</td>
+              </tr>
+              <tr className="border-b border-border-default/50">
+                <td className="py-2 text-xs text-text-muted">Faturamento</td>
+                <td className="text-center text-xs text-text-secondary">{formatCurrency(p.totalRevenue, currency)}</td>
+                <td className="text-center text-xs font-bold text-purple-400">{formatCurrency(r.totalRevenue, currency)}</td>
+                <td className="text-center text-xs text-text-secondary">{formatCurrency(o.totalRevenue, currency)}</td>
+              </tr>
+              <tr className="border-b border-border-default/50">
+                <td className="py-2 text-xs text-text-muted">ROAS</td>
+                <td className="text-center text-xs text-text-secondary">{p.roas.toFixed(1)}x</td>
+                <td className="text-center text-xs font-bold text-purple-400">{r.roas.toFixed(1)}x</td>
+                <td className="text-center text-xs text-text-secondary">{o.roas.toFixed(1)}x</td>
+              </tr>
+              <tr>
+                <td className="py-2 text-xs text-text-muted">Lucro</td>
+                <td className={`text-center text-xs ${p.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(p.netProfit, currency)}</td>
+                <td className={`text-center text-xs font-bold ${r.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(r.netProfit, currency)}</td>
+                <td className={`text-center text-xs ${o.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(o.netProfit, currency)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Funnel Visual */}
+        <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
+          <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Funil de Vendas</h4>
+          <div className="space-y-2">
+            {[
+              { label: 'Leads', value: r.totalLeads, maxValue: r.totalLeads },
+              { label: 'MQLs', value: r.mqls, maxValue: r.totalLeads },
+              { label: 'Agendados', value: r.scheduledCalls, maxValue: r.totalLeads },
+              { label: 'Realizados', value: r.attendedCalls, maxValue: r.totalLeads },
+              { label: 'Vendas', value: r.totalSales, maxValue: r.totalLeads },
+            ].map((item, i) => {
+              const pct = item.maxValue > 0 ? (item.value / item.maxValue) * 100 : 0;
+              return (
+                <div key={i}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-text-muted">{item.label}</span>
+                    <span className="text-text-primary font-semibold">{item.value.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full bg-bg-primary rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all"
+                      style={{ width: `${Math.max(2, pct)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            {r.totalLeads > 0 && (
+              <p className="text-[10px] text-text-muted mt-1">
+                Conversao geral: <span className="text-purple-400 font-semibold">{((r.totalSales / r.totalLeads) * 100).toFixed(2)}%</span>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Products Breakdown */}
+      {r.byProduct.length > 0 && (
+        <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
+          <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Produtos</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {r.byProduct.map((bp, i) => (
+              <div key={i} className="bg-bg-primary rounded-lg border border-border-default p-3">
+                <div className="text-xs font-medium text-text-primary mb-1">{bp.name}</div>
+                <div className="text-lg font-bold text-purple-400">{formatCurrency(bp.revenue, currency)}</div>
+                <div className="text-[10px] text-text-muted mt-1">
+                  {bp.targetUnits} vendas x {formatCurrency(bp.ticket, currency)}
+                </div>
+                {(bp.revenueBump > 0 || bp.revenueUpsell > 0) && (
+                  <div className="mt-1 space-y-0.5">
+                    {bp.revenueBump > 0 && (
+                      <div className="text-[10px] text-green-400">+ Bump: {formatCurrency(bp.revenueBump, currency)}</div>
+                    )}
+                    {bp.revenueUpsell > 0 && (
+                      <div className="text-[10px] text-green-400">+ Upsell: {formatCurrency(bp.revenueUpsell, currency)}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-border-default flex justify-between text-xs">
+            <span className="text-text-muted">Total</span>
+            <span className="text-purple-400 font-bold">{formatCurrency(r.totalRevenue, currency)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KpiCard({ label, value, sub, color }: {
+  label: string;
+  value: string;
+  sub: string;
+  color: 'purple' | 'green' | 'red';
+}) {
+  const accent = color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : 'text-purple-400';
+  return (
+    <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
+      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-lg font-bold ${accent}`}>{value}</div>
+      <div className="text-[10px] text-text-muted mt-1">{sub}</div>
     </div>
   );
 }
