@@ -15,6 +15,7 @@ import { useSocialSellingFunnel } from '../hooks/useSocialSellingFunnel';
 const COLORS = {
   socialSelling: '#ec4899', // pink-500
   trafego: '#f97316',      // orange-500
+  whatsappDireto: '#22c55e', // green-500
   organico: '#22d3ee',     // cyan-400
   naoClassificado: '#6b7280', // gray-500
 };
@@ -25,6 +26,8 @@ interface FunnelRow {
   socialSellingPct: string;
   trafego: number;
   trafegoPct: string;
+  whatsappDireto: number;
+  whatsappDiretoPct: string;
   organico: number;
   organicoPct: string;
 }
@@ -59,53 +62,25 @@ export function SocialSellingDashboard() {
 
   const data = useSocialSellingFunnel(dateRange, effectiveLocationId);
 
-  // Funil comparativo (SS vs Trafego vs Organico)
+  // Funil comparativo (SS vs Trafego vs WhatsApp Direto vs Organico)
+  const buildRow = (etapa: string, key: keyof typeof data.socialSelling): FunnelRow => ({
+    etapa,
+    socialSelling: data.socialSelling[key],
+    socialSellingPct: key === 'leads' ? '100%' : pct(data.socialSelling[key], data.socialSelling.leads),
+    trafego: data.trafego[key],
+    trafegoPct: key === 'leads' ? '100%' : pct(data.trafego[key], data.trafego.leads),
+    whatsappDireto: data.whatsappDireto[key],
+    whatsappDiretoPct: key === 'leads' ? '100%' : pct(data.whatsappDireto[key], data.whatsappDireto.leads),
+    organico: data.organico[key],
+    organicoPct: key === 'leads' ? '100%' : pct(data.organico[key], data.organico.leads),
+  });
+
   const funnelRows: FunnelRow[] = [
-    {
-      etapa: 'Leads',
-      socialSelling: data.socialSelling.leads,
-      socialSellingPct: '100%',
-      trafego: data.trafego.leads,
-      trafegoPct: '100%',
-      organico: data.organico.leads,
-      organicoPct: '100%',
-    },
-    {
-      etapa: 'Responderam',
-      socialSelling: data.socialSelling.responderam,
-      socialSellingPct: pct(data.socialSelling.responderam, data.socialSelling.leads),
-      trafego: data.trafego.responderam,
-      trafegoPct: pct(data.trafego.responderam, data.trafego.leads),
-      organico: data.organico.responderam,
-      organicoPct: pct(data.organico.responderam, data.organico.leads),
-    },
-    {
-      etapa: 'Agendaram',
-      socialSelling: data.socialSelling.agendaram,
-      socialSellingPct: pct(data.socialSelling.agendaram, data.socialSelling.leads),
-      trafego: data.trafego.agendaram,
-      trafegoPct: pct(data.trafego.agendaram, data.trafego.leads),
-      organico: data.organico.agendaram,
-      organicoPct: pct(data.organico.agendaram, data.organico.leads),
-    },
-    {
-      etapa: 'Compareceram',
-      socialSelling: data.socialSelling.compareceram,
-      socialSellingPct: pct(data.socialSelling.compareceram, data.socialSelling.leads),
-      trafego: data.trafego.compareceram,
-      trafegoPct: pct(data.trafego.compareceram, data.trafego.leads),
-      organico: data.organico.compareceram,
-      organicoPct: pct(data.organico.compareceram, data.organico.leads),
-    },
-    {
-      etapa: 'Fecharam',
-      socialSelling: data.socialSelling.fecharam,
-      socialSellingPct: pct(data.socialSelling.fecharam, data.socialSelling.leads),
-      trafego: data.trafego.fecharam,
-      trafegoPct: pct(data.trafego.fecharam, data.trafego.leads),
-      organico: data.organico.fecharam,
-      organicoPct: pct(data.organico.fecharam, data.organico.leads),
-    },
+    buildRow('Leads', 'leads'),
+    buildRow('Responderam', 'responderam'),
+    buildRow('Agendaram', 'agendaram'),
+    buildRow('Compareceram', 'compareceram'),
+    buildRow('Fecharam', 'fecharam'),
   ];
 
   // KPIs
@@ -117,6 +92,9 @@ export function SocialSellingDashboard() {
     : '0';
   const orgConv = data.organico.leads > 0
     ? ((data.organico.fecharam / data.organico.leads) * 100).toFixed(1)
+    : '0';
+  const wdConv = data.whatsappDireto.leads > 0
+    ? ((data.whatsappDireto.fecharam / data.whatsappDireto.leads) * 100).toFixed(1)
     : '0';
   const ssAgend = data.socialSelling.leads > 0
     ? ((data.socialSelling.agendaram / data.socialSelling.leads) * 100).toFixed(1)
@@ -130,6 +108,7 @@ export function SocialSellingDashboard() {
     name: row.etapa,
     'Social Selling': row.socialSelling,
     'Trafego': row.trafego,
+    'WhatsApp Direto': row.whatsappDireto,
     'Organico': row.organico,
   }));
 
@@ -209,18 +188,18 @@ export function SocialSellingDashboard() {
           subtitle={`${trConv}% conv. | ${trAgend}% agend.`}
         />
         <KpiCard
-          label="Organico"
-          value={data.organico.leads}
+          label="WhatsApp Direto"
+          value={data.whatsappDireto.leads}
           icon={<Users size={18} />}
-          color="blue"
-          subtitle={`${orgConv}% conv.`}
+          color="green"
+          subtitle={`${wdConv}% conv.`}
         />
         <KpiCard
-          label="Nao Classificado"
-          value={data.naoClassificado.leads}
+          label="Organico"
+          value={data.organico.leads}
           icon={<Award size={18} />}
-          color="green"
-          subtitle={`${pct(data.naoClassificado.leads, data.totalLeads)} do total`}
+          color="blue"
+          subtitle={`${orgConv}% conv.`}
         />
         <KpiCard
           label="Agendaram (SS)"
@@ -282,37 +261,43 @@ export function SocialSellingDashboard() {
       <div className="bg-bg-secondary rounded-xl border border-border-default overflow-hidden">
         <div className="px-6 py-4 border-b border-border-default">
           <h3 className="text-sm font-semibold text-text-primary">Funil Comparativo</h3>
-          <p className="text-xs text-text-muted mt-1">Social Selling vs Trafego Pago em cada etapa</p>
+          <p className="text-xs text-text-muted mt-1">Social Selling vs Trafego vs WhatsApp Direto vs Organico</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-default">
                 <th className="text-left px-6 py-3 text-text-muted font-medium">Etapa</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: COLORS.socialSelling }}>Social Selling</th>
-                <th className="text-center px-4 py-3 text-text-muted font-medium">%</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: COLORS.trafego }}>Trafego</th>
-                <th className="text-center px-4 py-3 text-text-muted font-medium">%</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: COLORS.organico }}>Organico</th>
-                <th className="text-center px-4 py-3 text-text-muted font-medium">%</th>
+                <th className="text-center px-3 py-3 font-medium" style={{ color: COLORS.socialSelling }}>Social Selling</th>
+                <th className="text-center px-2 py-3 text-text-muted font-medium">%</th>
+                <th className="text-center px-3 py-3 font-medium" style={{ color: COLORS.trafego }}>Trafego</th>
+                <th className="text-center px-2 py-3 text-text-muted font-medium">%</th>
+                <th className="text-center px-3 py-3 font-medium" style={{ color: COLORS.whatsappDireto }}>WhatsApp</th>
+                <th className="text-center px-2 py-3 text-text-muted font-medium">%</th>
+                <th className="text-center px-3 py-3 font-medium" style={{ color: COLORS.organico }}>Organico</th>
+                <th className="text-center px-2 py-3 text-text-muted font-medium">%</th>
               </tr>
             </thead>
             <tbody>
               {funnelRows.map((row, i) => (
                 <tr key={row.etapa} className={`border-b border-border-default ${i === funnelRows.length - 1 ? 'bg-bg-hover/50' : ''}`}>
                   <td className="px-6 py-3 font-medium text-text-primary">{row.etapa}</td>
-                  <td className="text-center px-4 py-3 font-bold" style={{ color: COLORS.socialSelling }}>
+                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.socialSelling }}>
                     {row.socialSelling.toLocaleString()}
                   </td>
-                  <td className="text-center px-4 py-3 text-text-muted text-xs">{row.socialSellingPct}</td>
-                  <td className="text-center px-4 py-3 font-bold" style={{ color: COLORS.trafego }}>
+                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.socialSellingPct}</td>
+                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.trafego }}>
                     {row.trafego.toLocaleString()}
                   </td>
-                  <td className="text-center px-4 py-3 text-text-muted text-xs">{row.trafegoPct}</td>
-                  <td className="text-center px-4 py-3 font-bold" style={{ color: COLORS.organico }}>
+                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.trafegoPct}</td>
+                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.whatsappDireto }}>
+                    {row.whatsappDireto.toLocaleString()}
+                  </td>
+                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.whatsappDiretoPct}</td>
+                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.organico }}>
                     {row.organico.toLocaleString()}
                   </td>
-                  <td className="text-center px-4 py-3 text-text-muted text-xs">{row.organicoPct}</td>
+                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.organicoPct}</td>
                 </tr>
               ))}
             </tbody>
@@ -337,6 +322,7 @@ export function SocialSellingDashboard() {
               <Legend />
               <Bar dataKey="Social Selling" fill={COLORS.socialSelling} radius={[4, 4, 0, 0]} />
               <Bar dataKey="Trafego" fill={COLORS.trafego} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="WhatsApp Direto" fill={COLORS.whatsappDireto} radius={[4, 4, 0, 0]} />
               <Bar dataKey="Organico" fill={COLORS.organico} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -368,6 +354,7 @@ export function SocialSellingDashboard() {
               <Legend />
               <Line type="monotone" dataKey="socialSelling" name="Social Selling" stroke={COLORS.socialSelling} strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="trafego" name="Trafego" stroke={COLORS.trafego} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="whatsappDireto" name="WhatsApp Direto" stroke={COLORS.whatsappDireto} strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="organico" name="Organico" stroke={COLORS.organico} strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="naoClassificado" name="Nao Classif." stroke={COLORS.naoClassificado} strokeWidth={1} dot={false} strokeDasharray="5 5" />
             </LineChart>
@@ -510,6 +497,7 @@ function OrigemBadge({ origem }: { origem: string }) {
   const config: Record<string, { label: string; bg: string; text: string }> = {
     social_selling: { label: 'Social Selling', bg: 'bg-pink-500/20', text: 'text-pink-400' },
     trafego: { label: 'Trafego', bg: 'bg-orange-500/20', text: 'text-orange-400' },
+    whatsapp_direto: { label: 'WhatsApp', bg: 'bg-green-500/20', text: 'text-green-400' },
     organico: { label: 'Organico', bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
     nao_classificado: { label: 'N/C', bg: 'bg-gray-500/20', text: 'text-gray-400' },
   };

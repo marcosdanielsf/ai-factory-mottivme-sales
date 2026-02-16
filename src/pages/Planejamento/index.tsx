@@ -230,16 +230,16 @@ export function Planejamento() {
 
   // Actual data from funnel
   const actualData = useMemo(() => {
-    const total = funnelData.socialSelling.leads + funnelData.trafego.leads + funnelData.organico.leads;
+    const total = funnelData.socialSelling.leads + funnelData.trafego.leads + funnelData.whatsappDireto.leads + funnelData.organico.leads;
     return {
       leads: total,
       leadsSS: funnelData.socialSelling.leads,
       leadsTrafego: funnelData.trafego.leads,
-      leadsOrganico: funnelData.organico.leads,
-      responderam: funnelData.socialSelling.responderam + funnelData.trafego.responderam + funnelData.organico.responderam,
-      agendamentos: funnelData.socialSelling.agendaram + funnelData.trafego.agendaram + funnelData.organico.agendaram,
-      comparecimentos: funnelData.socialSelling.compareceram + funnelData.trafego.compareceram + funnelData.organico.compareceram,
-      vendas: funnelData.socialSelling.fecharam + funnelData.trafego.fecharam + funnelData.organico.fecharam,
+      leadsOrganico: funnelData.whatsappDireto.leads + funnelData.organico.leads,
+      responderam: funnelData.socialSelling.responderam + funnelData.trafego.responderam + funnelData.whatsappDireto.responderam + funnelData.organico.responderam,
+      agendamentos: funnelData.socialSelling.agendaram + funnelData.trafego.agendaram + funnelData.whatsappDireto.agendaram + funnelData.organico.agendaram,
+      comparecimentos: funnelData.socialSelling.compareceram + funnelData.trafego.compareceram + funnelData.whatsappDireto.compareceram + funnelData.organico.compareceram,
+      vendas: funnelData.socialSelling.fecharam + funnelData.trafego.fecharam + funnelData.whatsappDireto.fecharam + funnelData.organico.fecharam,
     };
   }, [funnelData]);
 

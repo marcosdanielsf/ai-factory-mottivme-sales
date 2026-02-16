@@ -124,7 +124,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
                   metaTr: Math.round(activeGoal.goal_leads_trafego * (activeGoal.calc_qualification_rate || 50) / 100),
                   realTr: funnelData.trafego.responderam,
                   metaOrg: Math.round(activeGoal.goal_leads_organico * (activeGoal.calc_qualification_rate || 50) / 100),
-                  realOrg: funnelData.organico.responderam,
+                  realOrg: funnelData.whatsappDireto.responderam + funnelData.organico.responderam,
                   metaTotal: activeGoal.goal_responderam, realTotal: actualData.responderam,
                 },
                 {
@@ -134,7 +134,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
                   metaTr: Math.round(activeGoal.goal_agendamentos * activeGoal.goal_leads_trafego / Math.max(1, activeGoal.goal_leads_total)),
                   realTr: funnelData.trafego.agendaram,
                   metaOrg: Math.round(activeGoal.goal_agendamentos * activeGoal.goal_leads_organico / Math.max(1, activeGoal.goal_leads_total)),
-                  realOrg: funnelData.organico.agendaram,
+                  realOrg: funnelData.whatsappDireto.agendaram + funnelData.organico.agendaram,
                   metaTotal: activeGoal.goal_agendamentos, realTotal: actualData.agendamentos,
                 },
                 {
@@ -144,7 +144,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
                   metaTr: Math.round(activeGoal.goal_comparecimentos * activeGoal.goal_leads_trafego / Math.max(1, activeGoal.goal_leads_total)),
                   realTr: funnelData.trafego.compareceram,
                   metaOrg: Math.round(activeGoal.goal_comparecimentos * activeGoal.goal_leads_organico / Math.max(1, activeGoal.goal_leads_total)),
-                  realOrg: funnelData.organico.compareceram,
+                  realOrg: funnelData.whatsappDireto.compareceram + funnelData.organico.compareceram,
                   metaTotal: activeGoal.goal_comparecimentos, realTotal: actualData.comparecimentos,
                 },
                 {
@@ -154,7 +154,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
                   metaTr: Math.round(activeGoal.goal_vendas * activeGoal.goal_leads_trafego / Math.max(1, activeGoal.goal_leads_total)),
                   realTr: funnelData.trafego.fecharam,
                   metaOrg: Math.round(activeGoal.goal_vendas * activeGoal.goal_leads_organico / Math.max(1, activeGoal.goal_leads_total)),
-                  realOrg: funnelData.organico.fecharam,
+                  realOrg: funnelData.whatsappDireto.fecharam + funnelData.organico.fecharam,
                   metaTotal: activeGoal.goal_vendas, realTotal: actualData.vendas,
                 },
               ]).map((row, i) => {

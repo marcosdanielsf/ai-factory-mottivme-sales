@@ -34,6 +34,7 @@ interface DailyTrend {
   date: string;
   socialSelling: number;
   trafego: number;
+  whatsappDireto: number;
   organico: number;
   naoClassificado: number;
 }
@@ -49,6 +50,7 @@ export interface SocialSellingFunnelData {
   socialSelling: FunnelSegment;
   socialSellingBreakdown: SocialSellingBreakdown;
   trafego: FunnelSegment;
+  whatsappDireto: FunnelSegment;
   organico: FunnelSegment;
   naoClassificado: FunnelSegment;
   porAgente: AgentBreakdown[];
@@ -59,9 +61,9 @@ export interface SocialSellingFunnelData {
   refetch: () => Promise<void>;
 }
 
-type OrigemBucket = 'social_selling' | 'trafego' | 'organico' | 'nao_classificado';
+type OrigemBucket = 'social_selling' | 'trafego' | 'whatsapp_direto' | 'organico' | 'nao_classificado';
 
-// Classifica origem_lead em 4 buckets mais granulares
+// Classifica origem_lead em 5 buckets
 function classifyOrigem(origemLead: string | null, sessionSource: string | null): OrigemBucket {
   const ol = (origemLead || '').toLowerCase().trim();
   const ss = (sessionSource || '').trim();
@@ -69,11 +71,12 @@ function classifyOrigem(origemLead: string | null, sessionSource: string | null)
   // 1. origem_lead explicito (vindo do workflow 3D ou backfill)
   if (['ns', 'vs', 'gs', 'social_selling'].includes(ol)) return 'social_selling';
   if (ol === 'trafego') return 'trafego';
-  if (['organico', 'direto', 'whatsapp_direto'].includes(ol)) return 'organico';
+  if (ol === 'whatsapp_direto') return 'whatsapp_direto';
+  if (['organico', 'direto'].includes(ol)) return 'organico';
 
   // 2. Fallback: session_source
   if (ss === 'Paid Social') return 'trafego';
-  if (ss === 'Social media') return 'social_selling'; // Instagram organico = social selling
+  if (ss === 'Social media') return 'social_selling';
   if (['Direct traffic'].includes(ss)) return 'organico';
   if (['Organic', 'Orgânico'].includes(ss)) return 'organico';
 
@@ -87,7 +90,6 @@ function classifyOrigem(origemLead: string | null, sessionSource: string | null)
 function classifyLeadOrigem(lead: any): OrigemBucket {
   const bucket = classifyOrigem(lead.origem_lead, lead.session_source);
   if (bucket === 'nao_classificado') {
-    // Se tem utm_source preenchido, provavelmente e trafego
     const utmSource = (lead.utm_source || '').trim();
     if (utmSource && utmSource !== 'NULL') return 'trafego';
   }
@@ -218,6 +220,7 @@ export const useSocialSellingFunnel = (
     const segments: Record<OrigemBucket, FunnelSegment> = {
       social_selling: emptySegment(),
       trafego: emptySegment(),
+      whatsapp_direto: emptySegment(),
       organico: emptySegment(),
       nao_classificado: emptySegment(),
     };
@@ -242,7 +245,7 @@ export const useSocialSellingFunnel = (
     }> = {};
 
     // Daily trend
-    const dailyMap: Record<string, { socialSelling: number; trafego: number; organico: number; naoClassificado: number }> = {};
+    const dailyMap: Record<string, { socialSelling: number; trafego: number; whatsappDireto: number; organico: number; naoClassificado: number }> = {};
 
     const now = new Date();
 
@@ -305,10 +308,11 @@ export const useSocialSellingFunnel = (
       // Daily trend
       const dateKey = lead.created_at?.slice(0, 10) || 'unknown';
       if (!dailyMap[dateKey]) {
-        dailyMap[dateKey] = { socialSelling: 0, trafego: 0, organico: 0, naoClassificado: 0 };
+        dailyMap[dateKey] = { socialSelling: 0, trafego: 0, whatsappDireto: 0, organico: 0, naoClassificado: 0 };
       }
       const trendKey = bucket === 'social_selling' ? 'socialSelling'
         : bucket === 'nao_classificado' ? 'naoClassificado'
+        : bucket === 'whatsapp_direto' ? 'whatsappDireto'
         : bucket;
       dailyMap[dateKey][trendKey as keyof typeof dailyMap[string]]++;
     });
@@ -330,6 +334,7 @@ export const useSocialSellingFunnel = (
       socialSelling: segments.social_selling,
       socialSellingBreakdown: ssBreakdown,
       trafego: segments.trafego,
+      whatsappDireto: segments.whatsapp_direto,
       organico: segments.organico,
       naoClassificado: segments.nao_classificado,
       porAgente,
