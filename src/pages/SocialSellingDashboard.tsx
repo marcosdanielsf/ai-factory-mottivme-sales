@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Target, TrendingUp, Award, ArrowUpRight, ArrowDownRight, RefreshCw, Building2, ChevronDown, Megaphone } from 'lucide-react';
+import { Users, Target, TrendingUp, Award, ArrowUpRight, ArrowDownRight, RefreshCw, Building2, ChevronDown, Megaphone, UserPlus, Eye, Zap } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from 'recharts';
 import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 import { useAccount } from '../contexts/AccountContext';
@@ -238,6 +238,46 @@ export function SocialSellingDashboard() {
         />
       </div>
 
+      {/* Breakdown NS / VS / GS */}
+      {data.socialSelling.leads > 0 && (
+        <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+            <Target size={16} className="text-pink-400" />
+            Breakdown Social Selling
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <SSBreakdownCard
+              label="Novo Seguidor"
+              shortLabel="NS"
+              icon={<UserPlus size={16} />}
+              segment={data.socialSellingBreakdown.ns}
+              total={data.socialSelling.leads}
+            />
+            <SSBreakdownCard
+              label="Visita Sincera"
+              shortLabel="VS"
+              icon={<Eye size={16} />}
+              segment={data.socialSellingBreakdown.vs}
+              total={data.socialSelling.leads}
+            />
+            <SSBreakdownCard
+              label="Gatilho Social"
+              shortLabel="GS"
+              icon={<Zap size={16} />}
+              segment={data.socialSellingBreakdown.gs}
+              total={data.socialSelling.leads}
+            />
+            <SSBreakdownCard
+              label="Sem subtipo"
+              shortLabel="—"
+              icon={<Megaphone size={16} />}
+              segment={data.socialSellingBreakdown.generico}
+              total={data.socialSelling.leads}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Funil Comparativo (tabela) */}
       <div className="bg-bg-secondary rounded-xl border border-border-default overflow-hidden">
         <div className="px-6 py-4 border-b border-border-default">
@@ -425,6 +465,43 @@ function KpiCard({ label, value, icon, color, subtitle }: {
         {typeof value === 'number' ? value.toLocaleString() : value}
       </div>
       {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
+    </div>
+  );
+}
+
+function SSBreakdownCard({ label, shortLabel, icon, segment, total }: {
+  label: string;
+  shortLabel: string;
+  icon: React.ReactNode;
+  segment: { leads: number; responderam: number; agendaram: number; fecharam: number };
+  total: number;
+}) {
+  const share = total > 0 ? ((segment.leads / total) * 100).toFixed(0) : '0';
+  const convRate = segment.leads > 0 ? ((segment.fecharam / segment.leads) * 100).toFixed(1) : '0';
+
+  return (
+    <div className="bg-bg-primary rounded-lg border border-border-default p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-pink-400">{icon}</span>
+        <span className="text-xs font-semibold text-text-primary">{label}</span>
+        <span className="ml-auto text-[10px] text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">{shortLabel}</span>
+      </div>
+      <div className="text-xl font-bold text-text-primary">{segment.leads.toLocaleString()}</div>
+      <p className="text-[10px] text-text-muted mt-1">{share}% do SS</p>
+      <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
+        <div>
+          <span className="text-text-muted">Resp.</span>
+          <span className="block font-semibold text-text-secondary">{segment.responderam}</span>
+        </div>
+        <div>
+          <span className="text-text-muted">Agend.</span>
+          <span className="block font-semibold text-text-secondary">{segment.agendaram}</span>
+        </div>
+        <div>
+          <span className="text-text-muted">Conv.</span>
+          <span className="block font-semibold text-pink-400">{convRate}%</span>
+        </div>
+      </div>
     </div>
   );
 }

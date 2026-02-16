@@ -38,8 +38,16 @@ interface DailyTrend {
   naoClassificado: number;
 }
 
+export interface SocialSellingBreakdown {
+  ns: FunnelSegment;
+  vs: FunnelSegment;
+  gs: FunnelSegment;
+  generico: FunnelSegment;
+}
+
 export interface SocialSellingFunnelData {
   socialSelling: FunnelSegment;
+  socialSellingBreakdown: SocialSellingBreakdown;
   trafego: FunnelSegment;
   organico: FunnelSegment;
   naoClassificado: FunnelSegment;
@@ -214,6 +222,15 @@ export const useSocialSellingFunnel = (
       nao_classificado: emptySegment(),
     };
 
+    // Sub-breakdown NS/VS/GS dentro de social_selling
+    type SSSubtype = 'ns' | 'vs' | 'gs' | 'generico';
+    const ssBreakdown: Record<SSSubtype, FunnelSegment> = {
+      ns: emptySegment(),
+      vs: emptySegment(),
+      gs: emptySegment(),
+      generico: emptySegment(),
+    };
+
     // Agente breakdown
     const agenteMap: Record<string, {
       agente: string;
@@ -257,6 +274,18 @@ export const useSocialSellingFunnel = (
       if (compareceu) seg.compareceram++;
       if (fechou) seg.fecharam++;
 
+      // Sub-breakdown NS/VS/GS
+      if (bucket === 'social_selling') {
+        const ol = (lead.origem_lead || '').toLowerCase().trim();
+        const ssKey: SSSubtype = ol === 'ns' ? 'ns' : ol === 'vs' ? 'vs' : ol === 'gs' ? 'gs' : 'generico';
+        const ssSeg = ssBreakdown[ssKey];
+        ssSeg.leads++;
+        if (responded) ssSeg.responderam++;
+        if (agendou) ssSeg.agendaram++;
+        if (compareceu) ssSeg.compareceram++;
+        if (fechou) ssSeg.fecharam++;
+      }
+
       // Agente breakdown — agrupar por location_id (evita duplicatas de nome)
       const locId = lead.location_id || '_sem_location';
       const locLabel = lead.location_name || (locId === '_sem_location' ? 'Leads Antigos (sem location)' : locId);
@@ -299,6 +328,7 @@ export const useSocialSellingFunnel = (
 
     return {
       socialSelling: segments.social_selling,
+      socialSellingBreakdown: ssBreakdown,
       trafego: segments.trafego,
       organico: segments.organico,
       naoClassificado: segments.nao_classificado,
