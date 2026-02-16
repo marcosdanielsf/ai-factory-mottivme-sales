@@ -189,7 +189,7 @@ export const KnowledgeBase = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-52px)]">
+    <div className="flex flex-col h-full">
       {/* KB Header */}
       <div className="h-14 border-b border-border-default flex items-center justify-between px-6 bg-bg-secondary shrink-0">
         <div className="flex items-center gap-4">

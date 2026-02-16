@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Search, Bell, X, Command, MessageSquare, Bot, FileText, Settings, User, Phone, PhoneOutgoing, Megaphone, LayoutDashboard, Menu } from 'lucide-react';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -21,6 +21,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const location = useLocation();
   const { agents } = useAgents();
   const isMobile = useIsMobile();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Persistir preferência de sidebar collapsed
   const handleToggleSidebarCollapse = () => {
@@ -97,7 +103,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   }, [searchQuery, agents]);
 
   return (
-    <div className="flex min-h-screen bg-bg-primary text-text-primary">
+    <div className="flex h-screen overflow-hidden bg-bg-primary text-text-primary">
       {/* Backdrop overlay para mobile */}
       {isMobile && sidebarOpen && (
         <div 
@@ -189,7 +195,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
         
-        <div className="flex-1 overflow-auto">
+        <div ref={contentRef} className="flex-1 overflow-auto">
           {children}
         </div>
       </main>

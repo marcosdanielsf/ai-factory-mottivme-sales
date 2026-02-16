@@ -517,7 +517,7 @@ export const PromptEditor: React.FC = () => {
   const selectedAgent = agents.find((a: Agent) => a.id === selectedAgentId);
 
   return (
-    <div className="h-screen flex flex-col bg-bg-primary overflow-hidden">
+    <div className="h-full flex flex-col bg-bg-primary overflow-hidden">
       {/* Studio Header */}
       <EditorHeader
         selectedAgent={selectedAgent}

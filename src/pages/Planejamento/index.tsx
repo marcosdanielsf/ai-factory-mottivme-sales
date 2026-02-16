@@ -285,7 +285,7 @@ export function Planejamento() {
   }, [activeGoal, projections, funnelData.dailyTrend, actualData.leads]);
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="bg-bg-primary">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg-primary/95 backdrop-blur border-b border-border-default">
         <div className="px-4 md:px-6 py-3">

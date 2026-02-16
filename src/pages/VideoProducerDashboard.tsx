@@ -77,7 +77,7 @@ export const VideoProducerDashboard = () => {
   const activeFilterCount = [statusFilter, brandFilter, formatFilter].filter(Boolean).length;
 
   return (
-    <div className="bg-[#0d1117] min-h-screen">
+    <div className="bg-[#0d1117] min-h-full">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

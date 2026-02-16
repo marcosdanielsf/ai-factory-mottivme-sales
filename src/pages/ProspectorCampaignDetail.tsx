@@ -226,7 +226,7 @@ export const ProspectorCampaignDetail = () => {
 
   if (!campaign) {
     return (
-      <div className="bg-[#0d1117] min-h-screen p-8">
+      <div className="bg-[#0d1117] min-h-full p-8">
         <div className="max-w-4xl mx-auto text-center">
           <div className="w-16 h-16 bg-[#f85149]/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Target size={32} className="text-[#f85149]" />
@@ -259,7 +259,7 @@ export const ProspectorCampaignDetail = () => {
     : '0.0';
 
   return (
-    <div className="bg-[#0d1117] min-h-screen">
+    <div className="bg-[#0d1117] min-h-full">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">

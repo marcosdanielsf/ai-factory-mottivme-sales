@@ -213,7 +213,7 @@ export const ColdCallDashboard = () => {
   // ─── Error state ──────────────────────────────────────────────────
   if (callsError) {
     return (
-      <div className="bg-bg-primary min-h-screen p-4 md:p-8">
+      <div className="bg-bg-primary p-4 md:p-8">
         <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[400px] text-center">
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-400 mb-4">
             <AlertTriangle size={32} />
@@ -233,7 +233,7 @@ export const ColdCallDashboard = () => {
   }
 
   return (
-    <div className="bg-bg-primary min-h-screen">
+    <div className="bg-bg-primary">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 md:space-y-6">
 
         {/* ─── HEADER ──────────────────────────────────────────────── */}

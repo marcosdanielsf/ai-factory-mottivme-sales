@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import {
   Calendar,
@@ -34,6 +34,12 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   const { user, signOut } = useAuth();
   const isAdmin = useIsAdmin();
   const isMobile = useIsMobile();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+  }, [location.pathname]);
   const { selectedAccount, backToAdmin, isViewingSubconta } = useAccount();
   const { hasPermission, role } = usePermissions();
 
@@ -70,7 +76,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-bg-primary text-text-primary">
+    <div className="flex h-screen overflow-hidden bg-bg-primary text-text-primary">
       {/* Mobile Backdrop */}
       {isMobile && sidebarOpen && (
         <div
@@ -220,7 +226,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto">
+        <div ref={contentRef} className="flex-1 overflow-auto">
           {children}
         </div>
       </main>

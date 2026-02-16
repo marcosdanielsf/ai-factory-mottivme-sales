@@ -170,7 +170,7 @@ export const SalesOps = () => {
   }, [totals, funnel, conversao, leadsProntos]);
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="bg-bg-primary">
       {/* Header */}
       <div className="border-b border-border-default bg-bg-secondary">
         <div className="px-4 md:px-6 py-3 md:py-4">

@@ -84,7 +84,7 @@ export const VideoProducerNew = () => {
   };
 
   return (
-    <div className="bg-[#0d1117] min-h-screen">
+    <div className="bg-[#0d1117] min-h-full">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1000px] mx-auto space-y-6">
         {/* Header */}
         <div>

@@ -29,7 +29,7 @@ export const VideoProducerDetail = () => {
 
   if (!video && !loading) {
     return (
-      <div className="bg-[#0d1117] min-h-screen p-8">
+      <div className="bg-[#0d1117] min-h-full p-8">
         <div className="max-w-[1400px] mx-auto text-center">
           <p className="text-[#8b949e]">Vídeo não encontrado</p>
           <button onClick={() => navigate('/video-producer')} className="mt-4 text-[#58a6ff] hover:underline">
@@ -128,7 +128,7 @@ export const VideoProducerDetail = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#0d1117] min-h-screen p-8">
+      <div className="bg-[#0d1117] min-h-full p-8">
         <div className="max-w-[1400px] mx-auto">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-[#161b22] rounded w-1/3" />
@@ -140,7 +140,7 @@ export const VideoProducerDetail = () => {
   }
 
   return (
-    <div className="bg-[#0d1117] min-h-screen">
+    <div className="bg-[#0d1117] min-h-full">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
         {/* Header */}
         <div>

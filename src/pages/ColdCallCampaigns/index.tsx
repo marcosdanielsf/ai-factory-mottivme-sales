@@ -108,7 +108,7 @@ export const ColdCallCampaigns: React.FC = () => {
   }, [confirmAction, updateCampaign, deleteCampaign, refetch]);
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">

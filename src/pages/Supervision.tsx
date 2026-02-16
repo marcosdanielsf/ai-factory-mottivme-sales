@@ -171,7 +171,7 @@ export const Supervision: React.FC = () => {
   // Layout Mobile: mostra lista OU detalhe (não ambos)
   if (isMobile) {
     return (
-      <div className="h-[calc(100vh-52px)] flex flex-col bg-bg-primary">
+      <div className="h-full flex flex-col bg-bg-primary">
         {selectedConversation ? (
           // Mobile: Detalhe da conversa (fullscreen)
           <ConversationDetail
@@ -218,7 +218,7 @@ export const Supervision: React.FC = () => {
 
   // Layout Desktop: side-by-side
   return (
-    <div className="h-[calc(100vh-52px)] flex bg-bg-primary">
+    <div className="h-full flex bg-bg-primary">
       {/* Left Panel - Conversation List */}
       <div className="w-[400px] flex flex-col border-r border-border-default bg-bg-secondary">
         <SupervisionHeader
