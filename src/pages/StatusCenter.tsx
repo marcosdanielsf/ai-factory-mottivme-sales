@@ -217,34 +217,36 @@ const InterviewCard = ({
         <span>Recrutador: <span className="text-text-primary font-medium">{interview.recruiter_name || 'Não atribuído'}</span></span>
       </div>
 
-      {/* Actions */}
-      {(interview.status === 'pending' || interview.status === 'completed') && (
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-border-default">
-          {interview.status === 'pending' && (
-            <>
-              <ActionButton
-                onClick={() => handleStatusUpdate('completed')}
-                icon={CheckCircle2}
-                label="Compareceu"
-                variant="success"
-                disabled={isDisabled}
-              />
-              <ActionButton
-                onClick={() => handleStatusUpdate('no_show')}
-                icon={XCircle}
-                label="No Show"
-                variant="danger"
-                disabled={isDisabled}
-              />
-              <ActionButton
-                onClick={() => handleStatusUpdate('lost')}
-                icon={Ban}
-                label="Sem Interesse"
-                variant="neutral"
-                disabled={isDisabled}
-              />
-            </>
-          )}
+      {/* Actions — sempre mostra botoes (permite corrigir status) */}
+      <div className="flex flex-wrap gap-3 pt-4 border-t border-border-default">
+        {interview.status !== 'completed' && (
+          <ActionButton
+            onClick={() => handleStatusUpdate('completed')}
+            icon={CheckCircle2}
+            label="Compareceu"
+            variant="success"
+            disabled={isDisabled}
+          />
+        )}
+        {interview.status !== 'no_show' && (
+          <ActionButton
+            onClick={() => handleStatusUpdate('no_show')}
+            icon={XCircle}
+            label="No Show"
+            variant="danger"
+            disabled={isDisabled}
+          />
+        )}
+        {interview.status !== 'lost' && (
+          <ActionButton
+            onClick={() => handleStatusUpdate('lost')}
+            icon={Ban}
+            label="Sem Interesse"
+            variant="neutral"
+            disabled={isDisabled}
+          />
+        )}
+        {interview.status !== 'converted' && (
           <ActionButton
             onClick={() => handleStatusUpdate('converted')}
             icon={Trophy}
@@ -252,8 +254,8 @@ const InterviewCard = ({
             variant="gold"
             disabled={isDisabled}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
