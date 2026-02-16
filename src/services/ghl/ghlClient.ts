@@ -153,14 +153,14 @@ export const ghlClient = {
     /**
      * Add tags to a contact
      */
-    async addContactTags(contactId: string, tags: string[], token: string): Promise<void> {
+    async addContactTags(contactId: string, tags: string[], token: string, locationId?: string): Promise<void> {
         const res = await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ tags })
+            body: JSON.stringify({ tags, locationId })
         });
 
         if (!res.ok) {
@@ -200,7 +200,7 @@ export const ghlClient = {
      */
     async updateOpportunity(
         opportunityId: string,
-        data: { status?: string; pipelineStageId?: string },
+        data: { status?: string; pipelineStageId?: string; locationId?: string },
         token: string
     ): Promise<void> {
         const res = await fetch(`${API_BASE}/opportunities/${opportunityId}`, {

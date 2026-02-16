@@ -1,7 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const GHL_BASE_URL = process.env.GHL_API_BASE_URL || 'https://services.leadconnectorhq.com';
-const GHL_API_KEY = process.env.GHL_API_KEY || '';
+import { GHL_BASE_URL, getGHLApiKey } from '../_utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,6 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'contactId is required' });
         }
 
+        const apiKey = await getGHLApiKey(locationId);
+
         const params = new URLSearchParams();
         params.append('location_id', locationId);
         params.append('contact_id', contactId);
@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const ghlRes = await fetch(`${GHL_BASE_URL}/opportunities/search?${params.toString()}`, {
             headers: {
-                Authorization: `Bearer ${GHL_API_KEY}`,
+                Authorization: `Bearer ${apiKey}`,
                 Version: '2021-07-28',
                 Accept: 'application/json',
             },

@@ -1,7 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const GHL_BASE_URL = process.env.GHL_API_BASE_URL || 'https://services.leadconnectorhq.com';
-const GHL_API_KEY = process.env.GHL_API_KEY || '';
+import { GHL_BASE_URL, getGHLApiKey } from '../_utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,17 +25,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Opportunity ID is required' });
         }
 
-        const body = req.body || {};
+        const { locationId, ...updateData } = req.body || {};
+        const apiKey = await getGHLApiKey(locationId);
 
         const ghlRes = await fetch(`${GHL_BASE_URL}/opportunities/${id}`, {
             method: 'PUT',
             headers: {
-                Authorization: `Bearer ${GHL_API_KEY}`,
+                Authorization: `Bearer ${apiKey}`,
                 Version: '2021-07-28',
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(updateData),
         });
 
         if (!ghlRes.ok) {

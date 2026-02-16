@@ -448,10 +448,10 @@ export const StatusCenter = () => {
     if (!token || !contactId) return;
 
     try {
-      // 1. Add tag
+      // 1. Add tag (passa locationId pro backend buscar PIT do cliente)
       const tag = STATUS_TAG_MAP[newStatus];
       if (tag) {
-        await ghlClient.addContactTags(contactId, [tag], token);
+        await ghlClient.addContactTags(contactId, [tag], token, locationId);
       }
 
       // 2. Update opportunity status (won/lost) if applicable
@@ -459,7 +459,7 @@ export const StatusCenter = () => {
       if (oppStatus) {
         const opp = await ghlClient.findOpportunityByContact(locationId, contactId, token);
         if (opp) {
-          await ghlClient.updateOpportunity(opp.id, { status: oppStatus }, token);
+          await ghlClient.updateOpportunity(opp.id, { status: oppStatus, locationId }, token);
         }
       }
 
