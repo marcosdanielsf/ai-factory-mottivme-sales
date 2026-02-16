@@ -82,7 +82,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
             />
             <Legend />
             <Line type="monotone" dataKey="meta" name="Meta" stroke="#6b7280" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-            <Line type="monotone" dataKey="real" name="Real" stroke="#a855f7" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="real" name="Real" stroke="#3b82f6" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="projecao" name="Projecao" stroke="#eab308" strokeWidth={2} strokeDasharray="5 5" dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -98,14 +98,14 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
             <thead>
               <tr className="border-b border-border-default">
                 <th className="text-left px-6 py-3 text-text-muted font-medium">Etapa</th>
-                <th className="text-center px-3 py-3 text-pink-400 font-medium">SS Meta</th>
-                <th className="text-center px-3 py-3 text-pink-400 font-medium">SS Real</th>
-                <th className="text-center px-3 py-3 text-orange-400 font-medium">Traf Meta</th>
-                <th className="text-center px-3 py-3 text-orange-400 font-medium">Traf Real</th>
-                <th className="text-center px-3 py-3 text-cyan-400 font-medium">Org Meta</th>
-                <th className="text-center px-3 py-3 text-cyan-400 font-medium">Org Real</th>
+                <th className="text-center px-3 py-3 text-blue-400 font-medium">SS Meta</th>
+                <th className="text-center px-3 py-3 text-blue-400 font-medium">SS Real</th>
+                <th className="text-center px-3 py-3 text-amber-400 font-medium">Traf Meta</th>
+                <th className="text-center px-3 py-3 text-amber-400 font-medium">Traf Real</th>
+                <th className="text-center px-3 py-3 text-emerald-400 font-medium">Org Meta</th>
+                <th className="text-center px-3 py-3 text-emerald-400 font-medium">Org Real</th>
                 <th className="text-center px-3 py-3 text-text-muted font-medium">Total Meta</th>
-                <th className="text-center px-3 py-3 text-purple-400 font-medium">Total Real</th>
+                <th className="text-center px-3 py-3 text-blue-400 font-medium">Total Real</th>
               </tr>
             </thead>
             <tbody>
@@ -163,11 +163,11 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
                   <tr key={row.label} className={i < 4 ? 'border-b border-border-default' : ''}>
                     <td className="px-6 py-2.5 font-medium text-text-primary text-sm">{row.label}</td>
                     <td className="text-center px-3 py-2.5 text-text-muted text-xs">{row.metaSS}</td>
-                    <td className="text-center px-3 py-2.5 text-pink-400 font-bold text-xs">{row.realSS}</td>
+                    <td className="text-center px-3 py-2.5 text-blue-400 font-bold text-xs">{row.realSS}</td>
                     <td className="text-center px-3 py-2.5 text-text-muted text-xs">{row.metaTr}</td>
-                    <td className="text-center px-3 py-2.5 text-orange-400 font-bold text-xs">{row.realTr}</td>
+                    <td className="text-center px-3 py-2.5 text-amber-400 font-bold text-xs">{row.realTr}</td>
                     <td className="text-center px-3 py-2.5 text-text-muted text-xs">{row.metaOrg}</td>
-                    <td className="text-center px-3 py-2.5 text-cyan-400 font-bold text-xs">{row.realOrg}</td>
+                    <td className="text-center px-3 py-2.5 text-emerald-400 font-bold text-xs">{row.realOrg}</td>
                     <td className="text-center px-3 py-2.5 text-text-muted text-xs">{row.metaTotal}</td>
                     <td className="text-center px-3 py-2.5 font-bold text-xs">
                       <span className={pctTotal >= 90 ? 'text-green-400' : pctTotal >= 70 ? 'text-yellow-400' : 'text-red-400'}>
@@ -180,7 +180,7 @@ export function ProgressSection({ activeGoal, projections, chartData, funnelData
               <tr className="border-t border-border-default bg-bg-primary/50">
                 <td className="px-6 py-2.5 font-medium text-text-primary text-sm">Investimento</td>
                 <td colSpan={6}></td>
-                <td colSpan={2} className="text-center px-3 py-2.5 text-purple-400 font-bold text-sm">
+                <td colSpan={2} className="text-center px-3 py-2.5 text-blue-400 font-bold text-sm">
                   {formatCurrency(activeGoal.calc_daily_investment * 30, currency)}
                 </td>
               </tr>

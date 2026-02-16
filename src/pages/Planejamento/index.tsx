@@ -291,13 +291,13 @@ export function Planejamento() {
         <div className="px-4 md:px-6 py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <Target size={20} className="text-purple-400" />
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Target size={20} className="text-blue-400" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-text-primary">Planejamento de Vendas</h1>
                 <p className="text-xs text-text-muted">
-                  {effectiveLocationName && <span className="text-purple-400 font-medium">{effectiveLocationName}</span>}
+                  {effectiveLocationName && <span className="text-blue-400 font-medium">{effectiveLocationName}</span>}
                 </p>
               </div>
             </div>
@@ -326,7 +326,7 @@ export function Planejamento() {
             className="w-full px-6 py-4 flex items-center justify-between hover:bg-bg-hover transition-colors"
           >
             <div className="flex items-center gap-3">
-              <TrendingUp size={18} className="text-purple-400" />
+              <TrendingUp size={18} className="text-blue-400" />
               <h3 className="text-sm font-semibold text-text-primary">Planejamento de Metas</h3>
               {!showWizard && results.totalRevenue > 0 && (
                 <span className="text-xs text-text-muted ml-2">
@@ -345,13 +345,13 @@ export function Planejamento() {
                 <div className="flex items-center bg-bg-primary rounded-lg border border-border-default p-0.5">
                   <button
                     onClick={() => setPlan(p => ({ ...p, currency: 'BRL' }))}
-                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${plan.currency === 'BRL' ? 'bg-purple-500 text-white' : 'text-text-muted hover:text-text-primary'}`}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${plan.currency === 'BRL' ? 'bg-blue-500 text-white' : 'text-text-muted hover:text-text-primary'}`}
                   >
                     R$ BRL
                   </button>
                   <button
                     onClick={() => setPlan(p => ({ ...p, currency: 'USD' }))}
-                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${plan.currency === 'USD' ? 'bg-purple-500 text-white' : 'text-text-muted hover:text-text-primary'}`}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${plan.currency === 'USD' ? 'bg-blue-500 text-white' : 'text-text-muted hover:text-text-primary'}`}
                   >
                     $ USD
                   </button>
@@ -398,14 +398,14 @@ export function Planejamento() {
                         <button
                           onClick={handleSaveGoal}
                           disabled={!effectiveLocationId}
-                          className="flex items-center gap-2 px-5 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors text-sm"
+                          className="flex items-center gap-2 px-5 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors text-sm"
                         >
                           <Target size={16} /> Salvar como Meta
                         </button>
                       ) : (
                         <button
                           onClick={() => setPlan(p => ({ ...p, step: Math.min(3, p.step + 1) as 1 | 2 | 3 }))}
-                          className="flex items-center gap-1.5 px-5 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors text-sm"
+                          className="flex items-center gap-1.5 px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-sm"
                         >
                           Proximo <ChevronRight size={16} />
                         </button>

@@ -8,10 +8,10 @@ function SidebarMetric({ label, value, icon, color, bold }: {
   label: string;
   value: string;
   icon?: React.ReactNode;
-  color?: 'green' | 'red' | 'purple';
+  color?: 'green' | 'red' | 'blue';
   bold?: boolean;
 }) {
-  const colorClass = color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : color === 'purple' ? 'text-purple-400' : 'text-text-primary';
+  const colorClass = color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : color === 'blue' ? 'text-blue-400' : 'text-text-primary';
 
   return (
     <div className="flex items-center justify-between py-1.5">
@@ -45,7 +45,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
             className={`flex-1 px-2 py-1.5 text-[10px] font-semibold rounded-md transition-all ${
               activeScenario === key
                 ? key === 'pessimista' ? 'bg-yellow-500/20 text-yellow-400 shadow-sm'
-                : key === 'realista' ? 'bg-purple-500 text-white shadow-sm'
+                : key === 'realista' ? 'bg-blue-500 text-white shadow-sm'
                 : 'bg-green-500/20 text-green-400 shadow-sm'
                 : 'text-text-muted hover:text-text-primary'
             }`}
@@ -58,7 +58,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
       <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Projecao 30 dias</h4>
 
       <div className="space-y-2">
-        <SidebarMetric label="Investimento" value={formatCurrency(r.totalInvestment, currency)} icon={<DollarSign size={14} />} color="purple" />
+        <SidebarMetric label="Investimento" value={formatCurrency(r.totalInvestment, currency)} icon={<DollarSign size={14} />} color="blue" />
         <SidebarMetric label="Total Leads" value={r.totalLeads.toLocaleString()} icon={<Users size={14} />} />
         <SidebarMetric label="MQLs" value={r.mqls.toLocaleString()} />
         <SidebarMetric label="Calls Agendadas" value={r.scheduledCalls.toLocaleString()} icon={<Calendar size={14} />} />
@@ -66,7 +66,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
 
         <div className="border-t border-border-default my-3" />
 
-        <SidebarMetric label="Vendas" value={r.totalSales.toLocaleString()} icon={<CheckCircle size={14} />} color="purple" bold />
+        <SidebarMetric label="Vendas" value={r.totalSales.toLocaleString()} icon={<CheckCircle size={14} />} color="blue" bold />
         <SidebarMetric label="Faturamento" value={formatCurrency(r.totalRevenue, currency)} icon={<DollarSign size={14} />} color="green" bold />
 
         <div className="border-t border-border-default my-3" />
@@ -91,7 +91,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
             <tr className="text-text-muted">
               <th className="text-left py-1"></th>
               <th className="text-center py-1 text-yellow-400">Aceit.</th>
-              <th className="text-center py-1 text-purple-400">Real.</th>
+              <th className="text-center py-1 text-blue-400">Real.</th>
               <th className="text-center py-1 text-green-400">Otim.</th>
             </tr>
           </thead>
@@ -99,19 +99,19 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
             <tr>
               <td className="py-0.5">Vendas</td>
               <td className="text-center">{scenarios.pessimista.totalSales}</td>
-              <td className="text-center font-bold text-purple-400">{scenarios.realista.totalSales}</td>
+              <td className="text-center font-bold text-blue-400">{scenarios.realista.totalSales}</td>
               <td className="text-center">{scenarios.otimista.totalSales}</td>
             </tr>
             <tr>
               <td className="py-0.5">Receita</td>
               <td className="text-center">{formatCurrency(scenarios.pessimista.totalRevenue, currency).replace(/\s/g, '')}</td>
-              <td className="text-center font-bold text-purple-400">{formatCurrency(scenarios.realista.totalRevenue, currency).replace(/\s/g, '')}</td>
+              <td className="text-center font-bold text-blue-400">{formatCurrency(scenarios.realista.totalRevenue, currency).replace(/\s/g, '')}</td>
               <td className="text-center">{formatCurrency(scenarios.otimista.totalRevenue, currency).replace(/\s/g, '')}</td>
             </tr>
             <tr>
               <td className="py-0.5">ROAS</td>
               <td className="text-center">{scenarios.pessimista.roas.toFixed(1)}x</td>
-              <td className="text-center font-bold text-purple-400">{scenarios.realista.roas.toFixed(1)}x</td>
+              <td className="text-center font-bold text-blue-400">{scenarios.realista.roas.toFixed(1)}x</td>
               <td className="text-center">{scenarios.otimista.roas.toFixed(1)}x</td>
             </tr>
           </tbody>
@@ -125,16 +125,16 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
           <thead>
             <tr className="text-text-muted">
               <th className="text-left py-1"></th>
-              <th className="text-center py-1 text-pink-400">SS</th>
-              <th className="text-center py-1 text-orange-400">Traf</th>
-              <th className="text-center py-1 text-cyan-400">Org</th>
+              <th className="text-center py-1 text-blue-400">SS</th>
+              <th className="text-center py-1 text-amber-400">Traf</th>
+              <th className="text-center py-1 text-emerald-400">Org</th>
             </tr>
           </thead>
           <tbody className="text-text-secondary">
             <tr><td className="py-0.5">Leads</td><td className="text-center">{r.byChannel.socialSelling.leads}</td><td className="text-center">{r.byChannel.trafego.leads}</td><td className="text-center">{r.byChannel.organico.leads}</td></tr>
             <tr><td className="py-0.5">MQLs</td><td className="text-center">{r.byChannel.socialSelling.mqls}</td><td className="text-center">{r.byChannel.trafego.mqls}</td><td className="text-center">{r.byChannel.organico.mqls}</td></tr>
             <tr><td className="py-0.5">Agend.</td><td className="text-center">{r.byChannel.socialSelling.scheduledCalls}</td><td className="text-center">{r.byChannel.trafego.scheduledCalls}</td><td className="text-center">{r.byChannel.organico.scheduledCalls}</td></tr>
-            <tr className="font-bold"><td className="py-0.5">Vendas</td><td className="text-center text-pink-400">{r.byChannel.socialSelling.sales}</td><td className="text-center text-orange-400">{r.byChannel.trafego.sales}</td><td className="text-center text-cyan-400">{r.byChannel.organico.sales}</td></tr>
+            <tr className="font-bold"><td className="py-0.5">Vendas</td><td className="text-center text-blue-400">{r.byChannel.socialSelling.sales}</td><td className="text-center text-amber-400">{r.byChannel.trafego.sales}</td><td className="text-center text-emerald-400">{r.byChannel.organico.sales}</td></tr>
           </tbody>
         </table>
       </div>
@@ -149,7 +149,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
                 <span className="text-text-secondary truncate mr-2">{sf.name}</span>
                 <div className="flex items-center gap-2 whitespace-nowrap">
                   <span className="text-text-muted">{sf.leads} leads</span>
-                  <span className="text-orange-400 font-semibold">{formatCurrency(sf.investment, currency)}</span>
+                  <span className="text-amber-400 font-semibold">{formatCurrency(sf.investment, currency)}</span>
                 </div>
               </div>
             ))}
@@ -166,7 +166,7 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
               <div key={i}>
                 <div className="flex justify-between text-[11px]">
                   <span className="text-text-secondary truncate mr-2">{p.name}</span>
-                  <span className="text-purple-400 font-semibold whitespace-nowrap">{formatCurrency(p.revenue, currency)}</span>
+                  <span className="text-blue-400 font-semibold whitespace-nowrap">{formatCurrency(p.revenue, currency)}</span>
                 </div>
                 {(p.revenueBump > 0 || p.revenueUpsell > 0) && (
                   <div className="flex gap-2 ml-2 text-[10px] text-text-muted">

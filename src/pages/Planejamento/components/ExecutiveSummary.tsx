@@ -7,9 +7,9 @@ function KpiCard({ label, value, sub, color }: {
   label: string;
   value: string;
   sub: string;
-  color: 'purple' | 'green' | 'red';
+  color: 'blue' | 'green' | 'red';
 }) {
-  const accent = color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : 'text-purple-400';
+  const accent = color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : 'text-blue-400';
   return (
     <div className="bg-bg-secondary rounded-xl border border-border-default p-4">
       <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{label}</div>
@@ -46,7 +46,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
           <button onClick={onEdit} className="px-3 py-1.5 text-xs bg-bg-hover hover:bg-bg-primary border border-border-default text-text-primary rounded-lg font-medium transition-colors flex items-center gap-1.5">
             <Edit3 size={12} /> Editar
           </button>
-          <button onClick={onNew} className="px-3 py-1.5 text-xs bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center gap-1.5">
+          <button onClick={onNew} className="px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg font-medium transition-colors flex items-center gap-1.5">
             <PlusCircle size={12} /> Nova Meta
           </button>
         </div>
@@ -54,8 +54,8 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Investimento" value={formatCurrency(r.totalInvestment, currency)} sub={`${formatCurrency(goal.calc_daily_investment, currency)}/dia`} color="purple" />
-        <KpiCard label="Vendas" value={String(r.totalSales)} sub={`${r.totalLeads} leads → ${r.totalSales} vendas`} color="purple" />
+        <KpiCard label="Investimento" value={formatCurrency(r.totalInvestment, currency)} sub={`${formatCurrency(goal.calc_daily_investment, currency)}/dia`} color="blue" />
+        <KpiCard label="Vendas" value={String(r.totalSales)} sub={`${r.totalLeads} leads → ${r.totalSales} vendas`} color="blue" />
         <KpiCard label="Faturamento" value={formatCurrency(r.totalRevenue, currency)} sub={`ROAS ${r.roas.toFixed(1)}x`} color="green" />
         <KpiCard label="Lucro Liquido" value={formatCurrency(r.netProfit, currency)} sub={`CAC ${formatCurrency(r.cac, currency)}`} color={r.netProfit >= 0 ? 'green' : 'red'} />
       </div>
@@ -70,7 +70,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
               <tr className="border-b border-border-default">
                 <th className="text-left py-2 text-xs text-text-muted font-medium"></th>
                 <th className="text-center py-2 text-xs text-yellow-400 font-medium">Aceitavel</th>
-                <th className="text-center py-2 text-xs text-purple-400 font-medium">Realista</th>
+                <th className="text-center py-2 text-xs text-blue-400 font-medium">Realista</th>
                 <th className="text-center py-2 text-xs text-green-400 font-medium">Otimista</th>
               </tr>
             </thead>
@@ -78,19 +78,19 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
               <tr className="border-b border-border-default/50">
                 <td className="py-2 text-xs text-text-muted">Vendas</td>
                 <td className="text-center text-xs text-text-secondary">{p.totalSales}</td>
-                <td className="text-center text-xs font-bold text-purple-400">{r.totalSales}</td>
+                <td className="text-center text-xs font-bold text-blue-400">{r.totalSales}</td>
                 <td className="text-center text-xs text-text-secondary">{o.totalSales}</td>
               </tr>
               <tr className="border-b border-border-default/50">
                 <td className="py-2 text-xs text-text-muted">Faturamento</td>
                 <td className="text-center text-xs text-text-secondary">{formatCurrency(p.totalRevenue, currency)}</td>
-                <td className="text-center text-xs font-bold text-purple-400">{formatCurrency(r.totalRevenue, currency)}</td>
+                <td className="text-center text-xs font-bold text-blue-400">{formatCurrency(r.totalRevenue, currency)}</td>
                 <td className="text-center text-xs text-text-secondary">{formatCurrency(o.totalRevenue, currency)}</td>
               </tr>
               <tr className="border-b border-border-default/50">
                 <td className="py-2 text-xs text-text-muted">ROAS</td>
                 <td className="text-center text-xs text-text-secondary">{p.roas.toFixed(1)}x</td>
-                <td className="text-center text-xs font-bold text-purple-400">{r.roas.toFixed(1)}x</td>
+                <td className="text-center text-xs font-bold text-blue-400">{r.roas.toFixed(1)}x</td>
                 <td className="text-center text-xs text-text-secondary">{o.roas.toFixed(1)}x</td>
               </tr>
               <tr>
@@ -123,7 +123,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
                   </div>
                   <div className="w-full bg-bg-primary rounded-full h-2">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all"
+                      className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all"
                       style={{ width: `${Math.max(2, pct)}%` }}
                     />
                   </div>
@@ -132,7 +132,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
             })}
             {r.totalLeads > 0 && (
               <p className="text-[10px] text-text-muted mt-1">
-                Conversao geral: <span className="text-purple-400 font-semibold">{((r.totalSales / r.totalLeads) * 100).toFixed(2)}%</span>
+                Conversao geral: <span className="text-blue-400 font-semibold">{((r.totalSales / r.totalLeads) * 100).toFixed(2)}%</span>
               </p>
             )}
           </div>
@@ -147,7 +147,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
             {r.byProduct.map((bp, i) => (
               <div key={i} className="bg-bg-primary rounded-lg border border-border-default p-3">
                 <div className="text-xs font-medium text-text-primary mb-1">{bp.name}</div>
-                <div className="text-lg font-bold text-purple-400">{formatCurrency(bp.revenue, currency)}</div>
+                <div className="text-lg font-bold text-blue-400">{formatCurrency(bp.revenue, currency)}</div>
                 <div className="text-[10px] text-text-muted mt-1">
                   {bp.targetUnits} vendas x {formatCurrency(bp.ticket, currency)}
                 </div>
@@ -166,7 +166,7 @@ export function ExecutiveSummary({ goal, scenarios, currency, onEdit, onNew }: {
           </div>
           <div className="mt-3 pt-3 border-t border-border-default flex justify-between text-xs">
             <span className="text-text-muted">Total</span>
-            <span className="text-purple-400 font-bold">{formatCurrency(r.totalRevenue, currency)}</span>
+            <span className="text-blue-400 font-bold">{formatCurrency(r.totalRevenue, currency)}</span>
           </div>
         </div>
       )}

@@ -62,7 +62,7 @@ export function FieldHelp({ text }: { text: string }) {
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         onClick={() => setShow(!show)}
-        className="text-text-muted/50 hover:text-purple-400 transition-colors"
+        className="text-text-muted/50 hover:text-blue-400 transition-colors"
       >
         <HelpCircle size={12} />
       </button>

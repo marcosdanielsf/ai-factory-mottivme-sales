@@ -26,7 +26,7 @@ export function ProductsStep({ products, currency, onChange }: {
   return (
     <div className="space-y-4">
       {/* Intro explicativo */}
-      <div className="bg-purple-500/5 rounded-lg border border-purple-500/20 p-4">
+      <div className="bg-blue-500/5 rounded-lg border border-blue-500/20 p-4">
         <h4 className="text-sm font-semibold text-text-primary mb-1">Passo 1: Seus Produtos</h4>
         <p className="text-xs text-text-muted leading-relaxed">
           Cadastre cada produto ou servico que voce vende. Pra cada um, defina o preco (ticket),
@@ -39,7 +39,7 @@ export function ProductsStep({ products, currency, onChange }: {
         <button
           onClick={addProduct}
           disabled={products.length >= 5}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg font-medium transition-colors disabled:opacity-30"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg font-medium transition-colors disabled:opacity-30"
         >
           <Plus size={14} /> Adicionar Produto
         </button>
@@ -50,17 +50,17 @@ export function ProductsStep({ products, currency, onChange }: {
           <div key={product.id} className="bg-bg-primary rounded-lg border border-border-default p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center">{idx + 1}</span>
                 <div className="relative group">
                   <input
                     type="text"
                     value={product.name}
                     onChange={e => updateProduct(product.id, { name: e.target.value })}
                     onFocus={e => e.target.select()}
-                    className="bg-transparent text-sm font-medium text-text-primary focus:outline-none border-b border-dashed border-text-muted/30 focus:border-purple-500 transition-colors pr-6"
+                    className="bg-transparent text-sm font-medium text-text-primary focus:outline-none border-b border-dashed border-text-muted/30 focus:border-blue-500 transition-colors pr-6"
                     placeholder="Ex: Mentoria Premium"
                   />
-                  <Edit3 size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted/40 group-hover:text-purple-400 transition-colors pointer-events-none" />
+                  <Edit3 size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted/40 group-hover:text-blue-400 transition-colors pointer-events-none" />
                 </div>
               </div>
               {products.length > 1 && (
@@ -81,7 +81,7 @@ export function ProductsStep({ products, currency, onChange }: {
                   onChange={v => updateProduct(product.id, { ticket: v })}
                   prefix={currency === 'BRL' ? 'R$' : '$'}
                   min={0}
-                  className="w-full bg-bg-secondary border border-border-default rounded-lg pr-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="w-full bg-bg-secondary border border-border-default rounded-lg pr-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -95,7 +95,7 @@ export function ProductsStep({ products, currency, onChange }: {
                     onChange={v => updateProduct(product.id, { salesCycleDays: Math.round(v) })}
                     min={1}
                     max={365}
-                    className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500 pr-12"
+                    className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500 pr-12"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-text-muted">dias</span>
                 </div>
@@ -109,7 +109,7 @@ export function ProductsStep({ products, currency, onChange }: {
                   value={product.targetUnits}
                   onChange={v => updateProduct(product.id, { targetUnits: Math.round(v) })}
                   min={0}
-                  className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -118,7 +118,7 @@ export function ProductsStep({ products, currency, onChange }: {
             <BumpUpsellSection product={product} currency={currency} onChange={updates => updateProduct(product.id, updates)} />
 
             <div className="mt-2 text-xs text-text-muted">
-              Receita projetada: <span className="text-purple-400 font-semibold">
+              Receita projetada: <span className="text-blue-400 font-semibold">
                 {formatCurrency(
                   product.ticket * product.targetUnits
                   + product.targetUnits * (product.orderBumpRate / 100) * product.orderBumpTicket
@@ -140,10 +140,10 @@ export function ProductsStep({ products, currency, onChange }: {
         ))}
       </div>
 
-      <div className="bg-purple-500/5 rounded-lg border border-purple-500/20 p-3">
+      <div className="bg-blue-500/5 rounded-lg border border-blue-500/20 p-3">
         <div className="flex justify-between text-xs">
           <span className="text-text-muted">Total produtos: {products.length}/5</span>
-          <span className="text-purple-400 font-semibold">
+          <span className="text-blue-400 font-semibold">
             Receita total: {formatCurrency(products.reduce((s, p) => s + p.ticket * p.targetUnits, 0), currency)}/mes
           </span>
         </div>

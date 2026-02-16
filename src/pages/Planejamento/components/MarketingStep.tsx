@@ -57,16 +57,24 @@ export function MarketingStep({ marketing, currency, onChange }: {
   const trafegoBudget = monthlyBudget * marketing.channels.trafego.pctBudget / 100;
   const subFunnelTotalPct = marketing.trafegoSubFunnels.reduce((s, sf) => s + sf.pctBudget, 0);
 
+  // Log scale for slider (10-50000 range is too wide for linear)
+  const SLIDER_MIN = 10;
+  const SLIDER_MAX = 50000;
+  const logMin = Math.log(SLIDER_MIN);
+  const logMax = Math.log(SLIDER_MAX);
+  const valueToSlider = (val: number) => ((Math.log(Math.max(val, SLIDER_MIN)) - logMin) / (logMax - logMin)) * 1000;
+  const sliderToValue = (pos: number) => Math.round(Math.exp(logMin + (pos / 1000) * (logMax - logMin)));
+
   const channels = [
-    { key: 'socialSelling' as const, label: 'Social Selling', color: 'pink', desc: 'DM, networking, conteudo' },
-    { key: 'trafego' as const, label: 'Trafego Pago', color: 'orange', desc: 'Ads, Meta, Google' },
-    { key: 'organico' as const, label: 'Organico', color: 'cyan', desc: 'SEO, indicacao, eventos' },
+    { key: 'socialSelling' as const, label: 'Social Selling', color: 'blue', desc: 'DM, networking, conteudo' },
+    { key: 'trafego' as const, label: 'Trafego Pago', color: 'amber', desc: 'Ads, Meta, Google' },
+    { key: 'organico' as const, label: 'Organico', color: 'emerald', desc: 'SEO, indicacao, eventos' },
   ];
 
   return (
     <div className="space-y-5">
       {/* Intro */}
-      <div className="bg-purple-500/5 rounded-lg border border-purple-500/20 p-4">
+      <div className="bg-blue-500/5 rounded-lg border border-blue-500/20 p-4">
         <h4 className="text-sm font-semibold text-text-primary mb-1">Passo 2: Marketing</h4>
         <p className="text-xs text-text-muted leading-relaxed">
           Defina quanto vai investir por dia e como distribuir entre os canais.
@@ -87,20 +95,20 @@ export function MarketingStep({ marketing, currency, onChange }: {
             prefix={currency === 'BRL' ? 'R$' : '$'}
             min={0}
             max={50000}
-            className="w-28 text-right text-sm font-bold bg-bg-secondary border border-border-default rounded-lg pr-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="w-28 text-right text-sm font-bold bg-bg-secondary border border-border-default rounded-lg pr-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <input
           type="range"
-          value={marketing.dailyBudget}
-          onChange={e => onChange({ ...marketing, dailyBudget: parseFloat(e.target.value) })}
-          min={10} max={50000} step={10}
-          className="w-full h-2 bg-bg-secondary rounded-lg appearance-none cursor-pointer accent-purple-500"
-          style={{ background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${((marketing.dailyBudget - 10) / (50000 - 10)) * 100}%, #1f2937 ${((marketing.dailyBudget - 10) / (50000 - 10)) * 100}%, #1f2937 100%)` }}
+          value={valueToSlider(marketing.dailyBudget)}
+          onChange={e => onChange({ ...marketing, dailyBudget: sliderToValue(parseFloat(e.target.value)) })}
+          min={0} max={1000} step={1}
+          className="w-full h-2 bg-bg-secondary rounded-lg appearance-none cursor-pointer accent-blue-500"
+          style={{ background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${valueToSlider(marketing.dailyBudget) / 10}%, #1f2937 ${valueToSlider(marketing.dailyBudget) / 10}%, #1f2937 100%)` }}
         />
         <div className="flex justify-between mt-2 text-xs text-text-muted">
           <span>{formatCurrency(10, currency)}/dia</span>
-          <span className="text-purple-400 font-semibold">{formatCurrency(monthlyBudget, currency)}/mes</span>
+          <span className="text-blue-400 font-semibold">{formatCurrency(monthlyBudget, currency)}/mes</span>
           <span>{formatCurrency(50000, currency)}/dia</span>
         </div>
       </div>
@@ -170,7 +178,7 @@ export function MarketingStep({ marketing, currency, onChange }: {
                 <div className="mt-4">
                   <button
                     onClick={() => setShowSubFunnels(!showSubFunnels)}
-                    className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-medium transition-colors mb-3"
+                    className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-medium transition-colors mb-3"
                   >
                     <ChevronDown size={14} className={`transition-transform ${showSubFunnels ? 'rotate-180' : ''}`} />
                     Sub-funis de Trafego ({marketing.trafegoSubFunnels.length})
@@ -178,7 +186,7 @@ export function MarketingStep({ marketing, currency, onChange }: {
                   </button>
 
                   {showSubFunnels && (
-                    <div className="space-y-2 pl-1 border-l-2 border-orange-500/20 ml-1">
+                    <div className="space-y-2 pl-1 border-l-2 border-amber-500/20 ml-1">
                       {marketing.trafegoSubFunnels.map((sf) => {
                         const sfBudget = trafegoBudget * sf.pctBudget / 100;
                         const sfLeads = sf.cpl > 0 ? Math.floor(sfBudget / sf.cpl) : 0;
@@ -189,16 +197,16 @@ export function MarketingStep({ marketing, currency, onChange }: {
                                 type="text"
                                 value={sf.name}
                                 onChange={e => updateSubFunnel(sf.id, 'name', e.target.value)}
-                                className="w-full text-xs bg-transparent text-text-primary border-b border-dashed border-text-muted/30 focus:border-orange-500 focus:outline-none pr-4"
+                                className="w-full text-xs bg-transparent text-text-primary border-b border-dashed border-text-muted/30 focus:border-amber-500 focus:outline-none pr-4"
                               />
-                              <Edit3 size={8} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted/40 group-hover:text-orange-400 pointer-events-none" />
+                              <Edit3 size={8} className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted/40 group-hover:text-amber-400 pointer-events-none" />
                             </div>
                             <div className="flex items-center gap-1">
                               <NumInput
                                 value={sf.pctBudget}
                                 onChange={v => updateSubFunnel(sf.id, 'pctBudget', v)}
                                 min={0} max={100}
-                                className="w-12 text-center text-xs bg-bg-secondary border border-orange-500/20 rounded px-1 py-1 text-text-primary focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                className="w-12 text-center text-xs bg-bg-secondary border border-amber-500/20 rounded px-1 py-1 text-text-primary focus:outline-none focus:ring-1 focus:ring-amber-500"
                               />
                               <span className="text-[10px] text-text-muted">%</span>
                             </div>
@@ -209,7 +217,7 @@ export function MarketingStep({ marketing, currency, onChange }: {
                                 onChange={v => updateSubFunnel(sf.id, 'cpl', v)}
                                 min={0.1} max={500}
                                 prefix={currency === 'BRL' ? 'R$' : '$'}
-                                className="w-16 text-xs bg-bg-secondary border border-orange-500/20 rounded pr-1 py-1 text-text-primary focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                className="w-16 text-xs bg-bg-secondary border border-amber-500/20 rounded pr-1 py-1 text-text-primary focus:outline-none focus:ring-1 focus:ring-amber-500"
                               />
                             </div>
                             <span className="text-[10px] text-text-muted whitespace-nowrap ml-auto">
@@ -228,7 +236,7 @@ export function MarketingStep({ marketing, currency, onChange }: {
                         <button
                           onClick={addSubFunnel}
                           disabled={marketing.trafegoSubFunnels.length >= 8}
-                          className="flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 disabled:opacity-30 transition-colors"
+                          className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 disabled:opacity-30 transition-colors"
                         >
                           <Plus size={10} /> Adicionar funil
                         </button>
@@ -252,7 +260,7 @@ export function MarketingStep({ marketing, currency, onChange }: {
             Total: {totalPct}% {totalPct !== 100 && '(deve somar 100%)'}
           </span>
           <span className="text-text-muted">
-            Investimento mensal: <span className="text-purple-400 font-semibold">{formatCurrency(monthlyBudget, currency)}</span>
+            Investimento mensal: <span className="text-blue-400 font-semibold">{formatCurrency(monthlyBudget, currency)}</span>
           </span>
         </div>
       </div>

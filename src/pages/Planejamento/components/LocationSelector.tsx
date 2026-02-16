@@ -35,9 +35,9 @@ export function LocationSelector({ locations, selectedLocationId, onChange, isLo
       <button
         onClick={() => !isLoading && setOpen(!open)}
         disabled={isLoading}
-        className="flex items-center gap-2 px-3 py-2 text-sm bg-bg-secondary border border-border-default rounded-lg hover:border-purple-500/50 transition-colors disabled:opacity-50 min-w-[160px]"
+        className="flex items-center gap-2 px-3 py-2 text-sm bg-bg-secondary border border-border-default rounded-lg hover:border-blue-500/50 transition-colors disabled:opacity-50 min-w-[160px]"
       >
-        <Building2 size={14} className={selected ? 'text-purple-400' : 'text-text-muted'} />
+        <Building2 size={14} className={selected ? 'text-blue-400' : 'text-text-muted'} />
         <span className={`truncate ${selected ? 'text-text-primary' : 'text-text-muted'}`}>
           {selected ? selected.location_name : 'Todos os Clientes'}
         </span>
@@ -53,13 +53,13 @@ export function LocationSelector({ locations, selectedLocationId, onChange, isLo
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar cliente..."
-              className="w-full bg-bg-primary border border-border-default rounded-md px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full bg-bg-primary border border-border-default rounded-md px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <button
             onClick={() => { onChange(null); setOpen(false); setSearch(''); }}
             className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
-              !selectedLocationId ? 'bg-purple-500/20 text-purple-400 font-medium' : 'text-text-primary hover:bg-bg-hover'
+              !selectedLocationId ? 'bg-blue-500/20 text-blue-400 font-medium' : 'text-text-primary hover:bg-bg-hover'
             }`}
           >
             Todos os Clientes
@@ -74,7 +74,7 @@ export function LocationSelector({ locations, selectedLocationId, onChange, isLo
                   onClick={() => { onChange(loc.location_id); setOpen(false); setSearch(''); }}
                   className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
                     selectedLocationId === loc.location_id
-                      ? 'bg-purple-500/20 text-purple-400 font-medium'
+                      ? 'bg-blue-500/20 text-blue-400 font-medium'
                       : 'text-text-primary hover:bg-bg-hover'
                   }`}
                 >

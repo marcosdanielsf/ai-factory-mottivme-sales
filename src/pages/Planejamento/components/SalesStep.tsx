@@ -16,9 +16,9 @@ export function SalesStep({ sales, onChange }: {
   };
 
   const channels = [
-    { key: 'socialSelling' as const, label: 'Social Selling', color: 'pink' },
-    { key: 'trafego' as const, label: 'Trafego Pago', color: 'orange' },
-    { key: 'organico' as const, label: 'Organico', color: 'cyan' },
+    { key: 'socialSelling' as const, label: 'Social Selling', color: 'blue' },
+    { key: 'trafego' as const, label: 'Trafego Pago', color: 'amber' },
+    { key: 'organico' as const, label: 'Organico', color: 'emerald' },
   ];
 
   const rateFields: { field: keyof OriginRates; label: string; desc: string; help: string }[] = [
@@ -31,7 +31,7 @@ export function SalesStep({ sales, onChange }: {
   return (
     <div className="space-y-5">
       {/* Intro */}
-      <div className="bg-purple-500/5 rounded-lg border border-purple-500/20 p-4">
+      <div className="bg-blue-500/5 rounded-lg border border-blue-500/20 p-4">
         <h4 className="text-sm font-semibold text-text-primary mb-1">Passo 3: Funil de Vendas</h4>
         <p className="text-xs text-text-muted leading-relaxed">
           Cada canal tem taxas de conversao diferentes. Um lead de Social Selling geralmente converte mais
@@ -94,7 +94,7 @@ export function SalesStep({ sales, onChange }: {
               value={sales.mqlsPerSdr}
               onChange={v => onChange({ ...sales, mqlsPerSdr: Math.round(v) })}
               min={1}
-              className="w-full text-sm bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full text-sm bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
           <div className="bg-bg-primary rounded-lg border border-border-default p-4">
@@ -106,7 +106,7 @@ export function SalesStep({ sales, onChange }: {
               value={sales.callsPerCloser}
               onChange={v => onChange({ ...sales, callsPerCloser: Math.round(v) })}
               min={1}
-              className="w-full text-sm bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full text-sm bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>

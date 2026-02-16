@@ -16,9 +16,9 @@ export function WizardSteps({ step, onChange }: { step: 1 | 2 | 3; onChange: (s:
             onClick={() => onChange(s.num)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               step === s.num
-                ? 'bg-purple-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : step > s.num
-                  ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                   : 'bg-bg-primary text-text-muted hover:text-text-primary'
             }`}
           >
