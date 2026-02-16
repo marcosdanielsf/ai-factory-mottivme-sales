@@ -17,9 +17,26 @@ import { useToast } from '../hooks/useToast';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAccount } from '../contexts/AccountContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useAuth } from '../contexts/AuthContext';
+import { ghlClient } from '../services/ghl/ghlClient';
 
 // Types
 type InterviewStatus = 'pending' | 'completed' | 'no_show' | 'lost' | 'converted';
+
+// Mapeamento status -> tag GHL
+const STATUS_TAG_MAP: Record<InterviewStatus, string | null> = {
+  pending: null,
+  completed: 'compareceu',
+  no_show: 'no-show',
+  converted: 'converteu',
+  lost: 'sem-interesse',
+};
+
+// Statuses que devem atualizar oportunidade no GHL
+const STATUS_OPP_MAP: Record<string, string> = {
+  converted: 'won',
+  lost: 'lost',
+};
 
 interface PendingInterview {
   id: string;
@@ -278,6 +295,7 @@ const MetricCard = ({
 export const StatusCenter = () => {
   const { showToast } = useToast();
   const { selectedAccount, isViewingSubconta } = useAccount();
+  const { session } = useAuth();
   const isAdmin = useIsAdmin();
   const [interviews, setInterviews] = useState<PendingInterview[]>([]);
   const [filter, setFilter] = useState<'all' | InterviewStatus>('pending');
@@ -422,7 +440,34 @@ export const StatusCenter = () => {
     converted: interviews.filter(i => i.status === 'converted').length
   }), [interviews]);
 
-  // Update status in Supabase
+  // Sync status to GHL (fire-and-forget, non-blocking)
+  const syncToGHL = useCallback(async (contactId: string, locationId: string, newStatus: InterviewStatus) => {
+    const token = session?.access_token;
+    if (!token || !contactId) return;
+
+    try {
+      // 1. Add tag
+      const tag = STATUS_TAG_MAP[newStatus];
+      if (tag) {
+        await ghlClient.addContactTags(contactId, [tag], token);
+      }
+
+      // 2. Update opportunity status (won/lost) if applicable
+      const oppStatus = STATUS_OPP_MAP[newStatus];
+      if (oppStatus) {
+        const opp = await ghlClient.findOpportunityByContact(locationId, contactId, token);
+        if (opp) {
+          await ghlClient.updateOpportunity(opp.id, { status: oppStatus }, token);
+        }
+      }
+
+      console.log(`[GHL Sync] ${newStatus} → tag:${tag || '-'}, opp:${oppStatus || '-'}`);
+    } catch (err) {
+      console.warn('[GHL Sync] Failed (non-blocking):', err);
+    }
+  }, [session?.access_token]);
+
+  // Update status in Supabase + sync to GHL
   const handleUpdateStatus = useCallback(async (id: string, newStatus: InterviewStatus, contactId?: string | null) => {
     setIsUpdating(true);
     try {
@@ -438,7 +483,7 @@ export const StatusCenter = () => {
         console.error('Error updating manual_status:', error);
       }
 
-      // If converted, also update n8n_schedule_tracking.etapa_funil + add GHL tag
+      // If converted, also update n8n_schedule_tracking.etapa_funil
       if (newStatus === 'converted' && contactId) {
         const { error: trackingError } = await supabase
           .from('n8n_schedule_tracking')
@@ -448,24 +493,13 @@ export const StatusCenter = () => {
         if (trackingError) {
           console.error('Error updating etapa_funil:', trackingError);
         }
+      }
 
-        // Add GHL tag via n8n webhook
-        const interview = interviews.find(i => i.id === id);
-        try {
-          await fetch('https://cliente-a1.mentorfy.io/webhook/tag-converteu', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contact_id: contactId,
-              location_id: interview?.location_id || activeLocationId,
-              lead_name: interview?.lead_name || '',
-              tag: 'converteu',
-              timestamp: new Date().toISOString(),
-            }),
-          });
-        } catch (webhookErr) {
-          console.warn('Webhook tag-converteu failed (non-blocking):', webhookErr);
-        }
+      // Sync to GHL in background (tag + opportunity update)
+      const interview = interviews.find(i => i.id === id);
+      const locId = interview?.location_id || activeLocationId;
+      if (contactId && locId && newStatus !== 'pending') {
+        syncToGHL(contactId, locId, newStatus);
       }
 
       // Update local state
@@ -475,10 +509,10 @@ export const StatusCenter = () => {
 
       const messages: Record<InterviewStatus, string> = {
         pending: 'Status atualizado',
-        completed: '✅ Entrevista marcada como realizada!',
-        no_show: '❌ Lead marcado como No Show',
-        lost: '🚫 Lead marcado como Sem Interesse',
-        converted: '🏆 Lead convertido - parabéns!'
+        completed: '✅ Compareceu — tag adicionada no GHL!',
+        no_show: '❌ No Show — tag adicionada no GHL',
+        lost: '🚫 Sem Interesse — oportunidade marcada como perdida',
+        converted: '🏆 Converteu — oportunidade marcada como ganha!'
       };
 
       showToast(messages[newStatus], 'success');
@@ -488,7 +522,7 @@ export const StatusCenter = () => {
     } finally {
       setIsUpdating(false);
     }
-  }, [showToast]);
+  }, [showToast, interviews, activeLocationId, syncToGHL]);
 
   const handleRefresh = async () => {
     await fetchInterviews();

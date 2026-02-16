@@ -3,7 +3,8 @@ import {
     GHLContact,
     GHLEventsResponse,
     GHLPipelinesResponse,
-    GHLOpportunitiesResponse
+    GHLOpportunitiesResponse,
+    GHLOpportunity
 } from './ghlTypes';
 
 const API_BASE = '/api/ghl';
@@ -147,5 +148,72 @@ export const ghlClient = {
         }
 
         return res.json();
+    },
+
+    /**
+     * Add tags to a contact
+     */
+    async addContactTags(contactId: string, tags: string[], token: string): Promise<void> {
+        const res = await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tags })
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to add tags: ${res.statusText}`);
+        }
+    },
+
+    /**
+     * Find opportunity by contact ID (returns first open opportunity)
+     */
+    async findOpportunityByContact(
+        locationId: string,
+        contactId: string,
+        token: string
+    ): Promise<GHLOpportunity | null> {
+        const params = new URLSearchParams();
+        params.append('locationId', locationId);
+        params.append('contactId', contactId);
+
+        const res = await fetch(`${API_BASE}/opportunities/lookup?${params.toString()}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to lookup opportunity: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        return data.opportunity || null;
+    },
+
+    /**
+     * Update opportunity (status, stageId, etc.)
+     */
+    async updateOpportunity(
+        opportunityId: string,
+        data: { status?: string; pipelineStageId?: string },
+        token: string
+    ): Promise<void> {
+        const res = await fetch(`${API_BASE}/opportunities/${opportunityId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to update opportunity: ${res.statusText}`);
+        }
     }
 };
