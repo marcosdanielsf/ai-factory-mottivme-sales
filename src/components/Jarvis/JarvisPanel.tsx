@@ -107,18 +107,9 @@ export function JarvisPanel() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const speechSupported = hasSpeechRecognition();
-  const lastSpokenMsgId = useRef<string | null>(null);
-
-  const { speak, stopSpeaking, isSpeaking, ttsEnabled, toggleTts } = useMegazordTTS();
-
-  // Auto-falar última resposta do JARVIS
-  useEffect(() => {
-    const lastJarvis = [...messages].reverse().find((m) => m.role === 'jarvis' && !m.loading);
-    if (lastJarvis && lastJarvis.id !== lastSpokenMsgId.current && lastJarvis.content) {
-      lastSpokenMsgId.current = lastJarvis.id;
-      speak(lastJarvis.content);
-    }
-  }, [messages, speak]);
+  // TTS is handled ONLY by JarvisCommand page to avoid double-speak.
+  // Panel only needs toggle/status for the UI button.
+  const { stopSpeaking, isSpeaking, ttsEnabled, toggleTts } = useMegazordTTS();
 
   // Auto-scroll to latest message
   useEffect(() => {

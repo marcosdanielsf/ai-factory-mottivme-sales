@@ -911,8 +911,7 @@ export default function JarvisCommand() {
       {/* Background particles */}
       <JarvisParticles count={25} />
 
-      {/* Megazord head overlay — appears when JARVIS is speaking */}
-      <JarvisMegazordHead active={isSpeaking} size={220} />
+      {/* Megazord head lives in the Voice Panel (RightColumn) only */}
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header
         className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-[rgba(59,130,246,0.2)]"
