@@ -110,6 +110,35 @@ export function useJarvisAlerts(): {
     } catch {
       // Silently ignore query failures
     }
+
+    // Proactive: detect lead volume anomaly
+    try {
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+      const [todayRes, yesterdayRes] = await Promise.all([
+        supabase.from('n8n_schedule_tracking').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+        supabase.from('n8n_schedule_tracking').select('id', { count: 'exact', head: true }).gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()),
+      ]);
+
+      const lt = todayRes.count ?? 0;
+      const ly = yesterdayRes.count ?? 0;
+
+      // Se hora > 12 e leads caíram 50%
+      if (now.getHours() > 12 && ly > 5 && lt < ly * 0.5) {
+        addAlert({
+          severity: 'high',
+          title: 'Queda de leads detectada',
+          message: `Leads hoje (${lt}) estão ${Math.round((1 - lt / ly) * 100)}% abaixo de ontem (${ly}).`,
+        });
+      }
+    } catch {
+      // Silenciar — proactive check é best-effort
+    }
   }, [addAlert]);
 
   useEffect(() => {

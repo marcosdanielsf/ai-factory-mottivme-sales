@@ -80,6 +80,9 @@ const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ de
 // Planejamento de Vendas
 const Planejamento = lazy(() => import('./pages/Planejamento'));
 
+// JARVIS Command Center
+const JarvisCommand = lazy(() => import('./pages/JarvisCommand'));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -594,6 +597,15 @@ const App = () => {
                       <GHLLeads />
                     </Suspense>
                   </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* JARVIS Command Center */}
+              <Route path="/jarvis" element={
+                <ProtectedRoute>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <JarvisCommand />
+                  </Suspense>
                 </ProtectedRoute>
               } />
 

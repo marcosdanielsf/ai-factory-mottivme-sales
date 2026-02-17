@@ -5,7 +5,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
 import { useAgents } from '../hooks';
-import AISupportWidget from './AISupportWidget';
+// AISupportWidget substituído pelo JARVIS
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -278,8 +278,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       )}
 
-      {/* AI Support Widget (Chat + Voice) */}
-      <AISupportWidget currentPage={location.pathname} />
+      {/* AI Support Widget substituído pelo JARVIS (App.tsx) */}
     </div>
   );
 };

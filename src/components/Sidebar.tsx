@@ -93,6 +93,7 @@ const navSections: NavSection[] = [
     title: '', // Sem título = itens no topo
     items: [
       { icon: Home, label: 'Control Tower', to: '/', permission: 'canAccessDashboard' },
+      { icon: Bot, label: 'JARVIS', to: '/jarvis', permission: 'canAccessDashboard' },
     ]
   },
   {
