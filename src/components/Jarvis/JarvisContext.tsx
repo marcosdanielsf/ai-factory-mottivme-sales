@@ -68,7 +68,7 @@ async function buildSystemContext(): Promise<string> {
     todayStart.setHours(0, 0, 0, 0);
 
     const { count } = await supabase
-      .from('leads')
+      .from('n8n_schedule_tracking')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', todayStart.toISOString());
 
@@ -196,7 +196,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
                   since.setHours(0, 0, 0, 0);
 
                   const { count } = await supabase
-                    .from('leads')
+                    .from('n8n_schedule_tracking')
                     .select('id', { count: 'exact', head: true })
                     .gte('created_at', since.toISOString());
 

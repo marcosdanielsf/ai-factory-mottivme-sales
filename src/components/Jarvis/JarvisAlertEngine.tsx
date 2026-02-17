@@ -91,10 +91,10 @@ export function useJarvisAlerts(): {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       const { data, error } = await supabase
-        .from('leads')
+        .from('n8n_schedule_tracking')
         .select('id')
         .gt('updated_at', oneHourAgo)
-        .is('response', null)
+        .eq('status', 'pending')
         .limit(100);
 
       if (error || !data) return;
