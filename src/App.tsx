@@ -8,6 +8,7 @@ import { AccountProvider } from './contexts/AccountContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LayoutCliente } from './components/LayoutCliente';
 import { ConditionalLayout } from './components/ConditionalLayout';
+import { JarvisProvider, JarvisPanel } from './components/Jarvis';
 
 // Suspense fallback component
 const LoadingFallback = () => (
@@ -73,6 +74,9 @@ const AiosCostsPage = lazy(() => import('./pages/AiosCosts').then(m => ({ defaul
 const AiosSquadsPage = lazy(() => import('./pages/AiosSquads').then(m => ({ default: m.AiosSquads })));
 const AiosSquadDetailPage = lazy(() => import('./pages/AiosSquads/SquadDetail').then(m => ({ default: m.AiosSquadDetail })));
 
+// Content Studio
+const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ default: m.ContentStudio })));
+
 // Planejamento de Vendas
 const Planejamento = lazy(() => import('./pages/Planejamento'));
 
@@ -83,10 +87,11 @@ const GHLLeads = lazy(() => import('./pages/ghl/GHLLeads'));
 
 const App = () => {
   return (
-    <AuthProvider>
-      <AccountProvider>
-        <ToastProvider>
-          <HashRouter>
+    <JarvisProvider>
+      <AuthProvider>
+        <AccountProvider>
+          <ToastProvider>
+            <HashRouter>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
@@ -552,6 +557,17 @@ const App = () => {
                 </ProtectedRoute>
               } />
 
+              {/* Content Studio */}
+              <Route path="/content-studio" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ContentStudio />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
               {/* GHL Direct Dashboard */}
               <Route path="/ghl/pipeline" element={
                 <ProtectedRoute>
@@ -589,10 +605,12 @@ const App = () => {
                 </ProtectedRoute>
               } />
             </Routes>
-          </HashRouter>
-        </ToastProvider>
-      </AccountProvider>
-    </AuthProvider>
+            </HashRouter>
+            <JarvisPanel />
+          </ToastProvider>
+        </AccountProvider>
+      </AuthProvider>
+    </JarvisProvider>
   );
 };
 

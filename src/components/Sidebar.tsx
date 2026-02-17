@@ -42,6 +42,7 @@ import {
   BookMarked,
   Wallet,
   Network,
+  Palette,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -152,6 +153,7 @@ const navSections: NavSection[] = [
       { icon: BookMarked, label: 'Stories', to: '/aios/stories', permission: 'canAccessAios' },
       { icon: Wallet, label: 'Custos', to: '/aios/costs', permission: 'canAccessAios' },
       { icon: Network, label: 'Squads', to: '/aios/squads', permission: 'canAccessAios' },
+      { icon: Palette, label: 'Content Studio', to: '/content-studio', permission: 'canAccessAios' },
     ]
   },
   {
