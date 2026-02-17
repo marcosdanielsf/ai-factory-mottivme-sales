@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { listContentsByProject, updateContent as apiUpdateContent } from '../lib/assemblyLineApi';
 import type { AssemblyLineContent } from '../lib/assemblyLineApi';
+import { publishToGHL, requestVideoProduction } from '../lib/contentPublisher';
+import type { PublishRequest } from '../lib/contentPublisher';
 
 export interface ContentPiece {
   id: string;
@@ -70,6 +72,10 @@ interface UseContentPiecesReturn {
   approvePiece: (id: string) => Promise<boolean>;
   rejectPiece: (id: string) => Promise<boolean>;
   schedulePiece: (id: string, scheduledAt: string) => Promise<boolean>;
+  publishPiece: (id: string, platform: string, scheduleDate?: string) => Promise<boolean>;
+  generateVideo: (id: string) => Promise<boolean>;
+  publishingId: string | null;
+  generatingVideoId: string | null;
 }
 
 export function useContentPieces(filters?: {
@@ -82,6 +88,8 @@ export function useContentPieces(filters?: {
   const [pieces, setPieces] = useState<ContentPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
 
   const projectId = filters?.assembly_line_project_id;
 
@@ -168,5 +176,81 @@ export function useContentPieces(filters?: {
     return result !== null;
   }, [updatePiece]);
 
-  return { pieces, loading, error, refetch: fetchPieces, updatePiece, approvePiece, rejectPiece, schedulePiece };
+  const publishPiece = useCallback(async (id: string, platform: string, scheduleDate?: string): Promise<boolean> => {
+    const piece = pieces.find(p => p.id === id);
+    if (!piece) return false;
+
+    setPublishingId(id);
+    setError(null);
+
+    try {
+      const request: PublishRequest = {
+        content_id: id,
+        body: piece.body,
+        type: piece.type,
+        platform,
+        media_url: piece.media_url || undefined,
+        hook: piece.hook || undefined,
+        cta: piece.cta || undefined,
+        hashtags: piece.hashtags || undefined,
+        schedule_date: scheduleDate,
+      };
+
+      const result = await publishToGHL(request);
+
+      if (!result.success) {
+        setError(result.error || 'Erro ao publicar no GHL');
+        setPublishingId(null);
+        return false;
+      }
+
+      // Update status in Assembly Line API
+      await updatePiece(id, { approval_status: 'published' });
+      setPublishingId(null);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao publicar');
+      setPublishingId(null);
+      return false;
+    }
+  }, [pieces, updatePiece]);
+
+  const generateVideo = useCallback(async (id: string): Promise<boolean> => {
+    const piece = pieces.find(p => p.id === id);
+    if (!piece) return false;
+
+    setGeneratingVideoId(id);
+    setError(null);
+
+    try {
+      // Build script from piece content
+      const roteiro = [piece.hook, piece.body, piece.cta].filter(Boolean).join('\n\n');
+
+      const result = await requestVideoProduction({
+        roteiro,
+        content_id: id,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Erro ao gerar video');
+        setGeneratingVideoId(null);
+        return false;
+      }
+
+      // Video is generating in background (~4min)
+      // The webhook will update the content when done
+      setGeneratingVideoId(null);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar video');
+      setGeneratingVideoId(null);
+      return false;
+    }
+  }, [pieces]);
+
+  return {
+    pieces, loading, error, refetch: fetchPieces,
+    updatePiece, approvePiece, rejectPiece, schedulePiece,
+    publishPiece, generateVideo, publishingId, generatingVideoId,
+  };
 }

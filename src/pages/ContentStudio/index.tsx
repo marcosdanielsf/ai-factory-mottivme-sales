@@ -61,7 +61,11 @@ export function ContentStudio() {
 
   const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
 
-  const { pieces, loading: piecesLoading, approvePiece, rejectPiece, schedulePiece, updatePiece } = useContentPieces({
+  const {
+    pieces, loading: piecesLoading,
+    approvePiece, rejectPiece, schedulePiece, updatePiece,
+    publishPiece, generateVideo, publishingId, generatingVideoId,
+  } = useContentPieces({
     assembly_line_project_id: selectedCampaign?.assembly_line_project_id || undefined,
     type: typeFilter !== 'all' ? typeFilter : undefined,
     approval_status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -359,6 +363,10 @@ export function ContentStudio() {
                   onReject={rejectPiece}
                   onSchedule={schedulePiece}
                   onEdit={updatePiece}
+                  onPublish={publishPiece}
+                  onGenerateVideo={generateVideo}
+                  publishingId={publishingId}
+                  generatingVideoId={generatingVideoId}
                 />
               ))}
             </div>

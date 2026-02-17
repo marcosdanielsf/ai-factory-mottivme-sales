@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Check, X, Calendar, Send, Edit3, Eye,
   Instagram, Linkedin, Facebook, Mail, Video, Image as ImageIcon,
-  Hash, MessageSquare
+  Hash, MessageSquare, Loader2, Film
 } from 'lucide-react';
 import type { ContentPiece } from '../../../hooks/useContentPieces';
 
@@ -12,6 +12,10 @@ interface ContentReviewCardProps {
   onReject: (id: string) => Promise<boolean>;
   onSchedule: (id: string, date: string) => Promise<boolean>;
   onEdit: (id: string, updates: Partial<ContentPiece>) => Promise<ContentPiece | null>;
+  onPublish?: (id: string, platform: string, scheduleDate?: string) => Promise<boolean>;
+  onGenerateVideo?: (id: string) => Promise<boolean>;
+  publishingId?: string | null;
+  generatingVideoId?: string | null;
 }
 
 const PLATFORM_ICONS: Record<string, typeof Instagram> = {
@@ -46,15 +50,30 @@ const STATUS_LABELS: Record<string, string> = {
   published: 'Publicado',
 };
 
-export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEdit }: ContentReviewCardProps) {
+const PUBLISH_PLATFORMS = [
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'facebook', label: 'Facebook', icon: Facebook },
+  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+];
+
+export function ContentReviewCard({
+  piece, onApprove, onReject, onSchedule, onEdit,
+  onPublish, onGenerateVideo, publishingId, generatingVideoId,
+}: ContentReviewCardProps) {
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(piece.body);
   const [expanded, setExpanded] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
+  const [showPublishMenu, setShowPublishMenu] = useState(false);
+  const [videoRequested, setVideoRequested] = useState(false);
 
   const PlatformIcon = piece.platform ? PLATFORM_ICONS[piece.platform] || MessageSquare : MessageSquare;
   const isPending = piece.approval_status === 'pending';
+  const isApproved = piece.approval_status === 'approved';
+  const isPublishing = publishingId === piece.id;
+  const isGeneratingVideo = generatingVideoId === piece.id;
+  const isVideoType = piece.type === 'reel' || piece.type === 'story';
 
   const handleSaveEdit = async () => {
     if (editBody.trim() !== piece.body) {
@@ -67,6 +86,20 @@ export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEd
     if (scheduleDate) {
       await onSchedule(piece.id, scheduleDate);
       setShowSchedule(false);
+    }
+  };
+
+  const handlePublish = async (platform: string) => {
+    setShowPublishMenu(false);
+    if (onPublish) {
+      await onPublish(piece.id, platform);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (onGenerateVideo) {
+      setVideoRequested(true);
+      await onGenerateVideo(piece.id);
     }
   };
 
@@ -157,6 +190,14 @@ export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEd
           </div>
         )}
 
+        {/* Video generating indicator */}
+        {(isGeneratingVideo || videoRequested) && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+            <span className="text-xs text-purple-400">Gerando video (~4min)...</span>
+          </div>
+        )}
+
         {/* Schedule picker */}
         {showSchedule && (
           <div className="flex items-center gap-2 pt-2">
@@ -181,10 +222,34 @@ export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEd
             </button>
           </div>
         )}
+
+        {/* Publish platform picker */}
+        {showPublishMenu && (
+          <div className="flex items-center gap-2 pt-2">
+            {PUBLISH_PLATFORMS.map(p => {
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.value}
+                  onClick={() => handlePublish(p.value)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary rounded-lg hover:bg-bg-hover"
+                >
+                  <Icon className="w-3.5 h-3.5" /> {p.label}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setShowPublishMenu(false)}
+              className="px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-lg hover:bg-bg-hover"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 px-4 py-3 border-t border-border-default bg-bg-primary/50">
+      <div className="flex items-center gap-1 px-4 py-3 border-t border-border-default bg-bg-primary/50 flex-wrap">
         {editing ? (
           <>
             <button
@@ -224,7 +289,7 @@ export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEd
             >
               <Edit3 className="w-3 h-3" /> Editar
             </button>
-            {(isPending || piece.approval_status === 'approved') && (
+            {(isPending || isApproved) && (
               <button
                 onClick={() => setShowSchedule(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary rounded-md hover:bg-bg-hover"
@@ -232,15 +297,34 @@ export function ContentReviewCard({ piece, onApprove, onReject, onSchedule, onEd
                 <Calendar className="w-3 h-3" /> Agendar
               </button>
             )}
-            {piece.approval_status === 'approved' && (
+
+            {/* Generate Video — only for reels/stories without media */}
+            {isVideoType && !piece.media_url && !videoRequested && !isGeneratingVideo && onGenerateVideo && (
               <button
-                onClick={() => onEdit(piece.id, { approval_status: 'published', published_at: new Date().toISOString() })}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-accent-primary text-white rounded-md hover:opacity-90 ml-auto"
+                onClick={handleGenerateVideo}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-500"
               >
-                <Send className="w-3 h-3" /> Publicar
+                <Film className="w-3 h-3" /> Gerar Video
               </button>
             )}
-            {!expanded && piece.body.length <= 200 && (
+
+            {/* Publish to GHL — only for approved pieces */}
+            {isApproved && onPublish && (
+              <button
+                onClick={() => setShowPublishMenu(true)}
+                disabled={isPublishing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-accent-primary text-white rounded-md hover:opacity-90 ml-auto disabled:opacity-50"
+              >
+                {isPublishing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Send className="w-3 h-3" />
+                )}
+                {isPublishing ? 'Publicando...' : 'Publicar'}
+              </button>
+            )}
+
+            {!isApproved && !expanded && piece.body.length <= 200 && (
               <button
                 onClick={() => setExpanded(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover ml-auto"
