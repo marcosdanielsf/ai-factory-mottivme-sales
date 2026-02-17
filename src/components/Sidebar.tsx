@@ -38,6 +38,10 @@ import {
   UsersRound,
   Calendar,
   Calculator,
+  Bot,
+  BookMarked,
+  Wallet,
+  Network,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -138,6 +142,16 @@ const navSections: NavSection[] = [
       { icon: Send, label: 'Follow-ups', to: '/follow-ups', permission: 'canAccessFollowUps' },
       { icon: ScrollText, label: 'Logs de Conversa', to: '/logs', permission: 'canAccessLogs' },
       { icon: Database, label: 'Artifacts & Docs', to: '/knowledge-base', permission: 'canAccessKnowledgeBase' },
+    ]
+  },
+  {
+    title: 'AIOS',
+    permission: 'canAccessAios',
+    items: [
+      { icon: Bot, label: 'Agentes', to: '/aios/agents', permission: 'canAccessAios' },
+      { icon: BookMarked, label: 'Stories', to: '/aios/stories', permission: 'canAccessAios' },
+      { icon: Wallet, label: 'Custos', to: '/aios/costs', permission: 'canAccessAios' },
+      { icon: Network, label: 'Squads', to: '/aios/squads', permission: 'canAccessAios' },
     ]
   },
   {

@@ -64,6 +64,15 @@ const VideoProducerDetail = lazy(() => import('./pages/VideoProducerDetail'));
 // Social Selling Dashboard
 const SocialSellingDashboard = lazy(() => import('./pages/SocialSellingDashboard'));
 
+// AIOS Dashboard pages (lazy loaded)
+const AiosAgentsPage = lazy(() => import('./pages/AiosAgents').then(m => ({ default: m.AiosAgents })));
+const AiosAgentDetailPage = lazy(() => import('./pages/AiosAgents/AgentDetail').then(m => ({ default: m.AiosAgentDetail })));
+const AiosStoriesPage = lazy(() => import('./pages/AiosStories').then(m => ({ default: m.AiosStories })));
+const AiosStoryDetailPage = lazy(() => import('./pages/AiosStories/StoryDetail').then(m => ({ default: m.AiosStoryDetail })));
+const AiosCostsPage = lazy(() => import('./pages/AiosCosts').then(m => ({ default: m.AiosCosts })));
+const AiosSquadsPage = lazy(() => import('./pages/AiosSquads').then(m => ({ default: m.AiosSquads })));
+const AiosSquadDetailPage = lazy(() => import('./pages/AiosSquads/SquadDetail').then(m => ({ default: m.AiosSquadDetail })));
+
 // Planejamento de Vendas
 const Planejamento = lazy(() => import('./pages/Planejamento'));
 
@@ -478,6 +487,71 @@ const App = () => {
                   </Layout>
                 </ProtectedRoute>
               } />
+              {/* AIOS Dashboard */}
+              <Route path="/aios/agents" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosAgentsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/agents/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosAgentDetailPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/stories" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosStoriesPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/stories/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosStoryDetailPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/costs" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosCostsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/squads" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosSquadsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/squads/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosSquadDetailPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
               {/* GHL Direct Dashboard */}
               <Route path="/ghl/pipeline" element={
                 <ProtectedRoute>

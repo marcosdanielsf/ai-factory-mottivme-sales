@@ -21,7 +21,8 @@ export interface Permissions {
   canAccessNotifications: boolean;
   canAccessLeads: boolean;
   canAccessCalls: boolean;
-  
+  canAccessAios: boolean;
+
   // Ações
   canWriteMessages: boolean;
   canEditPrompts: boolean;
@@ -49,6 +50,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessNotifications: true,
     canAccessLeads: true,
     canAccessCalls: true,
+    canAccessAios: true,
     // Ações
     canWriteMessages: true,
     canEditPrompts: true,
@@ -57,7 +59,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canExportData: true,
     canManageUsers: true,
   },
-  
+
   manager: {
     // Páginas - Manager vê quase tudo, menos config avançada
     canAccessDashboard: true,
@@ -74,6 +76,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessNotifications: true,
     canAccessLeads: true,
     canAccessCalls: true,
+    canAccessAios: true,
     // Ações
     canWriteMessages: true,
     canEditPrompts: false,
@@ -82,7 +85,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canExportData: true,
     canManageUsers: false,
   },
-  
+
   client: {
     // Páginas - Cliente vê métricas e status
     canAccessDashboard: true,
@@ -99,6 +102,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessNotifications: true,
     canAccessLeads: true,
     canAccessCalls: false,
+    canAccessAios: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
@@ -107,7 +111,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canExportData: false,
     canManageUsers: false,
   },
-  
+
   recruiter: {
     // Páginas - Recrutador vê só o essencial
     canAccessDashboard: true,
@@ -124,6 +128,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessNotifications: true,
     canAccessLeads: true,
     canAccessCalls: false,
+    canAccessAios: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
@@ -149,6 +154,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessNotifications: true,
     canAccessLeads: false,
     canAccessCalls: false,
+    canAccessAios: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
