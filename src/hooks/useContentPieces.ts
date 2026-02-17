@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { listContentsByProject, updateContent as apiUpdateContent } from '../lib/assemblyLineApi';
+import type { AssemblyLineContent } from '../lib/assemblyLineApi';
 
 export interface ContentPiece {
   id: string;
@@ -26,6 +27,40 @@ export interface ContentPiece {
   metadata: Record<string, unknown>;
 }
 
+function mapToPiece(content: AssemblyLineContent, projectId: string): ContentPiece {
+  const statusMap: Record<string, ContentPiece['approval_status']> = {
+    draft: 'pending',
+    approved: 'approved',
+    rejected: 'rejected',
+    published: 'published',
+  };
+
+  return {
+    id: content.id,
+    created_at: content.created_at,
+    updated_at: content.updated_at,
+    campaign_id: projectId,
+    type: content.type as ContentPiece['type'],
+    platform: null,
+    title: content.title,
+    body: content.body || '',
+    hook: content.hook,
+    cta: content.cta,
+    subject: content.subject,
+    preview_text: content.preview_text,
+    hashtags: null,
+    media_url: null,
+    media_type: null,
+    approval_status: statusMap[content.status] || 'pending',
+    scheduled_at: null,
+    published_at: content.published_at,
+    ghl_post_id: null,
+    generated_by: content.generated_by || 'assembly-line',
+    cost: 0,
+    metadata: {},
+  };
+}
+
 interface UseContentPiecesReturn {
   pieces: ContentPiece[];
   loading: boolean;
@@ -39,6 +74,7 @@ interface UseContentPiecesReturn {
 
 export function useContentPieces(filters?: {
   campaign_id?: string;
+  assembly_line_project_id?: string;
   approval_status?: string;
   type?: string;
   platform?: string;
@@ -47,58 +83,74 @@ export function useContentPieces(filters?: {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
+  const projectId = filters?.assembly_line_project_id;
+
+  const fetchPieces = useCallback(async () => {
+    if (!projectId) {
+      setPieces([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('content_pieces')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const apiFilters: { type?: string; status?: string } = {};
+      if (filters?.type && filters.type !== 'all') apiFilters.type = filters.type;
+      if (filters?.approval_status && filters.approval_status !== 'all') {
+        const reverseMap: Record<string, string> = {
+          pending: 'draft',
+          approved: 'approved',
+          rejected: 'rejected',
+          published: 'published',
+        };
+        apiFilters.status = reverseMap[filters.approval_status] || filters.approval_status;
+      }
 
-    if (filters?.campaign_id) {
-      query = query.eq('campaign_id', filters.campaign_id);
-    }
-    if (filters?.approval_status && filters.approval_status !== 'all') {
-      query = query.eq('approval_status', filters.approval_status);
-    }
-    if (filters?.type && filters.type !== 'all') {
-      query = query.eq('type', filters.type);
-    }
-    if (filters?.platform && filters.platform !== 'all') {
-      query = query.eq('platform', filters.platform);
+      const result = await listContentsByProject(projectId, apiFilters);
+      const mapped = result.contents.map(c => mapToPiece(c, projectId));
+      setPieces(mapped);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao buscar conteudos';
+      setError(msg);
+      setPieces([]);
     }
 
-    const { data, error: fetchError } = await query;
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setPieces((data ?? []) as ContentPiece[]);
-    }
     setLoading(false);
-  }, [filters?.campaign_id, filters?.approval_status, filters?.type, filters?.platform]);
+  }, [projectId, filters?.type, filters?.approval_status]);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    fetchPieces();
+  }, [fetchPieces]);
 
   const updatePiece = useCallback(async (id: string, updates: Partial<ContentPiece>): Promise<ContentPiece | null> => {
-    const { data, error: updateError } = await supabase
-      .from('content_pieces')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const apiUpdates: Record<string, string | undefined> = {};
 
-    if (updateError) {
-      setError(updateError.message);
+      if (updates.approval_status) {
+        const statusMap: Record<string, string> = {
+          pending: 'draft',
+          approved: 'approved',
+          rejected: 'rejected',
+          published: 'published',
+        };
+        apiUpdates.status = statusMap[updates.approval_status] || updates.approval_status;
+      }
+      if (updates.title !== undefined) apiUpdates.title = updates.title || undefined;
+      if (updates.body !== undefined) apiUpdates.body = updates.body;
+      if (updates.hook !== undefined) apiUpdates.hook = updates.hook || undefined;
+      if (updates.cta !== undefined) apiUpdates.cta = updates.cta || undefined;
+
+      const result = await apiUpdateContent(id, apiUpdates);
+      await fetchPieces();
+      return mapToPiece(result.content, projectId || '');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao atualizar';
+      setError(msg);
       return null;
     }
-
-    await fetch();
-    return data as ContentPiece;
-  }, [fetch]);
+  }, [fetchPieces, projectId]);
 
   const approvePiece = useCallback(async (id: string): Promise<boolean> => {
     const result = await updatePiece(id, { approval_status: 'approved' });
@@ -110,10 +162,11 @@ export function useContentPieces(filters?: {
     return result !== null;
   }, [updatePiece]);
 
-  const schedulePiece = useCallback(async (id: string, scheduledAt: string): Promise<boolean> => {
-    const result = await updatePiece(id, { approval_status: 'scheduled', scheduled_at: scheduledAt });
+  const schedulePiece = useCallback(async (id: string, _scheduledAt: string): Promise<boolean> => {
+    // Scheduling via Assembly Line — for now just approve
+    const result = await updatePiece(id, { approval_status: 'approved' });
     return result !== null;
   }, [updatePiece]);
 
-  return { pieces, loading, error, refetch: fetch, updatePiece, approvePiece, rejectPiece, schedulePiece };
+  return { pieces, loading, error, refetch: fetchPieces, updatePiece, approvePiece, rejectPiece, schedulePiece };
 }

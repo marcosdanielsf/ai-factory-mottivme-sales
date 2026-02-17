@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
   Palette, Plus, Search, Filter, ArrowLeft,
-  FileText, Video, Mail, Megaphone, LayoutGrid, Calendar as CalendarIcon, List
+  FileText, Video, Mail, Megaphone, LayoutGrid, Calendar as CalendarIcon, List, Loader2
 } from 'lucide-react';
 import { useContentCampaigns, type CreateCampaignInput } from '../../hooks/useContentCampaigns';
 import { useContentPieces } from '../../hooks/useContentPieces';
@@ -57,10 +57,12 @@ export function ContentStudio() {
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { campaigns, loading: campaignsLoading, createCampaign } = useContentCampaigns();
+  const { campaigns, loading: campaignsLoading, createCampaign, pipelineProgress } = useContentCampaigns();
+
+  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
 
   const { pieces, loading: piecesLoading, approvePiece, rejectPiece, schedulePiece, updatePiece } = useContentPieces({
-    campaign_id: selectedCampaignId || undefined,
+    assembly_line_project_id: selectedCampaign?.assembly_line_project_id || undefined,
     type: typeFilter !== 'all' ? typeFilter : undefined,
     approval_status: statusFilter !== 'all' ? statusFilter : undefined,
   });
@@ -97,7 +99,8 @@ export function ContentStudio() {
     setTab('review');
   }, []);
 
-  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
+  const isGenerating = pipelineProgress.status === 'generating';
+  const pipelinePct = Math.round((pipelineProgress.completedAgents / pipelineProgress.totalAgents) * 100);
 
   return (
     <div className="p-6 space-y-6">
@@ -135,6 +138,46 @@ export function ContentStudio() {
           )}
         </div>
       </div>
+
+      {/* Pipeline progress bar */}
+      {isGenerating && (
+        <div className="bg-bg-secondary border border-accent-primary/30 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-accent-primary animate-spin" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-text-primary">
+                Gerando conteudo... {pipelineProgress.completedAgents}/{pipelineProgress.totalAgents} agentes
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {pipelineProgress.generations.find(g => g.status === 'running')?.agent_name || 'Aguardando...'}
+                {pipelineProgress.totalCost > 0 && ` — $${pipelineProgress.totalCost.toFixed(4)}`}
+              </p>
+            </div>
+            <span className="text-sm font-medium text-accent-primary">{pipelinePct}%</span>
+          </div>
+          <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent-primary rounded-full transition-all duration-500"
+              style={{ width: `${pipelinePct}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {pipelineProgress.generations.map(g => (
+              <span
+                key={g.id}
+                className={`text-[10px] px-2 py-0.5 rounded-full ${
+                  g.status === 'complete' ? 'bg-green-500/20 text-green-400' :
+                  g.status === 'running' ? 'bg-yellow-500/20 text-yellow-400 animate-pulse' :
+                  g.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                  'bg-bg-tertiary text-text-muted'
+                }`}
+              >
+                {g.agent_name.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border-default">
@@ -235,7 +278,6 @@ export function ContentStudio() {
         <div className="space-y-4">
           {/* Filters bar */}
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Search */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input
@@ -247,7 +289,6 @@ export function ContentStudio() {
               />
             </div>
 
-            {/* Type filter */}
             <div className="flex items-center gap-1">
               {TYPE_FILTERS.map(f => {
                 const Icon = f.icon;
@@ -267,7 +308,6 @@ export function ContentStudio() {
               })}
             </div>
 
-            {/* Status filter */}
             <div className="flex items-center gap-1 ml-auto">
               <Filter className="w-3.5 h-3.5 text-text-muted" />
               {(['all', 'pending', 'approved', 'scheduled', 'published'] as StatusFilter[]).map(s => (
@@ -287,7 +327,6 @@ export function ContentStudio() {
             </div>
           </div>
 
-          {/* Stats bar */}
           <div className="flex items-center gap-6 text-xs text-text-muted">
             <span>{stats.total} total</span>
             <span className="text-yellow-400">{stats.pending} pendentes</span>
@@ -295,7 +334,6 @@ export function ContentStudio() {
             <span className="text-emerald-400">{stats.published} publicados</span>
           </div>
 
-          {/* Content grid */}
           {piecesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => <ContentSkeleton key={i} />)}
@@ -305,7 +343,9 @@ export function ContentStudio() {
               <FileText className="w-10 h-10 text-text-muted mx-auto mb-3" />
               <p className="text-text-muted text-sm">
                 {pieces.length === 0
-                  ? 'Nenhum conteudo gerado ainda para esta campanha'
+                  ? selectedCampaign?.status === 'generating'
+                    ? 'Pipeline em execucao — conteudo sera exibido ao finalizar'
+                    : 'Nenhum conteudo gerado ainda para esta campanha'
                   : 'Nenhum resultado para os filtros selecionados'}
               </p>
             </div>
