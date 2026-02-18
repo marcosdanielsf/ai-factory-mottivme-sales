@@ -112,7 +112,7 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
     setIsOpen(false);
     setSearchTerm('');
     // Navigate back to admin dashboard
-    navigate('/admin');
+    navigate('/');
   };
 
   const isAdminView = !selectedAccount || selectedAccount.location_id === 'admin';
