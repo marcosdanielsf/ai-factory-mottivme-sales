@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Tipos para custos de cliente
@@ -84,6 +84,8 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
   const [totalRequests, setTotalRequests] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   const fetchCosts = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -285,14 +287,17 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       setTotalCost(total);
       setTotalRequests(requests);
     } catch (err: any) {
+      retryCountRef.current += 1;
       setError(err.message || 'Erro ao carregar custos');
       console.error('Error fetching costs:', err);
     } finally {
       setLoading(false);
     }
-  }, [dateRange?.startDate, dateRange?.endDate, clientName, canalFilter, workflowFilter, showInactive, inactiveDays]);
+  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), clientName, canalFilter, workflowFilter, showInactive, inactiveDays]);
 
   useEffect(() => {
+    // Evitar re-fetch infinito em caso de erro
+    if (retryCountRef.current > 2) return;
     fetchCosts();
   }, [fetchCosts]);
 

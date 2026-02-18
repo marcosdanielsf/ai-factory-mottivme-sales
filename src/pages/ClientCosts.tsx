@@ -33,15 +33,8 @@ export const ClientCosts = () => {
   const { showToast } = useToast();
   const isMobile = useIsMobile();
 
-  // Date range state - default últimos 30 dias
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-    start.setHours(0, 0, 0, 0);
-    return { startDate: start, endDate: end };
-  });
+  // Date range state - null = usa view agregada (rapido), com datas = pagina llm_costs (lento)
+  const [dateRange, setDateRange] = useState<DateRange>({ startDate: null, endDate: null });
 
   const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
 
