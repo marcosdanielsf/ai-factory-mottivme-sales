@@ -110,3 +110,56 @@ export interface PlanResults {
     cpl: number;
   }[];
 }
+
+// ============================================================================
+// ANNUAL PLAN TYPES
+// ============================================================================
+
+export interface AnnualProductRow {
+  productId: string;
+  productName: string;
+  ticket: number;
+  maxDiscount: number;
+  monthly: Record<number, { qtd: number; vendasBrl: number; receitaAcumulada: number }>;
+  totalQtd: number;
+  totalAnual: number;
+}
+
+export type CostCategory = 'marketing' | 'operacional' | 'ocupacional' | 'gestao' | 'impostos';
+
+export interface AnnualCostRow {
+  category: CostCategory;
+  label: string;
+  fixedMonthly: number | null;
+  monthly: Record<number, number>;
+  totalAnual: number;
+}
+
+export interface AnnualPlanState {
+  year: number;
+  currency: Currency;
+  productRows: AnnualProductRow[];
+  costRows: AnnualCostRow[];
+  saldoInicial: number;
+  goalId?: string;
+  isDirty: boolean;
+}
+
+export interface AnnualCashFlowRow {
+  month: number;
+  label: string;
+  totalEntradas: number;
+  totalSaidas: number;
+  resultado: number;
+  fluxoAcumulado: number;
+}
+
+export interface AnnualKPIResults {
+  contratosTotal: number;
+  ticketMedio: number;
+  faturamentoTotal: number;
+  custoTotal: number;
+  lucroLiquido: number;
+  yoyGrowthPct: number | null;
+  baseline?: { contratosTotal: number; faturamentoTotal: number };
+}

@@ -2,31 +2,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   CalendarCheck,
   RefreshCw,
-  CalendarDays,
-  CalendarRange,
-  Calendar,
-  CheckCircle,
-  MessageCircle,
-  AlertCircle,
-  UserX,
-  Users,
+  LayoutDashboard,
   Target,
+  MapPin,
+  CalendarDays,
 } from 'lucide-react';
-import { MetricCard } from '../../components/MetricCard';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  ComposedChart,
-  Line,
-  Legend,
-} from 'recharts';
 import { useAccount } from '../../contexts/AccountContext';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { useAgendamentosStats } from '../../hooks/useAgendamentosStats';
@@ -34,19 +14,29 @@ import { useCriativoPerformance } from '../../hooks/useCriativoPerformance';
 import { useLeadSegmentation } from '../../hooks/useLeadSegmentation';
 import { type AgendamentosFilters } from '../../hooks/useAgendamentos';
 import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
-import { CriativoMetricsTable } from '../../components/charts/CriativoPerformanceChart';
-import { EstadoChart, WorkPermitSummary, EstadoMetricsTable } from '../../components/charts/LeadSegmentationCharts';
-import { SalesFunnelChart } from '../../components/charts/SalesFunnelChart';
 
 import type { MetricType, OrigemType } from './types';
 import { formatDayLabel } from './helpers';
-import { DONUT_COLORS } from './constants';
 import { ResponsavelSelector } from './components/ResponsavelSelector';
 import { LeadsDrawer } from './components/LeadsDrawer';
 import { CriativoLeadsDrawer } from './components/CriativoLeadsDrawer';
-import { LeadsUtmTable } from './components/LeadsUtmTable';
+
+import { OverviewTab } from './components/tabs/OverviewTab';
+import { PerformanceTab } from './components/tabs/PerformanceTab';
+import { SegmentacaoTab } from './components/tabs/SegmentacaoTab';
+import { AgendaTab } from './components/tabs/AgendaTab';
+
+type AgendamentosTab = 'overview' | 'performance' | 'segmentacao' | 'agenda';
+
+const TABS: { id: AgendamentosTab; label: string; icon: React.FC<any> }[] = [
+  { id: 'overview', label: 'Visao Geral', icon: LayoutDashboard },
+  { id: 'performance', label: 'Performance', icon: Target },
+  { id: 'segmentacao', label: 'Segmentacao', icon: MapPin },
+  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+];
 
 export const Agendamentos: React.FC = () => {
+  const [tab, setTab] = useState<AgendamentosTab>('overview');
   const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null);
   const [selectedOrigem, setSelectedOrigem] = useState<OrigemType>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -136,7 +126,7 @@ export const Agendamentos: React.FC = () => {
       monthAgo.setDate(now.getDate() - 30);
       filters.startDate = monthAgo;
       filters.endDate = now;
-      setDrawerTitle('Agendamentos do Mês');
+      setDrawerTitle('Agendamentos do Mes');
     } else if (metric === 'comparecimento') {
       filters.status = 'completed';
       setDrawerTitle('Comparecimentos');
@@ -172,7 +162,7 @@ export const Agendamentos: React.FC = () => {
     const filters = buildFilters();
     filters.origem = origem;
     setDrawerFilters(filters);
-    setDrawerTitle(origem === 'trafego' ? '📣 Tráfego Pago' : '🤝 Social Selling');
+    setDrawerTitle(origem === 'trafego' ? 'Trafego Pago' : 'Social Selling');
     setDrawerOpen(true);
   }, [buildFilters]);
 
@@ -187,26 +177,6 @@ export const Agendamentos: React.FC = () => {
     setSelectedDay(null);
   }, []);
 
-  const donutData = useMemo(() => {
-    return porOrigem.map((item) => ({
-      name: item.origem === 'trafego' ? 'Tráfego Pago' : 'Social Selling',
-      value: item.quantidade,
-      origem: item.origem,
-    }));
-  }, [porOrigem]);
-
-  const CustomBarTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
-          <p className="font-medium text-text-primary">{formatDayLabel(label)}</p>
-          <p className="text-purple-400">{payload[0].value} agendamentos</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const dateRangeLabel = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) return '';
     return `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
@@ -214,7 +184,7 @@ export const Agendamentos: React.FC = () => {
 
   return (
     <div className="bg-bg-primary">
-      {/* INLINE HEADER */}
+      {/* Sticky Header + Tabs */}
       <div className="sticky top-0 z-20 bg-bg-primary/95 backdrop-blur border-b border-border-default">
         <div className="px-4 md:px-6 py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -247,198 +217,82 @@ export const Agendamentos: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Tab Bar */}
+        <div className="px-4 md:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                tab === t.id
+                  ? 'border-accent-primary text-accent-primary'
+                  : 'border-transparent text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              <t.icon className="w-4 h-4" />
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 md:p-6 space-y-4">
-        {/* Funil de Conversão */}
-        <SalesFunnelChart
-          data={{
-            totalLeads: criativoTotals.totalLeads,
-            totalResponderam: criativoLeads.filter((l: any) => l.etapa_funil && l.etapa_funil.toLowerCase() !== 'novo').length,
-            totalAgendaram: stats.totalAgendados,
-            totalCompareceram: stats.totalCompleted,
-            totalFecharam: criativoTotals.totalFecharam,
-          }}
-          loading={loadingCriativos || loading}
-        />
-
-        {/* ROW 1 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <MetricCard title="Total de Leads" value={criativoTotals.totalLeads.toLocaleString()} icon={Users} subtext="No período" onClick={() => handleCardClick('leads')} clickable />
-          <MetricCard title="Total Agendados" value={stats.totalAgendados.toLocaleString()} icon={CalendarCheck} subtext={`${criativoTotals.totalLeads > 0 ? Math.round((stats.totalAgendados / criativoTotals.totalLeads) * 100) : 0}% dos leads`} onClick={() => handleCardClick('mes')} clickable />
-          <MetricCard title="Compareceram" value={criativoTotals.totalCompareceram.toLocaleString()} icon={CheckCircle} subtext={`${criativoTotals.totalAgendaram > 0 ? Math.round((criativoTotals.totalCompareceram / criativoTotals.totalAgendaram) * 100) : 0}% dos agendados`} onClick={() => handleCardClick('comparecimento')} clickable />
-          <MetricCard title="Fecharam" value={criativoTotals.totalFecharam.toLocaleString()} icon={Target} subtext={`${criativoTotals.totalCompareceram > 0 ? Math.round((criativoTotals.totalFecharam / criativoTotals.totalCompareceram) * 100) : 0}% dos que compareceram`} onClick={() => handleCardClick('conversao')} clickable />
-        </div>
-
-        {/* ROW 2 */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-          <MetricCard title="Responderam" value={criativoTotals.totalResponderam} icon={MessageCircle} subtext={`${criativoTotals.totalLeads > 0 ? Math.round((criativoTotals.totalResponderam / criativoTotals.totalLeads) * 100) : 0}% dos leads`} clickable />
-          <MetricCard title={isCustomDateFilter ? "No Período" : "Hoje"} value={stats.hoje} icon={CalendarDays} onClick={() => handleCardClick('hoje')} clickable />
-          <MetricCard title={isCustomDateFilter ? "7d Período" : "Últimos 7 dias"} value={stats.semana} icon={CalendarRange} onClick={() => handleCardClick('semana')} clickable />
-          <MetricCard title={isCustomDateFilter ? "30d Período" : "Últimos 30 dias"} value={stats.mes} icon={Calendar} onClick={() => handleCardClick('mes')} clickable />
-          <MetricCard title="No-Show" value={stats.totalNoShow} icon={UserX} subtext={`${stats.taxaNoShow}% dos resolvidos`} onClick={() => handleCardClick('noshow')} clickable />
-          <MetricCard title="Aguardando" value={stats.totalBooked + stats.totalPendingFeedback} icon={AlertCircle} subtext={`${stats.totalBooked} futuros · ${stats.totalPendingFeedback} s/ feedback`} onClick={() => handleCardClick('pendentes')} clickable />
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-          {/* Agendamentos CRIADOS no dia */}
-          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary">Agendamentos Criados no Dia</h3>
-                <p className="text-[10px] text-text-muted">{dateRangeLabel}</p>
-              </div>
-              <div className="flex items-center gap-3 text-[10px]">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded bg-blue-500" />
-                  <span className="text-text-muted">Agendamentos</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-0.5 bg-emerald-400" />
-                  <span className="text-text-muted">Leads</span>
-                </div>
-              </div>
-            </div>
-            {loading ? (
-              <div className="h-72 flex items-center justify-center">
-                <RefreshCw size={20} className="animate-spin text-text-muted" />
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={porDiaCriacao} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                  <XAxis dataKey="data" tickFormatter={formatDayLabel} tick={{ fontSize: 10, fill: '#888' }} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={8} />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
-                            <p className="font-medium text-text-primary">{formatDayLabel(String(label))}</p>
-                            <p className="text-blue-400">{payload[0]?.value} agendamentos</p>
-                            <p className="text-emerald-400">{payload[1]?.value} leads</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Agendamentos" barSize={20} />
-                  <Line type="monotone" dataKey="leads" stroke="#34d399" strokeWidth={2} dot={false} name="Leads" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Donut Chart - Origem */}
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-            <h3 className="text-sm font-semibold text-text-primary mb-2">Origem dos Leads</h3>
-            {loading ? (
-              <div className="h-48 flex items-center justify-center">
-                <RefreshCw size={20} className="animate-spin text-text-muted" />
-              </div>
-            ) : donutData.every((d) => d.value === 0) ? (
-              <div className="h-48 flex flex-col items-center justify-center text-text-muted">
-                <CalendarCheck size={32} className="mb-2 opacity-50" />
-                <p className="text-xs">Sem dados de origem</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={45} outerRadius={70} paddingAngle={3} cursor="pointer" onClick={handlePieClick}>
-                    {donutData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', fontSize: '12px' }} />
-                  <Legend verticalAlign="bottom" height={28} formatter={(value) => <span className="text-text-primary text-xs">{value}</span>} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Tabela de Criativos */}
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Funil por Criativo</h3>
-          <p className="text-[10px] text-text-muted mb-3">utm_content do Meta Ads · Clique para ver os leads</p>
-          <div className="max-h-[400px] overflow-y-auto">
-            <CriativoMetricsTable data={criativos} loading={loadingCriativos} onCriativoClick={handleCriativoClick} />
-          </div>
-        </div>
-
-        {/* Tabela detalhada: Leads x UTM */}
-        <LeadsUtmTable leads={criativoLeads} loading={loadingCriativos} locationId={locationId} />
-
-        {/* Segmentação de Leads */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-          <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                  <span className="text-lg">📍</span>
-                  Leads por Estado
-                </h3>
-                <p className="text-[10px] text-text-muted">
-                  {segmentationTotals.comEstado} de {segmentationTotals.totalLeads} com estado informado
-                </p>
-              </div>
-            </div>
-            <EstadoChart data={estados} loading={loadingSegmentation} />
-          </div>
-
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-            <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-              <span className="text-lg">🛡️</span>
-              Work Permit
-            </h3>
-            <p className="text-[10px] text-text-muted mb-3">
-              {segmentationTotals.comWorkPermit} de {segmentationTotals.totalLeads} com info
-            </p>
-            <WorkPermitSummary data={workPermit} loading={loadingSegmentation} />
-          </div>
-        </div>
-
-        {/* Tabela detalhada por Estado */}
-        {estados.length > 0 && (
-          <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-            <h3 className="text-sm font-semibold text-text-primary mb-3">Funil por Estado</h3>
-            <div className="max-h-[300px] overflow-y-auto">
-              <EstadoMetricsTable data={estados} loading={loadingSegmentation} />
-            </div>
-          </div>
+      {/* Tab Content */}
+      <div className="p-4 md:p-6">
+        {tab === 'overview' && (
+          <OverviewTab
+            stats={stats}
+            criativoTotals={criativoTotals}
+            criativoLeads={criativoLeads}
+            porDia={porDia}
+            porDiaCriacao={porDiaCriacao}
+            porOrigem={porOrigem}
+            loading={loading}
+            loadingCriativos={loadingCriativos}
+            dateRangeLabel={dateRangeLabel}
+            onCardClick={handleCardClick}
+            onBarClick={handleBarClick}
+            onPieClick={handlePieClick}
+          />
         )}
 
-        {/* Agendamentos PARA o dia */}
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary">Agendamentos Para o Dia</h3>
-              <p className="text-[10px] text-text-muted">Marcados para acontecer em cada dia · {dateRangeLabel}</p>
-            </div>
-          </div>
-          {loading ? (
-            <div className="h-56 flex items-center justify-center">
-              <RefreshCw size={20} className="animate-spin text-text-muted" />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={porDia} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                <XAxis dataKey="data" tickFormatter={formatDayLabel} tick={{ fontSize: 10, fill: '#888' }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={6} />
-                <Tooltip content={<CustomBarTooltip />} />
-                <Bar dataKey="quantidade" fill="#8b5cf6" radius={[4, 4, 0, 0]} cursor="pointer" onClick={handleBarClick} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+        {tab === 'performance' && (
+          <PerformanceTab
+            stats={stats}
+            criativoTotals={criativoTotals}
+            criativos={criativos}
+            criativoLeads={criativoLeads}
+            loadingCriativos={loadingCriativos}
+            locationId={locationId}
+            onCardClick={handleCardClick}
+            onCriativoClick={handleCriativoClick}
+          />
+        )}
+
+        {tab === 'segmentacao' && (
+          <SegmentacaoTab
+            estados={estados}
+            workPermit={workPermit}
+            segmentationTotals={segmentationTotals}
+            loadingSegmentation={loadingSegmentation}
+          />
+        )}
+
+        {tab === 'agenda' && (
+          <AgendaTab
+            stats={stats}
+            porDia={porDia}
+            loading={loading}
+            isCustomDateFilter={isCustomDateFilter}
+            dateRangeLabel={dateRangeLabel}
+            onCardClick={handleCardClick}
+            onBarClick={handleBarClick}
+          />
+        )}
       </div>
 
-      {/* Leads Drawer */}
+      {/* Drawers — always mounted outside tabs */}
       <LeadsDrawer isOpen={drawerOpen} onClose={handleCloseDrawer} title={drawerTitle} filters={drawerFilters} />
-
-      {/* Criativo Leads Drawer */}
       <CriativoLeadsDrawer
         isOpen={criativoDrawerOpen}
         onClose={() => setCriativoDrawerOpen(false)}

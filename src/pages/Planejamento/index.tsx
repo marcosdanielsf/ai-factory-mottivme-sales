@@ -19,6 +19,7 @@ import { SalesStep } from './components/SalesStep';
 import { ResultsSidebar } from './components/ResultsSidebar';
 import { ExecutiveSummary } from './components/ExecutiveSummary';
 import { ProgressSection } from './components/ProgressSection';
+import { AnnualPlanTab } from './components/annual/AnnualPlanTab';
 
 export function Planejamento() {
   const { selectedAccount } = useAccount();
@@ -35,6 +36,7 @@ export function Planejamento() {
 
   const [plan, setPlan] = useState<PlanningState>(DEFAULT_STATE);
   const [showWizard, setShowWizard] = useState(false);
+  const [activeTab, setActiveTab] = useState<'mensal' | 'anual'>('mensal');
 
   const effectiveLocationId = selectedLocationId || selectedAccount?.location_id || null;
   const effectiveLocationName = useMemo(() => {
@@ -319,6 +321,29 @@ export function Planejamento() {
 
       {/* Content */}
       <div className="p-4 md:p-6 space-y-6">
+        {/* Tab Switcher */}
+        <div className="flex gap-1 bg-bg-primary rounded-lg border border-border-default p-0.5 w-fit">
+          <button
+            onClick={() => setActiveTab('mensal')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              activeTab === 'mensal' ? 'bg-blue-500 text-white' : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            Mensal
+          </button>
+          <button
+            onClick={() => setActiveTab('anual')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              activeTab === 'anual' ? 'bg-blue-500 text-white' : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            Plano Anual
+          </button>
+        </div>
+
+        {activeTab === 'anual' ? (
+          <AnnualPlanTab locationId={effectiveLocationId} currency={plan.currency} />
+        ) : (<>
         {/* Wizard Toggle */}
         <div className="bg-bg-secondary rounded-xl border border-border-default overflow-hidden">
           <button
@@ -447,6 +472,7 @@ export function Planejamento() {
             showWizard={showWizard}
           />
         )}
+        </>)}
       </div>
     </div>
   );

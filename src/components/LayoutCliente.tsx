@@ -8,13 +8,15 @@ import {
   Menu,
   X,
   Shield,
-  ChevronRight
+  ChevronRight,
+  Megaphone,
+  Calculator,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
-import { usePermissions } from '../hooks/usePermissions';
+import { usePermissions, type Permissions } from '../hooks/usePermissions';
 import { useBrandConfig } from '../hooks/useBrandConfig';
 import AISupportWidget from './AISupportWidget';
 
@@ -22,9 +24,11 @@ interface LayoutClienteProps {
   children: React.ReactNode;
 }
 
-const ALL_CLIENT_NAV_ITEMS = [
-  { path: '/agendamentos', label: 'Agendamentos', icon: Calendar, permission: 'canAccessAgendamentos' as const },
-  { path: '/status', label: 'Central de Status', icon: CheckCircle2, permission: 'canAccessStatusCenter' as const },
+const ALL_CLIENT_NAV_ITEMS: { path: string; label: string; icon: React.FC<any>; permission: keyof Permissions }[] = [
+  { path: '/agendamentos', label: 'Agendamentos', icon: Calendar, permission: 'canAccessAgendamentos' },
+  { path: '/status', label: 'Central de Status', icon: CheckCircle2, permission: 'canAccessStatusCenter' },
+  { path: '/social-selling', label: 'Social Selling', icon: Megaphone, permission: 'canAccessSocialSelling' },
+  { path: '/planejamento', label: 'Planejamento', icon: Calculator, permission: 'canAccessPlanejamento' },
 ];
 
 export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
@@ -122,7 +126,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1">
           <p className="px-3 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider">
-            Sales OS
+            Operacoes
           </p>
           {navItems.map((item) => (
             <NavLink

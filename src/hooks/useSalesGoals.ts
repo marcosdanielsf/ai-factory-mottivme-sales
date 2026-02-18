@@ -175,12 +175,13 @@ export const useSalesGoals = (locationId?: string | null) => {
   const createGoal = useCallback(async (input: CreateGoalInput) => {
     if (!isSupabaseConfigured()) throw new Error('Supabase nao configurado');
 
-    // Deactivate existing goals for this period
+    // Deactivate existing goals for this period (filtered by period_type to avoid cross-deactivation)
     const { error: deactivateErr } = await supabase
       .from('sales_goals')
       .update({ is_active: false })
       .eq('location_id', input.location_id)
       .eq('is_active', true)
+      .eq('period_type', input.period_type)
       .gte('period_end', input.period_start)
       .lte('period_start', input.period_end);
 
