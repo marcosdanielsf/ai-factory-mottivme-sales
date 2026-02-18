@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, X, Check, Building2, Crown, ArrowLeft } from 'lucide-react';
 
@@ -100,11 +101,13 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
   }, [isOpen]);
 
   const handleSelect = (location: Location) => {
-    onSelectAccount(location);
+    // flushSync forces React to commit state synchronously before navigate
+    flushSync(() => {
+      onSelectAccount(location);
+    });
     setIsOpen(false);
     setSearchTerm('');
-    // Navigate after state commits to ensure ConditionalLayout reads updated context
-    requestAnimationFrame(() => navigate('/agendamentos'));
+    navigate('/agendamentos');
   };
 
   const handleBackToAdmin = () => {
