@@ -73,7 +73,7 @@ export function useBrandAssets(
           const urlPromises = batch.map(async (asset: BrandAsset) => {
             const { data: urlData } = await supabase
               .storage
-              .from('brand-assets')
+              .from('brandpacks')
               .createSignedUrl(asset.storage_path, 3600); // 1h expiry
 
             return {

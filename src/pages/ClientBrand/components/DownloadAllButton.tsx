@@ -46,7 +46,7 @@ export const DownloadAllButton: React.FC<DownloadAllButtonProps> = ({ brand }) =
           try {
             const { data: urlData } = await supabase
               .storage
-              .from('brand-assets')
+              .from('brandpacks')
               .createSignedUrl(asset.storage_path, 600);
 
             if (!urlData?.signedUrl) return;
