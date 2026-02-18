@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -56,25 +56,34 @@ export function useAiosSquads(): UseAiosSquadsReturn {
   const [data, setData] = useState<AiosSquad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchSquads = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const { data: result, error: fetchError } = await supabase
-      .from('aios_squads')
-      .select('*, aios_squad_members(*, aios_agents(id, name, status, persona))');
+    try {
+      const { data: result, error: fetchError } = await supabase
+        .from('aios_squads')
+        .select('*, aios_squad_members(*, aios_agents(id, name, status, persona))');
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData((result ?? []) as AiosSquad[]);
+      if (fetchError) {
+        console.warn('[useAiosSquads] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData((result ?? []) as AiosSquad[]);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosSquads] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchSquads();
   }, [fetchSquads]);
 

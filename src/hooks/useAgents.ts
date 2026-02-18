@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Agent } from '../types';
 
@@ -6,6 +6,7 @@ export const useAgents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -94,6 +95,8 @@ export const useAgents = () => {
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchAgents();
   }, [fetchAgents]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -33,35 +33,46 @@ export function useAiosAgentExecutions(
   const [data, setData] = useState<AiosAgentExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchExecutions = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('aios_agent_executions')
-      .select('*')
-      .order('started_at', { ascending: false })
-      .limit(limit);
+    try {
+      let query = supabase
+        .from('aios_agent_executions')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(limit);
 
-    if (agentId) {
-      query = query.eq('agent_id', agentId);
+      if (agentId) {
+        query = query.eq('agent_id', agentId);
+      }
+
+      const { data: result, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.warn('[useAiosAgentExecutions] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosAgentExecutions] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: result, error: fetchError } = await query;
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
-    }
-
-    setLoading(false);
   }, [agentId, limit]);
 
   useEffect(() => {
+    if (!agentId) {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+    }
     fetchExecutions();
-  }, [fetchExecutions]);
+  }, [fetchExecutions, agentId]);
 
   return { data, loading, error, refetch: fetchExecutions };
 }

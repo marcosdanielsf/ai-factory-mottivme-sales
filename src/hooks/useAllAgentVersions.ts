@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 // ============================================================================
@@ -41,6 +41,7 @@ export const useAllAgentVersions = () => {
     error: null,
     updating: null
   });
+  const fetchedRef = useRef(false);
 
   const fetchVersions = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -117,6 +118,8 @@ export const useAllAgentVersions = () => {
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchVersions();
   }, [fetchVersions]);
 

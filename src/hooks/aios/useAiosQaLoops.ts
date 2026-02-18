@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -45,6 +45,7 @@ export function useAiosQaLoops(
   const [rawExecutions, setRawExecutions] = useState<AiosAgentExecution[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevStoryIdRef = useRef<string | undefined>(undefined);
 
   const fetchExecutions = useCallback(async () => {
     if (!storyId) {
@@ -55,24 +56,33 @@ export function useAiosQaLoops(
     setLoading(true);
     setError(null);
 
-    const { data: result, error: fetchError } = await supabase
-      .from('aios_agent_executions')
-      .select('*')
-      .eq('story_id', storyId)
-      .order('started_at');
+    try {
+      const { data: result, error: fetchError } = await supabase
+        .from('aios_agent_executions')
+        .select('*')
+        .eq('story_id', storyId)
+        .order('started_at');
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setRawExecutions(result ?? []);
+      if (fetchError) {
+        console.warn('[useAiosQaLoops] Tabela indisponivel:', fetchError.message);
+        setRawExecutions([]);
+      } else {
+        setRawExecutions(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosQaLoops] Erro:', err);
+      setRawExecutions([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [storyId]);
 
   useEffect(() => {
+    // Executar apenas quando storyId realmente mudar
+    if (storyId === prevStoryIdRef.current) return;
+    prevStoryIdRef.current = storyId;
     fetchExecutions();
-  }, [fetchExecutions]);
+  }, [fetchExecutions, storyId]);
 
   const qaLoops = buildQaLoops(rawExecutions);
 

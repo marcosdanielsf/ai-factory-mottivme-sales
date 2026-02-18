@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -40,26 +40,35 @@ export function useAiosCostBudgets(): UseAiosCostBudgetsReturn {
   const [data, setData] = useState<AiosCostBudget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchBudgets = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const { data: result, error: fetchError } = await supabase
-      .from('aios_cost_budgets')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data: result, error: fetchError } = await supabase
+        .from('aios_cost_budgets')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
+      if (fetchError) {
+        console.warn('[useAiosCostBudgets] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosCostBudgets] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchBudgets();
   }, [fetchBudgets]);
 

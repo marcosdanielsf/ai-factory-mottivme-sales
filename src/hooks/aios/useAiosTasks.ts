@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -40,42 +40,57 @@ export function useAiosTasks(
   const [data, setData] = useState<AiosTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
+
+  const storyId = filters?.story_id;
+  const phaseId = filters?.phase_id;
+  const statusFilter = filters?.status;
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('aios_tasks')
-      .select('*')
-      .order('created_at');
+    try {
+      let query = supabase
+        .from('aios_tasks')
+        .select('*')
+        .order('created_at');
 
-    if (filters?.story_id) {
-      query = query.eq('story_id', filters.story_id);
+      if (storyId) {
+        query = query.eq('story_id', storyId);
+      }
+
+      if (phaseId) {
+        query = query.eq('phase_id', phaseId);
+      }
+
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data: result, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.warn('[useAiosTasks] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosTasks] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    if (filters?.phase_id) {
-      query = query.eq('phase_id', filters.phase_id);
-    }
-
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-
-    const { data: result, error: fetchError } = await query;
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
-    }
-
-    setLoading(false);
-  }, [filters?.story_id, filters?.phase_id, filters?.status]);
+  }, [storyId, phaseId, statusFilter]);
 
   useEffect(() => {
+    if (!storyId && !phaseId && !statusFilter) {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+    }
     fetchTasks();
-  }, [fetchTasks]);
+  }, [fetchTasks, storyId, phaseId, statusFilter]);
 
   const createTask = useCallback(async (input: CreateTaskInput): Promise<AiosTask | null> => {
     const { data: result, error: createError } = await supabase

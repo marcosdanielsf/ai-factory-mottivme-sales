@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   LineChart,
@@ -136,6 +136,7 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
     pessoas: true,
     media: true
   })
+  const fetchedRef = useRef(false)
 
   const fetchEvolutionData = useCallback(async () => {
     try {
@@ -154,7 +155,13 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
 
       const { data: logs, error: fetchError } = await query
 
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        // Tabela pode nao existir — graceful fallback
+        console.warn('[AgentEvolutionChart] Tabela indisponivel:', fetchError.message)
+        setData([])
+        setError(null)
+        return
+      }
 
       const formattedData: EvolutionData[] = (logs || []).map((log) => ({
         date: log.execution_date,
@@ -182,8 +189,12 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
   }, [locationId, limit])
 
   useEffect(() => {
+    if (!locationId) {
+      if (fetchedRef.current) return
+      fetchedRef.current = true
+    }
     fetchEvolutionData()
-  }, [fetchEvolutionData])
+  }, [fetchEvolutionData, locationId])
 
   const toggleLine = (key: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({ ...prev, [key]: !prev[key] }))

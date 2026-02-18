@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { AiosExpert } from '../../types/aios';
 
@@ -32,28 +32,36 @@ export function useAiosExperts(): UseAiosExpertsReturn {
   const [data, setData] = useState<AiosExpert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchExperts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const { data: result, error: fetchError } = await supabase
-      .from('aios_expert_clones')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
+    try {
+      const { data: result, error: fetchError } = await supabase
+        .from('aios_expert_clones')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
 
-    if (fetchError) {
-      setError(fetchError.message);
+      if (fetchError) {
+        console.warn('[useAiosExperts] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(mapRows(result ?? []));
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosExperts] Erro:', err);
       setData([]);
-    } else {
-      setData(mapRows(result ?? []));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchExperts();
   }, [fetchExperts]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -26,6 +26,7 @@ export function useAiosStoryPhases(
   const [data, setData] = useState<AiosStoryPhase[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevStoryIdRef = useRef<string | undefined>(undefined);
 
   const fetchPhases = useCallback(async () => {
     if (!storyId) {
@@ -36,24 +37,32 @@ export function useAiosStoryPhases(
     setLoading(true);
     setError(null);
 
-    const { data: result, error: fetchError } = await supabase
-      .from('aios_story_phases')
-      .select('*')
-      .eq('story_id', storyId)
-      .order('phase_order');
+    try {
+      const { data: result, error: fetchError } = await supabase
+        .from('aios_story_phases')
+        .select('*')
+        .eq('story_id', storyId)
+        .order('phase_order');
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
+      if (fetchError) {
+        console.warn('[useAiosStoryPhases] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosStoryPhases] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [storyId]);
 
   useEffect(() => {
+    if (storyId === prevStoryIdRef.current) return;
+    prevStoryIdRef.current = storyId;
     fetchPhases();
-  }, [fetchPhases]);
+  }, [fetchPhases, storyId]);
 
   return { data, loading, error, refetch: fetchPhases };
 }

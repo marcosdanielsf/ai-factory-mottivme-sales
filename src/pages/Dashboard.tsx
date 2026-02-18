@@ -61,7 +61,7 @@ const ChartPlaceholder = ({ title, loading, error, empty, children, height = "h-
           <p className="text-xs text-text-muted max-w-[200px]">Os dados aparecerão aqui assim que as primeiras operações forem realizadas.</p>
         </div>
       ) : null}
-      <div className={`h-full w-full ${(loading || error || empty) ? 'opacity-20 blur-[2px]' : ''}`}>
+      <div className={`flex-1 min-h-0 w-full ${(loading || error || empty) ? 'opacity-20 blur-[2px]' : ''}`}>
         {children}
       </div>
     </div>

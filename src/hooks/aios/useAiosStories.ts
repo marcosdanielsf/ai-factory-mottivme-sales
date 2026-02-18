@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Types from ../../types/aios
@@ -50,38 +50,52 @@ export function useAiosStories(
   const [data, setData] = useState<AiosStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
+
+  const statusFilter = filters?.status;
+  const squadFilter = filters?.squad_id;
 
   const fetchStories = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('aios_stories')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('aios_stories')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+
+      if (squadFilter) {
+        query = query.eq('squad_id', squadFilter);
+      }
+
+      const { data: result, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.warn('[useAiosStories] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosStories] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    if (filters?.squad_id) {
-      query = query.eq('squad_id', filters.squad_id);
-    }
-
-    const { data: result, error: fetchError } = await query;
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
-    }
-
-    setLoading(false);
-  }, [filters?.status, filters?.squad_id]);
+  }, [statusFilter, squadFilter]);
 
   useEffect(() => {
+    if (!statusFilter && !squadFilter) {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+    }
     fetchStories();
-  }, [fetchStories]);
+  }, [fetchStories, statusFilter, squadFilter]);
 
   const createStory = useCallback(async (input: CreateStoryInput): Promise<AiosStory | null> => {
     const { data: result, error: createError } = await supabase

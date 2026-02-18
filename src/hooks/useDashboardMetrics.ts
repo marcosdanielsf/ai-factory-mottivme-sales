@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface DashboardMetricsState {
@@ -25,6 +25,7 @@ export const useDashboardMetrics = () => {
     loading: true,
     error: null
   });
+  const fetchedRef = useRef(false);
 
   const fetchMetrics = useCallback(async () => {
     try {
@@ -120,6 +121,8 @@ export const useDashboardMetrics = () => {
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchMetrics();
   }, [fetchMetrics]);
 

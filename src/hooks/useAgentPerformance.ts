@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentPerformanceSummary } from '../types';
 
@@ -6,6 +6,7 @@ export const useAgentPerformance = () => {
   const [performance, setPerformance] = useState<AgentPerformanceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchPerformance = useCallback(async () => {
     try {
@@ -64,6 +65,8 @@ export const useAgentPerformance = () => {
   }, []);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchPerformance();
   }, [fetchPerformance]);
 

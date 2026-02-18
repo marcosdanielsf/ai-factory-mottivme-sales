@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // Tipos locais para a visao task-centric
@@ -91,9 +91,11 @@ export function useAiosTasksExpanded(filters: UseAiosTasksExpandedFilters = {}) 
   const [rawTasks, setRawTasks] = useState<AiosTaskExpanded[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const period = filters.period ?? '30d';
-  const dateFrom = getDateFrom(period);
+  // Memoizar dateFrom para evitar recalculo a cada render (getDateFrom usa new Date())
+  const dateFrom = useMemo(() => getDateFrom(period), [period]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -198,8 +200,12 @@ export function useAiosTasksExpanded(filters: UseAiosTasksExpandedFilters = {}) 
   }, [dateFrom, filters.agent_id, filters.squad_id, filters.executor_type, filters.status]);
 
   useEffect(() => {
+    if (!filters.agent_id && !filters.squad_id && !filters.executor_type && !filters.status) {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, filters.agent_id, filters.squad_id, filters.executor_type, filters.status]);
 
   // KPIs derivados
   const kpis = useMemo(() => {

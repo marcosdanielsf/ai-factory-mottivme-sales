@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { AiosContextHealth, AiosContextEntityType } from '../../types/aios';
 
@@ -19,44 +19,55 @@ export function useAiosContextHealth(
   const [data, setData] = useState<AiosContextHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   const fetchHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('aios_context_health')
-      .select('*')
-      .order('health_score', { ascending: true });
+    try {
+      let query = supabase
+        .from('aios_context_health')
+        .select('*')
+        .order('health_score', { ascending: true });
 
-    if (filterType && filterType !== 'all') {
-      query = query.eq('entity_type', filterType);
-    }
-
-    if (filterHealth && filterHealth !== 'all') {
-      if (filterHealth === 'saudavel') {
-        query = query.gte('health_score', 80);
-      } else if (filterHealth === 'atencao') {
-        query = query.gte('health_score', 50).lt('health_score', 80);
-      } else if (filterHealth === 'critico') {
-        query = query.lt('health_score', 50);
+      if (filterType && filterType !== 'all') {
+        query = query.eq('entity_type', filterType);
       }
+
+      if (filterHealth && filterHealth !== 'all') {
+        if (filterHealth === 'saudavel') {
+          query = query.gte('health_score', 80);
+        } else if (filterHealth === 'atencao') {
+          query = query.gte('health_score', 50).lt('health_score', 80);
+        } else if (filterHealth === 'critico') {
+          query = query.lt('health_score', 50);
+        }
+      }
+
+      const { data: result, error: fetchError } = await query;
+
+      if (fetchError) {
+        console.warn('[useAiosContextHealth] Tabela indisponivel:', fetchError.message);
+        setData([]);
+      } else {
+        setData(result ?? []);
+      }
+    } catch (err: unknown) {
+      console.error('[useAiosContextHealth] Erro:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: result, error: fetchError } = await query;
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setData(result ?? []);
-    }
-
-    setLoading(false);
   }, [filterType, filterHealth]);
 
   useEffect(() => {
+    if (!filterType && !filterHealth) {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+    }
     fetchHealth();
-  }, [fetchHealth]);
+  }, [fetchHealth, filterType, filterHealth]);
 
   // refreshHealth: recalcula scores baseado em dados reais (ex: age of last_updated_at)
   const refreshHealth = useCallback(async () => {
