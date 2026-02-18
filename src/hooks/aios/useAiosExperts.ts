@@ -2,11 +2,30 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { AiosExpert } from '../../types/aios';
 
+interface CreateExpertPayload {
+  name: string;
+  expertise: string;
+  bio?: string | null;
+  avatar_url?: string | null;
+  squad_id?: string | null;
+  voice_type?: string | null;
+  frameworks?: AiosExpert['frameworks'];
+  swipe_files?: AiosExpert['swipe_files'];
+  checklists?: AiosExpert['checklists'];
+}
+
+interface UpdateExpertPayload extends Partial<CreateExpertPayload> {
+  is_active?: boolean;
+}
+
 interface UseAiosExpertsReturn {
   data: AiosExpert[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  addExpert: (payload: CreateExpertPayload) => Promise<AiosExpert | null>;
+  updateExpert: (id: string, payload: UpdateExpertPayload) => Promise<boolean>;
+  deleteExpert: (id: string) => Promise<boolean>;
 }
 
 export function useAiosExperts(): UseAiosExpertsReturn {
@@ -19,17 +38,16 @@ export function useAiosExperts(): UseAiosExpertsReturn {
     setError(null);
 
     const { data: result, error: fetchError } = await supabase
-      .from('aios_experts')
+      .from('aios_expert_clones')
       .select('*')
       .eq('is_active', true)
       .order('name');
 
     if (fetchError) {
       setError(fetchError.message);
-      // Return mock data so UI renders even without the table
-      setData(MOCK_EXPERTS);
+      setData([]);
     } else {
-      setData(result ?? []);
+      setData(mapRows(result ?? []));
     }
 
     setLoading(false);
@@ -39,117 +57,85 @@ export function useAiosExperts(): UseAiosExpertsReturn {
     fetchExperts();
   }, [fetchExperts]);
 
-  return { data, loading, error, refetch: fetchExperts };
+  const addExpert = useCallback(async (payload: CreateExpertPayload): Promise<AiosExpert | null> => {
+    const { data: inserted, error: insertError } = await supabase
+      .from('aios_expert_clones')
+      .insert({
+        name: payload.name,
+        expertise: payload.expertise,
+        bio: payload.bio ?? null,
+        avatar_url: payload.avatar_url ?? null,
+        squad_id: payload.squad_id ?? null,
+        voice_type: payload.voice_type ?? null,
+        frameworks: payload.frameworks ?? [],
+        swipe_files: payload.swipe_files ?? [],
+        checklists: payload.checklists ?? [],
+        is_active: true,
+        total_tasks_executed: 0,
+      })
+      .select('*')
+      .single();
+
+    if (insertError || !inserted) return null;
+
+    const mapped = mapRow(inserted);
+    setData((prev) => [...prev, mapped].sort((a, b) => a.name.localeCompare(b.name)));
+    return mapped;
+  }, []);
+
+  const updateExpert = useCallback(async (id: string, payload: UpdateExpertPayload): Promise<boolean> => {
+    const { error: updateError } = await supabase
+      .from('aios_expert_clones')
+      .update({ ...payload, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (updateError) return false;
+
+    setData((prev) =>
+      prev
+        .map((e) => (e.id === id ? { ...e, ...payload } as AiosExpert : e))
+        .filter((e) => e.is_active !== false)
+    );
+    return true;
+  }, []);
+
+  const deleteExpert = useCallback(async (id: string): Promise<boolean> => {
+    const { error: deleteError } = await supabase
+      .from('aios_expert_clones')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (deleteError) return false;
+
+    setData((prev) => prev.filter((e) => e.id !== id));
+    return true;
+  }, []);
+
+  return { data, loading, error, refetch: fetchExperts, addExpert, updateExpert, deleteExpert };
 }
 
-// Mock data para desenvolvimento (tabela pode não existir ainda)
-const MOCK_EXPERTS: AiosExpert[] = [
-  {
-    id: 'expert-001',
-    name: 'Copywriter Persuasivo',
-    avatar_url: null,
-    bio: 'Expert em copywriting de alta conversão, especializado em gatilhos mentais, headlines poderosas e calls-to-action irresistíveis.',
-    expertise: 'Copywriting & Persuasão',
-    squad_id: null,
-    frameworks: [
-      {
-        id: 'fw-001',
-        name: 'AIDA Framework',
-        description: 'Atenção → Interesse → Desejo → Ação',
-        steps: ['Capturar Atenção', 'Gerar Interesse', 'Criar Desejo', 'Chamar para Ação'],
-        use_cases: ['Landing pages', 'Emails de vendas', 'Anúncios'],
-      },
-      {
-        id: 'fw-002',
-        name: 'PAS Framework',
-        description: 'Problema → Agitação → Solução',
-        steps: ['Identificar o Problema', 'Agitar a Dor', 'Apresentar a Solução'],
-        use_cases: ['Emails frios', 'Posts Instagram', 'VSLs'],
-      },
-    ],
-    swipe_files: [
-      {
-        id: 'sf-001',
-        title: 'Headlines de Alta Conversão',
-        content: '7 Segredos que [Profissional] não quer que você saiba...',
-        category: 'Headlines',
-        tags: ['headline', 'curiosidade', 'segredo'],
-      },
-    ],
-    checklists: [
-      {
-        id: 'cl-001',
-        title: 'Checklist de Copy para Landing Page',
-        category: 'Landing Page',
-        items: [
-          { id: 'item-001', label: 'Headline clara e com benefício', required: true },
-          { id: 'item-002', label: 'Prova social acima da dobra', required: true },
-          { id: 'item-003', label: 'CTA com verbo de ação', required: true },
-          { id: 'item-004', label: 'Urgência ou escassez', required: false },
-        ],
-      },
-    ],
-    total_tasks_executed: 142,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'expert-002',
-    name: 'SDR Master',
-    avatar_url: null,
-    bio: 'Especialista em prospecção outbound, qualificação BANT e abertura de conversas que convertem.',
-    expertise: 'Vendas & Qualificação',
-    squad_id: null,
-    frameworks: [
-      {
-        id: 'fw-003',
-        name: 'BANT Qualification',
-        description: 'Budget → Authority → Need → Timeline',
-        steps: ['Validar Budget', 'Identificar Autoridade', 'Confirmar Necessidade', 'Definir Timeline'],
-        use_cases: ['Cold call', 'DM Instagram', 'WhatsApp'],
-      },
-    ],
-    swipe_files: [],
-    checklists: [
-      {
-        id: 'cl-002',
-        title: 'Checklist de Qualificação SDR',
-        category: 'Qualificação',
-        items: [
-          { id: 'item-005', label: 'Confirmar orçamento disponível', required: true },
-          { id: 'item-006', label: 'Identificar tomador de decisão', required: true },
-          { id: 'item-007', label: 'Validar dor real', required: true },
-          { id: 'item-008', label: 'Definir prazo para decisão', required: false },
-        ],
-      },
-    ],
-    total_tasks_executed: 89,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'expert-003',
-    name: 'Estrategista de Conteúdo',
-    avatar_url: null,
-    bio: 'Expert em estratégia de conteúdo, distribuição cross-platform e criação de autoridade para CEOs e founders.',
-    expertise: 'Content Strategy',
-    squad_id: null,
-    frameworks: [
-      {
-        id: 'fw-004',
-        name: 'Content Pillar System',
-        description: 'Estrutura de conteúdo em pilares temáticos',
-        steps: ['Definir 3-5 pilares', 'Criar conteúdo raiz', 'Atomizar em formatos', 'Distribuir e repurpose'],
-        use_cases: ['LinkedIn', 'Instagram', 'Newsletter'],
-      },
-    ],
-    swipe_files: [],
-    checklists: [],
-    total_tasks_executed: 203,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+// =====================================================
+// Row mappers — aios_expert_clones → AiosExpert
+// =====================================================
+
+function mapRow(row: Record<string, any>): AiosExpert {
+  return {
+    id: row.id,
+    name: row.name ?? '',
+    avatar_url: row.avatar_url ?? null,
+    bio: row.bio ?? null,
+    expertise: row.expertise ?? '',
+    squad_id: row.squad_id ?? null,
+    frameworks: Array.isArray(row.frameworks) ? row.frameworks : [],
+    swipe_files: Array.isArray(row.swipe_files) ? row.swipe_files : [],
+    checklists: Array.isArray(row.checklists) ? row.checklists : [],
+    total_tasks_executed: row.total_tasks_executed ?? 0,
+    is_active: row.is_active ?? true,
+    created_at: row.created_at ?? new Date().toISOString(),
+    updated_at: row.updated_at ?? new Date().toISOString(),
+  };
+}
+
+function mapRows(rows: Record<string, any>[]): AiosExpert[] {
+  return rows.map(mapRow);
+}

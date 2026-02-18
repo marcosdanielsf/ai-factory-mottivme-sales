@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { RefreshCw, Download, ClipboardList } from 'lucide-react';
 import { useAiosTasksExpanded } from '../../hooks/aios/useAiosTasksExpanded';
 import { useAiosAgents } from '../../hooks/aios/useAiosAgents';
 import { useAiosSquads } from '../../hooks/aios/useAiosSquads';
@@ -13,6 +13,46 @@ type PeriodOption = '7d' | '30d' | '90d';
 type ExecutorFilter = 'all' | 'agent' | 'worker' | 'clone' | 'human';
 type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
 type ActiveSection = 'overview' | 'decision';
+
+const EXECUTOR_LABELS: Record<string, string> = {
+  agent: 'Agent',
+  worker: 'Worker',
+  clone: 'Clone',
+  human: 'Humano',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendente',
+  in_progress: 'Em andamento',
+  completed: 'Concluida',
+  failed: 'Falhou',
+  skipped: 'Pulada',
+};
+
+function exportToCSV(tasks: ReturnType<typeof useAiosTasksExpanded>['tasks'], filename: string) {
+  const headers = ['Titulo', 'Story', 'Squad', 'Agente', 'Tipo', 'Status', 'Duracao (s)', 'Custo (USD)', 'Criada em', 'Concluida em'];
+  const rows = tasks.map((t) => [
+    `"${t.title.replace(/"/g, '""')}"`,
+    `"${(t.story_title ?? '').replace(/"/g, '""')}"`,
+    `"${(t.squad_name ?? '').replace(/"/g, '""')}"`,
+    `"${(t.agent_name ?? '').replace(/"/g, '""')}"`,
+    EXECUTOR_LABELS[t.executor_type] ?? t.executor_type,
+    STATUS_LABELS[t.status] ?? t.status,
+    t.duration_ms !== null ? (t.duration_ms / 1000).toFixed(1) : '',
+    t.cost.toFixed(6),
+    new Date(t.created_at).toLocaleString('pt-BR'),
+    t.completed_at ? new Date(t.completed_at).toLocaleString('pt-BR') : '',
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export function AiosTasks() {
   const [period, setPeriod] = useState<PeriodOption>('30d');
@@ -43,6 +83,11 @@ export function AiosTasks() {
   const { data: squads } = useAiosSquads();
 
   const filteredTasks = useMemo(() => tasks, [tasks]);
+
+  const handleExportCSV = useCallback(() => {
+    const now = new Date().toISOString().slice(0, 10);
+    exportToCSV(filteredTasks, `aios-tasks-${now}.csv`);
+  }, [filteredTasks]);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -79,6 +124,17 @@ export function AiosTasks() {
               Decision Tree
             </button>
           </div>
+
+          {filteredTasks.length > 0 && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-secondary border border-border-default rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
+              title="Exportar CSV"
+            >
+              <Download size={14} />
+              CSV
+            </button>
+          )}
 
           <button
             onClick={refetch}
@@ -184,14 +240,42 @@ export function AiosTasks() {
             loading={loading}
           />
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <TaskTimelineChart data={timeline} loading={loading} />
-            <TaskExecutorPieChart data={executorDistribution} loading={loading} />
-          </div>
+          {/* Empty state — so aparece quando nao esta loading e nao tem tasks */}
+          {!loading && filteredTasks.length === 0 && !error && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-bg-secondary border border-border-default flex items-center justify-center">
+                <ClipboardList size={28} className="text-text-muted" />
+              </div>
+              <div className="text-center">
+                <p className="text-text-primary font-medium">Nenhuma task executada ainda</p>
+                <p className="text-text-muted text-sm mt-1 max-w-sm">
+                  As tasks aparecem aqui quando agentes, workers ou humanos executam acoes dentro de stories.
+                  Ajuste os filtros ou aguarde a primeira execucao.
+                </p>
+              </div>
+              <button
+                onClick={refetch}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors"
+              >
+                <RefreshCw size={14} />
+                Verificar novamente
+              </button>
+            </div>
+          )}
 
-          {/* Tabela */}
-          <TaskTable data={filteredTasks} loading={loading} pageSize={25} />
+          {/* Charts e tabela — so aparece quando ha dados */}
+          {(loading || filteredTasks.length > 0) && (
+            <>
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <TaskTimelineChart data={timeline} loading={loading} />
+                <TaskExecutorPieChart data={executorDistribution} loading={loading} />
+              </div>
+
+              {/* Tabela */}
+              <TaskTable data={filteredTasks} loading={loading} pageSize={25} />
+            </>
+          )}
         </>
       ) : (
         <DecisionTreeViewer suggestions={conversionSuggestions} />

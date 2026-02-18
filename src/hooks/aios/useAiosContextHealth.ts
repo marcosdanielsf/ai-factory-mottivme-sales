@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '../../lib/supabase';
 import { AiosContextHealth, AiosContextEntityType } from '../../types/aios';
 
 interface UseAiosContextHealthReturn {
@@ -6,105 +7,144 @@ interface UseAiosContextHealthReturn {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  refreshHealth: () => Promise<void>;
+  updateHealthScore: (id: string, score: number, notes?: string) => Promise<boolean>;
+  criticalCount: number;
 }
 
-// Mock data — substituir por query Supabase quando tabela existir
-const MOCK_HEALTH_DATA: AiosContextHealth[] = [
-  {
-    id: 'ch-001',
-    entity_type: 'agent',
-    entity_id: 'agent-001',
-    entity_name: 'Diana SDR',
-    health_score: 92,
-    alerts: [],
-    last_updated_at: new Date(Date.now() - 5 * 60000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ch-002',
-    entity_type: 'agent',
-    entity_id: 'agent-002',
-    entity_name: 'Isabella MOTTIVME',
-    health_score: 61,
-    alerts: [
-      { level: 'warning', message: 'System prompt desatualizado há 7 dias', field: 'system_prompt' },
-    ],
-    last_updated_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ch-003',
-    entity_type: 'clone',
-    entity_id: 'clone-001',
-    entity_name: 'Clone Marcos Social',
-    health_score: 78,
-    alerts: [
-      { level: 'info', message: 'Novos swipe files disponíveis para adicionar', field: 'swipe_files' },
-    ],
-    last_updated_at: new Date(Date.now() - 30 * 60000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ch-004',
-    entity_type: 'squad',
-    entity_id: 'squad-001',
-    entity_name: 'Squad Assembly Line',
-    health_score: 85,
-    alerts: [],
-    last_updated_at: new Date(Date.now() - 10 * 60000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ch-005',
-    entity_type: 'project',
-    entity_id: 'project-001',
-    entity_name: 'AIOS Dashboard SaaS',
-    health_score: 44,
-    alerts: [
-      { level: 'error', message: 'Schema SQL pendente de aplicação', field: 'database' },
-      { level: 'warning', message: 'Sem seed data configurado', field: 'data' },
-    ],
-    last_updated_at: new Date(Date.now() - 24 * 3600000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ch-006',
-    entity_type: 'agent',
-    entity_id: 'agent-003',
-    entity_name: 'Fernanda Lappe',
-    health_score: 88,
-    alerts: [],
-    last_updated_at: new Date(Date.now() - 15 * 60000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-];
-
 export function useAiosContextHealth(
-  filterType?: AiosContextEntityType | 'all'
+  filterType?: AiosContextEntityType | 'all',
+  filterHealth?: 'all' | 'saudavel' | 'atencao' | 'critico'
 ): UseAiosContextHealthReturn {
   const [data, setData] = useState<AiosContextHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
+  const fetchHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    // Simular delay de API
-    await new Promise((r) => setTimeout(r, 400));
+    let query = supabase
+      .from('aios_context_health')
+      .select('*')
+      .order('health_score', { ascending: true });
 
-    let result = MOCK_HEALTH_DATA;
     if (filterType && filterType !== 'all') {
-      result = result.filter((h) => h.entity_type === filterType);
+      query = query.eq('entity_type', filterType);
     }
 
-    setData(result);
+    if (filterHealth && filterHealth !== 'all') {
+      if (filterHealth === 'saudavel') {
+        query = query.gte('health_score', 80);
+      } else if (filterHealth === 'atencao') {
+        query = query.gte('health_score', 50).lt('health_score', 80);
+      } else if (filterHealth === 'critico') {
+        query = query.lt('health_score', 50);
+      }
+    }
+
+    const { data: result, error: fetchError } = await query;
+
+    if (fetchError) {
+      setError(fetchError.message);
+    } else {
+      setData(result ?? []);
+    }
+
     setLoading(false);
-  }, [filterType]);
+  }, [filterType, filterHealth]);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    fetchHealth();
+  }, [fetchHealth]);
 
-  return { data, loading, error, refetch: fetch };
+  // refreshHealth: recalcula scores baseado em dados reais (ex: age of last_updated_at)
+  const refreshHealth = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    // Busca todos os registros para recalcular
+    const { data: all, error: fetchError } = await supabase
+      .from('aios_context_health')
+      .select('*');
+
+    if (fetchError) {
+      setError(fetchError.message);
+      setLoading(false);
+      return;
+    }
+
+    const now = Date.now();
+    const updates: Promise<unknown>[] = [];
+
+    for (const item of all ?? []) {
+      const diffHours = (now - new Date(item.last_updated_at).getTime()) / 3600000;
+      let newScore = item.health_score;
+
+      // Penalizar scores de entidades sem atualização recente
+      if (diffHours > 168) {
+        // > 7 dias: penalidade severa
+        newScore = Math.max(10, item.health_score - 20);
+      } else if (diffHours > 72) {
+        // > 3 dias: penalidade moderada
+        newScore = Math.max(20, item.health_score - 10);
+      } else if (diffHours > 24) {
+        // > 1 dia: penalidade leve
+        newScore = Math.max(30, item.health_score - 5);
+      }
+
+      if (newScore !== item.health_score) {
+        updates.push(
+          supabase
+            .from('aios_context_health')
+            .update({ health_score: newScore, last_updated_at: new Date().toISOString() })
+            .eq('id', item.id)
+        );
+      }
+    }
+
+    await Promise.all(updates);
+    await fetchHealth();
+  }, [fetchHealth]);
+
+  const updateHealthScore = useCallback(
+    async (id: string, score: number, notes?: string): Promise<boolean> => {
+      const clampedScore = Math.min(100, Math.max(0, score));
+
+      const updateData: Record<string, unknown> = {
+        health_score: clampedScore,
+        last_updated_at: new Date().toISOString(),
+      };
+
+      if (notes !== undefined) {
+        updateData.notes = notes;
+      }
+
+      const { error: updateError } = await supabase
+        .from('aios_context_health')
+        .update(updateData)
+        .eq('id', id);
+
+      if (updateError) {
+        setError(updateError.message);
+        return false;
+      }
+
+      await fetchHealth();
+      return true;
+    },
+    [fetchHealth]
+  );
+
+  const criticalCount = data.filter((d) => d.health_score < 50).length;
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: fetchHealth,
+    refreshHealth,
+    updateHealthScore,
+    criticalCount,
+  };
 }

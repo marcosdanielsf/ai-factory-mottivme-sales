@@ -410,11 +410,13 @@ export type AiosContextEntityType = 'agent' | 'clone' | 'squad' | 'project';
 
 export interface AiosContextHealth {
   id: string;
+  account_id: string;
   entity_type: AiosContextEntityType;
   entity_id: string;
   entity_name: string;
   health_score: number;           // 0-100
   alerts: AiosContextAlert[];
+  notes: string | null;
   last_updated_at: string;
   created_at: string;
 }

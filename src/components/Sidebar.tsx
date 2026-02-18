@@ -53,6 +53,7 @@ import { usePermissions, Permissions } from '../hooks/usePermissions';
 import { AccountSwitcher } from './AccountSwitcher';
 import { useAccount } from '../contexts/AccountContext';
 import { useLocations } from '../hooks/useLocations';
+import { useAiosContextHealth } from '../hooks/aios/useAiosContextHealth';
 
 // ============================================
 // TIPOS
@@ -414,6 +415,7 @@ export const Sidebar = ({
   const { hasPermission, role, isAdmin, isClient } = usePermissions();
   const { selectedAccount, selectSubconta, backToAdmin, loading: accountLoading } = useAccount();
   const { locations, loading: locationsLoading } = useLocations();
+  const { criticalCount } = useAiosContextHealth();
 
   const handleLogout = async () => {
     await signOut();
@@ -459,8 +461,19 @@ export const Sidebar = ({
     return labels[role] || 'Usuário';
   };
 
+  // Badge dinâmico do Synapse (alertas críticos)
+  const synapseNavSections = navSections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => {
+      if (item.to === '/aios/synapse' && criticalCount > 0) {
+        return { ...item, badge: String(criticalCount) };
+      }
+      return item;
+    }),
+  }));
+
   // Filtrar seções e itens baseado em permissões
-  const filteredSections = navSections
+  const filteredSections = synapseNavSections
     .filter(section => {
       // Se a seção tem permissão requerida, verificar
       if (section.permission && !hasPermission(section.permission)) {
