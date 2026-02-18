@@ -4,6 +4,10 @@ import type {
   AnnualPlanState,
   AnnualCashFlowRow,
   AnnualKPIResults,
+  OutboundChannel,
+  InboundConfig,
+  InboundFunnelRow,
+  InboundSummary,
   Currency,
 } from './types';
 import type { Product } from '../../hooks/useProducts';
@@ -19,24 +23,102 @@ const DEFAULT_COSTS: { category: AnnualCostRow['category']; label: string }[] = 
   { category: 'impostos', label: 'Impostos' },
 ];
 
+const DEFAULT_OUTBOUND_CHANNELS: { id: string; name: string }[] = [
+  { id: 'ss_ig', name: 'Social Selling - IG' },
+  { id: 'ss_linkedin', name: 'Social Selling - LinkedIn' },
+  { id: 'networks', name: 'Networks' },
+  { id: 'indicacao', name: 'Programa de indicacao' },
+];
+
+const DEFAULT_INBOUND: InboundConfig = {
+  taxaPropostaVenda: 50,
+  taxaCadastroProposta: 20,
+  taxaTrafegoCadastro: 2,
+  cpcMedio: 1.83,
+  pctOrganicoGarantido: 0,
+};
+
+// ============================================================================
+// PRODUCT ROW
+// ============================================================================
+
 export function recalcProductRow(row: AnnualProductRow): AnnualProductRow {
-  const effectiveTicket = row.ticket - row.maxDiscount;
+  const discountMultiplier = 1 - (row.maxDiscountPct / 100);
+  const effectiveTicket = row.ticket * discountMultiplier;
+  const descontoPerUnit = row.ticket * (row.maxDiscountPct / 100);
   let totalQtd = 0;
   let totalAnual = 0;
+  let totalDesconto = 0;
   let acumulado = 0;
   const monthly: typeof row.monthly = {};
 
   for (let m = 1; m <= 12; m++) {
     const qtd = row.monthly[m]?.qtd ?? 0;
     const vendasBrl = qtd * effectiveTicket;
+    const descontoBrl = qtd * descontoPerUnit;
     acumulado += vendasBrl;
     totalQtd += qtd;
     totalAnual += vendasBrl;
-    monthly[m] = { qtd, vendasBrl, receitaAcumulada: acumulado };
+    totalDesconto += descontoBrl;
+    monthly[m] = { qtd, vendasBrl, descontoBrl, receitaAcumulada: acumulado };
   }
 
-  return { ...row, monthly, totalQtd, totalAnual };
+  return { ...row, monthly, totalQtd, totalAnual, totalDesconto };
 }
+
+// ============================================================================
+// OUTBOUND / INBOUND
+// ============================================================================
+
+export function calcInboundFunnel(state: AnnualPlanState): InboundFunnelRow[] {
+  const { inboundConfig, outboundChannels, productRows } = state;
+  const rows: InboundFunnelRow[] = [];
+
+  for (let m = 1; m <= 12; m++) {
+    const vendasOutbound = outboundChannels.reduce((s, ch) => s + (ch.monthly[m] ?? 0), 0);
+    const vendasTotalMeta = productRows.reduce((s, pr) => s + (pr.monthly[m]?.qtd ?? 0), 0);
+    const vendasInbound = Math.max(0, vendasTotalMeta - vendasOutbound);
+
+    // Reverse funnel: vendas → propostas → cadastros → tráfego
+    const taxaPV = inboundConfig.taxaPropostaVenda / 100;
+    const taxaCP = inboundConfig.taxaCadastroProposta / 100;
+    const taxaTC = inboundConfig.taxaTrafegoCadastro / 100;
+
+    const propostas = taxaPV > 0 ? Math.ceil(vendasInbound / taxaPV) : 0;
+    const cadastros = taxaCP > 0 ? Math.ceil(propostas / taxaCP) : 0;
+    const necessidadeTrafego = taxaTC > 0 ? Math.ceil(cadastros / taxaTC) : 0;
+
+    rows.push({
+      month: m,
+      label: MONTH_LABELS[m - 1],
+      vendasOutbound,
+      vendasInbound,
+      propostas,
+      cadastros,
+      necessidadeTrafego,
+    });
+  }
+
+  return rows;
+}
+
+export function calcInboundSummary(
+  funnelRows: InboundFunnelRow[],
+  inboundConfig: InboundConfig,
+  faturamentoTotal: number
+): InboundSummary {
+  const trafegoTotal = funnelRows.reduce((s, r) => s + r.necessidadeTrafego, 0);
+  const trafegoPago = trafegoTotal * (1 - inboundConfig.pctOrganicoGarantido / 100);
+  const investimentoMidia = trafegoPago * inboundConfig.cpcMedio;
+  const mediaMensal = investimentoMidia / 12;
+  const pctDoFaturamento = faturamentoTotal > 0 ? (investimentoMidia / faturamentoTotal) * 100 : 0;
+
+  return { investimentoMidia, mediaMensal, pctDoFaturamento, trafegoTotal };
+}
+
+// ============================================================================
+// CASH FLOW
+// ============================================================================
 
 export function calcAnnualCashFlow(state: AnnualPlanState): AnnualCashFlowRow[] {
   const rows: AnnualCashFlowRow[] = [];
@@ -67,6 +149,10 @@ export function calcAnnualCashFlow(state: AnnualPlanState): AnnualCashFlowRow[] 
   return rows;
 }
 
+// ============================================================================
+// KPIs
+// ============================================================================
+
 export function calcAnnualKPIs(
   state: AnnualPlanState,
   baselineGoal?: SalesGoal | null
@@ -92,46 +178,66 @@ export function calcAnnualKPIs(
   return { contratosTotal, ticketMedio, faturamentoTotal, custoTotal, lucroLiquido, yoyGrowthPct, baseline };
 }
 
+// ============================================================================
+// INIT / SERIALIZE / DESERIALIZE
+// ============================================================================
+
+function emptyMonthlyRecord<T>(val: T): Record<number, T> {
+  const r: Record<number, T> = {};
+  for (let m = 1; m <= 12; m++) r[m] = val;
+  return r;
+}
+
 export function initAnnualState(
   year: number,
   products: Product[],
   currency: Currency
 ): AnnualPlanState {
-  const emptyMonthly: Record<number, { qtd: number; vendasBrl: number; receitaAcumulada: number }> = {};
-  for (let m = 1; m <= 12; m++) {
-    emptyMonthly[m] = { qtd: 0, vendasBrl: 0, receitaAcumulada: 0 };
-  }
-
   const productRows: AnnualProductRow[] = products.map(p => ({
     productId: p.id,
     productName: p.name,
     ticket: Number(p.ticket),
-    maxDiscount: 0,
-    monthly: { ...emptyMonthly },
+    maxDiscountPct: 0,
+    monthly: emptyMonthlyRecord({ qtd: 0, vendasBrl: 0, descontoBrl: 0, receitaAcumulada: 0 }),
     totalQtd: 0,
     totalAnual: 0,
+    totalDesconto: 0,
   }));
-
-  const emptyCostMonthly: Record<number, number> = {};
-  for (let m = 1; m <= 12; m++) emptyCostMonthly[m] = 0;
 
   const costRows: AnnualCostRow[] = DEFAULT_COSTS.map(c => ({
     category: c.category,
     label: c.label,
     fixedMonthly: 0,
-    monthly: { ...emptyCostMonthly },
+    monthly: emptyMonthlyRecord(0),
     totalAnual: 0,
   }));
 
-  return { year, currency, productRows, costRows, saldoInicial: 0, isDirty: false };
+  const outboundChannels: OutboundChannel[] = DEFAULT_OUTBOUND_CHANNELS.map(ch => ({
+    ...ch,
+    monthly: emptyMonthlyRecord(0),
+    totalAnual: 0,
+  }));
+
+  return {
+    year,
+    currency,
+    productRows,
+    costRows,
+    outboundChannels,
+    inboundConfig: { ...DEFAULT_INBOUND },
+    saldoInicial: 0,
+    isDirty: false,
+  };
 }
 
 export function serializeAnnualPlan(state: AnnualPlanState): Record<string, any> {
   return {
     annual_plan: {
-      version: 1,
+      version: 2,
       productRows: state.productRows,
       costRows: state.costRows,
+      outboundChannels: state.outboundChannels,
+      inboundConfig: state.inboundConfig,
       saldoInicial: state.saldoInicial,
     },
   };
@@ -144,7 +250,7 @@ export function deserializeAnnualPlan(
   const mkt = goal.marketing_config as any;
   const saved = mkt?.annual_plan;
 
-  if (!saved || saved.version !== 1) {
+  if (!saved || (saved.version !== 1 && saved.version !== 2)) {
     return initAnnualState(
       new Date(goal.period_start).getFullYear(),
       products,
@@ -153,31 +259,59 @@ export function deserializeAnnualPlan(
   }
 
   const year = new Date(goal.period_start).getFullYear();
+  const currency = (goal.currency as Currency) || 'BRL';
 
-  // Merge saved product rows with current products (names/tickets may have changed)
+  // Merge saved product rows with current products
   const productRows: AnnualProductRow[] = products.map(p => {
-    const savedRow = (saved.productRows as AnnualProductRow[])?.find(
-      sr => sr.productId === p.id
-    );
+    const savedRow = (saved.productRows as AnnualProductRow[])?.find(sr => sr.productId === p.id);
     if (savedRow) {
-      return recalcProductRow({
+      // Migrate v1 maxDiscount (value) → v2 maxDiscountPct
+      const migrated = {
         ...savedRow,
         productName: p.name,
         ticket: Number(p.ticket),
-      });
+        maxDiscountPct: savedRow.maxDiscountPct ?? 0,
+        totalDesconto: savedRow.totalDesconto ?? 0,
+      };
+      // Remove legacy field if present
+      delete (migrated as any).maxDiscount;
+      return recalcProductRow(migrated);
     }
-    const emptyMonthly: Record<number, { qtd: number; vendasBrl: number; receitaAcumulada: number }> = {};
-    for (let m = 1; m <= 12; m++) emptyMonthly[m] = { qtd: 0, vendasBrl: 0, receitaAcumulada: 0 };
-    return { productId: p.id, productName: p.name, ticket: Number(p.ticket), maxDiscount: 0, monthly: emptyMonthly, totalQtd: 0, totalAnual: 0 };
+    return {
+      productId: p.id,
+      productName: p.name,
+      ticket: Number(p.ticket),
+      maxDiscountPct: 0,
+      monthly: emptyMonthlyRecord({ qtd: 0, vendasBrl: 0, descontoBrl: 0, receitaAcumulada: 0 }),
+      totalQtd: 0,
+      totalAnual: 0,
+      totalDesconto: 0,
+    };
   });
 
-  const costRows: AnnualCostRow[] = (saved.costRows as AnnualCostRow[]) || [];
+  const costRows: AnnualCostRow[] = (saved.costRows as AnnualCostRow[])?.length
+    ? (saved.costRows as AnnualCostRow[])
+    : DEFAULT_COSTS.map(c => ({
+        category: c.category,
+        label: c.label,
+        fixedMonthly: 0,
+        monthly: emptyMonthlyRecord(0),
+        totalAnual: 0,
+      }));
+
+  // v2 fields — fallback to defaults for v1 data
+  const outboundChannels: OutboundChannel[] = saved.outboundChannels ||
+    DEFAULT_OUTBOUND_CHANNELS.map(ch => ({ ...ch, monthly: emptyMonthlyRecord(0), totalAnual: 0 }));
+
+  const inboundConfig: InboundConfig = saved.inboundConfig || { ...DEFAULT_INBOUND };
 
   return {
     year,
-    currency: (goal.currency as Currency) || 'BRL',
+    currency,
     productRows,
     costRows,
+    outboundChannels,
+    inboundConfig,
     saldoInicial: saved.saldoInicial ?? 0,
     goalId: goal.id,
     isDirty: false,

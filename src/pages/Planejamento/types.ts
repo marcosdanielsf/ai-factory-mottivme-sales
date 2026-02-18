@@ -119,10 +119,11 @@ export interface AnnualProductRow {
   productId: string;
   productName: string;
   ticket: number;
-  maxDiscount: number;
-  monthly: Record<number, { qtd: number; vendasBrl: number; receitaAcumulada: number }>;
+  maxDiscountPct: number;
+  monthly: Record<number, { qtd: number; vendasBrl: number; descontoBrl: number; receitaAcumulada: number }>;
   totalQtd: number;
   totalAnual: number;
+  totalDesconto: number;
 }
 
 export type CostCategory = 'marketing' | 'operacional' | 'ocupacional' | 'gestao' | 'impostos';
@@ -135,11 +136,45 @@ export interface AnnualCostRow {
   totalAnual: number;
 }
 
+export interface OutboundChannel {
+  id: string;
+  name: string;
+  monthly: Record<number, number>;
+  totalAnual: number;
+}
+
+export interface InboundConfig {
+  taxaPropostaVenda: number;
+  taxaCadastroProposta: number;
+  taxaTrafegoCadastro: number;
+  cpcMedio: number;
+  pctOrganicoGarantido: number;
+}
+
+export interface InboundFunnelRow {
+  month: number;
+  label: string;
+  vendasOutbound: number;
+  vendasInbound: number;
+  propostas: number;
+  cadastros: number;
+  necessidadeTrafego: number;
+}
+
+export interface InboundSummary {
+  investimentoMidia: number;
+  mediaMensal: number;
+  pctDoFaturamento: number;
+  trafegoTotal: number;
+}
+
 export interface AnnualPlanState {
   year: number;
   currency: Currency;
   productRows: AnnualProductRow[];
   costRows: AnnualCostRow[];
+  outboundChannels: OutboundChannel[];
+  inboundConfig: InboundConfig;
   saldoInicial: number;
   goalId?: string;
   isDirty: boolean;

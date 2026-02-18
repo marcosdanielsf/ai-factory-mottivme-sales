@@ -13,19 +13,27 @@ export function ProductsGrid({ rows, onChange, currency }: {
 }) {
   const fmt = (v: number) => formatCurrency(v, currency);
 
+  const updateRow = (idx: number, updates: Partial<AnnualProductRow>) => {
+    const row = { ...rows[idx], ...updates };
+    const next = [...rows];
+    next[idx] = recalcProductRow(row);
+    onChange(next);
+  };
+
   const handleQtdChange = (productIdx: number, month: number, qtd: number) => {
     const row = rows[productIdx];
     const updatedMonthly = {
       ...row.monthly,
       [month]: { ...row.monthly[month], qtd },
     };
-    const updatedRow = recalcProductRow({ ...row, monthly: updatedMonthly });
-    const next = [...rows];
-    next[productIdx] = updatedRow;
-    onChange(next);
+    updateRow(productIdx, { monthly: updatedMonthly });
   };
 
-  // Totais por mes (soma de todos os produtos)
+  const handleDiscountChange = (productIdx: number, pct: number) => {
+    updateRow(productIdx, { maxDiscountPct: pct });
+  };
+
+  // Totais por mes
   const monthTotals: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) {
     monthTotals[m] = rows.reduce((s, r) => s + (r.monthly[m]?.vendasBrl ?? 0), 0);
@@ -76,13 +84,21 @@ export function ProductsGrid({ rows, onChange, currency }: {
               <React.Fragment key={row.productId}>
                 {/* Linha QTD editavel */}
                 <tr className="border-b border-border-default/30">
-                  <td className="px-4 py-2 font-medium text-text-primary text-xs sticky left-0 bg-bg-secondary z-10" rowSpan={2}>
+                  <td className="px-4 py-2 font-medium text-text-primary text-xs sticky left-0 bg-bg-secondary z-10" rowSpan={3}>
                     <div>{row.productName}</div>
-                    {row.maxDiscount > 0 && (
-                      <div className="text-[10px] text-text-muted">desc. {fmt(row.maxDiscount)}</div>
-                    )}
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] text-text-muted">Desc:</span>
+                      <NumInput
+                        value={row.maxDiscountPct}
+                        onChange={v => handleDiscountChange(idx, v)}
+                        min={0}
+                        max={100}
+                        className="w-12 bg-bg-primary border border-border-default rounded px-1 py-0.5 text-[10px] text-text-primary text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <span className="text-[10px] text-text-muted">%</span>
+                    </div>
                   </td>
-                  <td className="text-right px-2 py-2 text-text-secondary text-xs" rowSpan={2}>
+                  <td className="text-right px-2 py-2 text-text-secondary text-xs" rowSpan={1}>
                     {fmt(row.ticket)}
                   </td>
                   {MONTHS.map((_, mi) => {
@@ -101,13 +117,35 @@ export function ProductsGrid({ rows, onChange, currency }: {
                   <td className="text-right px-4 py-2 font-bold text-blue-400 text-xs">
                     {row.totalQtd}
                   </td>
-                  <td className="text-right px-4 py-2 font-bold text-blue-400 text-xs" rowSpan={2}>
+                  <td className="text-right px-4 py-2 font-bold text-blue-400 text-xs" rowSpan={3}>
                     {fmt(row.totalAnual)}
                   </td>
                 </tr>
+                {/* Linha Desconto Max R$ readonly */}
+                {row.maxDiscountPct > 0 && (
+                  <tr className="border-b border-border-default/20">
+                    <td className="text-right px-2 py-1 text-[10px] text-yellow-400/70">
+                      -{row.maxDiscountPct}%
+                    </td>
+                    {MONTHS.map((_, mi) => {
+                      const m = mi + 1;
+                      const desc = row.monthly[m]?.descontoBrl ?? 0;
+                      return (
+                        <td key={m} className="text-center px-1 py-0.5 text-[10px] text-yellow-400/70">
+                          {desc > 0 ? `-${fmt(desc)}` : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className="text-right px-4 py-0.5 text-[10px] text-yellow-400/70">
+                      {row.totalDesconto > 0 ? `-${fmt(row.totalDesconto)}` : ''}
+                    </td>
+                  </tr>
+                )}
                 {/* Linha vendas R$ readonly */}
                 <tr className="border-b border-border-default/50">
-                  {/* productName + price cells consumed by rowSpan */}
+                  <td className="text-right px-2 py-1 text-[10px] text-text-muted">
+                    Vendas
+                  </td>
                   {MONTHS.map((_, mi) => {
                     const m = mi + 1;
                     const val = row.monthly[m]?.vendasBrl ?? 0;

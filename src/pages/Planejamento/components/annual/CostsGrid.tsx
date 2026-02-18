@@ -73,7 +73,7 @@ export function CostsGrid({ rows, onChange, currency }: {
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={idx} className="border-b border-border-default/50">
+              <tr key={`${row.category}-${row.label}`} className="border-b border-border-default/50">
                 <td className="px-4 py-2 font-medium text-text-primary text-xs sticky left-0 bg-bg-secondary z-10">
                   {row.label}
                 </td>

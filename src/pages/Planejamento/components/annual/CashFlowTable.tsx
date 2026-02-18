@@ -9,7 +9,7 @@ export function CashFlowTable({ rows, currency, saldoInicial, onSaldoChange }: {
   onSaldoChange: (v: number) => void;
 }) {
   const fmt = (v: number) => formatCurrency(v, currency);
-  const firstPositiveMonth = rows.findIndex(r => r.fluxoAcumulado > 0 && rows[0]?.fluxoAcumulado <= 0);
+  const firstPositiveMonth = rows[0]?.fluxoAcumulado <= 0 ? rows.findIndex(r => r.fluxoAcumulado > 0) : -1;
 
   return (
     <div className="bg-bg-secondary rounded-xl border border-border-default overflow-hidden">
