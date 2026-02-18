@@ -103,8 +103,8 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
     onSelectAccount(location);
     setIsOpen(false);
     setSearchTerm('');
-    // Navigate to client area (LayoutCliente)
-    navigate('/agendamentos');
+    // Navigate after state commits to ensure ConditionalLayout reads updated context
+    requestAnimationFrame(() => navigate('/agendamentos'));
   };
 
   const handleBackToAdmin = () => {
