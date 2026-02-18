@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import {
   Calendar,
   CheckCircle2,
   MessageSquare,
+  Palette,
   LogOut,
   Menu,
   X,
@@ -15,6 +16,7 @@ import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useBrandConfig } from '../hooks/useBrandConfig';
 import AISupportWidget from './AISupportWidget';
 
 interface LayoutClienteProps {
@@ -42,8 +44,16 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   }, [location.pathname]);
   const { selectedAccount, backToAdmin, isViewingSubconta } = useAccount();
   const { hasPermission, role } = usePermissions();
+  const { brandConfig } = useBrandConfig(selectedAccount?.location_id);
 
-  const navItems = ALL_CLIENT_NAV_ITEMS.filter(item => hasPermission(item.permission));
+  const navItems = useMemo(() => {
+    const base = ALL_CLIENT_NAV_ITEMS.filter(item => hasPermission(item.permission));
+    // Add "Meu Brand" if brand config exists for this location
+    if (brandConfig) {
+      base.push({ path: '/brand', label: 'Meu Brand', icon: Palette, permission: 'canAccessBrand' as const });
+    }
+    return base;
+  }, [hasPermission, brandConfig]);
 
   // Redirecionar rotas invalidas para primeira pagina disponivel
   useEffect(() => {

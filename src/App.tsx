@@ -82,6 +82,9 @@ const AiosArenaPage = lazy(() => import('./pages/AiosArena').then(m => ({ defaul
 // Content Studio
 const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ default: m.ContentStudio })));
 
+// Client Brand
+const ClientBrand = lazy(() => import('./pages/ClientBrand'));
+
 // Planejamento de Vendas
 const Planejamento = lazy(() => import('./pages/Planejamento'));
 
@@ -190,6 +193,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <Planejamento />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/brand" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ClientBrand />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>

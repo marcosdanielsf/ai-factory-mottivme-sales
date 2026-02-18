@@ -22,6 +22,7 @@ export interface Permissions {
   canAccessLeads: boolean;
   canAccessCalls: boolean;
   canAccessAios: boolean;
+  canAccessBrand: boolean;
 
   // Ações
   canWriteMessages: boolean;
@@ -51,6 +52,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessLeads: true,
     canAccessCalls: true,
     canAccessAios: true,
+    canAccessBrand: true,
     // Ações
     canWriteMessages: true,
     canEditPrompts: true,
@@ -77,6 +79,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessLeads: true,
     canAccessCalls: true,
     canAccessAios: true,
+    canAccessBrand: true,
     // Ações
     canWriteMessages: true,
     canEditPrompts: false,
@@ -103,6 +106,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessLeads: true,
     canAccessCalls: false,
     canAccessAios: false,
+    canAccessBrand: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
@@ -129,6 +133,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessLeads: true,
     canAccessCalls: false,
     canAccessAios: false,
+    canAccessBrand: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
@@ -155,6 +160,7 @@ const rolePermissions: Record<UserRole, Permissions> = {
     canAccessLeads: false,
     canAccessCalls: false,
     canAccessAios: false,
+    canAccessBrand: false,
     // Ações
     canWriteMessages: false,
     canEditPrompts: false,
