@@ -7,3 +7,5 @@ export * from './useAiosSquads';
 export * from './useAiosCostEvents';
 export * from './useAiosCostBudgets';
 export * from './useAiosQaLoops';
+export * from './useAiosExperts';
+export * from './useAiosContextHealth';

@@ -74,6 +74,10 @@ const AiosCostsPage = lazy(() => import('./pages/AiosCosts').then(m => ({ defaul
 const AiosSquadsPage = lazy(() => import('./pages/AiosSquads').then(m => ({ default: m.AiosSquads })));
 const AiosSquadDetailPage = lazy(() => import('./pages/AiosSquads/SquadDetail').then(m => ({ default: m.AiosSquadDetail })));
 const AiosTasksPage = lazy(() => import('./pages/AiosTasks').then(m => ({ default: m.AiosTasks })));
+const AiosExpertsPage = lazy(() => import('./pages/AiosExperts').then(m => ({ default: m.AiosExperts })));
+const AiosExpertDetailPage = lazy(() => import('./pages/AiosExperts/ExpertDetail').then(m => ({ default: m.ExpertDetail })));
+const AiosSynapsePage = lazy(() => import('./pages/AiosSynapse').then(m => ({ default: m.AiosSynapse })));
+const AiosArenaPage = lazy(() => import('./pages/AiosArena').then(m => ({ default: m.AiosArena })));
 
 // Content Studio
 const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ default: m.ContentStudio })));
@@ -565,6 +569,42 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <AiosTasksPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/experts" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosExpertsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/experts/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosExpertDetailPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/synapse" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosSynapsePage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/arena" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosArenaPage />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>

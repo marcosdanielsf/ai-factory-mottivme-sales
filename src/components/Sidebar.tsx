@@ -43,6 +43,9 @@ import {
   Wallet,
   Network,
   Palette,
+  Brain,
+  Activity,
+  Swords,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -152,9 +155,13 @@ const navSections: NavSection[] = [
     items: [
       { icon: Bot, label: 'Agentes', to: '/aios/agents', permission: 'canAccessAios' },
       { icon: BookMarked, label: 'Stories', to: '/aios/stories', permission: 'canAccessAios' },
+      { icon: CheckCircle, label: 'Tasks', to: '/aios/tasks', permission: 'canAccessAios' },
       { icon: Wallet, label: 'Custos', to: '/aios/costs', permission: 'canAccessAios' },
       { icon: Network, label: 'Squads', to: '/aios/squads', permission: 'canAccessAios' },
       { icon: Palette, label: 'Content Studio', to: '/content-studio', permission: 'canAccessAios' },
+      { icon: Brain, label: 'Experts', to: '/aios/experts', permission: 'canAccessAios' },
+      { icon: Activity, label: 'Synapse', to: '/aios/synapse', permission: 'canAccessAios' },
+      { icon: Swords, label: 'Arena', to: '/aios/arena', permission: 'canAccessAios' },
     ]
   },
   {
