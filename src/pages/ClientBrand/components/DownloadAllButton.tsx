@@ -44,14 +44,14 @@ export const DownloadAllButton: React.FC<DownloadAllButtonProps> = ({ brand }) =
 
         const downloads = batch.map(async (asset: BrandAsset) => {
           try {
-            const { data: urlData } = await supabase
+            const { data: urlData } = supabase
               .storage
               .from('brandpacks')
-              .createSignedUrl(asset.storage_path, 600);
+              .getPublicUrl(asset.storage_path);
 
-            if (!urlData?.signedUrl) return;
+            if (!urlData?.publicUrl) return;
 
-            const response = await fetch(urlData.signedUrl);
+            const response = await fetch(urlData.publicUrl);
             if (!response.ok) return;
 
             const blob = await response.blob();

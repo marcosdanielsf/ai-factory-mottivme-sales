@@ -62,29 +62,18 @@ export function useBrandAssets(
           return;
         }
 
-        // Generate signed URLs in batches of 10
-        const BATCH_SIZE = 10;
-        const assetsWithUrls: BrandAssetWithUrl[] = [];
+        // Generate public URLs (bucket is public — no signed URLs needed)
+        const assetsWithUrls: BrandAssetWithUrl[] = data.map((asset: BrandAsset) => {
+          const { data: urlData } = supabase
+            .storage
+            .from('brandpacks')
+            .getPublicUrl(asset.storage_path);
 
-        for (let i = 0; i < data.length; i += BATCH_SIZE) {
-          if (controller.signal.aborted) return;
-
-          const batch = data.slice(i, i + BATCH_SIZE);
-          const urlPromises = batch.map(async (asset: BrandAsset) => {
-            const { data: urlData } = await supabase
-              .storage
-              .from('brandpacks')
-              .createSignedUrl(asset.storage_path, 3600); // 1h expiry
-
-            return {
-              ...asset,
-              signedUrl: urlData?.signedUrl || '',
-            };
-          });
-
-          const results = await Promise.all(urlPromises);
-          assetsWithUrls.push(...results);
-        }
+          return {
+            ...asset,
+            signedUrl: urlData?.publicUrl || '',
+          };
+        });
 
         if (!controller.signal.aborted) {
           setAssets(assetsWithUrls);
