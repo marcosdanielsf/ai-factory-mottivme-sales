@@ -34,4 +34,6 @@ export interface BrandAsset {
   format: string;
   size_bytes: number | null;
   sort_order: number;
+  description?: string;
+  metadata?: Record<string, unknown>;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, FileText, Palette, BookOpen, Layout, Share2, Crown } from 'lucide-react';
+import { Image, FileText, Palette, BookOpen, Layout, Share2, Crown, Megaphone, Target, Globe, Workflow } from 'lucide-react';
 import type { BrandConfig } from '../../../types/brand';
 
 interface BrandOverviewProps {
@@ -15,6 +15,10 @@ const SECTION_META: Record<string, { label: string; icon: React.ElementType; des
   manual: { label: 'Manual', icon: BookOpen, description: 'Manual de marca' },
   docs: { label: 'Documentos', icon: FileText, description: 'Briefings e guias' },
   colors: { label: 'Paleta', icon: Palette, description: 'Cores da marca' },
+  marketing: { label: 'Marketing', icon: Megaphone, description: 'Estrategia, conteudo e campanhas' },
+  vendas: { label: 'Vendas', icon: Target, description: 'Scripts, decks e playbooks' },
+  sites: { label: 'Sites', icon: Globe, description: 'Sites e landing pages' },
+  workflows: { label: 'Workflows', icon: Workflow, description: 'Automacoes e fluxos n8n' },
 };
 
 export const BrandOverview: React.FC<BrandOverviewProps> = ({ brand, assetCounts, onTabChange }) => {

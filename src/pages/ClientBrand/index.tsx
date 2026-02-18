@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Image, Layout, Share2, BookOpen, FileText, Palette, Loader2, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Crown, Image, Layout, Share2, BookOpen, FileText, Palette, Loader2, ArrowLeft, ExternalLink, Megaphone, Target, Globe, Workflow } from 'lucide-react';
 import { useAccount } from '../../contexts/AccountContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBrandConfig } from '../../hooks/useBrandConfig';
@@ -10,6 +10,8 @@ import { BrandGallery } from './components/BrandGallery';
 import { BrandManual } from './components/BrandManual';
 import { BrandDocs } from './components/BrandDocs';
 import { BrandColors } from './components/BrandColors';
+import { BrandDeliverables } from './components/BrandDeliverables';
+import { BrandSites } from './components/BrandSites';
 import { DownloadAllButton } from './components/DownloadAllButton';
 import { supabase } from '../../lib/supabase';
 import type { BrandConfig } from '../../types/brand';
@@ -22,6 +24,10 @@ const TAB_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   manual: { label: 'Manual', icon: BookOpen },
   docs: { label: 'Documentos', icon: FileText },
   colors: { label: 'Paleta', icon: Palette },
+  marketing: { label: 'Marketing', icon: Megaphone },
+  vendas: { label: 'Vendas', icon: Target },
+  sites: { label: 'Sites', icon: Globe },
+  workflows: { label: 'Workflows', icon: Workflow },
 };
 
 const LOGO_SUB_SECTIONS = ['logos', 'signatures', 'symbols'];
@@ -263,6 +269,18 @@ const ClientBrand: React.FC = () => {
         return <BrandDocs brandId={activeBrand.id} />;
       case 'colors':
         return <BrandColors colors={activeBrand.colors} primaryColor={activeBrand.primary_color} />;
+      case 'marketing':
+      case 'vendas':
+      case 'workflows':
+        return (
+          <BrandDeliverables
+            brandId={activeBrand.id}
+            section={activeTab}
+            primaryColor={activeBrand.primary_color}
+          />
+        );
+      case 'sites':
+        return <BrandSites brandId={activeBrand.id} primaryColor={activeBrand.primary_color} />;
       default:
         return null;
     }
