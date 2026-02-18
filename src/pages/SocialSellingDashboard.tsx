@@ -38,7 +38,7 @@ function pct(value: number, total: number): string {
 }
 
 export function SocialSellingDashboard() {
-  const { selectedAccount } = useAccount();
+  const { selectedAccount, isClientUser } = useAccount();
   const { locations, loading: locationsLoading } = useLocations();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -148,12 +148,12 @@ export function SocialSellingDashboard() {
 
             {/* Filters - inline */}
             <div className="flex items-center gap-2 flex-wrap">
-              <LocationSelector
+              {!isClientUser && <LocationSelector
                 locations={locations}
                 selectedLocationId={selectedLocationId}
                 onChange={setSelectedLocationId}
                 isLoading={locationsLoading}
-              />
+              />}
               <DateRangePicker value={dateRange} onChange={setDateRange} />
               <button
                 onClick={() => data.refetch()}

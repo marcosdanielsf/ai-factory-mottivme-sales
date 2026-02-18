@@ -22,7 +22,7 @@ import { ProgressSection } from './components/ProgressSection';
 import { AnnualPlanTab } from './components/annual/AnnualPlanTab';
 
 export function Planejamento() {
-  const { selectedAccount } = useAccount();
+  const { selectedAccount, isClientUser } = useAccount();
   const { locations, loading: locationsLoading } = useLocations();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -304,7 +304,7 @@ export function Planejamento() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <LocationSelector locations={locations} selectedLocationId={selectedLocationId} onChange={setSelectedLocationId} isLoading={locationsLoading} />
+              {!isClientUser && <LocationSelector locations={locations} selectedLocationId={selectedLocationId} onChange={setSelectedLocationId} isLoading={locationsLoading} />}
               <DateRangePicker value={dateRange} onChange={setDateRange} />
               <button
                 onClick={() => { refetch(); funnelData.refetch(); }}

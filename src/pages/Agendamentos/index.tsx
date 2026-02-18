@@ -47,7 +47,7 @@ export const Agendamentos: React.FC = () => {
   const [criativoDrawerOpen, setCriativoDrawerOpen] = useState(false);
   const [selectedCriativo, setSelectedCriativo] = useState('');
 
-  const { selectedAccount } = useAccount();
+  const { selectedAccount, isClientUser } = useAccount();
   const isAdmin = useIsAdmin();
 
   const locationId = useMemo(() => {
@@ -200,12 +200,12 @@ export const Agendamentos: React.FC = () => {
 
             <div className="flex items-center gap-2 flex-wrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
-              <ResponsavelSelector
+              {!isClientUser && <ResponsavelSelector
                 responsaveis={responsaveis}
                 selectedName={selectedResponsavel}
                 onChange={setSelectedResponsavel}
                 isLoading={loading && responsaveis.length === 0}
-              />
+              />}
               <button
                 onClick={() => refetch()}
                 disabled={loading}
