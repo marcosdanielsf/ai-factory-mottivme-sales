@@ -164,6 +164,7 @@ const navSections: NavSection[] = [
           { icon: Database, label: 'Artifacts & Docs', to: '/knowledge-base' },
         ]
       },
+      { icon: Palette, label: 'Brand Assets', to: '/brand', permission: 'canAccessBrand' },
     ]
   },
   {

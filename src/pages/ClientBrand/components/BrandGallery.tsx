@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Download, Eye, X, Loader2 } from 'lucide-react';
 import { useBrandAssets, type BrandAssetWithUrl } from '../../../hooks/useBrandAssets';
 
@@ -10,6 +10,14 @@ interface BrandGalleryProps {
   primaryColor: string;
 }
 
+const IMAGE_FORMATS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico', 'bmp', 'tiff']);
+
+function isImage(format: string | null | undefined): boolean {
+  if (!format) return false;
+  const clean = format.toLowerCase().replace(/^\./, '').trim();
+  return IMAGE_FORMATS.has(clean);
+}
+
 export const BrandGallery: React.FC<BrandGalleryProps> = ({
   brandId,
   sections,
@@ -19,9 +27,12 @@ export const BrandGallery: React.FC<BrandGalleryProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState(sections[0]);
   const [preview, setPreview] = useState<BrandAssetWithUrl | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const { assets, loading } = useBrandAssets(brandId, activeSubTab);
 
-  const isImage = (format: string) => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(format.toLowerCase());
+  const handleImageError = useCallback((assetId: string) => {
+    setFailedImages(prev => new Set(prev).add(assetId));
+  }, []);
 
   const grouped = useMemo(() => {
     const map: Record<string, BrandAssetWithUrl[]> = {};
@@ -80,12 +91,13 @@ export const BrandGallery: React.FC<BrandGalleryProps> = ({
             >
               {/* Preview area */}
               <div className="aspect-square flex items-center justify-center p-4 bg-bg-tertiary/50">
-                {isImage(asset.format) && asset.signedUrl ? (
+                {isImage(asset.format) && asset.signedUrl && !failedImages.has(asset.id) ? (
                   <img
                     src={asset.signedUrl}
                     alt={asset.name}
                     className="max-h-full max-w-full object-contain"
                     loading="lazy"
+                    onError={() => handleImageError(asset.id)}
                   />
                 ) : (
                   <div className="text-text-muted text-xs uppercase font-mono">

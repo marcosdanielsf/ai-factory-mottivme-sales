@@ -63,15 +63,20 @@ export function useBrandAssets(
         }
 
         // Generate public URLs (bucket is public — no signed URLs needed)
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const assetsWithUrls: BrandAssetWithUrl[] = data.map((asset: BrandAsset) => {
           const { data: urlData } = supabase
             .storage
             .from('brandpacks')
             .getPublicUrl(asset.storage_path);
 
+          // Fallback: construct URL manually if SDK returns empty
+          const publicUrl = urlData?.publicUrl
+            || `${supabaseUrl}/storage/v1/object/public/brandpacks/${asset.storage_path}`;
+
           return {
             ...asset,
-            signedUrl: urlData?.publicUrl || '',
+            signedUrl: publicUrl,
           };
         });
 
