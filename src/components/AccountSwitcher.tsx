@@ -101,13 +101,12 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
   }, [isOpen]);
 
   const handleSelect = (location: Location) => {
-    // flushSync forces React to commit state synchronously before navigate
-    flushSync(() => {
-      onSelectAccount(location);
-    });
+    onSelectAccount(location);
     setIsOpen(false);
     setSearchTerm('');
-    navigate('/agendamentos');
+    // Force hash change + reload to guarantee layout switch
+    window.location.hash = '#/agendamentos';
+    window.location.reload();
   };
 
   const handleBackToAdmin = () => {
