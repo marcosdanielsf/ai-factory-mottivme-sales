@@ -47,6 +47,7 @@ import {
   Activity,
   Swords,
   Layers,
+  FolderKanban,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -134,6 +135,7 @@ const navSections: NavSection[] = [
           { icon: CheckCircle, label: 'Central de Status', to: '/status' },
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
+          { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
         ]
       },
       {
