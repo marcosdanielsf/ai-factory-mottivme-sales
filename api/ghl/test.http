@@ -1,0 +1,45 @@
+### GHL API - Testes diretos (REST Client extension)
+### Substituir {{GHL_API_KEY}} pela chave real
+
+@baseUrl = https://services.leadconnectorhq.com
+@apiKey = {{GHL_API_KEY}}
+@locationId = ehlHgDeJS3sr8rCDcZtA
+@version = 2021-07-28
+
+### 1. Get Location (testar auth)
+GET {{baseUrl}}/locations/{{locationId}}
+Authorization: Bearer {{apiKey}}
+Version: {{version}}
+Accept: application/json
+
+###
+
+### 2. Get Pipelines
+GET {{baseUrl}}/opportunities/pipelines?locationId={{locationId}}
+Authorization: Bearer {{apiKey}}
+Version: {{version}}
+Accept: application/json
+
+###
+
+### 3. Search Opportunities (all)
+GET {{baseUrl}}/opportunities/search?location_id={{locationId}}&status=all&limit=100
+Authorization: Bearer {{apiKey}}
+Version: {{version}}
+Accept: application/json
+
+###
+
+### 4. Get Calendar Events (ultimos 30 dias)
+GET {{baseUrl}}/calendars/events?locationId={{locationId}}&startTime=1736726400000&endTime=1739404800000
+Authorization: Bearer {{apiKey}}
+Version: {{version}}
+Accept: application/json
+
+###
+
+### 5. Get Contacts (page 1)
+GET {{baseUrl}}/contacts/?locationId={{locationId}}&limit=20
+Authorization: Bearer {{apiKey}}
+Version: {{version}}
+Accept: application/json

@@ -1,365 +1,405 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 
 interface JarvisMegazordHeadProps {
-  active: boolean;
-  size?: number;
-  idle?: boolean;
+  active: boolean;   // true when speaking
+  size?: number;     // container height in px
+  idle?: boolean;    // always visible when true
+  analyser?: AnalyserNode | null; // Audio analyser for reactive animation
 }
 
 /**
- * Soundwave-inspired robotic head — detailed SVG with metallic gradients,
- * glowing visor, and speaking animation. Looks 3D via layered gradients & filters.
+ * CyberCore-style holographic mecha head with Three.js.
+ * Features: dark metal skull, glowing visor, animated jaw,
+ * orbiting data rings, floating particles — all audio-reactive.
  */
-function JarvisMegazordHead({ active, size = 200, idle = false }: JarvisMegazordHeadProps) {
+function JarvisMegazordHead({ active, size = 200, idle = false, analyser = null }: JarvisMegazordHeadProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const [visible, setVisible] = useState(idle);
-  const [mouthPhase, setMouthPhase] = useState(0);
-  const frameRef = useRef(0);
 
   useEffect(() => {
     if (idle) { setVisible(true); return; }
-    if (active) {
-      setVisible(true);
-    } else {
+    if (active) { setVisible(true); }
+    else {
       const t = setTimeout(() => setVisible(false), 600);
       return () => clearTimeout(t);
     }
   }, [active, idle]);
 
-  // Mouth animation
   useEffect(() => {
-    if (!active) { setMouthPhase(0); return; }
-    let raf: number;
-    const animate = () => {
-      setMouthPhase(Date.now());
-      raf = requestAnimationFrame(animate);
-    };
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-  }, [active]);
+    if (!visible || !containerRef.current) return;
+    const container = containerRef.current;
 
-  // Idle breathing
-  useEffect(() => {
-    if (!idle || active) return;
-    let raf: number;
-    const breathe = () => {
-      frameRef.current++;
-      raf = requestAnimationFrame(breathe);
+    // ─── SCENE SETUP ──────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = null; // Transparent
+
+    const w = container.clientWidth || 280;
+    const h = container.clientHeight || size;
+    const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
+    camera.position.set(0, 0.2, 7.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // ─── LIGHTING ─────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x0044ff, 0.4));
+
+    const keyLight = new THREE.PointLight(0x00ffff, 2.5, 20);
+    keyLight.position.set(4, 4, 5);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.SpotLight(0x6600ff, 4);
+    rimLight.position.set(-4, 6, -4);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.PointLight(0x0066ff, 1, 15);
+    fillLight.position.set(0, -3, 3);
+    scene.add(fillLight);
+
+    // ─── MATERIALS ────────────────────────────────────────────
+    const armorMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a1628,
+      metalness: 0.92,
+      roughness: 0.18,
+      transparent: true,
+      opacity: 0.92,
+      emissive: 0x000810,
+      side: THREE.DoubleSide,
+    });
+
+    const wireframeMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00aaff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.12,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const accentMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00d4ff,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+    });
+
+    // ─── HEAD GROUP ───────────────────────────────────────────
+    const headGroup = new THREE.Group();
+    scene.add(headGroup);
+
+    // 1. Core skull (low-poly icosahedron)
+    const skullGeo = new THREE.IcosahedronGeometry(1.15, 1);
+    const skull = new THREE.Mesh(skullGeo, armorMaterial);
+    const skullWire = new THREE.Mesh(skullGeo, wireframeMaterial);
+    skullWire.scale.setScalar(1.025);
+    headGroup.add(skull);
+    headGroup.add(skullWire);
+
+    // 2. Face plate
+    const faceGeo = new THREE.BoxGeometry(1.5, 1.4, 0.45);
+    const face = new THREE.Mesh(faceGeo, armorMaterial);
+    face.position.set(0, 0.05, 0.75);
+    const faceWire = new THREE.Mesh(faceGeo, wireframeMaterial);
+    faceWire.position.copy(face.position);
+    faceWire.scale.setScalar(1.02);
+    headGroup.add(face);
+    headGroup.add(faceWire);
+
+    // 3. Helmet crest (central ridge)
+    const crestGeo = new THREE.BoxGeometry(0.2, 0.55, 0.7);
+    const crest = new THREE.Mesh(crestGeo, armorMaterial);
+    crest.position.set(0, 1.0, 0.3);
+    crest.rotation.x = 0.2;
+    headGroup.add(crest);
+
+    // Crest tip glow
+    const crestTipGeo = new THREE.BoxGeometry(0.12, 0.12, 0.35);
+    const crestTip = new THREE.Mesh(crestTipGeo, accentMaterial);
+    crestTip.position.set(0, 1.25, 0.4);
+    crestTip.rotation.x = 0.3;
+    headGroup.add(crestTip);
+
+    // 4. Side horns
+    const hornGeo = new THREE.ConeGeometry(0.08, 0.7, 4);
+    const leftHorn = new THREE.Mesh(hornGeo, armorMaterial);
+    leftHorn.position.set(-0.85, 0.8, -0.1);
+    leftHorn.rotation.z = 0.5;
+    headGroup.add(leftHorn);
+
+    const rightHorn = new THREE.Mesh(hornGeo, armorMaterial);
+    rightHorn.position.set(0.85, 0.8, -0.1);
+    rightHorn.rotation.z = -0.5;
+    headGroup.add(rightHorn);
+
+    // Horn tips glow
+    const tipGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const leftTip = new THREE.Mesh(tipGeo, glowMaterial);
+    leftTip.position.set(-1.1, 1.1, -0.1);
+    headGroup.add(leftTip);
+    const rightTip = new THREE.Mesh(tipGeo, glowMaterial);
+    rightTip.position.set(1.1, 1.1, -0.1);
+    headGroup.add(rightTip);
+
+    // 5. Eyes / Visor (the money shot)
+    const eyeGeo = new THREE.BoxGeometry(1.15, 0.14, 0.08);
+    const eyes = new THREE.Mesh(eyeGeo, glowMaterial);
+    eyes.position.set(0, 0.22, 1.0);
+    headGroup.add(eyes);
+
+    // Eye surrounds
+    const eyeFrameGeo = new THREE.BoxGeometry(1.35, 0.28, 0.06);
+    const eyeFrame = new THREE.Mesh(eyeFrameGeo, new THREE.MeshStandardMaterial({
+      color: 0x050c18, metalness: 0.95, roughness: 0.1,
+    }));
+    eyeFrame.position.set(0, 0.22, 0.97);
+    headGroup.add(eyeFrame);
+
+    // 6. Cheek plates
+    const cheekGeo = new THREE.BoxGeometry(0.3, 0.5, 0.18);
+    const leftCheek = new THREE.Mesh(cheekGeo, armorMaterial);
+    leftCheek.position.set(-0.78, -0.05, 0.5);
+    leftCheek.rotation.y = 0.4;
+    headGroup.add(leftCheek);
+    const rightCheek = new THREE.Mesh(cheekGeo, armorMaterial);
+    rightCheek.position.set(0.78, -0.05, 0.5);
+    rightCheek.rotation.y = -0.4;
+    headGroup.add(rightCheek);
+
+    // Cheek vent lines
+    for (let side = -1; side <= 1; side += 2) {
+      for (let i = 0; i < 3; i++) {
+        const ventGeo = new THREE.BoxGeometry(0.18, 0.015, 0.015);
+        const vent = new THREE.Mesh(ventGeo, accentMaterial);
+        vent.position.set(side * 0.82, -0.08 + i * 0.08, 0.55);
+        vent.rotation.y = side * 0.4;
+        headGroup.add(vent);
+      }
+    }
+
+    // 7. Jaw (animated)
+    const jawGroup = new THREE.Group();
+    jawGroup.position.set(0, -0.35, 0.2);
+    headGroup.add(jawGroup);
+
+    const jawGeo = new THREE.CylinderGeometry(0.65, 0.45, 0.7, 6);
+    const jaw = new THREE.Mesh(jawGeo, armorMaterial);
+    jaw.rotation.x = Math.PI / 2;
+    jaw.scale.set(1, 0.45, 1);
+    jaw.position.set(0, -0.35, 0);
+    jawGroup.add(jaw);
+
+    const jawWire = new THREE.Mesh(jawGeo, wireframeMaterial);
+    jawWire.rotation.copy(jaw.rotation);
+    jawWire.scale.copy(jaw.scale);
+    jawWire.scale.multiplyScalar(1.02);
+    jawWire.position.copy(jaw.position);
+    jawGroup.add(jawWire);
+
+    // Chin plate
+    const chinGeo = new THREE.BoxGeometry(0.35, 0.45, 0.5);
+    const chin = new THREE.Mesh(chinGeo, armorMaterial);
+    chin.position.set(0, -0.7, 0.25);
+    chin.rotation.x = -0.35;
+    jawGroup.add(chin);
+
+    // Mouth grille
+    const mouthGlowGeo = new THREE.BoxGeometry(0.5, 0.06, 0.05);
+    const mouthGlow = new THREE.Mesh(mouthGlowGeo, glowMaterial);
+    mouthGlow.position.set(0, -0.15, 0.62);
+    jawGroup.add(mouthGlow);
+
+    for (let i = 0; i < 4; i++) {
+      const lineGeo = new THREE.BoxGeometry(0.4, 0.01, 0.03);
+      const line = new THREE.Mesh(lineGeo, accentMaterial);
+      line.position.set(0, -0.08 - i * 0.055, 0.6);
+      jawGroup.add(line);
+    }
+
+    // 8. Neck
+    const neckGeo = new THREE.CylinderGeometry(0.32, 0.38, 0.3, 12);
+    const neck = new THREE.Mesh(neckGeo, armorMaterial);
+    neck.position.set(0, -1.1, 0.1);
+    headGroup.add(neck);
+
+    // Neck glow rings
+    for (let i = 0; i < 2; i++) {
+      const ringGeo = new THREE.TorusGeometry(0.35 + i * 0.03, 0.008, 8, 32);
+      const ring = new THREE.Mesh(ringGeo, accentMaterial);
+      ring.position.set(0, -1.0 - i * 0.1, 0.1);
+      headGroup.add(ring);
+    }
+
+    // 9. Holographic data rings (orbiting)
+    const dataRingGeo = new THREE.TorusGeometry(2.3, 0.015, 16, 100);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x0088ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending,
+    });
+
+    const ring1 = new THREE.Mesh(dataRingGeo, ringMat.clone());
+    headGroup.add(ring1);
+
+    const ring2 = new THREE.Mesh(dataRingGeo, ringMat.clone());
+    ring2.scale.setScalar(0.82);
+    ring2.rotation.x = Math.PI / 1.5;
+    headGroup.add(ring2);
+
+    const ring3 = new THREE.Mesh(dataRingGeo, ringMat.clone());
+    ring3.scale.setScalar(1.15);
+    ring3.rotation.y = Math.PI / 3;
+    headGroup.add(ring3);
+
+    // 10. Floating particles
+    const particleCount = 200;
+    const posArray = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 12;
+    }
+    const particlesGeo = new THREE.BufferGeometry();
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMat = new THREE.PointsMaterial({
+      size: 0.04, color: 0x00ffff, transparent: true, opacity: 0.25,
+    });
+    const starField = new THREE.Points(particlesGeo, particlesMat);
+    scene.add(starField);
+
+    // ─── ANIMATION LOOP ──────────────────────────────────────
+    const dataArray = new Uint8Array(512);
+    let time = 0;
+    let animationId: number;
+
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      time += 0.01;
+
+      // Audio analysis
+      let volume = 0;
+      if (analyser) {
+        try {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          const startBin = 5;
+          const endBin = 60;
+          for (let i = startBin; i < endBin; i++) sum += dataArray[i];
+          volume = sum / (endBin - startBin);
+        } catch {}
+      }
+
+      const normalizedVol = volume / 255;
+      const speechIntensity = Math.pow(normalizedVol, 2.5);
+
+      // Jaw movement (audio-reactive)
+      const targetJaw = speechIntensity * 0.7;
+      jawGroup.rotation.x = THREE.MathUtils.lerp(jawGroup.rotation.x, targetJaw, 0.2);
+
+      // Eye glow pulse
+      const basePulse = Math.sin(time * 2) * 0.15 + 0.55;
+      const glowIntensity = basePulse + speechIntensity * 2.5;
+      const targetColor = new THREE.Color(0x00ffff);
+      if (speechIntensity > 0.1) {
+        targetColor.setHSL(0.5, 0.8, 0.5 + speechIntensity * 0.4);
+      }
+      glowMaterial.color.lerp(targetColor, 0.15);
+      glowMaterial.opacity = THREE.MathUtils.clamp(glowIntensity, 0.3, 1.0);
+
+      // Mouth glow
+      mouthGlow.scale.y = 1 + speechIntensity * 3;
+      (mouthGlow.material as THREE.MeshBasicMaterial).opacity = 0.3 + speechIntensity * 0.7;
+
+      // Head idle motion
+      headGroup.rotation.y = Math.sin(time * 0.4) * 0.12;
+      headGroup.rotation.z = Math.cos(time * 0.25) * 0.04;
+      headGroup.rotation.x = Math.sin(time * 0.15) * 0.03;
+
+      // Ring rotations (speed up when talking)
+      const ringSpeed = 1 + speechIntensity * 6;
+      ring1.rotation.z += 0.004 * ringSpeed;
+      ring1.rotation.x = Math.sin(time * 0.5) * 0.08;
+      ring2.rotation.x += 0.003 * ringSpeed;
+      ring2.rotation.y += 0.002;
+      ring3.rotation.y -= 0.0035 * ringSpeed;
+
+      // Particle drift
+      starField.rotation.y = time * 0.015;
+
+      // Crest tip pulse
+      crestTip.scale.setScalar(1 + Math.sin(time * 3) * 0.1);
+
+      // Horn tip pulse
+      leftTip.scale.setScalar(1 + Math.sin(time * 2.5) * 0.15);
+      rightTip.scale.setScalar(1 + Math.cos(time * 2.5) * 0.15);
+
+      // Key light reacts to speech
+      keyLight.intensity = 2 + speechIntensity * 3;
+
+      renderer.render(scene, camera);
     };
-    raf = requestAnimationFrame(breathe);
-    return () => cancelAnimationFrame(raf);
-  }, [idle, active]);
+
+    animate();
+
+    // Resize handler
+    const handleResize = () => {
+      if (!container) return;
+      const newW = container.clientWidth;
+      const newH = container.clientHeight;
+      if (newW === 0 || newH === 0) return;
+      camera.aspect = newW / newH;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newW, newH);
+    };
+
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(animationId);
+      resizeObserver.disconnect();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+      // Dispose geometries & materials
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material?.dispose();
+        }
+      });
+      particlesGeo.dispose();
+      particlesMat.dispose();
+    };
+  }, [visible, analyser, active, size]);
 
   if (!visible) return null;
 
-  const mouthOpenAmount = active ? (Math.sin(mouthPhase * 0.012) * 0.5 + 0.5) * (Math.sin(mouthPhase * 0.008) * 0.3 + 0.7) : 0;
-  const mouthHeight = 4 + mouthOpenAmount * 10;
-  const visorIntensity = active ? 1 : 0.3;
-  const eyeColor = active ? '#ff8800' : '#664400';
-  const eyeGlowRadius = active ? 8 : 2;
-  const cyanGlow = active ? 1 : 0.2;
-
-  const svg = (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 200 220"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{
-        filter: active
-          ? 'drop-shadow(0 0 15px rgba(0,212,255,0.4))'
-          : 'drop-shadow(0 0 5px rgba(0,212,255,0.1))',
-        transition: 'filter 0.4s ease',
-      }}
-    >
-      <defs>
-        {/* Metallic gradients */}
-        <linearGradient id="mg-dark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2a3a55" />
-          <stop offset="40%" stopColor="#1a2540" />
-          <stop offset="100%" stopColor="#0d1520" />
-        </linearGradient>
-        <linearGradient id="mg-mid" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3a4f6f" />
-          <stop offset="50%" stopColor="#263750" />
-          <stop offset="100%" stopColor="#1a2a40" />
-        </linearGradient>
-        <linearGradient id="mg-light" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8899bb" />
-          <stop offset="50%" stopColor="#667799" />
-          <stop offset="100%" stopColor="#445577" />
-        </linearGradient>
-        <linearGradient id="mg-chrome" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#c0d0e0" />
-          <stop offset="30%" stopColor="#8899aa" />
-          <stop offset="70%" stopColor="#556677" />
-          <stop offset="100%" stopColor="#334455" />
-        </linearGradient>
-        <linearGradient id="mg-visor" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#cc5500" />
-          <stop offset="30%" stopColor="#ff8800" />
-          <stop offset="50%" stopColor="#ffaa22" />
-          <stop offset="70%" stopColor="#ff8800" />
-          <stop offset="100%" stopColor="#cc5500" />
-        </linearGradient>
-        <linearGradient id="mg-cyan" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#00eeff" />
-          <stop offset="100%" stopColor="#0088aa" />
-        </linearGradient>
-        <radialGradient id="mg-eye-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#ff6600" stopOpacity="0" />
-        </radialGradient>
-
-        {/* Filters */}
-        <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="3" />
-        </filter>
-        <filter id="glow-eye" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation={eyeGlowRadius} />
-        </filter>
-        <filter id="inner-shadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feOffset dx="0" dy="2" />
-          <feGaussianBlur stdDeviation="2" />
-          <feComposite operator="out" in="SourceGraphic" />
-          <feComponentTransfer>
-            <feFuncA type="linear" slope="0.3" />
-          </feComponentTransfer>
-          <feBlend in="SourceGraphic" mode="normal" />
-        </filter>
-        <filter id="bevel" x="-5%" y="-5%" width="110%" height="110%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
-          <feSpecularLighting in="blur" surfaceScale="3" specularConstant="0.6" specularExponent="20" result="spec">
-            <fePointLight x="100" y="50" z="150" />
-          </feSpecularLighting>
-          <feComposite in="spec" in2="SourceAlpha" operator="in" result="specOut" />
-          <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="0.3" k4="0" />
-        </filter>
-      </defs>
-
-      {/* ═══ HELMET / CROWN ═══ */}
-      {/* Main helmet dome */}
-      <path
-        d="M100,18 L145,38 L158,65 L155,95 L100,98 L45,95 L42,65 L55,38 Z"
-        fill="url(#mg-dark)" stroke="#3a5070" strokeWidth="1" filter="url(#bevel)"
-      />
-      {/* Center crest */}
-      <path
-        d="M92,15 L100,5 L108,15 L108,55 L100,58 L92,55 Z"
-        fill="url(#mg-mid)" stroke="#4a6080" strokeWidth="0.8"
-      />
-      {/* Crest tip glow */}
-      <rect x="96" y="5" width="8" height="4" rx="1" fill="url(#mg-cyan)" opacity={cyanGlow}>
-        {active && <animate attributeName="opacity" values={`${cyanGlow};1;${cyanGlow}`} dur="1.5s" repeatCount="indefinite" />}
-      </rect>
-
-      {/* Left horn/antenna */}
-      <path
-        d="M55,38 L38,22 L32,28 L42,55 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.8" filter="url(#bevel)"
-      />
-      <circle cx="35" cy="25" r="3" fill="url(#mg-cyan)" opacity={cyanGlow}>
-        {active && <animate attributeName="opacity" values={`${cyanGlow};1;${cyanGlow}`} dur="2s" repeatCount="indefinite" />}
-      </circle>
-      {/* Right horn/antenna */}
-      <path
-        d="M145,38 L162,22 L168,28 L158,55 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.8" filter="url(#bevel)"
-      />
-      <circle cx="165" cy="25" r="3" fill="url(#mg-cyan)" opacity={cyanGlow}>
-        {active && <animate attributeName="opacity" values={`${cyanGlow};1;${cyanGlow}`} dur="2s" repeatCount="indefinite" begin="0.5s" />}
-      </circle>
-
-      {/* Forehead armor plates */}
-      <path
-        d="M60,50 L85,42 L88,60 L62,65 Z"
-        fill="url(#mg-dark)" stroke="#2a4060" strokeWidth="0.6"
-      />
-      <path
-        d="M140,50 L115,42 L112,60 L138,65 Z"
-        fill="url(#mg-dark)" stroke="#2a4060" strokeWidth="0.6"
-      />
-      {/* Forehead accent lines */}
-      <line x1="65" y1="52" x2="82" y2="46" stroke="#00d4ff" strokeWidth="0.8" opacity={cyanGlow * 0.6} />
-      <line x1="135" y1="52" x2="118" y2="46" stroke="#00d4ff" strokeWidth="0.8" opacity={cyanGlow * 0.6} />
-
-      {/* ═══ FACE AREA ═══ */}
-      {/* Main face plate */}
-      <path
-        d="M45,95 L155,95 L152,130 L140,155 L120,168 L80,168 L60,155 L48,130 Z"
-        fill="url(#mg-dark)" stroke="#3a5070" strokeWidth="1" filter="url(#bevel)"
-      />
-
-      {/* ═══ EYE RECESSES ═══ */}
-      {/* Left eye socket */}
-      <path
-        d="M52,88 L90,82 L92,100 L88,108 L50,105 Z"
-        fill="#0a1018" stroke="#2a3a55" strokeWidth="0.8"
-      />
-      {/* Right eye socket */}
-      <path
-        d="M148,88 L110,82 L108,100 L112,108 L150,105 Z"
-        fill="#0a1018" stroke="#2a3a55" strokeWidth="0.8"
-      />
-
-      {/* ═══ VISOR / EYES ═══ */}
-      {/* Eye glow halos */}
-      <ellipse cx="72" cy="96" rx="18" ry="10" fill="url(#mg-eye-glow)" opacity={visorIntensity * 0.5} filter="url(#glow-eye)" />
-      <ellipse cx="128" cy="96" rx="18" ry="10" fill="url(#mg-eye-glow)" opacity={visorIntensity * 0.5} filter="url(#glow-eye)" />
-
-      {/* Left eye visor */}
-      <path
-        d="M55,92 L88,86 L90,98 L86,104 L53,100 Z"
-        fill={eyeColor} opacity={visorIntensity} stroke="#ffaa00" strokeWidth="0.5"
-      >
-        {active && <animate attributeName="opacity" values={`${visorIntensity};${visorIntensity * 0.7};${visorIntensity}`} dur="1.8s" repeatCount="indefinite" />}
-      </path>
-      {/* Right eye visor */}
-      <path
-        d="M145,92 L112,86 L110,98 L114,104 L147,100 Z"
-        fill={eyeColor} opacity={visorIntensity} stroke="#ffaa00" strokeWidth="0.5"
-      >
-        {active && <animate attributeName="opacity" values={`${visorIntensity};${visorIntensity * 0.7};${visorIntensity}`} dur="1.8s" repeatCount="indefinite" begin="0.3s" />}
-      </path>
-
-      {/* Eye inner bright spots */}
-      <ellipse cx="72" cy="95" rx="8" ry="4" fill="#ffcc44" opacity={visorIntensity * 0.6} />
-      <ellipse cx="128" cy="95" rx="8" ry="4" fill="#ffcc44" opacity={visorIntensity * 0.6} />
-
-      {/* Center visor bridge */}
-      <rect x="90" y="90" width="20" height="8" rx="1" fill="#0a1018" stroke="#2a3a55" strokeWidth="0.5" />
-      <line x1="93" y1="94" x2="107" y2="94" stroke="#00d4ff" strokeWidth="0.6" opacity={cyanGlow * 0.5} />
-
-      {/* ═══ NOSE / CENTER ═══ */}
-      <path
-        d="M96,108 L104,108 L102,128 L98,128 Z"
-        fill="url(#mg-light)" stroke="#4a6080" strokeWidth="0.5"
-      />
-
-      {/* ═══ CHEEK ARMOR ═══ */}
-      {/* Left cheek */}
-      <path
-        d="M42,98 L52,95 L50,130 L45,135 L35,120 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.8" filter="url(#bevel)"
-      />
-      {/* Right cheek */}
-      <path
-        d="M158,98 L148,95 L150,130 L155,135 L165,120 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.8" filter="url(#bevel)"
-      />
-
-      {/* Cheek vents */}
-      {[0, 1, 2, 3].map(i => (
-        <g key={i}>
-          <line x1="36" y1={106 + i * 6} x2="48" y2={104 + i * 6} stroke="#00d4ff" strokeWidth="1" opacity={cyanGlow * 0.5} />
-          <line x1="164" y1={106 + i * 6} x2="152" y2={104 + i * 6} stroke="#00d4ff" strokeWidth="1" opacity={cyanGlow * 0.5} />
-        </g>
-      ))}
-
-      {/* ═══ MOUTH / FACEPLATE ═══ */}
-      {/* Mouth frame */}
-      <path
-        d="M70,132 L130,132 L126,150 L74,150 Z"
-        fill="#0a1018" stroke="#2a3a55" strokeWidth="0.8"
-      />
-      {/* Mouth glow bar */}
-      <rect
-        x="76" y={136} width="48" height={mouthHeight} rx="2"
-        fill="url(#mg-visor)"
-        opacity={active ? 0.9 : 0.15}
-        style={{ transition: 'height 0.08s ease, opacity 0.3s ease' }}
-      />
-      {/* Mouth grille lines */}
-      {[0, 1, 2, 3, 4].map(i => (
-        <line
-          key={i} x1="78" y1={137 + i * (mouthHeight / 5)} x2="122" y2={137 + i * (mouthHeight / 5)}
-          stroke="#00d4ff" strokeWidth="0.6" opacity={active ? 0.5 + mouthOpenAmount * 0.3 : 0.1}
-        />
-      ))}
-
-      {/* ═══ CHIN ═══ */}
-      <path
-        d="M74,150 L126,150 L118,168 L108,178 L92,178 L82,168 Z"
-        fill="url(#mg-chrome)" stroke="#4a6080" strokeWidth="0.8" filter="url(#bevel)"
-      />
-      {/* Chin center line */}
-      <line x1="100" y1="155" x2="100" y2="175" stroke="#3a5070" strokeWidth="0.8" />
-      {/* Chin accent */}
-      <path
-        d="M92,170 L100,178 L108,170"
-        fill="none" stroke="#00d4ff" strokeWidth="0.8" opacity={cyanGlow * 0.4}
-      />
-
-      {/* ═══ JAW SIDES ═══ */}
-      <path
-        d="M48,130 L60,125 L65,155 L55,158 L40,140 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.7"
-      />
-      <path
-        d="M152,130 L140,125 L135,155 L145,158 L160,140 Z"
-        fill="url(#mg-mid)" stroke="#3a5070" strokeWidth="0.7"
-      />
-
-      {/* ═══ NECK ═══ */}
-      <path
-        d="M75,178 L125,178 L130,200 L70,200 Z"
-        fill="url(#mg-dark)" stroke="#2a3a55" strokeWidth="0.8"
-      />
-      {/* Neck rings */}
-      {[0, 1, 2].map(i => (
-        <line
-          key={i} x1="72" y1={185 + i * 6} x2="128" y2={185 + i * 6}
-          stroke="#00d4ff" strokeWidth="0.6" opacity={cyanGlow * 0.3}
-        />
-      ))}
-
-      {/* ═══ PANEL LINES (detail) ═══ */}
-      {/* Helmet panel lines */}
-      <line x1="70" y1="35" x2="60" y2="65" stroke="#1a2a40" strokeWidth="0.5" opacity="0.6" />
-      <line x1="130" y1="35" x2="140" y2="65" stroke="#1a2a40" strokeWidth="0.5" opacity="0.6" />
-      <line x1="80" y1="60" x2="78" y2="82" stroke="#1a2a40" strokeWidth="0.4" opacity="0.5" />
-      <line x1="120" y1="60" x2="122" y2="82" stroke="#1a2a40" strokeWidth="0.4" opacity="0.5" />
-      {/* Face panel lines */}
-      <line x1="65" y1="110" x2="70" y2="132" stroke="#1a2a40" strokeWidth="0.4" opacity="0.4" />
-      <line x1="135" y1="110" x2="130" y2="132" stroke="#1a2a40" strokeWidth="0.4" opacity="0.4" />
-
-      {/* ═══ SMALL DETAILS ═══ */}
-      {/* Bolts/rivets */}
-      {[[55, 45], [145, 45], [40, 110], [160, 110], [65, 160], [135, 160]].map(([cx, cy], i) => (
-        <circle key={i} cx={cx} cy={cy} r="2" fill="#334455" stroke="#4a6080" strokeWidth="0.5" />
-      ))}
-
-      {/* Side sensors */}
-      <circle cx="38" cy="85" r="4" fill="#0a1018" stroke="#2a3a55" strokeWidth="0.8" />
-      <circle cx="38" cy="85" r="2" fill="#00d4ff" opacity={cyanGlow * 0.6}>
-        {active && <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1s" repeatCount="indefinite" />}
-      </circle>
-      <circle cx="162" cy="85" r="4" fill="#0a1018" stroke="#2a3a55" strokeWidth="0.8" />
-      <circle cx="162" cy="85" r="2" fill="#00d4ff" opacity={cyanGlow * 0.6}>
-        {active && <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1s" repeatCount="indefinite" begin="0.5s" />}
-      </circle>
-    </svg>
-  );
-
-  // Idle mode: inline
   if (idle) {
     return (
-      <div style={{
-        opacity: idle && !active ? 0.55 : 1,
-        transition: 'opacity 0.5s ease',
-        animation: !active ? 'megazordBreathing 3s ease-in-out infinite' : undefined,
-      }}>
-        <style>{`
-          @keyframes megazordBreathing {
-            0%, 100% { opacity: 0.45; }
-            50% { opacity: 0.65; }
-          }
-        `}</style>
-        {svg}
-      </div>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: size,
+          opacity: idle && !active ? 0.7 : 1,
+          transition: 'opacity 0.5s ease',
+        }}
+      />
     );
   }
 
-  // Overlay mode
+  // Overlay mode (not used currently, but kept for future)
   return (
     <div
       className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none"
@@ -371,7 +411,7 @@ function JarvisMegazordHead({ active, size = 200, idle = false }: JarvisMegazord
         @keyframes megazordEnter { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes megazordExit { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8); opacity: 0; } }
       `}</style>
-      {svg}
+      <div ref={containerRef} style={{ width: size, height: size }} />
     </div>
   );
 }

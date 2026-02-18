@@ -73,6 +73,7 @@ const AiosStoryDetailPage = lazy(() => import('./pages/AiosStories/StoryDetail')
 const AiosCostsPage = lazy(() => import('./pages/AiosCosts').then(m => ({ default: m.AiosCosts })));
 const AiosSquadsPage = lazy(() => import('./pages/AiosSquads').then(m => ({ default: m.AiosSquads })));
 const AiosSquadDetailPage = lazy(() => import('./pages/AiosSquads/SquadDetail').then(m => ({ default: m.AiosSquadDetail })));
+const AiosTasksPage = lazy(() => import('./pages/AiosTasks').then(m => ({ default: m.AiosTasks })));
 
 // Content Studio
 const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ default: m.ContentStudio })));
@@ -555,6 +556,15 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <AiosSquadDetailPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/aios/tasks" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AiosTasksPage />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>

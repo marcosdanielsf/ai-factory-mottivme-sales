@@ -41,3 +41,4 @@ export * from './useImportContacts';
 export * from './useProspector';
 export * from './useDailyCallDetails';
 export * from './useVideoProducer';
+export * from './useContentJourneyLog';

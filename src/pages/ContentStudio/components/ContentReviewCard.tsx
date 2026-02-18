@@ -2,9 +2,15 @@ import { useState } from 'react';
 import {
   Check, X, Calendar, Send, Edit3, Eye,
   Instagram, Linkedin, Facebook, Mail, Video, Image as ImageIcon,
-  Hash, MessageSquare, Loader2, Film
+  Hash, MessageSquare, Loader2, Film, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { ContentPiece } from '../../../hooks/useContentPieces';
+import { useQualityGates } from '../../../hooks/useQualityGates';
+import { QualityGatesBadge } from './QualityGatesBadge';
+import { QualityGatesChecklist } from './QualityGatesChecklist';
+import { useContentJourneyLog } from '../../../hooks/useContentJourneyLog';
+import { JourneyTimeline } from './JourneyTimeline';
+import { JourneyInsights } from './JourneyInsights';
 
 interface ContentReviewCardProps {
   piece: ContentPiece;
@@ -67,6 +73,12 @@ export function ContentReviewCard({
   const [showSchedule, setShowSchedule] = useState(false);
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const [videoRequested, setVideoRequested] = useState(false);
+  const [showQualityGates, setShowQualityGates] = useState(false);
+  const [showJourney, setShowJourney] = useState(false);
+
+  const qualityResult = useQualityGates(piece);
+  const { entries: journeyEntries, loading: journeyLoading, insights: journeyInsights } =
+    useContentJourneyLog(showJourney ? piece.id : null);
 
   const PlatformIcon = piece.platform ? PLATFORM_ICONS[piece.platform] || MessageSquare : MessageSquare;
   const isPending = piece.approval_status === 'pending';
@@ -111,7 +123,7 @@ export function ContentReviewCard({
     <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <PlatformIcon className="w-4 h-4 text-text-muted" />
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[piece.type] || ''}`}>
             {piece.type.toUpperCase()}
@@ -119,6 +131,10 @@ export function ContentReviewCard({
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[piece.approval_status] || ''}`}>
             {STATUS_LABELS[piece.approval_status] || piece.approval_status}
           </span>
+          <QualityGatesBadge
+            result={qualityResult}
+            onClick={() => setShowQualityGates(v => !v)}
+          />
         </div>
         {piece.platform && (
           <span className="text-xs text-text-muted capitalize">{piece.platform}</span>
@@ -158,6 +174,11 @@ export function ContentReviewCard({
           >
             {expanded ? 'Ver menos' : 'Ver mais'}
           </button>
+        )}
+
+        {/* Quality Gates Checklist */}
+        {showQualityGates && (
+          <QualityGatesChecklist result={qualityResult} defaultExpanded />
         )}
 
         {piece.cta && (
@@ -270,8 +291,10 @@ export function ContentReviewCard({
             {isPending && (
               <>
                 <button
-                  onClick={() => onApprove(piece.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-500"
+                  onClick={() => qualityResult.canApprove && onApprove(piece.id)}
+                  disabled={!qualityResult.canApprove}
+                  title={!qualityResult.canApprove ? `${qualityResult.blockers} bloqueio(s) impedem aprovacao` : 'Aprovar conteudo'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Check className="w-3 h-3" /> Aprovar
                 </button>
@@ -332,9 +355,31 @@ export function ContentReviewCard({
                 <Eye className="w-3 h-3" /> Preview
               </button>
             )}
+
+            <button
+              onClick={() => setShowJourney(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover"
+              title="Historico de acoes"
+            >
+              <History className="w-3 h-3" />
+              {showJourney ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
           </>
         )}
       </div>
+
+      {/* Journey Log */}
+      {showJourney && (
+        <div className="px-4 py-3 border-t border-border-default bg-bg-primary/30 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
+              Historico de Acoes
+            </span>
+          </div>
+          <JourneyInsights insights={journeyInsights} />
+          <JourneyTimeline entries={journeyEntries} loading={journeyLoading} collapsible />
+        </div>
+      )}
     </div>
   );
 }

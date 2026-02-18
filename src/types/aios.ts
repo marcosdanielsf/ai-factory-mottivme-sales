@@ -352,3 +352,106 @@ export const aiosSquadStrategyConfig: Record<
     description: 'Agentes geram solucoes independentes para comparacao',
   },
 };
+
+// =====================================================
+// EXPERT KNOWLEDGE SYSTEM TYPES
+// =====================================================
+
+export interface AiosExpert {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  expertise: string;
+  squad_id: string | null;
+  frameworks: AiosExpertFramework[];
+  swipe_files: AiosExpertSwipeFile[];
+  checklists: AiosExpertChecklist[];
+  total_tasks_executed: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiosExpertFramework {
+  id: string;
+  name: string;
+  description: string | null;
+  steps: string[];
+  use_cases: string[];
+}
+
+export interface AiosExpertSwipeFile {
+  id: string;
+  title: string;
+  content: string;
+  category: string | null;
+  tags: string[];
+}
+
+export interface AiosExpertChecklist {
+  id: string;
+  title: string;
+  items: AiosExpertChecklistItem[];
+  category: string | null;
+}
+
+export interface AiosExpertChecklistItem {
+  id: string;
+  label: string;
+  required: boolean;
+}
+
+// =====================================================
+// CONTEXT HEALTH (SYNAPSE) TYPES
+// =====================================================
+
+export type AiosContextEntityType = 'agent' | 'clone' | 'squad' | 'project';
+
+export interface AiosContextHealth {
+  id: string;
+  entity_type: AiosContextEntityType;
+  entity_id: string;
+  entity_name: string;
+  health_score: number;           // 0-100
+  alerts: AiosContextAlert[];
+  last_updated_at: string;
+  created_at: string;
+}
+
+export interface AiosContextAlert {
+  level: 'info' | 'warning' | 'error';
+  message: string;
+  field?: string;
+}
+
+// =====================================================
+// ARENA (DEBATE) TYPES
+// =====================================================
+
+export type ArenaDebateFramework =
+  | 'socrático'
+  | 'steelman'
+  | 'devil_advocate'
+  | 'six_hats'
+  | 'pro_con';
+
+export interface ArenaDebateMessage {
+  id: string;
+  expert_id: string;
+  expert_name: string;
+  content: string;
+  timestamp: string;
+  type: 'argument' | 'counter' | 'summary';
+}
+
+export interface ArenaSession {
+  id: string;
+  topic: string;
+  framework: ArenaDebateFramework;
+  experts: string[];           // expert IDs
+  messages: ArenaDebateMessage[];
+  status: 'setup' | 'running' | 'completed';
+  summary: string | null;
+  created_at: string;
+}

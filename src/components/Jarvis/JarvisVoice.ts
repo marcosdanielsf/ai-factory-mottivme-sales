@@ -1,10 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
-// ─── Cartesia TTS ─────────────────────────────────────────────────────────────
-//
-// Uses Cartesia's Sonic model for high-quality, natural-sounding Portuguese TTS.
-// Falls back to Web Speech API if Cartesia key is missing or API fails.
-//
+// ─── Cartesia TTS + Web Audio API (with AnalyserNode for 3D head) ─────────────
 
 const CARTESIA_API_URL = 'https://api.cartesia.ai/tts/bytes';
 const CARTESIA_API_KEY = import.meta.env.VITE_CARTESIA_API_KEY || '';
@@ -17,6 +13,7 @@ export interface MegazordTTS {
   isSpeaking: boolean;
   ttsEnabled: boolean;
   toggleTts: () => void;
+  analyser: AnalyserNode | null;
 }
 
 // ─── Cartesia API Call ────────────────────────────────────────────────────────
@@ -35,25 +32,18 @@ async function cartesiaTTS(text: string): Promise<ArrayBuffer | null> {
       body: JSON.stringify({
         model_id: CARTESIA_MODEL,
         transcript: text,
-        voice: {
-          mode: 'id',
-          id: CARTESIA_VOICE_ID,
-        },
+        voice: { mode: 'id', id: CARTESIA_VOICE_ID },
         output_format: {
           container: 'wav',
           encoding: 'pcm_f32le',
           sample_rate: 24000,
         },
         language: 'pt',
-        // Megazord: slightly slower, deeper feel via speed control
-        __experimental_controls: {
-          speed: 'slow',
-        },
       }),
     });
 
     if (!response.ok) {
-      console.warn('Cartesia TTS error:', response.status, await response.text().catch(() => ''));
+      console.warn('Cartesia TTS error:', response.status);
       return null;
     }
 
@@ -62,30 +52,6 @@ async function cartesiaTTS(text: string): Promise<ArrayBuffer | null> {
     console.warn('Cartesia TTS fetch error:', err);
     return null;
   }
-}
-
-// ─── Web Speech Fallback ──────────────────────────────────────────────────────
-
-function webSpeechFallback(text: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (!window.speechSynthesis) { resolve(); return; }
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pt-BR';
-    utterance.pitch = 0.6;
-    utterance.rate = 0.88;
-    utterance.volume = 1.0;
-
-    // Try to find PT-BR voice
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice = voices.find((v) => v.lang === 'pt-BR') || voices.find((v) => v.lang.startsWith('pt'));
-    if (ptVoice) utterance.voice = ptVoice;
-
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
-    window.speechSynthesis.speak(utterance);
-  });
 }
 
 // ─── Text Cleaning ────────────────────────────────────────────────────────────
@@ -100,15 +66,11 @@ function cleanTextForSpeech(text: string): string {
     .trim();
 }
 
-// ─── Split into chunks (Cartesia has a character limit) ──────────────────────
-
 function splitIntoChunks(text: string, maxLen = 500): string[] {
   if (text.length <= maxLen) return [text];
-
   const sentences = text.split(/(?<=[.!?])\s+/);
   const chunks: string[] = [];
   let current = '';
-
   for (const sentence of sentences) {
     if ((current + ' ' + sentence).length > maxLen && current) {
       chunks.push(current.trim());
@@ -121,15 +83,95 @@ function splitIntoChunks(text: string, maxLen = 500): string[] {
   return chunks.length > 0 ? chunks : [text.slice(0, maxLen)];
 }
 
+// ─── Web Speech Fallback ──────────────────────────────────────────────────────
+
+function webSpeechFallback(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.pitch = 0.6;
+    utterance.rate = 0.88;
+    utterance.volume = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find((v) => v.lang === 'pt-BR') || voices.find((v) => v.lang.startsWith('pt'));
+    if (ptVoice) utterance.voice = ptVoice;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMegazordTTS(): MegazordTTS {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef(false);
   const queueRef = useRef<string[]>([]);
   const processingRef = useRef(false);
+
+  // Web Audio API refs — persist across renders
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const [analyserState, setAnalyserState] = useState<AnalyserNode | null>(null);
+
+  // Initialize AudioContext + AnalyserNode once
+  useEffect(() => {
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass({ sampleRate: 24000 });
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.6;
+    analyser.connect(ctx.destination);
+
+    audioContextRef.current = ctx;
+    analyserRef.current = analyser;
+    setAnalyserState(analyser);
+
+    return () => {
+      ctx.close().catch(() => {});
+    };
+  }, []);
+
+  // Play audio buffer through AudioContext + AnalyserNode
+  const playAudioBuffer = useCallback((arrayBuffer: ArrayBuffer): Promise<void> => {
+    return new Promise(async (resolve) => {
+      const ctx = audioContextRef.current;
+      const analyser = analyserRef.current;
+      if (!ctx || !analyser) { resolve(); return; }
+
+      // Resume if suspended (browser autoplay policy)
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+
+      try {
+        // Decode audio data
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(analyser); // Route through analyser → destination
+        currentSourceRef.current = source;
+
+        source.onended = () => {
+          currentSourceRef.current = null;
+          resolve();
+        };
+
+        source.start(0);
+      } catch (err) {
+        console.warn('Audio decode/play error:', err);
+        currentSourceRef.current = null;
+        resolve();
+      }
+    });
+  }, []);
 
   const processQueue = useCallback(async () => {
     if (processingRef.current || queueRef.current.length === 0) return;
@@ -139,46 +181,22 @@ export function useMegazordTTS(): MegazordTTS {
     while (queueRef.current.length > 0 && !abortRef.current) {
       const text = queueRef.current.shift()!;
 
-      // Try Cartesia first
+      // Try Cartesia → play through Web Audio API (feeds AnalyserNode)
       const audioData = await cartesiaTTS(text);
 
       if (audioData && !abortRef.current) {
-        // Play Cartesia audio via HTMLAudioElement
-        await new Promise<void>((resolve) => {
-          const blob = new Blob([audioData], { type: 'audio/wav' });
-          const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audioRef.current = audio;
-
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            audioRef.current = null;
-            resolve();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(url);
-            audioRef.current = null;
-            resolve();
-          };
-          audio.play().catch(() => {
-            URL.revokeObjectURL(url);
-            audioRef.current = null;
-            resolve();
-          });
-        });
+        await playAudioBuffer(audioData);
       } else if (!abortRef.current) {
-        // Fallback to Web Speech
         await webSpeechFallback(text);
       }
     }
 
     processingRef.current = false;
     setIsSpeaking(false);
-  }, []);
+  }, [playAudioBuffer]);
 
   const speak = useCallback((text: string) => {
     if (!ttsEnabled) return;
-
     const clean = cleanTextForSpeech(text);
     if (!clean) return;
 
@@ -195,11 +213,10 @@ export function useMegazordTTS(): MegazordTTS {
     abortRef.current = true;
     queueRef.current = [];
 
-    // Stop current audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
+    // Stop current Web Audio source
+    if (currentSourceRef.current) {
+      try { currentSourceRef.current.stop(); } catch {}
+      currentSourceRef.current = null;
     }
 
     // Also cancel Web Speech fallback
@@ -216,10 +233,10 @@ export function useMegazordTTS(): MegazordTTS {
     });
   }, [stopSpeaking]);
 
-  return { speak, stopSpeaking, isSpeaking, ttsEnabled, toggleTts };
+  return { speak, stopSpeaking, isSpeaking, ttsEnabled, toggleTts, analyser: analyserState };
 }
 
-// Keep the export for backward compatibility
+// Keep for backward compat
 export function pickMegazordVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis?.getVoices() ?? [];
   return voices.find((v) => v.lang === 'pt-BR') || voices.find((v) => v.lang.startsWith('pt')) || voices[0] || null;

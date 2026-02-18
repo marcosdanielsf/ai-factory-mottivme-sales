@@ -540,10 +540,12 @@ function RightColumn({
   voiceState,
   isSpeaking,
   onQuickAction,
+  analyser,
 }: {
   voiceState: JarvisVoiceState;
   isSpeaking: boolean;
   onQuickAction: (action: string) => void;
+  analyser: AnalyserNode | null;
 }) {
   const { alerts, dismissAlert, isProcessing } = useJarvis();
   const activeAlerts = alerts.filter((a) => !a.dismissed);
@@ -628,7 +630,7 @@ function RightColumn({
         <span className="text-xs font-semibold tracking-widest text-text-secondary uppercase">Interface de Voz</span>
         {/* Megazord Head — always visible, glows when speaking */}
         <div className="relative">
-          <JarvisMegazordHead active={isSpeaking} size={140} idle />
+          <JarvisMegazordHead active={isSpeaking} size={180} idle analyser={analyser} />
         </div>
         {/* Waveform below head */}
         <div className="h-10 flex items-center justify-center">
@@ -668,7 +670,7 @@ function RightColumn({
 export default function JarvisCommand() {
   const navigate = useNavigate();
   const { alerts, activeAlertCount, sendToJarvis, messages } = useJarvis();
-  const { speak, stopSpeaking, isSpeaking, ttsEnabled, toggleTts } = useMegazordTTS();
+  const { speak, stopSpeaking, isSpeaking, ttsEnabled, toggleTts, analyser } = useMegazordTTS();
 
   // Boot sequence
   const [booted, setBooted] = useState(false);
@@ -1032,6 +1034,7 @@ export default function JarvisCommand() {
           voiceState={voiceState}
           isSpeaking={isSpeaking}
           onQuickAction={handleQuickAction}
+          analyser={analyser}
         />
       </div>
     </div>
