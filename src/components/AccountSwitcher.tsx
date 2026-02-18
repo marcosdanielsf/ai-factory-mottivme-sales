@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, X, Check, Building2, Crown, ArrowLeft } from 'lucide-react';
 
@@ -104,9 +103,8 @@ export const AccountSwitcher: React.FC<AccountSwitcherProps> = ({
     onSelectAccount(location);
     setIsOpen(false);
     setSearchTerm('');
-    // Force hash change + reload to guarantee layout switch
-    window.location.hash = '#/agendamentos';
-    window.location.reload();
+    // Navigate to a valid client route — ConditionalLayout will switch to LayoutCliente
+    navigate('/agendamentos');
   };
 
   const handleBackToAdmin = () => {

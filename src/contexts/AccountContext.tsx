@@ -47,10 +47,10 @@ export function AccountProvider({ children }: AccountProviderProps) {
     let mounted = true;
 
     async function initializeAccount() {
-      try {
-        // Step 1: Check if this user has a role in user_locations (client vs admin)
-        let clientLocationId: string | null = null;
-        if (user?.id) {
+      // Step 1: Check if this user has a role in user_locations (client vs admin)
+      let clientLocationId: string | null = null;
+      if (user?.id) {
+        try {
           const { data: userLoc } = await supabase
             .from('user_locations')
             .select('location_id, role')
@@ -62,82 +62,76 @@ export function AccountProvider({ children }: AccountProviderProps) {
           if (userLoc?.location_id) {
             clientLocationId = userLoc.location_id;
           }
+        } catch (err) {
+          // user_locations query failed — continue to localStorage fallback
+          console.warn('user_locations query failed, falling back to localStorage:', err);
         }
+      }
 
-        // Step 2: If user is a client, force their location (ignore localStorage)
-        if (clientLocationId && locations.length > 0) {
-          const clientLocation = locations.find(
-            loc => loc.location_id === clientLocationId
-          );
-          if (mounted) {
-            if (clientLocation) {
-              localStorage.setItem(STORAGE_KEY, clientLocation.location_id);
-              setState({
-                selectedAccount: clientLocation,
-                isViewingSubconta: true,
-                isClientUser: true,
-                loading: false,
-                initialized: true,
-              });
-            } else {
-              // Location exists in user_locations but not in ghl_locations — fallback
-              setState({
-                selectedAccount: null,
-                isViewingSubconta: false,
-                isClientUser: true,
-                loading: false,
-                initialized: true,
-              });
-            }
-          }
-          return;
-        }
-
-        // Step 3: Admin user — use localStorage as before
-        const storedAccountId = localStorage.getItem(STORAGE_KEY);
-
-        if (storedAccountId && locations.length > 0) {
-          const foundLocation = locations.find(
-            loc => loc.location_id === storedAccountId
-          );
-
-          if (mounted) {
-            if (foundLocation) {
-              setState({
-                selectedAccount: foundLocation,
-                isViewingSubconta: true,
-                isClientUser: false,
-                loading: false,
-                initialized: true,
-              });
-            } else {
-              localStorage.removeItem(STORAGE_KEY);
-              setState({
-                selectedAccount: null,
-                isViewingSubconta: false,
-                isClientUser: false,
-                loading: false,
-                initialized: true,
-              });
-            }
-          }
-        } else if (mounted) {
-          setState(prev => ({
-            ...prev,
-            isClientUser: false,
-            loading: false,
-            initialized: true,
-          }));
-        }
-      } catch (err) {
-        console.error('Error initializing account:', err);
+      // Step 2: If user is a client, force their location (ignore localStorage)
+      if (clientLocationId && locations.length > 0) {
+        const clientLocation = locations.find(
+          loc => loc.location_id === clientLocationId
+        );
         if (mounted) {
-          setState(prev => ({
-            ...prev,
-            loading: false,
-            initialized: true,
-          }));
+          if (clientLocation) {
+            localStorage.setItem(STORAGE_KEY, clientLocation.location_id);
+            setState({
+              selectedAccount: clientLocation,
+              isViewingSubconta: true,
+              isClientUser: true,
+              loading: false,
+              initialized: true,
+            });
+          } else {
+            // Location exists in user_locations but not in ghl_locations — fallback
+            setState({
+              selectedAccount: null,
+              isViewingSubconta: false,
+              isClientUser: true,
+              loading: false,
+              initialized: true,
+            });
+          }
         }
+        return;
+      }
+
+      // Step 3: Admin user — use localStorage as before
+      const storedAccountId = localStorage.getItem(STORAGE_KEY);
+
+      if (storedAccountId && locations.length > 0) {
+        const foundLocation = locations.find(
+          loc => loc.location_id === storedAccountId
+        );
+
+        if (mounted) {
+          if (foundLocation) {
+            setState({
+              selectedAccount: foundLocation,
+              isViewingSubconta: true,
+              isClientUser: false,
+              loading: false,
+              initialized: true,
+            });
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+            setState({
+              selectedAccount: null,
+              isViewingSubconta: false,
+              isClientUser: false,
+              loading: false,
+              initialized: true,
+            });
+          }
+        }
+      } else if (mounted) {
+        setState(prev => ({
+          ...prev,
+          isClientUser: false,
+          loading: false,
+          initialized: true,
+        }));
       }
     }
 
