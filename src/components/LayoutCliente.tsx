@@ -3,7 +3,6 @@ import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import {
   Calendar,
   CheckCircle2,
-  MessageSquare,
   Palette,
   LogOut,
   Menu,
@@ -24,7 +23,6 @@ interface LayoutClienteProps {
 }
 
 const ALL_CLIENT_NAV_ITEMS = [
-  { path: '/supervision', label: 'Supervisao IA', icon: MessageSquare, permission: 'canAccessSupervision' as const },
   { path: '/agendamentos', label: 'Agendamentos', icon: Calendar, permission: 'canAccessAgendamentos' as const },
   { path: '/status', label: 'Central de Status', icon: CheckCircle2, permission: 'canAccessStatusCenter' as const },
 ];
