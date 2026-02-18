@@ -46,6 +46,7 @@ import {
   Brain,
   Activity,
   Swords,
+  Layers,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -94,7 +95,7 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    title: '', // Sem título = itens no topo
+    title: '',
     items: [
       { icon: Home, label: 'Control Tower', to: '/', permission: 'canAccessDashboard' },
       { icon: Bot, label: 'JARVIS', to: '/jarvis', permission: 'canAccessDashboard' },
@@ -127,49 +128,65 @@ const navSections: NavSection[] = [
           { icon: Plus, label: 'Novo Vídeo', to: '/video-producer/new' },
         ]
       },
-      { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos', permission: 'canAccessAgendamentos' },
-      { icon: CheckCircle, label: 'Central de Status', to: '/status', permission: 'canAccessStatusCenter' },
-      { icon: Megaphone, label: 'Social Selling', to: '/social-selling', permission: 'canAccessAgendamentos' },
-      { icon: Calculator, label: 'Planejamento', to: '/planejamento', permission: 'canAccessAgendamentos' },
-      // GHL Direct
-      { icon: TrendingUp, label: 'Vendas (GHL)', to: '/ghl/pipeline', permission: 'canAccessAgendamentos' },
-      { icon: Calendar, label: 'Agenda (GHL)', to: '/ghl/agenda', permission: 'canAccessAgendamentos' },
-      { icon: Users, label: 'Leads (GHL)', to: '/ghl/leads', permission: 'canAccessAgendamentos' },
+      {
+        icon: Layers, label: 'Operações', to: '/operacoes', permission: 'canAccessAgendamentos', subItems: [
+          { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos' },
+          { icon: CheckCircle, label: 'Central de Status', to: '/status' },
+          { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
+          { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
+        ]
+      },
+      {
+        icon: ExternalLink, label: 'GHL', to: '/ghl', permission: 'canAccessAgendamentos', subItems: [
+          { icon: TrendingUp, label: 'Vendas', to: '/ghl/pipeline' },
+          { icon: Calendar, label: 'Agenda', to: '/ghl/agenda' },
+          { icon: Users, label: 'Leads', to: '/ghl/leads' },
+        ]
+      },
     ]
   },
   {
     title: 'AI FACTORY',
-    permission: 'canAccessPromptEditor', // Seção inteira só para quem pode editar prompts
+    permission: 'canAccessPromptEditor',
     items: [
       { icon: Box, label: 'Prompt Studio', to: '/prompt-studio', permission: 'canAccessPromptEditor' },
-      { icon: TestTube2, label: 'Testes & Qualidade', to: '/validacao', permission: 'canAccessValidation' },
-      { icon: RefreshCw, label: 'Reflection Loop', to: '/reflection-loop', permission: 'canAccessPromptEditor' },
-      { icon: Sparkles, label: 'Evolução Agente', to: '/evolution', permission: 'canAccessPromptEditor' },
-      { icon: Send, label: 'Follow-ups', to: '/follow-ups', permission: 'canAccessFollowUps' },
-      { icon: ScrollText, label: 'Logs de Conversa', to: '/logs', permission: 'canAccessLogs' },
-      { icon: Database, label: 'Artifacts & Docs', to: '/knowledge-base', permission: 'canAccessKnowledgeBase' },
+      {
+        icon: TestTube2, label: 'Qualidade', to: '/qualidade', permission: 'canAccessPromptEditor', subItems: [
+          { icon: TestTube2, label: 'Testes & Qualidade', to: '/validacao' },
+          { icon: RefreshCw, label: 'Reflection Loop', to: '/reflection-loop' },
+          { icon: Sparkles, label: 'Evolução Agente', to: '/evolution' },
+        ]
+      },
+      {
+        icon: Database, label: 'Dados', to: '/dados', permission: 'canAccessPromptEditor', subItems: [
+          { icon: Send, label: 'Follow-ups', to: '/follow-ups' },
+          { icon: ScrollText, label: 'Logs de Conversa', to: '/logs' },
+          { icon: Database, label: 'Artifacts & Docs', to: '/knowledge-base' },
+        ]
+      },
     ]
   },
   {
     title: 'AIOS',
     permission: 'canAccessAios',
     items: [
-      { icon: Bot, label: 'Agentes', to: '/aios/agents', permission: 'canAccessAios' },
-      { icon: BookMarked, label: 'Stories', to: '/aios/stories', permission: 'canAccessAios' },
-      { icon: CheckCircle, label: 'Tasks', to: '/aios/tasks', permission: 'canAccessAios' },
-      { icon: Wallet, label: 'Custos', to: '/aios/costs', permission: 'canAccessAios' },
-      { icon: Network, label: 'Squads', to: '/aios/squads', permission: 'canAccessAios' },
+      {
+        icon: Bot, label: 'Produção', to: '/aios/producao', permission: 'canAccessAios', subItems: [
+          { icon: Bot, label: 'Agentes', to: '/aios/agents' },
+          { icon: BookMarked, label: 'Stories', to: '/aios/stories' },
+          { icon: CheckCircle, label: 'Tasks', to: '/aios/tasks' },
+          { icon: Wallet, label: 'Custos', to: '/aios/costs' },
+          { icon: Network, label: 'Squads', to: '/aios/squads' },
+        ]
+      },
+      {
+        icon: Brain, label: 'Inteligência', to: '/aios/inteligencia', permission: 'canAccessAios', subItems: [
+          { icon: Palette, label: 'Experts', to: '/aios/experts' },
+          { icon: Activity, label: 'Synapse', to: '/aios/synapse' },
+          { icon: Swords, label: 'Arena', to: '/aios/arena' },
+        ]
+      },
       { icon: Palette, label: 'Content Studio', to: '/content-studio', permission: 'canAccessAios' },
-      { icon: Brain, label: 'Experts', to: '/aios/experts', permission: 'canAccessAios' },
-      { icon: Activity, label: 'Synapse', to: '/aios/synapse', permission: 'canAccessAios' },
-      { icon: Swords, label: 'Arena', to: '/aios/arena', permission: 'canAccessAios' },
-    ]
-  },
-  {
-    title: 'GAMIFICATION',
-    permission: 'canManageAgents',
-    items: [
-      { icon: Users, label: 'Squads RPG', to: '/team-rpg' },
     ]
   },
   {
@@ -180,6 +197,7 @@ const navSections: NavSection[] = [
       { icon: DollarSign, label: 'Custos por Cliente', to: '/custos', permission: 'canViewAllClients' },
       { icon: Settings, label: 'Configurações', to: '/configuracoes', permission: 'canAccessConfiguracoes' },
       { icon: UsersRound, label: 'Usuários', to: '/usuarios', permission: 'canManageUsers' },
+      { icon: Users, label: 'Squads RPG', to: '/team-rpg', permission: 'canManageAgents' },
     ]
   },
 ];
@@ -276,7 +294,9 @@ const SidebarExpandableItem = ({
   isCollapsed?: boolean;
 }) => {
   const location = useLocation();
-  const isAnyChildActive = location.pathname.startsWith(to);
+  const isAnyChildActive = subItems.some(sub =>
+    location.pathname === sub.to || location.pathname.startsWith(sub.to + '/')
+  );
   const [isExpanded, setIsExpanded] = useState(isAnyChildActive);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -386,7 +406,12 @@ const SidebarExpandableItem = ({
   );
 };
 
-const SectionTitle = ({ title, isCollapsed }: { title: string; isCollapsed: boolean }) => {
+const SectionTitle = ({ title, isCollapsed, isSectionExpanded, onToggle }: {
+  title: string;
+  isCollapsed: boolean;
+  isSectionExpanded?: boolean;
+  onToggle?: () => void;
+}) => {
   if (!title) return null;
 
   if (isCollapsed) {
@@ -394,9 +419,16 @@ const SectionTitle = ({ title, isCollapsed }: { title: string; isCollapsed: bool
   }
 
   return (
-    <div className="pt-4 pb-1 px-4 text-xs font-medium text-text-muted">
-      {title}
-    </div>
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between pt-4 pb-1 px-4 text-xs font-medium text-text-muted hover:text-text-secondary transition-colors"
+    >
+      <span>{title}</span>
+      <ChevronDown
+        size={12}
+        className={`transition-transform duration-200 ${isSectionExpanded ? '' : '-rotate-90'}`}
+      />
+    </button>
   );
 };
 
@@ -416,6 +448,22 @@ export const Sidebar = ({
   const { selectedAccount, selectSubconta, backToAdmin, loading: accountLoading } = useAccount();
   const { locations, loading: locationsLoading } = useLocations();
   const { criticalCount } = useAiosContextHealth();
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = (title: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
+
+  const isSectionExpanded = (section: NavSection): boolean => {
+    if (!section.title) return true;
+    if (collapsedSections.has(section.title)) return false;
+    return true;
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -465,8 +513,15 @@ export const Sidebar = ({
   const synapseNavSections = navSections.map((section) => ({
     ...section,
     items: section.items.map((item) => {
-      if (item.to === '/aios/synapse' && criticalCount > 0) {
-        return { ...item, badge: String(criticalCount) };
+      if (criticalCount > 0) {
+        // Badge no item direto
+        if (item.to === '/aios/synapse') {
+          return { ...item, badge: String(criticalCount) };
+        }
+        // Badge no pai se Synapse está nos subItems
+        if (item.subItems?.some(sub => sub.to === '/aios/synapse')) {
+          return { ...item, badge: String(criticalCount) };
+        }
       }
       return item;
     }),
@@ -570,34 +625,48 @@ export const Sidebar = ({
 
       {/* Nav - Filtrado por permissões */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-        {filteredSections.map((section, sectionIndex) => (
-          <div key={sectionIndex}>
-            <SectionTitle title={section.title} isCollapsed={isCollapsed} />
-            {section.items.map((item) => (
-              item.subItems && item.subItems.length > 0 ? (
-                <SidebarExpandableItem
-                  key={item.to}
-                  icon={item.icon}
-                  label={item.label}
-                  to={item.to}
-                  subItems={item.subItems}
-                  onNavigate={handleNavigate}
-                  isCollapsed={isCollapsed}
-                />
-              ) : (
-                <SidebarItem
-                  key={item.to}
-                  icon={item.icon}
-                  label={item.label}
-                  to={item.to}
-                  badge={item.badge}
-                  onNavigate={handleNavigate}
-                  isCollapsed={isCollapsed}
-                />
-              )
-            ))}
-          </div>
-        ))}
+        {filteredSections.map((section, sectionIndex) => {
+          const expanded = isSectionExpanded(section);
+          return (
+            <div key={sectionIndex}>
+              <SectionTitle
+                title={section.title}
+                isCollapsed={isCollapsed}
+                isSectionExpanded={expanded}
+                onToggle={() => section.title && toggleSection(section.title)}
+              />
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                {section.items.map((item) => (
+                  item.subItems && item.subItems.length > 0 ? (
+                    <SidebarExpandableItem
+                      key={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      to={item.to}
+                      subItems={item.subItems}
+                      onNavigate={handleNavigate}
+                      isCollapsed={isCollapsed}
+                    />
+                  ) : (
+                    <SidebarItem
+                      key={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      to={item.to}
+                      badge={item.badge}
+                      onNavigate={handleNavigate}
+                      isCollapsed={isCollapsed}
+                    />
+                  )
+                ))}
+              </div>
+            </div>
+          );
+        })}
 
         {/* Link externo para documentação - só para admins/managers */}
         {hasPermission('canEditPrompts') && (

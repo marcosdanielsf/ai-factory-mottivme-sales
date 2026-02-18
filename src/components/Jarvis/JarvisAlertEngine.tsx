@@ -8,7 +8,7 @@ function generateId(): string {
   return `alert-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function useJarvisAlerts(): {
+export function useJarvisAlerts(enabled: boolean = false): {
   alerts: JarvisAlert[];
   dismissAlert: (id: string) => void;
   activeCount: number;
@@ -40,8 +40,10 @@ export function useJarvisAlerts(): {
     );
   }, []);
 
-  // Supabase Realtime: watch aios_agents for status='error'
+  // Supabase Realtime: watch aios_agents for status='error' (only when enabled)
   useEffect(() => {
+    if (!enabled) return;
+
     try {
       const channel = supabase
         .channel('jarvis-agents-watch')
@@ -83,7 +85,7 @@ export function useJarvisAlerts(): {
         }
       }
     };
-  }, [addAlert]);
+  }, [addAlert, enabled]);
 
   // Polling: check for hot leads without response
   const pollHotLeads = useCallback(async () => {
@@ -142,6 +144,8 @@ export function useJarvisAlerts(): {
   }, [addAlert]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     // Initial poll
     pollHotLeads();
 
@@ -153,7 +157,7 @@ export function useJarvisAlerts(): {
         clearInterval(pollTimerRef.current);
       }
     };
-  }, [pollHotLeads]);
+  }, [pollHotLeads, enabled]);
 
   const activeCount = alerts.filter((a) => !a.dismissed).length;
 

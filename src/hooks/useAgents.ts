@@ -25,7 +25,7 @@ export const useAgents = () => {
         }
       }
 
-      // 2. Buscar agent_versions
+      // 2. Buscar agent_versions (select('*') ok aqui — poucos agentes, ~15-30 rows)
       const { data, error } = await supabase
         .from('agent_versions')
         .select('*')

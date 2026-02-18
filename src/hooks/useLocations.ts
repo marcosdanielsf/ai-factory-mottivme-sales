@@ -6,29 +6,59 @@ export interface Location {
   location_name: string;
 }
 
+// Module-level cache — uma única query serve todos os componentes
+let cachedLocations: Location[] | null = null;
+let fetchPromise: Promise<Location[]> | null = null;
+
+function fetchLocationsOnce(): Promise<Location[]> {
+  if (cachedLocations) return Promise.resolve(cachedLocations);
+  if (fetchPromise) return fetchPromise;
+
+  fetchPromise = supabase
+    .from('ghl_locations')
+    .select('location_id, location_name')
+    .order('location_name')
+    .then(({ data, error }) => {
+      if (error) throw error;
+      cachedLocations = data || [];
+      return cachedLocations;
+    })
+    .catch((err) => {
+      fetchPromise = null; // allow retry on error
+      throw err;
+    });
+
+  return fetchPromise;
+}
+
 export const useLocations = () => {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<Location[]>(cachedLocations || []);
+  const [loading, setLoading] = useState(!cachedLocations);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('ghl_locations')
-          .select('location_id, location_name')
-          .order('location_name');
+    if (cachedLocations) {
+      setLocations(cachedLocations);
+      setLoading(false);
+      return;
+    }
 
-        if (error) throw error;
-        setLocations(data || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+    let mounted = true;
+    fetchLocationsOnce()
+      .then((data) => {
+        if (mounted) {
+          setLocations(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
 
-    fetchLocations();
+    return () => { mounted = false; };
   }, []);
 
   return { locations, loading, error };

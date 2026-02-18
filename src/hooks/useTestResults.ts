@@ -86,10 +86,10 @@ export const useTestResults = (dateRange?: DateRange) => {
 
       const allResults: AgentTestRun[] = [];
 
-      // 1. Buscar TODOS os agent_versions (com ou sem validação)
+      // 1. Buscar agent_versions sem campos pesados (system_prompt, tools_config, prompts_by_mode, etc.)
       let avQuery = supabase
         .from('agent_versions')
-        .select('*')
+        .select('id, agent_name, version, status, is_active, created_at, updated_at, client_id, location_id, last_test_score, validation_score, total_test_runs, validation_result, deployment_notes')
         .order('created_at', { ascending: false })
         .limit(500);
 

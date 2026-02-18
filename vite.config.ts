@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => {
             'vendor-icons': ['lucide-react'],
             'vendor-charts': ['recharts'],
             'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+            'vendor-genai': ['@google/genai'],
           },
         },
       },

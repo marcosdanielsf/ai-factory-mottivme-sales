@@ -107,22 +107,31 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const contextRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { alerts, dismissAlert, activeCount: activeAlertCount } = useJarvisAlerts();
+  const [jarvisActivated, setJarvisActivated] = useState(false);
+  const { alerts, dismissAlert, activeCount: activeAlertCount } = useJarvisAlerts(jarvisActivated);
 
-  // Build system context on mount and refresh every 2 minutes
+  // Lazy-init: só busca contexto na primeira interação, não no mount
   const refreshContext = useCallback(async () => {
     const ctx = await buildSystemContext();
     setSystemContext(ctx);
     if (!isReady) setIsReady(true);
   }, [isReady]);
 
+  const ensureReady = useCallback(async () => {
+    if (!jarvisActivated) setJarvisActivated(true);
+    if (!isReady) {
+      await refreshContext();
+      // Start refresh interval only after first use
+      if (!contextRefreshRef.current) {
+        contextRefreshRef.current = setInterval(refreshContext, 2 * 60 * 1000);
+      }
+    }
+  }, [isReady, jarvisActivated, refreshContext]);
+
   useEffect(() => {
-    refreshContext();
-    contextRefreshRef.current = setInterval(refreshContext, 2 * 60 * 1000);
     return () => {
       if (contextRefreshRef.current) clearInterval(contextRefreshRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addUserMessage = useCallback((text: string) => {
@@ -142,6 +151,9 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
   const sendToJarvis = useCallback(
     async (text: string) => {
       if (isProcessing) return;
+
+      // Lazy-init: garante contexto na primeira mensagem
+      await ensureReady();
 
       // Add user message
       const userMsg: JarvisMessage = {
@@ -628,7 +640,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
         setIsProcessing(false);
       }
     },
-    [isProcessing, systemContext, activeAlertCount]
+    [isProcessing, systemContext, activeAlertCount, ensureReady]
   );
 
   const value: JarvisContextValue = {

@@ -80,19 +80,15 @@ export const useDashboardMetrics = () => {
           : 0;
         console.log('Dashboard metrics from ranking:', { totalLeads, convertedLeads, conversionRate });
       } else {
-        // Fallback: usar socialfy_leads
+        // Fallback: usar socialfy_leads (paralelo)
         console.warn('dashboard_ranking_clientes não disponível, usando socialfy_leads');
-        const { count: leadsCount } = await supabase
-          .from('socialfy_leads')
-          .select('*', { count: 'exact', head: true });
+        const [leadsRes, convertedRes] = await Promise.all([
+          supabase.from('socialfy_leads').select('*', { count: 'exact', head: true }),
+          supabase.from('socialfy_leads').select('*', { count: 'exact', head: true }).in('status', ['call_booked', 'scheduled', 'proposal', 'won', 'closed']),
+        ]);
 
-        const { count: converted } = await supabase
-          .from('socialfy_leads')
-          .select('*', { count: 'exact', head: true })
-          .in('status', ['call_booked', 'scheduled', 'proposal', 'won', 'closed']);
-
-        totalLeads = leadsCount || 0;
-        convertedLeads = converted || 0;
+        totalLeads = leadsRes.count || 0;
+        convertedLeads = convertedRes.count || 0;
         conversionRate = (totalLeads && convertedLeads)
           ? parseFloat(((convertedLeads / totalLeads) * 100).toFixed(1))
           : 0;

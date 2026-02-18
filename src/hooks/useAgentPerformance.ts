@@ -13,10 +13,10 @@ export const useAgentPerformance = () => {
       setLoading(true);
       setError(null);
 
-      // Buscar diretamente de agent_versions (estrutura real)
+      // Buscar só campos necessários para performance (sem system_prompt e JSONBs pesados)
       const { data, error: fetchError } = await supabase
         .from('agent_versions')
-        .select('*')
+        .select('id, agent_name, version, status, is_active, created_at, updated_at, last_test_score, validation_score, total_test_runs')
         .order('updated_at', { ascending: false });
 
       if (fetchError) {
