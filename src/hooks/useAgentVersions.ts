@@ -21,16 +21,14 @@ export const useAgentVersions = (agentId?: string) => {
       let query = supabase
         .from('agent_versions')
         .select(`
-          id, client_id, agent_name, location_id, slug,
+          id, client_id, agent_name, location_id,
           created_at, updated_at, status, is_active, validation_status,
-          version_number, version, last_test_score, validation_score,
-          total_test_runs, framework_approved, deployment_notes, change_log,
+          version, last_test_score, validation_score,
+          total_test_runs, framework_approved, deployment_notes,
           system_prompt, prompts_by_mode,
           compliance_rules, personality_config, business_config,
           tools_config, hyperpersonalization, qualification_config,
-          avg_score_overall, avg_score_tone, avg_score_engagement,
-          avg_score_compliance, avg_score_accuracy, avg_score_empathy,
-          avg_score_efficiency,
+          avg_score_overall, avg_score_dimensions,
           clients:client_id (
             id,
             nome,

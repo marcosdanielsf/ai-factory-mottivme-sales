@@ -28,7 +28,7 @@ export const useAgents = () => {
       // 2. Buscar agent_versions — so campos leves pra listagem (sem system_prompt/JSONBs pesados)
       const { data, error } = await supabase
         .from('agent_versions')
-        .select('id, client_id, agent_name, location_id, slug, created_at, updated_at, status, is_active, validation_status, version_number, version, last_test_score, validation_score, total_test_runs, framework_approved')
+        .select('id, client_id, agent_name, location_id, created_at, updated_at, status, is_active, validation_status, version, last_test_score, validation_score, total_test_runs, framework_approved')
         .order('updated_at', { ascending: false });
 
       if (error) {
@@ -73,12 +73,12 @@ export const useAgents = () => {
           name: locationName || agentName || '',
           agentName,
           locationId: ref.location_id || agent.location_id || '',
-          slug: agent.slug || agent.client_id || agent.id,
+          slug: agent.client_id || agent.id,
           created_at: agent.created_at,
           updated_at: agent.updated_at,
           status: agent.status || 'draft',
           avg_score: agent.last_test_score || agent.validation_score || 0,
-          version: agent.version_number || agent.version || '1.0.0',
+          version: agent.version || '1.0.0',
           is_active: !!active,
           total_test_runs: agent.total_test_runs || 0,
           framework_approved: agent.framework_approved || false
