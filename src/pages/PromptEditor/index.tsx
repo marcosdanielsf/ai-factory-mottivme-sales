@@ -669,16 +669,16 @@ export const PromptEditor: React.FC = () => {
             />
           ) : (
             <div className="flex-1 flex flex-col relative">
-              {/* Header com nome da config ativa */}
-              <div className="absolute top-4 left-14 z-20 flex items-center gap-2">
-                {activeTab === 'config' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Sparkles size={12} /> Hiperpersonalização</span>}
-                {activeTab === 'tools' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Code size={12} /> Tools Config</span>}
-                {activeTab === 'compliance' && <span className="text-xs text-red-400 font-medium flex items-center gap-1"><Shield size={12} /> Compliance Rules</span>}
-                {activeTab === 'personality' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Brain size={12} /> Personality Config</span>}
-                {activeTab === 'qualification' && <span className="text-xs text-green-400 font-medium flex items-center gap-1"><Target size={12} /> Qualification Config</span>}
-                {activeTab === 'business' && <span className="text-xs text-orange-400 font-medium flex items-center gap-1"><Briefcase size={12} /> Business Config</span>}
-              </div>
-              <div className="absolute top-4 right-4 z-20">
+              {/* Header bar com nome da config ativa — fora do textarea */}
+              <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-[#2d2d2d] pl-14 shrink-0">
+                <div className="flex items-center gap-2">
+                  {activeTab === 'config' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Sparkles size={12} /> Hiperpersonalização</span>}
+                  {activeTab === 'tools' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Code size={12} /> Tools Config</span>}
+                  {activeTab === 'compliance' && <span className="text-xs text-red-400 font-medium flex items-center gap-1"><Shield size={12} /> Compliance Rules</span>}
+                  {activeTab === 'personality' && <span className="text-xs text-blue-400 font-medium flex items-center gap-1"><Brain size={12} /> Personality Config</span>}
+                  {activeTab === 'qualification' && <span className="text-xs text-green-400 font-medium flex items-center gap-1"><Target size={12} /> Qualification Config</span>}
+                  {activeTab === 'business' && <span className="text-xs text-orange-400 font-medium flex items-center gap-1"><Briefcase size={12} /> Business Config</span>}
+                </div>
                 {activeTab === 'config' && (
                   <button
                     onClick={loadFromKnowledgeBase}
@@ -695,7 +695,7 @@ export const PromptEditor: React.FC = () => {
                  onChange={handleConfigChange}
                  spellCheck="false"
                  placeholder='{ "config": "value" }'
-                 className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pt-10 pl-12 resize-none focus:outline-none leading-6"
+                 className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
                  style={{ tabSize: 2 }}
                />
             </div>
