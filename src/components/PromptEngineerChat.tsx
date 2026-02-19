@@ -420,26 +420,117 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
     }
   };
 
+  // Detectar se a mensagem é conversacional (não é uma instrução de edição)
+  const isConversationalMessage = (message: string): boolean => {
+    const lower = message.toLowerCase().trim();
+    const conversationalPatterns = [
+      /^(oi|olá|hey|e aí|fala)/,
+      /^(obrigad|valeu|thanks)/,
+      /\?$/, // Perguntas genéricas
+      /^(sim|não|ok|beleza|show|certo)/,
+      /^(da pra|dá pra|pode|consegue|como)/,
+      /^(o que|quem|qual|quando|onde|por que)/,
+    ];
+    // Se bate padrão conversacional E não contém keywords de edição, é conversacional
+    const isConversational = conversationalPatterns.some(p => p.test(lower));
+    const hasEditKeywords = /(?:adicion|remov|atualiz|mude|alter|configur|habilit|desabilit|proibi|nunca|sempre|deve ser|defin|seta|coloque|troque|aument|diminu|reduz)/i.test(message);
+    return isConversational && !hasEditKeywords;
+  };
+
+  // Extrair o conteúdo da instrução (a regra/valor real, não o texto conversacional)
+  const extractInstructionContent = (message: string, zone: EditableZone): { content: string; operation: 'add' | 'update' | 'remove'; fieldPath: string } => {
+    const lower = message.toLowerCase();
+
+    // Detectar operação
+    let operation: 'add' | 'update' | 'remove' = 'update';
+    if (/(?:adicion|inclua|coloque|insira|crie)/.test(lower)) operation = 'add';
+    if (/(?:remov|delet|tire|exclu)/.test(lower)) operation = 'remove';
+
+    // Extrair conteúdo baseado na zona
+    switch (zone) {
+      case 'compliance_rules': {
+        // "nunca mencionar preço antes de qualificar" → extrair a regra
+        const ruleMatch = message.match(/(?:regra[:\s]*|nunca\s+|proib\w+[:\s]*|sempre\s+)(.+)/i);
+        const content = ruleMatch ? ruleMatch[0].trim() : message;
+        const subField = /proibi|nunca/.test(lower) ? 'proibicoes' : /escala/.test(lower) ? 'escalacao.triggers' : 'proibicoes';
+        return { content, operation: operation === 'update' ? 'add' : operation, fieldPath: `compliance_rules.${subField}` };
+      }
+      case 'personality_config': {
+        // "O tom no modo followuper deve ser mais casual" → extrair tom e modo
+        const modeMatch = lower.match(/modo\s+(\w+)/);
+        const mode = modeMatch ? modeMatch[1] : null;
+        const tomMatch = message.match(/(?:tom|estilo|voz)\s+(?:deve ser |mais |para )?\s*(.+)/i);
+        const content = tomMatch ? tomMatch[1].trim() : message;
+        const fieldPath = mode ? `personality_config.modos.${mode}.tom` : 'personality_config.tom_voz';
+        return { content, operation: 'update', fieldPath };
+      }
+      case 'business_config': {
+        // "Atualize o valor do curso de nails para $950" → extrair item e valor
+        const valueMatch = message.match(/(?:valor|preço)\s+(?:do|da|de)\s+(.+?)\s+(?:para|pra|=|:)\s*(.+)/i);
+        if (valueMatch) {
+          return { content: `${valueMatch[1].trim()}: ${valueMatch[2].trim()}`, operation: 'update', fieldPath: `business_config.valores` };
+        }
+        return { content: message, operation, fieldPath: 'business_config' };
+      }
+      case 'prompts_by_mode': {
+        const modeMatch = lower.match(/modo\s+(\w+)/);
+        const mode = modeMatch ? modeMatch[1] : 'sdr_inbound';
+        return { content: message, operation, fieldPath: `prompts_by_mode.${mode}` };
+      }
+      default:
+        return { content: message, operation, fieldPath: zone };
+    }
+  };
+
+  // Obter valor atual de uma zona
+  const getCurrentValue = (zone: EditableZone, fieldPath: string): string => {
+    if (zone === 'system_prompt') {
+      return currentPrompt ? currentPrompt.substring(0, 300) + (currentPrompt.length > 300 ? '...' : '') : '[vazio]';
+    }
+    const config = currentConfigs[zone as keyof typeof currentConfigs];
+    if (!config) return '[não configurado]';
+    // Navegar pelo fieldPath para achar o valor
+    const parts = fieldPath.split('.').slice(1); // Remove o nome da zona
+    let value: any = config;
+    for (const part of parts) {
+      if (value && typeof value === 'object' && part in value) {
+        value = value[part];
+      } else {
+        return JSON.stringify(config).substring(0, 200) + '...';
+      }
+    }
+    if (Array.isArray(value)) return value.join(', ');
+    if (typeof value === 'object') return JSON.stringify(value, null, 2).substring(0, 200);
+    return String(value);
+  };
+
   // Fallback local se webhook falhar
   const processLocalFallback = (userMessage: string): Message => {
-    const detectedZone = detectZoneFromMessage(userMessage);
+    // Se é mensagem conversacional, pedir instrução clara
+    if (isConversationalMessage(userMessage)) {
+      return createClarificationMessage(userMessage);
+    }
+
+    const detectedZone = selectedZone || detectZoneFromMessage(userMessage);
     const zoneInfo = ZONES[detectedZone];
+    const { content, operation, fieldPath } = extractInstructionContent(userMessage, detectedZone);
+    const currentValue = getCurrentValue(detectedZone, fieldPath);
 
     const preview: PromptPreview = {
       zone: detectedZone,
       zone_label: zoneInfo.label,
-      field_path: detectedZone,
-      operation: 'update',
-      before: '[Processamento local - valor atual não disponível]',
-      after: userMessage,
-      diff_summary: `Ajuste sugerido em ${zoneInfo.label}`,
-      reasoning: 'Processado localmente. Webhook indisponível.',
+      field_path: fieldPath,
+      operation,
+      before: currentValue,
+      after: content,
+      diff_summary: `${operation === 'add' ? 'Adicionar' : operation === 'remove' ? 'Remover' : 'Atualizar'} em ${zoneInfo.label}`,
+      reasoning: 'Processado localmente (webhook indisponível). Verifique o preview antes de aprovar.',
     };
 
     return {
       id: Date.now().toString(),
       role: 'assistant',
-      content: `⚠️ **Modo Offline** - Webhook indisponível
+      content: `⚠️ **Modo Offline** - Processamento local
 
 ${formatPreviewMessage(preview, zoneInfo)}`,
       timestamp: new Date(),
