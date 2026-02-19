@@ -7,7 +7,7 @@ import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
 
 export default function GMapsScraper() {
-  const { data, loading, error, refresh } = useGMapsLeads();
+  const { leads: data, loading, error, refetch: refresh } = useGMapsLeads();
   const { triggerWebhook, loading: webhookLoading } = useLeadGenWebhook();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

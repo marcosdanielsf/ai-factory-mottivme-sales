@@ -7,7 +7,7 @@ import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
 
 export default function LinkedinSearch() {
-  const { data, loading, error, refresh } = useLinkedinSearch();
+  const { searches: data, loading, error, refetch: refresh } = useLinkedinSearch();
   const { triggerWebhook, loading: webhookLoading } = useLeadGenWebhook();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,7 +99,7 @@ export default function LinkedinSearch() {
                       title={item.search_url || 'Sem URL'}
                       subtitle={item.notes || ''}
                       status={item.status}
-                      selected={selectedId === item.id}
+                      isSelected={selectedId === item.id}
                       onClick={() => setSelectedId(item.id)}
                     />
                   ))}

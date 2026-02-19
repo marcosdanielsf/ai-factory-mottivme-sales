@@ -73,7 +73,7 @@ const COLUMNS: { key: SortField; label: string }[] = [
 // ═══════════════════════════════════════════════════════════════════════
 
 export const LeadsListPeople: React.FC = () => {
-  const { leads, loading } = useLeadLists({ type: 'Person' });
+  const { lists: leads, loading } = useLeadLists({ type: 'Person' });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTab>('All');

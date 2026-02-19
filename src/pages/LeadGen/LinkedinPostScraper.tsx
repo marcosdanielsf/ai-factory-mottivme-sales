@@ -7,7 +7,7 @@ import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
 
 export default function LinkedinPostScraper() {
-  const { data, loading, error, refresh } = useLinkedinLeads();
+  const { leads: data, loading, error, refetch: refresh } = useLinkedinLeads();
   const { triggerWebhook, loading: webhookLoading } = useLeadGenWebhook();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

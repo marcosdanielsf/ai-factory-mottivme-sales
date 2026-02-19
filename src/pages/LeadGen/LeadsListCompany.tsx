@@ -66,7 +66,7 @@ const COLUMNS: { key: SortField; label: string }[] = [
 // ═══════════════════════════════════════════════════════════════════════
 
 export const LeadsListCompany: React.FC = () => {
-  const { leads, loading } = useLeadLists({ type: 'Company' });
+  const { lists: leads, loading } = useLeadLists({ type: 'Company' });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('company_name');
