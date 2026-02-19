@@ -69,6 +69,7 @@ export const sectors: Sector[] = [
         ],
         items: [
           { id: 'LnASPbaM5ptlLiBH', name: 'Facebook Ads Daily Report', status: 'on', type: 'workflow', url: `${N8N_BASE}/LnASPbaM5ptlLiBH` },
+          { id: 'Ews8xhc5An6oEp1V', name: 'IA Gestor de Trafego - Analise Semanal FB Ads → ClickUp', status: 'off', type: 'workflow', url: `${N8N_BASE}/Ews8xhc5An6oEp1V`, description: 'Template @illumi.ia: 25 nodes, Code LLM Chain + 8 Edit Fields diamante. Analisa campanhas FB Ads por conta → relatorio ClickUp com ROAS/CPC/CTR + insights', tags: ['template', 'illumi-ia', 'langchain'] },
           { id: 'TDc8zbwdxkeu3sta', name: 'UTM Enrichment from GHL API (4h)', status: 'on', type: 'workflow', url: `${N8N_BASE}/TDc8zbwdxkeu3sta` },
         ],
       },
