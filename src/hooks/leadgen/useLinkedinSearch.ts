@@ -1,10 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
-// ═══════════════════════════════════════════════════════════════════════
-// TYPES (match actual leadgen.linkedin_search columns)
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface LinkedinSearch {
   id: string;
   search_url?: string;
@@ -16,9 +12,11 @@ export interface LinkedinSearch {
   updated_at: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// HOOK
-// ═══════════════════════════════════════════════════════════════════════
+export interface CreateLinkedinSearchInput {
+  search_url: string;
+  search_criteria?: Record<string, unknown>;
+  notes?: string;
+}
 
 export const useLinkedinSearch = () => {
   const [searches, setSearches] = useState<LinkedinSearch[]>([]);
@@ -37,20 +35,34 @@ export const useLinkedinSearch = () => {
         .order('created_at', { ascending: false });
 
       if (queryError) throw queryError;
-
       setSearches(data || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar buscas LinkedIn';
       setError(message);
-      console.error('Error in useLinkedinSearch:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchSearches();
+  const createJob = useCallback(async (input: CreateLinkedinSearchInput) => {
+    const { data, error: insertError } = await supabase
+      .schema('leadgen')
+      .from('linkedin_search')
+      .insert({
+        search_url: input.search_url,
+        search_criteria: input.search_criteria || null,
+        notes: input.notes || null,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    await fetchSearches();
+    return data;
   }, [fetchSearches]);
 
-  return { searches, loading, error, refetch: fetchSearches };
+  useEffect(() => { fetchSearches(); }, [fetchSearches]);
+
+  return { searches, loading, error, refetch: fetchSearches, createJob };
 };

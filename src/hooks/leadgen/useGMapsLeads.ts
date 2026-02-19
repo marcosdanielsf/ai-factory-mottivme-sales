@@ -1,10 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
-// ═══════════════════════════════════════════════════════════════════════
-// TYPES (match actual leadgen.gmaps_leads columns)
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface GMapsLead {
   id: string;
   gmaps_query?: string;
@@ -16,9 +12,11 @@ export interface GMapsLead {
   updated_at: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// HOOK
-// ═══════════════════════════════════════════════════════════════════════
+export interface CreateGMapsJobInput {
+  gmaps_query: string;
+  maximum_results?: number;
+  notes?: string;
+}
 
 export const useGMapsLeads = () => {
   const [leads, setLeads] = useState<GMapsLead[]>([]);
@@ -37,20 +35,34 @@ export const useGMapsLeads = () => {
         .order('created_at', { ascending: false });
 
       if (queryError) throw queryError;
-
       setLeads(data || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar leads GMaps';
       setError(message);
-      console.error('Error in useGMapsLeads:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchLeads();
+  const createJob = useCallback(async (input: CreateGMapsJobInput) => {
+    const { data, error: insertError } = await supabase
+      .schema('leadgen')
+      .from('gmaps_leads')
+      .insert({
+        gmaps_query: input.gmaps_query,
+        maximum_results: input.maximum_results || null,
+        notes: input.notes || null,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    await fetchLeads();
+    return data;
   }, [fetchLeads]);
 
-  return { leads, loading, error, refetch: fetchLeads };
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  return { leads, loading, error, refetch: fetchLeads, createJob };
 };

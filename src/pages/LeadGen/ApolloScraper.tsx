@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ExternalLink, RefreshCw, Play, Rocket, AlertCircle, FileText } from 'lucide-react';
+import { Search, ExternalLink, RefreshCw, Play, Rocket, AlertCircle, FileText, Plus } from 'lucide-react';
 import { useApolloLeads } from '../../hooks/leadgen/useApolloLeads';
 import { useLeadGenWebhook } from '../../hooks/leadgen/useLeadGenWebhook';
 import JobCard from './components/JobCard';
@@ -7,10 +7,13 @@ import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
 
 export default function ApolloScraper() {
-  const { leads: data, loading, error, refetch: refresh } = useApolloLeads();
+  const { leads: data, loading, error, refetch: refresh, createJob } = useApolloLeads();
   const { triggerWebhook, loading: webhookLoading } = useLeadGenWebhook();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ apollo_url: '', notes: '' });
 
   useEffect(() => { refresh(); }, []);
 
@@ -23,7 +26,6 @@ export default function ApolloScraper() {
     d.status?.toLowerCase().includes(searchQuery.toLowerCase())
   ) ?? [];
 
-  // Agrupar por status
   const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, item) => {
     const key = item.status || 'sem_status';
     if (!acc[key]) acc[key] = [];
@@ -35,6 +37,21 @@ export default function ApolloScraper() {
   const sortedGroups = statusOrder
     .filter(s => grouped[s]?.length > 0)
     .concat(Object.keys(grouped).filter(s => !statusOrder.includes(s)));
+
+  const handleCreate = async () => {
+    if (!form.apollo_url.trim()) return;
+    try {
+      setCreating(true);
+      const job = await createJob({ apollo_url: form.apollo_url.trim(), notes: form.notes.trim() || undefined });
+      setForm({ apollo_url: '', notes: '' });
+      setShowCreate(false);
+      if (job?.id) setSelectedId(job.id);
+    } catch (err) {
+      console.error('Error creating job:', err);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -56,6 +73,13 @@ export default function ApolloScraper() {
             />
           </div>
           <button
+            onClick={() => { setShowCreate(true); setSelectedId(null); }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-all"
+          >
+            <Plus size={16} />
+            Novo Job
+          </button>
+          <button
             onClick={() => refresh()}
             disabled={loading}
             className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all"
@@ -65,7 +89,6 @@ export default function ApolloScraper() {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="m-4 p-3 bg-accent-error/10 border border-accent-error/20 rounded-lg flex items-center gap-2">
           <AlertCircle size={16} className="text-accent-error" />
@@ -73,7 +96,6 @@ export default function ApolloScraper() {
         </div>
       )}
 
-      {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Lista */}
         <div className="w-[350px] border-r border-border-default overflow-y-auto p-3 space-y-4">
@@ -85,6 +107,12 @@ export default function ApolloScraper() {
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileText size={32} className="text-text-muted opacity-30 mb-3" />
               <p className="text-sm text-text-muted">Nenhum job encontrado</p>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="mt-3 text-sm text-accent-primary hover:underline"
+              >
+                Criar primeiro job
+              </button>
             </div>
           ) : (
             sortedGroups.map(status => (
@@ -99,8 +127,8 @@ export default function ApolloScraper() {
                       title={item.apollo_url || 'Sem URL'}
                       subtitle={item.notes || ''}
                       status={item.status}
-                      selected={selectedId === item.id}
-                      onClick={() => setSelectedId(item.id)}
+                      isSelected={selectedId === item.id}
+                      onClick={() => { setSelectedId(item.id); setShowCreate(false); }}
                     />
                   ))}
                 </div>
@@ -109,16 +137,58 @@ export default function ApolloScraper() {
           )}
         </div>
 
-        {/* Detalhe */}
+        {/* Detalhe / Criar */}
         <div className="flex-1 overflow-y-auto p-6">
-          {selected ? (
+          {showCreate ? (
+            <div className="max-w-2xl space-y-6">
+              <h2 className="text-lg font-semibold text-text-primary">Novo Job — Apollo</h2>
+
+              <div>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Apollo URL *</label>
+                <input
+                  type="url"
+                  placeholder="https://app.apollo.io/#/people?..."
+                  value={form.apollo_url}
+                  onChange={e => setForm(f => ({ ...f, apollo_url: e.target.value }))}
+                  className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Notes</label>
+                <textarea
+                  placeholder="Descricao do scrape..."
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted resize-none focus:border-accent-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCreate}
+                  disabled={!form.apollo_url.trim() || creating}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {creating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                  Criar Job
+                </button>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="px-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-muted hover:text-text-primary transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : selected ? (
             <div className="max-w-2xl space-y-6">
               <div>
                 <h2 className="text-lg font-semibold text-text-primary mb-1">Detalhes do Job</h2>
                 <p className="text-xs text-text-muted">ID: {selected.id}</p>
               </div>
 
-              {/* Apollo URL */}
               <div>
                 <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Apollo URL</label>
                 {selected.apollo_url ? (
@@ -136,7 +206,6 @@ export default function ApolloScraper() {
                 )}
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Notes</label>
                 <textarea
@@ -147,19 +216,16 @@ export default function ApolloScraper() {
                 />
               </div>
 
-              {/* Number of Results */}
               <div>
                 <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Number of Results</label>
                 <span className="text-sm text-text-primary">{selected.number_of_results ?? '-'}</span>
               </div>
 
-              {/* Status */}
               <div>
                 <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Status</label>
                 <StatusBadge status={selected.status} />
               </div>
 
-              {/* Error Status */}
               {selected.error_status && (
                 <div className="p-3 bg-accent-error/10 border border-accent-error/20 rounded-lg">
                   <p className="text-xs font-bold text-accent-error uppercase mb-1">Error Status</p>
@@ -167,7 +233,6 @@ export default function ApolloScraper() {
                 </div>
               )}
 
-              {/* Action */}
               <ActionButton
                 label="Get Leads"
                 icon={<Play size={16} />}
@@ -178,7 +243,7 @@ export default function ApolloScraper() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Rocket size={48} className="text-text-muted opacity-20 mb-4" />
-              <p className="text-text-muted text-sm">Selecione um job para ver os detalhes</p>
+              <p className="text-text-muted text-sm">Selecione um job ou crie um novo</p>
             </div>
           )}
         </div>

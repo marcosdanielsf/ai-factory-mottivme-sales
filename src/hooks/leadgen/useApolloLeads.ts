@@ -1,10 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
-// ═══════════════════════════════════════════════════════════════════════
-// TYPES (match actual leadgen.apollo_leads columns)
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface ApolloLead {
   id: string;
   apollo_url?: string;
@@ -16,9 +12,10 @@ export interface ApolloLead {
   updated_at: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// HOOK
-// ═══════════════════════════════════════════════════════════════════════
+export interface CreateApolloJobInput {
+  apollo_url: string;
+  notes?: string;
+}
 
 export const useApolloLeads = () => {
   const [leads, setLeads] = useState<ApolloLead[]>([]);
@@ -37,20 +34,29 @@ export const useApolloLeads = () => {
         .order('created_at', { ascending: false });
 
       if (queryError) throw queryError;
-
       setLeads(data || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar leads Apollo';
       setError(message);
-      console.error('Error in useApolloLeads:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchLeads();
+  const createJob = useCallback(async (input: CreateApolloJobInput) => {
+    const { data, error: insertError } = await supabase
+      .schema('leadgen')
+      .from('apollo_leads')
+      .insert({ apollo_url: input.apollo_url, notes: input.notes || null, status: 'pending' })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    await fetchLeads();
+    return data;
   }, [fetchLeads]);
 
-  return { leads, loading, error, refetch: fetchLeads };
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  return { leads, loading, error, refetch: fetchLeads, createJob };
 };
