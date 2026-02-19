@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import {
   Cpu, Bot, Webhook, GitBranch, Database, Shield, BarChart3,
   ChevronDown, ChevronRight, FileText, Zap, Eye, Clock,
-  Lock, AlertTriangle, CheckCircle2, Settings2, Layers
+  Lock, AlertTriangle, CheckCircle2, Settings2, Layers, Loader2
 } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { useSystemConfig } from '../../hooks/useSystemConfig';
 import {
-  agents, hooks, workflows, memoryFiles, memoryCategories,
-  constitution, systemStats,
   type AgentConfig, type HookConfig, type WorkflowConfig,
-  type ConstitutionArticle,
+  type ConstitutionArticle, type SystemStats, type MemoryFile,
 } from './data';
+
+// ============================================
+// DATA CONTEXT (alimentado pelo hook)
+// ============================================
+interface SystemData {
+  agents: AgentConfig[];
+  hooks: HookConfig[];
+  workflows: WorkflowConfig[];
+  memoryFiles: MemoryFile[];
+  memoryCategories: { name: string; count: number }[];
+  constitution: ConstitutionArticle[];
+  systemStats: SystemStats;
+}
+
+const SystemDataContext = createContext<SystemData>(null!);
+const useSystemData = () => useContext(SystemDataContext);
 
 // ============================================
 // MODEL BADGE
@@ -53,7 +68,9 @@ const SeverityBadge: React.FC<{ severity: ConstitutionArticle['severity'] }> = (
 // ============================================
 // AGENTS PANEL
 // ============================================
-const AgentsPanel: React.FC = () => (
+const AgentsPanel: React.FC = () => {
+  const { agents } = useSystemData();
+  return (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {agents.map((agent: AgentConfig) => (
       <div key={agent.id} className="bg-bg-secondary border border-border-default rounded-xl p-5 hover:border-border-hover transition-all">
@@ -94,7 +111,8 @@ const AgentsPanel: React.FC = () => (
       </div>
     ))}
   </div>
-);
+  );
+};
 
 // ============================================
 // HOOKS PANEL
@@ -112,6 +130,7 @@ const hookTypeColors: Record<string, string> = {
 };
 
 const HooksPanel: React.FC = () => {
+  const { hooks } = useSystemData();
   const events = [...new Set(hooks.map((h) => h.event))];
 
   return (
@@ -153,7 +172,9 @@ const HooksPanel: React.FC = () => {
 // ============================================
 // WORKFLOWS PANEL
 // ============================================
-const WorkflowsPanel: React.FC = () => (
+const WorkflowsPanel: React.FC = () => {
+  const { workflows } = useSystemData();
+  return (
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
     {workflows.map((wf: WorkflowConfig) => (
       <div key={wf.id} className="bg-bg-secondary border border-border-default rounded-xl p-5">
@@ -179,12 +200,14 @@ const WorkflowsPanel: React.FC = () => (
       </div>
     ))}
   </div>
-);
+  );
+};
 
 // ============================================
 // MEMORY PANEL
 // ============================================
 const MemoryPanel: React.FC = () => {
+  const { memoryFiles, memoryCategories } = useSystemData();
   const tier1Files = memoryFiles.filter((f) => f.tier === 1);
   const tier2Files = memoryFiles.filter((f) => f.tier === 2);
 
@@ -253,6 +276,7 @@ const MemoryPanel: React.FC = () => {
 // CONSTITUTION PANEL
 // ============================================
 const ConstitutionPanel: React.FC = () => {
+  const { constitution } = useSystemData();
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (
@@ -299,6 +323,7 @@ const ConstitutionPanel: React.FC = () => {
 // STATS PANEL
 // ============================================
 const StatsPanel: React.FC = () => {
+  const { agents, hooks, workflows, systemStats } = useSystemData();
   const stats = [
     { label: 'Agentes', value: systemStats.agents, icon: Bot, color: 'text-purple-400' },
     { label: 'Hooks', value: systemStats.hooks, icon: Webhook, color: 'text-blue-400' },
@@ -407,12 +432,22 @@ const SystemV4: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('agentes');
   const [showTabDropdown, setShowTabDropdown] = useState(false);
   const isMobile = useIsMobile();
+  const { data, loading, source } = useSystemConfig();
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const ActiveIcon = activeTabData?.icon || Cpu;
   const ActivePanel = panelMap[activeTab];
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 size={32} className="animate-spin text-accent-primary" />
+      </div>
+    );
+  }
+
   return (
+    <SystemDataContext.Provider value={data}>
     <div className="p-6 space-y-6 max-w-6xl">
       {/* Header */}
       <div>
@@ -421,6 +456,13 @@ const SystemV4: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary">System v4.0</h1>
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/30">
             deployed
+          </span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            source === 'supabase'
+              ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+              : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+          }`}>
+            {source === 'supabase' ? 'Supabase' : 'Static'}
           </span>
         </div>
         <p className="text-sm text-text-secondary">
@@ -488,6 +530,7 @@ const SystemV4: React.FC = () => {
       {/* Panel Content */}
       <ActivePanel />
     </div>
+    </SystemDataContext.Provider>
   );
 };
 

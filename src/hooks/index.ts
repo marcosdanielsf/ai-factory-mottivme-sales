@@ -40,3 +40,4 @@ export * from './useProspector';
 export * from './useDailyCallDetails';
 export * from './useVideoProducer';
 export * from './useContentJourneyLog';
+export * from './useSystemConfig';
