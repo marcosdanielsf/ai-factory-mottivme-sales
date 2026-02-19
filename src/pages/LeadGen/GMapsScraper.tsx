@@ -144,10 +144,10 @@ export default function GMapsScraper() {
               </div>
 
               {/* Error */}
-              {selected.error && (
+              {selected.error_status && (
                 <div className="p-3 bg-accent-error/10 border border-accent-error/20 rounded-lg">
                   <p className="text-xs font-bold text-accent-error uppercase mb-1">Error</p>
-                  <p className="text-sm text-accent-error">{selected.error}</p>
+                  <p className="text-sm text-accent-error">{selected.error_status}</p>
                 </div>
               )}
 

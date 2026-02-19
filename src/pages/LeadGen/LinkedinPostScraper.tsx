@@ -171,7 +171,7 @@ export default function LinkedinPostScraper() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Limit</label>
-                  <span className="text-sm text-text-primary">{selected.limit ?? '-'}</span>
+                  <span className="text-sm text-text-primary">{selected.limit_results ?? '-'}</span>
                 </div>
               </div>
 

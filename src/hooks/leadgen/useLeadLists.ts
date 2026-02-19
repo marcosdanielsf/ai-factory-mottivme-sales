@@ -2,17 +2,70 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // ═══════════════════════════════════════════════════════════════════════
-// TYPES
+// TYPES (match actual leadgen.lead_lists columns)
 // ═══════════════════════════════════════════════════════════════════════
 
 export type LeadListType = 'Person' | 'Company';
 
 export interface LeadList {
   id: string;
-  name: string;
-  type: LeadListType;
-  description?: string;
-  total_leads?: number;
+  type?: string;
+  first_name?: string;
+  last_name?: string;
+  email_address?: string;
+  contact_phone?: string;
+  linkedin_profile_url?: string;
+  headline?: string;
+  company_name?: string;
+  email_status?: string;
+  profile_picture_url?: string;
+  state_name?: string;
+  city_name?: string;
+  country_name?: string;
+  location?: string;
+  likely_to_engage?: boolean;
+  lead_score?: number;
+  lead_source?: string;
+  niche?: string;
+  industry?: string;
+  company_size?: string;
+  revenue?: string;
+  company_url?: string;
+  company_id?: string;
+  person_enrichment_agent?: string;
+  person_enrichment?: string;
+  person_details?: Record<string, unknown>;
+  company_enrichment?: string;
+  email_verification?: string;
+  connection_message?: string;
+  first_message?: string;
+  append_message?: boolean;
+  connection_status?: string;
+  twitter?: string;
+  linkedin?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
+  facebook?: string;
+  twitter_profile_url?: string;
+  github_profile_url?: string;
+  facebook_profile_url?: string;
+  followers?: number;
+  following?: number;
+  engagement_rate?: number;
+  bio_completa?: string;
+  average_ticket_price?: string;
+  post?: string;
+  comments?: string;
+  comments_link?: string;
+  search_term?: string;
+  enrich_record?: boolean;
+  enrich_person?: boolean;
+  enrich_company?: boolean;
+  verify_email?: boolean;
+  status?: string;
+  error_status?: string;
+  last_contacted?: string;
   created_at: string;
   updated_at: string;
 }
@@ -20,8 +73,6 @@ export interface LeadList {
 export interface UseLeadListsOptions {
   type?: LeadListType;
   search?: string;
-  sortBy?: 'name' | 'created_at' | 'total_leads';
-  sortAsc?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -29,7 +80,7 @@ export interface UseLeadListsOptions {
 // ═══════════════════════════════════════════════════════════════════════
 
 export const useLeadLists = (options: UseLeadListsOptions = {}) => {
-  const { type, search, sortBy = 'created_at', sortAsc = false } = options;
+  const { type, search } = options;
 
   const [lists, setLists] = useState<LeadList[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +95,7 @@ export const useLeadLists = (options: UseLeadListsOptions = {}) => {
         .schema('leadgen')
         .from('lead_lists')
         .select('*')
-        .order(sortBy, { ascending: sortAsc });
+        .order('created_at', { ascending: false });
 
       if (type) {
         query = query.eq('type', type);
@@ -52,7 +103,7 @@ export const useLeadLists = (options: UseLeadListsOptions = {}) => {
 
       if (search) {
         query = query.or(
-          `name.ilike.%${search}%,description.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email_address.ilike.%${search}%,company_name.ilike.%${search}%`
         );
       }
 
@@ -62,71 +113,17 @@ export const useLeadLists = (options: UseLeadListsOptions = {}) => {
 
       setLists(data || []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar listas de leads';
+      const message = err instanceof Error ? err.message : 'Erro ao carregar leads';
       setError(message);
       console.error('Error in useLeadLists:', err);
     } finally {
       setLoading(false);
     }
-  }, [type, search, sortBy, sortAsc]);
-
-  const createList = useCallback(async (data: Partial<LeadList>) => {
-    try {
-      const { error: insertError } = await supabase
-        .schema('leadgen')
-        .from('lead_lists')
-        .insert({
-          name: data.name,
-          type: data.type || 'Person',
-          description: data.description,
-        });
-
-      if (insertError) throw insertError;
-      await fetchLists();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao criar lista';
-      console.error('Error creating lead list:', err);
-      throw new Error(message);
-    }
-  }, [fetchLists]);
-
-  const updateList = useCallback(async (id: string, updates: Partial<LeadList>) => {
-    try {
-      const { error: updateError } = await supabase
-        .schema('leadgen')
-        .from('lead_lists')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-      await fetchLists();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao atualizar lista';
-      console.error('Error updating lead list:', err);
-      throw new Error(message);
-    }
-  }, [fetchLists]);
-
-  const deleteList = useCallback(async (id: string) => {
-    try {
-      const { error: deleteError } = await supabase
-        .schema('leadgen')
-        .from('lead_lists')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) throw deleteError;
-      await fetchLists();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao deletar lista';
-      console.error('Error deleting lead list:', err);
-      throw new Error(message);
-    }
-  }, [fetchLists]);
+  }, [type, search]);
 
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
 
-  return { lists, loading, error, refetch: fetchLists, createList, updateList, deleteList };
+  return { lists, loading, error, refetch: fetchLists };
 };
