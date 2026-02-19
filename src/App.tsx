@@ -82,6 +82,12 @@ const AiosArenaPage = lazy(() => import('./pages/AiosArena').then(m => ({ defaul
 // Content Studio
 const ContentStudio = lazy(() => import('./pages/ContentStudio').then(m => ({ default: m.ContentStudio })));
 
+// Content Pipeline (Ideas + Videos)
+const ContentPipeline = lazy(() => import('./pages/ContentPipeline').then(m => ({ default: m.ContentPipeline })));
+
+// Agent Tools Registry
+const AgentTools = lazy(() => import('./pages/AgentTools').then(m => ({ default: m.AgentTools })));
+
 // Client Brand
 const ClientBrand = lazy(() => import('./pages/ClientBrand'));
 
@@ -645,6 +651,28 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <ContentStudio />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Content Pipeline (Ideas + Videos) */}
+              <Route path="/content-pipeline" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ContentPipeline />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Agent Tools Registry */}
+              <Route path="/agent-tools" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AgentTools />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>

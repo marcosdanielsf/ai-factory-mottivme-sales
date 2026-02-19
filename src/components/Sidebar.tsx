@@ -181,6 +181,7 @@ const navSections: NavSection[] = [
         ]
       },
       { icon: Palette, label: 'Brand Assets', to: '/brand', permission: 'canAccessBrand' },
+      { icon: Layers, label: 'Agent Tools', to: '/agent-tools', permission: 'canAccessPromptEditor' },
     ]
   },
   {
@@ -204,6 +205,7 @@ const navSections: NavSection[] = [
         ]
       },
       { icon: Palette, label: 'Content Studio', to: '/content-studio', permission: 'canAccessAios' },
+      { icon: Video, label: 'Content Pipeline', to: '/content-pipeline', permission: 'canAccessAios' },
     ]
   },
   {
