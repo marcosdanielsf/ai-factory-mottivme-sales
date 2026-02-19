@@ -95,7 +95,8 @@ function normalizeSessionSource(value: string | null): string {
 
 export const useCriativoPerformance = (
   dateRange?: DateRange | null,
-  locationId?: string | null
+  locationId?: string | null,
+  responsavel?: string | null
 ): UseCriativoPerformanceReturn => {
   const [rawData, setRawData] = useState<any[]>([]);
   const [appointmentsData, setAppointmentsData] = useState<any[]>([]);
@@ -139,6 +140,9 @@ export const useCriativoPerformance = (
       if (locationId) {
         leadsQuery = leadsQuery.eq('location_id', locationId);
       }
+      if (responsavel) {
+        leadsQuery = leadsQuery.eq('location_name', responsavel);
+      }
 
       // Query 2: Appointments do GHL para cross-reference
       // Range amplo: -30 dias antes do início até +60 dias após o fim
@@ -157,6 +161,9 @@ export const useCriativoPerformance = (
 
       if (locationId) {
         apptsQuery = apptsQuery.eq('location_id', locationId);
+      }
+      if (responsavel) {
+        apptsQuery = apptsQuery.eq('location_name', responsavel);
       }
 
       // Executar em paralelo
@@ -179,7 +186,7 @@ export const useCriativoPerformance = (
     } finally {
       setLoading(false);
     }
-  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId]);
+  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId, responsavel]);
 
   useEffect(() => {
     fetchData();

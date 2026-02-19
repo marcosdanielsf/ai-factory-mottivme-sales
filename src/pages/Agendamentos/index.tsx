@@ -84,12 +84,14 @@ export const Agendamentos: React.FC = () => {
 
   const { criativos, origens, leads: criativoLeads, totals: criativoTotals, loading: loadingCriativos } = useCriativoPerformance(
     dateRange,
-    locationId
+    locationId,
+    selectedResponsavel
   );
 
   const { estados, workPermit, totals: segmentationTotals, loading: loadingSegmentation } = useLeadSegmentation(
     dateRange,
-    locationId
+    locationId,
+    selectedResponsavel
   );
 
   const buildFilters = useCallback((): AgendamentosFilters => {

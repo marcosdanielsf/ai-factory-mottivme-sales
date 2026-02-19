@@ -125,7 +125,8 @@ function normalizeWorkPermit(rawPermit: string | null): string {
 
 export const useLeadSegmentation = (
   dateRange?: DateRange | null,
-  locationId?: string | null
+  locationId?: string | null,
+  responsavel?: string | null
 ): UseLeadSegmentationReturn => {
   const [rawData, setRawData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +173,9 @@ export const useLeadSegmentation = (
       if (locationId) {
         query = query.eq('location_id', locationId);
       }
+      if (responsavel) {
+        query = query.eq('location_name', responsavel);
+      }
 
       const { data, error: queryError } = await query;
 
@@ -186,7 +190,7 @@ export const useLeadSegmentation = (
     } finally {
       setLoading(false);
     }
-  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId]);
+  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId, responsavel]);
 
   useEffect(() => {
     fetchData();

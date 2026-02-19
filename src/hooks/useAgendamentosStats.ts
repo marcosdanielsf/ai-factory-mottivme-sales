@@ -45,7 +45,7 @@ interface UseAgendamentosStatsReturn {
 
 // Mapeia status do GHL (appoinmentStatus) para status do dashboard
 function mapGhlStatus(rawPayload: any): string {
-  const ghlStatus = rawPayload?.calendar?.appoinmentStatus?.toLowerCase?.() || '';
+  const ghlStatus = (rawPayload?.calendar?.appointmentStatus || rawPayload?.calendar?.appoinmentStatus || '').toLowerCase();
   if (ghlStatus === 'showed') return 'completed';
   if (ghlStatus === 'noshow' || ghlStatus === 'no_show') return 'no_show';
   if (ghlStatus === 'cancelled') return 'cancelled';
