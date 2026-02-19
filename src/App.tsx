@@ -97,6 +97,9 @@ const Projetos = lazy(() => import('./pages/Projetos'));
 // Hub Operacional (Workflows por setor)
 const Workflows = lazy(() => import('./pages/Workflows'));
 
+// System v4.0 Dashboard
+const SystemV4 = lazy(() => import('./pages/SystemV4'));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -685,6 +688,17 @@ const App = () => {
                       <Workflows />
                     </Suspense>
                   </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* System v4.0 Dashboard */}
+              <Route path="/system-v4" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SystemV4 />
+                    </Suspense>
+                  </Layout>
                 </ProtectedRoute>
               } />
 
