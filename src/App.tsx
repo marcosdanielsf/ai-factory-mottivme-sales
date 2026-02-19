@@ -94,6 +94,9 @@ const ClientBrand = lazy(() => import('./pages/ClientBrand'));
 // Planejamento de Vendas
 const Planejamento = lazy(() => import('./pages/Planejamento'));
 
+// Planejamento Publico (link unico para clientes)
+const PlanejamentoPublico = lazy(() => import('./pages/PlanejamentoPublico'));
+
 // JARVIS Command Center
 const JarvisCommand = lazy(() => import('./pages/JarvisCommand'));
 
@@ -102,6 +105,9 @@ const Projetos = lazy(() => import('./pages/Projetos'));
 
 // Hub Operacional (Workflows por setor)
 const Workflows = lazy(() => import('./pages/Workflows'));
+
+// Squad AI (Pipeline de agentes com execucoes n8n)
+const SquadAI = lazy(() => import('./pages/SquadAI'));
 
 // System v4.0 Dashboard
 const SystemV4 = lazy(() => import('./pages/SystemV4'));
@@ -142,6 +148,11 @@ const App = () => {
               <Route path="/invite/:token" element={
                 <Suspense fallback={<LoadingFallback />}>
                   <Invite />
+                </Suspense>
+              } />
+              <Route path="/p/:token" element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <PlanejamentoPublico />
                 </Suspense>
               } />
 
@@ -780,6 +791,17 @@ const App = () => {
                       <Workflows />
                     </Suspense>
                   </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Squad AI */}
+              <Route path="/squad-ai" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <SquadAI />
+                    </Suspense>
+                  </Layout>
                 </ProtectedRoute>
               } />
 

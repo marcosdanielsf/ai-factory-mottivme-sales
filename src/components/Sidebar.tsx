@@ -182,6 +182,7 @@ const navSections: NavSection[] = [
       },
       { icon: Palette, label: 'Brand Assets', to: '/brand', permission: 'canAccessBrand' },
       { icon: Layers, label: 'Agent Tools', to: '/agent-tools', permission: 'canAccessPromptEditor' },
+      { icon: Bot, label: 'Squad AI', to: '/squad-ai', permission: 'canAccessPromptEditor' },
     ]
   },
   {
