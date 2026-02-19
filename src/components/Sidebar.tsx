@@ -128,6 +128,12 @@ const navSections: NavSection[] = [
           { icon: Users, label: 'Fila', to: '/prospector/queue' },
           { icon: FileText, label: 'Templates', to: '/prospector/templates' },
           { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
+          { icon: Search, label: 'LinkedIn Posts', to: '/leadgen/linkedin-posts' },
+          { icon: Globe, label: 'LinkedIn Search', to: '/leadgen/linkedin-search' },
+          { icon: Rocket, label: 'Apollo Scraper', to: '/leadgen/apollo' },
+          { icon: MapPin, label: 'GMaps Search', to: '/leadgen/gmaps' },
+          { icon: Users, label: 'Leads People', to: '/leadgen/leads-people' },
+          { icon: Building2, label: 'Leads Company', to: '/leadgen/leads-company' },
         ]
       },
       {
@@ -154,18 +160,6 @@ const navSections: NavSection[] = [
         ]
       },
     ]
-  },
-  {
-    title: 'LEAD GEN',
-    permission: 'canAccessCalls',
-    items: [
-      { icon: Search, label: 'LinkedIn Posts', to: '/leadgen/linkedin-posts', permission: 'canAccessCalls' },
-      { icon: Globe, label: 'LinkedIn Search', to: '/leadgen/linkedin-search', permission: 'canAccessCalls' },
-      { icon: Rocket, label: 'Apollo Scraper', to: '/leadgen/apollo', permission: 'canAccessCalls' },
-      { icon: MapPin, label: 'GMaps Search', to: '/leadgen/gmaps', permission: 'canAccessCalls' },
-      { icon: Users, label: 'Leads People', to: '/leadgen/leads-people', permission: 'canAccessCalls' },
-      { icon: Building2, label: 'Leads Company', to: '/leadgen/leads-company', permission: 'canAccessCalls' },
-    ],
   },
   {
     title: 'AI FACTORY',
