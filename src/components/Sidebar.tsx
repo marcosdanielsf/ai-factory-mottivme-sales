@@ -49,6 +49,7 @@ import {
   Swords,
   Layers,
   FolderKanban,
+  Cpu,
   LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -198,6 +199,7 @@ const navSections: NavSection[] = [
     title: 'SISTEMA',
     permission: 'canViewAllClients',
     items: [
+      { icon: Cpu, label: 'System v4', to: '/system-v4', permission: 'canViewAllClients' },
       { icon: Trophy, label: 'Performance Clientes', to: '/performance', permission: 'canViewAllClients' },
       { icon: DollarSign, label: 'Custos por Cliente', to: '/custos', permission: 'canViewAllClients' },
       { icon: Settings, label: 'Configurações', to: '/configuracoes', permission: 'canAccessConfiguracoes' },
