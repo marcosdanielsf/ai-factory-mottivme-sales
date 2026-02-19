@@ -166,6 +166,11 @@ export const useCriativoPerformance = (
         throw new Error(leadsResult.error.message);
       }
 
+      if (apptsResult.error) {
+        console.warn('[CriativoPerformance] Erro ao buscar appointments:', apptsResult.error.message);
+        // Nao throw - continua com leads mesmo sem appointments
+      }
+
       setRawData(leadsResult.data || []);
       setAppointmentsData(apptsResult.data || []);
     } catch (err: any) {
@@ -205,9 +210,9 @@ export const useCriativoPerformance = (
     }
 
     for (const appt of apptDedup.values()) {
-      const contactId = appt.raw_payload?.contact_id;
+      const contactId = appt.raw_payload?.contact_id || appt.raw_payload?.lead_id;
       if (!contactId) continue;
-      const calStatus = (appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
+      const calStatus = (appt.raw_payload?.calendar?.appointmentStatus || appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
       if (calStatus === 'cancelled') continue;
       const apptDate = appt.appointment_date || appt.raw_payload?.calendar?.startTime;
       const statusAppt = (appt.raw_payload?.['Status Appointment'] || '').toLowerCase();
