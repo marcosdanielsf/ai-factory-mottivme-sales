@@ -11,7 +11,7 @@ import {
   Pie,
   Legend,
 } from 'recharts';
-import { EstadoMetrics, WorkPermitMetrics } from '../../hooks/useLeadSegmentation';
+import { EstadoMetrics, WorkPermitMetrics } from '../../hooks/useAgendamentosDashboard';
 import { MapPin, Shield } from 'lucide-react';
 
 // ============================================================================

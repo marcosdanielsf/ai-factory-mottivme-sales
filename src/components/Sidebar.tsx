@@ -8,6 +8,7 @@ import {
   Box,
   Phone,
   PhoneCall,
+  Workflow,
   PhoneOutgoing,
   Users,
   Database,
@@ -136,6 +137,7 @@ const navSections: NavSection[] = [
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
+          { icon: Workflow, label: 'Hub Ops', to: '/workflows' },
         ]
       },
       {

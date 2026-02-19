@@ -1,22 +1,19 @@
 import React from 'react';
 import { EstadoChart, WorkPermitSummary, EstadoMetricsTable } from '../../../../components/charts/LeadSegmentationCharts';
+import type { EstadoMetrics, WorkPermitMetrics, SegmentationTotals } from '../../../../hooks/useAgendamentosDashboard';
 
 interface SegmentacaoTabProps {
-  estados: any[];
-  workPermit: any[];
-  segmentationTotals: {
-    totalLeads: number;
-    comEstado: number;
-    comWorkPermit: number;
-  };
-  loadingSegmentation: boolean;
+  estados: EstadoMetrics[];
+  workPermit: WorkPermitMetrics[];
+  segmentationTotals: SegmentationTotals;
+  loading: boolean;
 }
 
 export function SegmentacaoTab({
   estados,
   workPermit,
   segmentationTotals,
-  loadingSegmentation,
+  loading,
 }: SegmentacaoTabProps) {
   return (
     <div className="space-y-4">
@@ -32,7 +29,7 @@ export function SegmentacaoTab({
               </p>
             </div>
           </div>
-          <EstadoChart data={estados} loading={loadingSegmentation} />
+          <EstadoChart data={estados} loading={loading} />
         </div>
 
         <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
@@ -42,7 +39,7 @@ export function SegmentacaoTab({
           <p className="text-[10px] text-text-muted mb-3">
             {segmentationTotals.comWorkPermit} de {segmentationTotals.totalLeads} com info
           </p>
-          <WorkPermitSummary data={workPermit} loading={loadingSegmentation} />
+          <WorkPermitSummary data={workPermit} loading={loading} />
         </div>
       </div>
 
@@ -50,7 +47,7 @@ export function SegmentacaoTab({
         <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-3">Funil por Estado</h3>
           <div className="max-h-[400px] overflow-y-auto">
-            <EstadoMetricsTable data={estados} loading={loadingSegmentation} />
+            <EstadoMetricsTable data={estados} loading={loading} />
           </div>
         </div>
       )}

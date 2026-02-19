@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { RefreshCw, Search, ChevronDown, ExternalLink, Download } from 'lucide-react';
-import type { CriativoLead } from '../../../hooks/useCriativoPerformance';
+import type { CriativoLead } from '../../../hooks/useAgendamentosDashboard';
 import { formatDate, formatPhone } from '../helpers';
 import { getLeadStage, FUNNEL_STAGES } from '../constants';
 

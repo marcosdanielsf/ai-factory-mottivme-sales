@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Users, User, Phone, Mail, Clock, ExternalLink, MessageCircle } from 'lucide-react';
-import type { CriativoLead } from '../../../hooks/useCriativoPerformance';
+import type { CriativoLead } from '../../../hooks/useAgendamentosDashboard';
 import { formatDate, formatPhone } from '../helpers';
 import { FUNNEL_STAGES, getLeadStage } from '../constants';
 import { LeadChatModal } from './LeadChatModal';

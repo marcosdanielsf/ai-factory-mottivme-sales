@@ -4,14 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { MetricCard } from '../../../../components/MetricCard';
 import { formatDayLabel } from '../../helpers';
 import type { MetricType } from '../../types';
+import type { AgendaMetrics } from '../../../../hooks/useAgendamentosDashboard';
 
 interface AgendaTabProps {
-  stats: {
-    hoje: number;
-    semana: number;
-    mes: number;
-  };
-  porDia: any[];
+  agenda: AgendaMetrics;
   loading: boolean;
   isCustomDateFilter: boolean;
   dateRangeLabel: string;
@@ -20,8 +16,7 @@ interface AgendaTabProps {
 }
 
 export function AgendaTab({
-  stats,
-  porDia,
+  agenda,
   loading,
   isCustomDateFilter,
   dateRangeLabel,
@@ -33,21 +28,21 @@ export function AgendaTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <MetricCard
           title={isCustomDateFilter ? 'No Periodo' : 'Hoje'}
-          value={stats.hoje}
+          value={agenda.hoje}
           icon={CalendarDays}
           onClick={() => onCardClick('hoje')}
           clickable
         />
         <MetricCard
           title={isCustomDateFilter ? '7d Periodo' : 'Ultimos 7 dias'}
-          value={stats.semana}
+          value={agenda.semana}
           icon={CalendarRange}
           onClick={() => onCardClick('semana')}
           clickable
         />
         <MetricCard
-          title={isCustomDateFilter ? '30d Periodo' : 'Ultimos 30 dias'}
-          value={stats.mes}
+          title={isCustomDateFilter ? 'Total Periodo' : 'Ultimos 30 dias'}
+          value={agenda.mes}
           icon={Calendar}
           onClick={() => onCardClick('mes')}
           clickable
@@ -67,7 +62,7 @@ export function AgendaTab({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={porDia} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+            <BarChart data={agenda.porDia} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
               <XAxis dataKey="data" tickFormatter={formatDayLabel} tick={{ fontSize: 10, fill: '#888' }} interval="preserveStartEnd" />
               <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={6} />
               <Tooltip

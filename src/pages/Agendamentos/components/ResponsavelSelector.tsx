@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, ChevronDown, Search } from 'lucide-react';
-import type { ResponsavelInfo } from '../../../hooks/useAgendamentosStats';
+import type { ResponsavelInfo } from '../../../hooks/useAgendamentosDashboard';
 
 interface ResponsavelSelectorProps {
   responsaveis: ResponsavelInfo[];

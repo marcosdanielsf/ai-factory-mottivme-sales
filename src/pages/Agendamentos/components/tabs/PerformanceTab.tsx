@@ -4,32 +4,25 @@ import { MetricCard } from '../../../../components/MetricCard';
 import { CriativoMetricsTable } from '../../../../components/charts/CriativoPerformanceChart';
 import { LeadsUtmTable } from '../LeadsUtmTable';
 import type { MetricType } from '../../types';
+import type { FunnelMetrics, AgendaMetrics, CriativoMetrics, CriativoLead } from '../../../../hooks/useAgendamentosDashboard';
 
 interface PerformanceTabProps {
-  stats: {
-    totalNoShow: number;
-    taxaNoShow: number;
-    totalBooked: number;
-    totalPendingFeedback: number;
-  };
-  criativoTotals: {
-    totalLeads: number;
-    totalResponderam: number;
-  };
-  criativos: any[];
-  criativoLeads: any[];
-  loadingCriativos: boolean;
+  funnel: FunnelMetrics;
+  agenda: AgendaMetrics;
+  criativos: CriativoMetrics[];
+  leads: CriativoLead[];
+  loading: boolean;
   locationId: string | null;
   onCardClick: (metric: MetricType) => void;
   onCriativoClick: (criativo: string) => void;
 }
 
 export function PerformanceTab({
-  stats,
-  criativoTotals,
+  funnel,
+  agenda,
   criativos,
-  criativoLeads,
-  loadingCriativos,
+  leads,
+  loading,
   locationId,
   onCardClick,
   onCriativoClick,
@@ -39,24 +32,24 @@ export function PerformanceTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <MetricCard
           title="Responderam"
-          value={criativoTotals.totalResponderam}
+          value={funnel.totalResponderam}
           icon={MessageCircle}
-          subtext={`${criativoTotals.totalLeads > 0 ? Math.round((criativoTotals.totalResponderam / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
+          subtext={`${funnel.totalLeads > 0 ? Math.round((funnel.totalResponderam / funnel.totalLeads) * 100) : 0}% dos leads`}
           clickable
         />
         <MetricCard
           title="No-Show"
-          value={stats.totalNoShow}
+          value={agenda.totalNoShow}
           icon={UserX}
-          subtext={`${stats.taxaNoShow}% dos resolvidos`}
+          subtext={`${agenda.taxaNoShow}% dos resolvidos`}
           onClick={() => onCardClick('noshow')}
           clickable
         />
         <MetricCard
           title="Aguardando"
-          value={stats.totalBooked + stats.totalPendingFeedback}
+          value={agenda.totalBooked + agenda.totalPendingFeedback}
           icon={AlertCircle}
-          subtext={`${stats.totalBooked} futuros · ${stats.totalPendingFeedback} s/ feedback`}
+          subtext={`${agenda.totalBooked} futuros · ${agenda.totalPendingFeedback} s/ feedback`}
           onClick={() => onCardClick('pendentes')}
           clickable
         />
@@ -66,11 +59,11 @@ export function PerformanceTab({
         <h3 className="text-sm font-semibold text-text-primary mb-1">Funil por Criativo</h3>
         <p className="text-[10px] text-text-muted mb-3">utm_content do Meta Ads · Clique para ver os leads</p>
         <div className="max-h-[500px] overflow-y-auto">
-          <CriativoMetricsTable data={criativos} loading={loadingCriativos} onCriativoClick={onCriativoClick} />
+          <CriativoMetricsTable data={criativos} loading={loading} onCriativoClick={onCriativoClick} />
         </div>
       </div>
 
-      <LeadsUtmTable leads={criativoLeads} loading={loadingCriativos} locationId={locationId} />
+      <LeadsUtmTable leads={leads} loading={loading} locationId={locationId} />
     </div>
   );
 }

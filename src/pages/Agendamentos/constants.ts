@@ -1,4 +1,4 @@
-import type { CriativoLead } from '../../hooks/useCriativoPerformance';
+import type { CriativoLead } from '../../hooks/useAgendamentosDashboard';
 
 export const FUNNEL_STAGES: Record<string, { label: string; color: string; bg: string; order: number }> = {
   won: { label: 'Fechou', color: 'text-green-400', bg: 'bg-green-500/20', order: 6 },
@@ -34,4 +34,4 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; label: st
   booked: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Agendado' },
 };
 
-export const DONUT_COLORS = ['#f97316', '#ec4899']; // orange, pink
+export const DONUT_COLORS = ['#f97316', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#eab308']; // orange, pink, blue, emerald, violet, yellow

@@ -23,26 +23,15 @@ import { MetricCard } from '../../../../components/MetricCard';
 import { FunnelSummaryBar } from '../FunnelSummaryBar';
 import { formatDayLabel } from '../../helpers';
 import { DONUT_COLORS } from '../../constants';
-import type { MetricType, OrigemType } from '../../types';
+import type { MetricType } from '../../types';
+import type { FunnelMetrics, AgendamentosPorDia } from '../../../../hooks/useAgendamentosDashboard';
 
 interface OverviewTabProps {
-  stats: {
-    totalAgendados: number;
-    totalCompleted: number;
-  };
-  criativoTotals: {
-    totalLeads: number;
-    totalResponderam: number;
-    totalAgendaram: number;
-    totalCompareceram: number;
-    totalFecharam: number;
-  };
-  criativoLeads: any[];
-  porDia: any[];
-  porDiaCriacao: any[];
+  funnel: FunnelMetrics;
+  porDia: AgendamentosPorDia[];
+  porDiaCriacao: AgendamentosPorDia[];
   porOrigem: { origem: string; quantidade: number }[];
   loading: boolean;
-  loadingCriativos: boolean;
   dateRangeLabel: string;
   onCardClick: (metric: MetricType) => void;
   onBarClick: (data: any) => void;
@@ -50,41 +39,32 @@ interface OverviewTabProps {
 }
 
 export function OverviewTab({
-  stats,
-  criativoTotals,
-  criativoLeads,
+  funnel,
   porDia,
   porDiaCriacao,
   porOrigem,
   loading,
-  loadingCriativos,
   dateRangeLabel,
   onCardClick,
   onBarClick,
   onPieClick,
 }: OverviewTabProps) {
-  const funnelData = {
-    totalLeads: criativoTotals.totalLeads,
-    totalResponderam: criativoLeads.filter((l: any) => l.etapa_funil && l.etapa_funil.toLowerCase() !== 'novo').length,
-    totalAgendaram: stats.totalAgendados,
-    totalCompareceram: stats.totalCompleted,
-    totalFecharam: criativoTotals.totalFecharam,
-  };
-
-  const donutData = porOrigem.map((item) => ({
-    name: item.origem === 'trafego' ? 'Trafego Pago' : 'Social Selling',
-    value: item.quantidade,
-    origem: item.origem,
-  }));
+  const donutData = porOrigem
+    .filter((item) => item.quantidade > 0)
+    .map((item) => ({
+      name: item.origem,
+      value: item.quantidade,
+      origem: item.origem,
+    }));
 
   return (
     <div className="space-y-4">
-      <FunnelSummaryBar data={funnelData} loading={loadingCriativos || loading} />
+      <FunnelSummaryBar data={funnel} loading={loading} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <MetricCard
           title="Total de Leads"
-          value={criativoTotals.totalLeads.toLocaleString()}
+          value={funnel.totalLeads.toLocaleString()}
           icon={Users}
           subtext="No periodo"
           onClick={() => onCardClick('leads')}
@@ -92,25 +72,25 @@ export function OverviewTab({
         />
         <MetricCard
           title="Total Agendados"
-          value={stats.totalAgendados.toLocaleString()}
+          value={funnel.totalAgendaram.toLocaleString()}
           icon={CalendarCheck}
-          subtext={`${criativoTotals.totalLeads > 0 ? Math.round((stats.totalAgendados / criativoTotals.totalLeads) * 100) : 0}% dos leads`}
+          subtext={`${funnel.totalLeads > 0 ? Math.round((funnel.totalAgendaram / funnel.totalLeads) * 100) : 0}% dos leads`}
           onClick={() => onCardClick('mes')}
           clickable
         />
         <MetricCard
           title="Compareceram"
-          value={criativoTotals.totalCompareceram.toLocaleString()}
+          value={funnel.totalCompareceram.toLocaleString()}
           icon={CheckCircle}
-          subtext={`${criativoTotals.totalAgendaram > 0 ? Math.round((criativoTotals.totalCompareceram / criativoTotals.totalAgendaram) * 100) : 0}% dos agendados`}
+          subtext={`${funnel.totalAgendaram > 0 ? Math.round((funnel.totalCompareceram / funnel.totalAgendaram) * 100) : 0}% dos agendados`}
           onClick={() => onCardClick('comparecimento')}
           clickable
         />
         <MetricCard
           title="Fecharam"
-          value={criativoTotals.totalFecharam.toLocaleString()}
+          value={funnel.totalFecharam.toLocaleString()}
           icon={Target}
-          subtext={`${criativoTotals.totalCompareceram > 0 ? Math.round((criativoTotals.totalFecharam / criativoTotals.totalCompareceram) * 100) : 0}% dos que compareceram`}
+          subtext={`${funnel.totalCompareceram > 0 ? Math.round((funnel.totalFecharam / funnel.totalCompareceram) * 100) : 0}% dos que compareceram`}
           onClick={() => onCardClick('conversao')}
           clickable
         />
@@ -164,7 +144,7 @@ export function OverviewTab({
             <div className="h-48 flex items-center justify-center">
               <RefreshCw size={20} className="animate-spin text-text-muted" />
             </div>
-          ) : donutData.every((d) => d.value === 0) ? (
+          ) : donutData.length === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-text-muted">
               <CalendarDays size={32} className="mb-2 opacity-50" />
               <p className="text-xs">Sem dados de origem</p>

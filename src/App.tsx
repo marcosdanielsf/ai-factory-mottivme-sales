@@ -94,6 +94,9 @@ const JarvisCommand = lazy(() => import('./pages/JarvisCommand'));
 // Projetos (Kanban + Project Board)
 const Projetos = lazy(() => import('./pages/Projetos'));
 
+// Hub Operacional (Workflows por setor)
+const Workflows = lazy(() => import('./pages/Workflows'));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -671,6 +674,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <Projetos />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/workflows" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Workflows />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>

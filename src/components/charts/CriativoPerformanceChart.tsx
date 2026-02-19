@@ -9,7 +9,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { CriativoMetrics, OrigemMetrics } from '../../hooks/useCriativoPerformance';
+import { CriativoMetrics, OrigemMetrics } from '../../hooks/useAgendamentosDashboard';
 
 // ============================================================================
 // CHART: CriativoPerformanceChart

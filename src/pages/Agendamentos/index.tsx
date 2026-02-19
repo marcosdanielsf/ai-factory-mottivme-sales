@@ -9,9 +9,7 @@ import {
 } from 'lucide-react';
 import { useAccount } from '../../contexts/AccountContext';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
-import { useAgendamentosStats } from '../../hooks/useAgendamentosStats';
-import { useCriativoPerformance } from '../../hooks/useCriativoPerformance';
-import { useLeadSegmentation } from '../../hooks/useLeadSegmentation';
+import { useAgendamentosDashboard } from '../../hooks/useAgendamentosDashboard';
 import { type AgendamentosFilters } from '../../hooks/useAgendamentos';
 import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
 
@@ -76,23 +74,8 @@ export const Agendamentos: React.FC = () => {
     return startDiff > 24 * 60 * 60 * 1000;
   }, [dateRange]);
 
-  const { stats, porDia, porDiaCriacao, porOrigem, responsaveis, loading, error, refetch } = useAgendamentosStats(
-    selectedResponsavel,
-    dateRange,
-    locationId
-  );
-
-  const { criativos, origens, leads: criativoLeads, totals: criativoTotals, loading: loadingCriativos } = useCriativoPerformance(
-    dateRange,
-    locationId,
-    selectedResponsavel
-  );
-
-  const { estados, workPermit, totals: segmentationTotals, loading: loadingSegmentation } = useLeadSegmentation(
-    dateRange,
-    locationId,
-    selectedResponsavel
-  );
+  // Single unified hook replaces useAgendamentosStats + useCriativoPerformance + useLeadSegmentation
+  const dashboard = useAgendamentosDashboard(dateRange, locationId, selectedResponsavel);
 
   const buildFilters = useCallback((): AgendamentosFilters => {
     const filters: AgendamentosFilters = {
@@ -164,7 +147,7 @@ export const Agendamentos: React.FC = () => {
     const filters = buildFilters();
     filters.origem = origem;
     setDrawerFilters(filters);
-    setDrawerTitle(origem === 'trafego' ? 'Trafego Pago' : 'Social Selling');
+    setDrawerTitle(String(data.origem));
     setDrawerOpen(true);
   }, [buildFilters]);
 
@@ -203,18 +186,18 @@ export const Agendamentos: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
               {!isClientUser && <ResponsavelSelector
-                responsaveis={responsaveis}
+                responsaveis={dashboard.responsaveis}
                 selectedName={selectedResponsavel}
                 onChange={setSelectedResponsavel}
-                isLoading={loading && responsaveis.length === 0}
+                isLoading={dashboard.loading && dashboard.responsaveis.length === 0}
               />}
               <button
-                onClick={() => refetch()}
-                disabled={loading}
+                onClick={() => dashboard.refetch()}
+                disabled={dashboard.loading}
                 className="p-2 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-50 border border-border-default"
                 title="Atualizar dados"
               >
-                <RefreshCw size={16} className={`text-text-muted ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw size={16} className={`text-text-muted ${dashboard.loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -243,14 +226,11 @@ export const Agendamentos: React.FC = () => {
       <div className="p-4 md:p-6">
         {tab === 'overview' && (
           <OverviewTab
-            stats={stats}
-            criativoTotals={criativoTotals}
-            criativoLeads={criativoLeads}
-            porDia={porDia}
-            porDiaCriacao={porDiaCriacao}
-            porOrigem={porOrigem}
-            loading={loading}
-            loadingCriativos={loadingCriativos}
+            funnel={dashboard.funnel}
+            porDia={dashboard.agenda.porDia}
+            porDiaCriacao={dashboard.porDiaCriacao}
+            porOrigem={dashboard.porOrigem}
+            loading={dashboard.loading}
             dateRangeLabel={dateRangeLabel}
             onCardClick={handleCardClick}
             onBarClick={handleBarClick}
@@ -260,11 +240,11 @@ export const Agendamentos: React.FC = () => {
 
         {tab === 'performance' && (
           <PerformanceTab
-            stats={stats}
-            criativoTotals={criativoTotals}
-            criativos={criativos}
-            criativoLeads={criativoLeads}
-            loadingCriativos={loadingCriativos}
+            funnel={dashboard.funnel}
+            agenda={dashboard.agenda}
+            criativos={dashboard.criativos}
+            leads={dashboard.leads}
+            loading={dashboard.loading}
             locationId={locationId}
             onCardClick={handleCardClick}
             onCriativoClick={handleCriativoClick}
@@ -273,18 +253,17 @@ export const Agendamentos: React.FC = () => {
 
         {tab === 'segmentacao' && (
           <SegmentacaoTab
-            estados={estados}
-            workPermit={workPermit}
-            segmentationTotals={segmentationTotals}
-            loadingSegmentation={loadingSegmentation}
+            estados={dashboard.estados}
+            workPermit={dashboard.workPermit}
+            segmentationTotals={dashboard.segmentationTotals}
+            loading={dashboard.loading}
           />
         )}
 
         {tab === 'agenda' && (
           <AgendaTab
-            stats={stats}
-            porDia={porDia}
-            loading={loading}
+            agenda={dashboard.agenda}
+            loading={dashboard.loading}
             isCustomDateFilter={isCustomDateFilter}
             dateRangeLabel={dateRangeLabel}
             onCardClick={handleCardClick}
@@ -299,7 +278,7 @@ export const Agendamentos: React.FC = () => {
         isOpen={criativoDrawerOpen}
         onClose={() => setCriativoDrawerOpen(false)}
         criativoName={selectedCriativo}
-        leads={criativoLeads}
+        leads={dashboard.leads}
         locationId={locationId}
       />
     </div>

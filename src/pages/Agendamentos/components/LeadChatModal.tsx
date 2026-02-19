@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, User, ExternalLink, RefreshCw, MessageCircle } from 'lucide-react';
-import type { CriativoLead } from '../../../hooks/useCriativoPerformance';
+import type { CriativoLead } from '../../../hooks/useAgendamentosDashboard';
 import { useConversationMessages } from '../../../hooks/useConversationMessages';
 import { MessageBubble } from '../../../components/supervision/MessageBubble';
 import { supabase } from '../../../lib/supabase';
