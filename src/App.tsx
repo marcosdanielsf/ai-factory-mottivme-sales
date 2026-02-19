@@ -105,6 +105,14 @@ const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
 const GHLLeads = lazy(() => import('./pages/ghl/GHLLeads'));
 
+// Lead Gen Portal
+const LinkedinPostScraper = lazy(() => import('./pages/LeadGen/LinkedinPostScraper'));
+const LinkedinSearch = lazy(() => import('./pages/LeadGen/LinkedinSearch'));
+const ApolloScraper = lazy(() => import('./pages/LeadGen/ApolloScraper'));
+const GMapsScraper = lazy(() => import('./pages/LeadGen/GMapsScraper'));
+const LeadsListPeople = lazy(() => import('./pages/LeadGen/LeadsListPeople'));
+const LeadsListCompany = lazy(() => import('./pages/LeadGen/LeadsListCompany'));
+
 const App = () => {
   return (
     <JarvisProvider>
@@ -637,6 +645,62 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <ContentStudio />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Lead Gen Portal */}
+              <Route path="/leadgen/linkedin-posts" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LinkedinPostScraper />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/leadgen/linkedin-search" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LinkedinSearch />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/leadgen/apollo" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ApolloScraper />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/leadgen/gmaps" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GMapsScraper />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/leadgen/leads-people" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LeadsListPeople />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/leadgen/leads-company" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <LeadsListCompany />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>

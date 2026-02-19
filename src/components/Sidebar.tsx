@@ -50,7 +50,12 @@ import {
   Layers,
   FolderKanban,
   Cpu,
-  LucideIcon
+  LucideIcon,
+  Search,
+  Globe,
+  Rocket,
+  MapPin,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
@@ -149,6 +154,18 @@ const navSections: NavSection[] = [
         ]
       },
     ]
+  },
+  {
+    title: 'LEAD GEN',
+    permission: 'canAccessCalls',
+    items: [
+      { icon: Search, label: 'LinkedIn Posts', to: '/leadgen/linkedin-posts', permission: 'canAccessCalls' },
+      { icon: Globe, label: 'LinkedIn Search', to: '/leadgen/linkedin-search', permission: 'canAccessCalls' },
+      { icon: Rocket, label: 'Apollo Scraper', to: '/leadgen/apollo', permission: 'canAccessCalls' },
+      { icon: MapPin, label: 'GMaps Search', to: '/leadgen/gmaps', permission: 'canAccessCalls' },
+      { icon: Users, label: 'Leads People', to: '/leadgen/leads-people', permission: 'canAccessCalls' },
+      { icon: Building2, label: 'Leads Company', to: '/leadgen/leads-company', permission: 'canAccessCalls' },
+    ],
   },
   {
     title: 'AI FACTORY',
