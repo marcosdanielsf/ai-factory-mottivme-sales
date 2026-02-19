@@ -7,7 +7,7 @@ import { useSalesGoals, calculateProjection, SalesGoal } from '../../hooks/useSa
 import { useSocialSellingFunnel } from '../../hooks/useSocialSellingFunnel';
 import { useProducts } from '../../hooks/useProducts';
 
-import type { PlanningState, ScenarioKey, Currency, ProductItem, PlanResults, ScenarioConfig } from './types';
+import type { PlanningState, ScenarioKey, Currency, ProductItem, PlanResults, ScenarioConfig, SubFunnel } from './types';
 import { DEFAULT_STATE, DEFAULT_SUB_FUNNELS, createDefaultProduct, DEFAULT_SCENARIO_CONFIG } from './constants';
 import { calculatePlan, formatCurrency } from './calculation-engine';
 
@@ -113,10 +113,16 @@ export function Planejamento() {
         }
       }
 
-      // Compute weighted CPL for trafego from sub-funnels
-      const weightedCpl = plan.marketing.trafegoSubFunnels.length > 0
-        ? plan.marketing.trafegoSubFunnels.reduce((s, sf) => s + sf.cpl * sf.pctBudget / 100, 0)
-        : plan.marketing.channels.trafego.cpl;
+      // Compute weighted CPL and rates from sub-funnels (budget-weighted)
+      const totalBudgetPct = plan.marketing.subFunnels.reduce((s, sf) => s + sf.pctBudget, 0);
+      const weightedCpl = plan.marketing.subFunnels.length > 0 && totalBudgetPct > 0
+        ? plan.marketing.subFunnels.reduce((s, sf) => s + sf.cpl * sf.pctBudget / 100, 0)
+        : 10;
+
+      const weightedRate = (field: 'qualificationRate' | 'schedulingRate' | 'attendanceRate' | 'conversionRate') => {
+        if (totalBudgetPct === 0) return 40;
+        return Math.round(plan.marketing.subFunnels.reduce((s, sf) => s + sf[field] * sf.pctBudget, 0) / totalBudgetPct);
+      };
 
       const r = results;
       const newGoal: Omit<SalesGoal, 'id' | 'created_at' | 'updated_at' | 'is_active' | 'created_by'> = {
@@ -125,9 +131,9 @@ export function Planejamento() {
         period_start: dateRange.startDate.toISOString().split('T')[0],
         period_end: dateRange.endDate.toISOString().split('T')[0],
         goal_leads_total: r.totalLeads,
-        goal_leads_social_selling: r.byChannel.socialSelling.leads,
-        goal_leads_trafego: r.byChannel.trafego.leads,
-        goal_leads_organico: r.byChannel.organico.leads,
+        goal_leads_social_selling: 0,
+        goal_leads_trafego: r.totalLeads,
+        goal_leads_organico: 0,
         goal_responderam: r.mqls,
         goal_agendamentos: r.scheduledCalls,
         goal_comparecimentos: r.attendedCalls,
@@ -139,10 +145,10 @@ export function Planejamento() {
         goal_conversion_rate: r.totalLeads > 0 ? Math.round((r.totalSales / r.totalLeads) * 100) : 0,
         calc_daily_investment: plan.marketing.dailyBudget,
         calc_cpl: weightedCpl,
-        calc_qualification_rate: plan.sales.origins.trafego.qualificationRate,
-        calc_scheduling_rate: plan.sales.origins.trafego.schedulingRate,
-        calc_attendance_rate: plan.sales.origins.trafego.attendanceRate,
-        calc_conversion_rate: plan.sales.origins.trafego.conversionRate,
+        calc_qualification_rate: weightedRate('qualificationRate'),
+        calc_scheduling_rate: weightedRate('schedulingRate'),
+        calc_attendance_rate: weightedRate('attendanceRate'),
+        calc_conversion_rate: weightedRate('conversionRate'),
         calc_average_ticket: plan.products[0]?.ticket || 1000,
         products_snapshot: plan.products,
         marketing_config: {
@@ -167,23 +173,46 @@ export function Planejamento() {
 
   const handleEditGoal = () => {
     if (activeGoal) {
-      // Restore state from saved goal
-      const mkt = (activeGoal.marketing_config && typeof activeGoal.marketing_config === 'object' && 'dailyBudget' in activeGoal.marketing_config)
-        ? activeGoal.marketing_config as PlanningState['marketing']
-        : DEFAULT_STATE.marketing;
+      const mktConfig = activeGoal.marketing_config as any;
 
       const prods = Array.isArray(activeGoal.products_snapshot) && activeGoal.products_snapshot.length > 0
         ? activeGoal.products_snapshot as ProductItem[]
         : [{ ...createDefaultProduct(), ticket: activeGoal.calc_average_ticket }];
 
-      const mergedMkt = { ...DEFAULT_STATE.marketing, ...mkt };
-      if (!mergedMkt.trafegoSubFunnels || mergedMkt.trafegoSubFunnels.length === 0) {
-        mergedMkt.trafegoSubFunnels = DEFAULT_SUB_FUNNELS;
+      // Migrate from old format (channels + trafegoSubFunnels) to new (subFunnels)
+      let subFunnels: SubFunnel[] = DEFAULT_SUB_FUNNELS;
+      if (mktConfig?.subFunnels && Array.isArray(mktConfig.subFunnels) && mktConfig.subFunnels.length > 0) {
+        // New format — ensure rates exist
+        subFunnels = mktConfig.subFunnels.map((sf: any) => ({
+          id: sf.id || crypto.randomUUID(),
+          name: sf.name || 'Funil',
+          pctBudget: sf.pctBudget ?? 0,
+          cpl: sf.cpl ?? 10,
+          qualificationRate: sf.qualificationRate ?? 40,
+          schedulingRate: sf.schedulingRate ?? 35,
+          attendanceRate: sf.attendanceRate ?? 65,
+          conversionRate: sf.conversionRate ?? 15,
+        }));
+      } else if (mktConfig?.trafegoSubFunnels && Array.isArray(mktConfig.trafegoSubFunnels) && mktConfig.trafegoSubFunnels.length > 0) {
+        // Old format — migrate trafegoSubFunnels, add default rates from trafego origins
+        const defaultRates = {
+          qualificationRate: activeGoal.calc_qualification_rate ?? 40,
+          schedulingRate: activeGoal.calc_scheduling_rate ?? 35,
+          attendanceRate: activeGoal.calc_attendance_rate ?? 65,
+          conversionRate: activeGoal.calc_conversion_rate ?? 15,
+        };
+        subFunnels = mktConfig.trafegoSubFunnels.map((sf: any) => ({
+          id: sf.id || crypto.randomUUID(),
+          name: sf.name || 'Funil',
+          pctBudget: sf.pctBudget ?? 0,
+          cpl: sf.cpl ?? 10,
+          ...defaultRates,
+        }));
       }
 
-      const savedScenario = (activeGoal.marketing_config as any)?.scenarioConfig as ScenarioConfig | undefined;
+      const dailyBudget = mktConfig?.dailyBudget ?? activeGoal.calc_daily_investment ?? DEFAULT_STATE.marketing.dailyBudget;
+      const savedScenario = mktConfig?.scenarioConfig as ScenarioConfig | undefined;
 
-      // Ensure products have bump/upsell fields
       const normalizedProds = prods.map(p => ({
         ...p,
         orderBumpTicket: p.orderBumpTicket ?? 0,
@@ -197,7 +226,7 @@ export function Planejamento() {
         step: 1,
         currency: (activeGoal.currency as Currency) || 'BRL',
         products: normalizedProds,
-        marketing: mergedMkt,
+        marketing: { dailyBudget, subFunnels },
         scenarioConfig: savedScenario || DEFAULT_SCENARIO_CONFIG,
       }));
     }
@@ -403,8 +432,8 @@ export function Planejamento() {
                   )}
                   {plan.step === 3 && (
                     <SalesStep
-                      sales={plan.sales}
-                      onChange={sales => setPlan(p => ({ ...p, sales }))}
+                      subFunnels={plan.marketing.subFunnels}
+                      onChange={subFunnels => setPlan(p => ({ ...p, marketing: { ...p.marketing, subFunnels } }))}
                     />
                   )}
 

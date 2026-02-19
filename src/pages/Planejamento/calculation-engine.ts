@@ -1,21 +1,19 @@
-import type { PlanningState, PlanResults, ChannelResults, Currency } from './types';
+import type { PlanningState, PlanResults, SubFunnelResults, Currency } from './types';
+import { SDR_CAPACITY, CLOSER_CAPACITY } from './constants';
+
+export function calcOverallRate(q: number, s: number, a: number, c: number): number {
+  return (q / 100) * (s / 100) * (a / 100) * (c / 100) * 100;
+}
+
+export function calcSubFunnelLeads(investment: number, cpl: number): number {
+  return cpl > 0 ? Math.floor(investment / cpl) : 0;
+}
 
 export function calculatePlan(state: PlanningState, periodDays = 30, scenarioMultiplier = 1.0): PlanResults {
-  const { marketing, sales, products } = state;
+  const { marketing, products } = state;
   const totalInvestment = marketing.dailyBudget * periodDays;
 
   const clampRate = (rate: number, mult: number) => Math.min(100, rate * mult);
-
-  const calcChannelLeads = (key: 'socialSelling' | 'trafego' | 'organico', investment: number): number => {
-    if (key === 'trafego' && marketing.trafegoSubFunnels.length > 0) {
-      return marketing.trafegoSubFunnels.reduce((total, sf) => {
-        const sfInvestment = investment * sf.pctBudget / 100;
-        return total + (sf.cpl > 0 ? Math.floor(sfInvestment / sf.cpl) : 0);
-      }, 0);
-    }
-    const ch = marketing.channels[key];
-    return ch.cpl > 0 ? Math.floor(investment / ch.cpl) : 0;
-  };
 
   const calcProductRevenue = (salesCount: number) => {
     const totalTarget = products.reduce((s, p) => s + p.targetUnits, 0);
@@ -32,40 +30,28 @@ export function calculatePlan(state: PlanningState, periodDays = 30, scenarioMul
     return { revenueBase, revenueBump, revenueUpsell, total: revenueBase + revenueBump + revenueUpsell };
   };
 
-  const calcChannel = (key: 'socialSelling' | 'trafego' | 'organico'): ChannelResults => {
-    const ch = marketing.channels[key];
-    const rates = sales.origins[key];
-    const investment = totalInvestment * ch.pctBudget / 100;
-    const leads = calcChannelLeads(key, investment);
-    const mqls = Math.floor(leads * clampRate(rates.qualificationRate, scenarioMultiplier) / 100);
-    const scheduledCalls = Math.floor(mqls * clampRate(rates.schedulingRate, scenarioMultiplier) / 100);
-    const attendedCalls = Math.floor(scheduledCalls * clampRate(rates.attendanceRate, scenarioMultiplier) / 100);
-    const salesCount = Math.floor(attendedCalls * clampRate(rates.conversionRate, scenarioMultiplier) / 100);
+  const bySubFunnel: SubFunnelResults[] = marketing.subFunnels.map(sf => {
+    const investment = totalInvestment * sf.pctBudget / 100;
+    const leads = calcSubFunnelLeads(investment, sf.cpl);
+    const mqls = Math.floor(leads * clampRate(sf.qualificationRate, scenarioMultiplier) / 100);
+    const scheduledCalls = Math.floor(mqls * clampRate(sf.schedulingRate, scenarioMultiplier) / 100);
+    const attendedCalls = Math.floor(scheduledCalls * clampRate(sf.attendanceRate, scenarioMultiplier) / 100);
+    const sales = Math.floor(attendedCalls * clampRate(sf.conversionRate, scenarioMultiplier) / 100);
+    const rev = calcProductRevenue(sales);
+    const overallRate = leads > 0 ? (sales / leads) * 100 : 0;
 
-    const rev = calcProductRevenue(salesCount);
-    return { leads, mqls, scheduledCalls, attendedCalls, sales: salesCount, revenue: rev.total, investment };
-  };
-
-  const ss = calcChannel('socialSelling');
-  const tr = calcChannel('trafego');
-  const org = calcChannel('organico');
-
-  const trafegoBudget = totalInvestment * marketing.channels.trafego.pctBudget / 100;
-  const bySubFunnel = marketing.trafegoSubFunnels.map(sf => {
-    const sfInvestment = trafegoBudget * sf.pctBudget / 100;
-    const sfLeads = sf.cpl > 0 ? Math.floor(sfInvestment / sf.cpl) : 0;
-    return { name: sf.name, investment: sfInvestment, leads: sfLeads, cpl: sf.cpl };
+    return { id: sf.id, name: sf.name, investment, leads, cpl: sf.cpl, mqls, scheduledCalls, attendedCalls, sales, revenue: rev.total, overallRate };
   });
 
-  const totalLeads = ss.leads + tr.leads + org.leads;
-  const mqls = ss.mqls + tr.mqls + org.mqls;
-  const scheduledCalls = ss.scheduledCalls + tr.scheduledCalls + org.scheduledCalls;
-  const attendedCalls = ss.attendedCalls + tr.attendedCalls + org.attendedCalls;
-  const totalSales = ss.sales + tr.sales + org.sales;
-  const totalRevenue = ss.revenue + tr.revenue + org.revenue;
+  const totalLeads = bySubFunnel.reduce((s, sf) => s + sf.leads, 0);
+  const mqls = bySubFunnel.reduce((s, sf) => s + sf.mqls, 0);
+  const scheduledCalls = bySubFunnel.reduce((s, sf) => s + sf.scheduledCalls, 0);
+  const attendedCalls = bySubFunnel.reduce((s, sf) => s + sf.attendedCalls, 0);
+  const totalSales = bySubFunnel.reduce((s, sf) => s + sf.sales, 0);
+  const totalRevenue = bySubFunnel.reduce((s, sf) => s + sf.revenue, 0);
 
-  const sdrCount = Math.ceil(mqls / sales.mqlsPerSdr);
-  const closerCount = Math.ceil(attendedCalls / sales.callsPerCloser);
+  const sdrCount = mqls > 0 ? Math.ceil(mqls / SDR_CAPACITY) : 0;
+  const closerCount = attendedCalls > 0 ? Math.ceil(attendedCalls / CLOSER_CAPACITY) : 0;
   const totalOpCost = totalInvestment + (sdrCount * 3000) + (closerCount * 5000) + (totalSales * 200) + 500 + 1000;
   const roas = totalInvestment > 0 ? totalRevenue / totalInvestment : 0;
   const cac = totalSales > 0 ? totalOpCost / totalSales : 0;
@@ -107,9 +93,8 @@ export function calculatePlan(state: PlanningState, periodDays = 30, scenarioMul
     closerCount,
     totalOpCost,
     netProfit,
-    byChannel: { socialSelling: ss, trafego: tr, organico: org },
-    byProduct,
     bySubFunnel,
+    byProduct,
   };
 }
 

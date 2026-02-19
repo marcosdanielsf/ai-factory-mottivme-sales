@@ -31,13 +31,16 @@ export const DEFAULT_SCENARIO_CONFIG: ScenarioConfig = {
   otimista: 1.3,
 };
 
+export const SDR_CAPACITY = 150;
+export const CLOSER_CAPACITY = 60;
+
 export const DEFAULT_SUB_FUNNELS: SubFunnel[] = [
-  { id: '1', name: 'Novo Seguidor', pctBudget: 25, cpl: 1.5 },
-  { id: '2', name: 'Remarketing', pctBudget: 20, cpl: 12 },
-  { id: '3', name: 'Formulario / LP', pctBudget: 25, cpl: 15 },
-  { id: '4', name: 'VSL', pctBudget: 15, cpl: 20 },
-  { id: '5', name: 'Direct DM', pctBudget: 10, cpl: 5 },
-  { id: '6', name: 'Direct WhatsApp', pctBudget: 5, cpl: 8 },
+  { id: '1', name: 'Novo Seguidor', pctBudget: 25, cpl: 1.5, qualificationRate: 60, schedulingRate: 45, attendanceRate: 75, conversionRate: 25 },
+  { id: '2', name: 'Remarketing', pctBudget: 20, cpl: 12, qualificationRate: 40, schedulingRate: 35, attendanceRate: 65, conversionRate: 15 },
+  { id: '3', name: 'Formulario / LP', pctBudget: 25, cpl: 15, qualificationRate: 35, schedulingRate: 30, attendanceRate: 60, conversionRate: 12 },
+  { id: '4', name: 'VSL', pctBudget: 15, cpl: 20, qualificationRate: 50, schedulingRate: 40, attendanceRate: 70, conversionRate: 20 },
+  { id: '5', name: 'Direct DM', pctBudget: 10, cpl: 5, qualificationRate: 55, schedulingRate: 45, attendanceRate: 75, conversionRate: 22 },
+  { id: '6', name: 'Direct WhatsApp', pctBudget: 5, cpl: 8, qualificationRate: 50, schedulingRate: 40, attendanceRate: 70, conversionRate: 18 },
 ];
 
 export const DEFAULT_STATE: PlanningState = {
@@ -46,21 +49,7 @@ export const DEFAULT_STATE: PlanningState = {
   products: [createDefaultProduct()],
   marketing: {
     dailyBudget: 333,
-    channels: {
-      socialSelling: { pctBudget: 30, cpl: 3 },
-      trafego: { pctBudget: 50, cpl: 8 },
-      organico: { pctBudget: 20, cpl: 1 },
-    },
-    trafegoSubFunnels: DEFAULT_SUB_FUNNELS,
-  },
-  sales: {
-    origins: {
-      socialSelling: { qualificationRate: 60, schedulingRate: 45, attendanceRate: 75, conversionRate: 25 },
-      trafego: { qualificationRate: 40, schedulingRate: 35, attendanceRate: 65, conversionRate: 15 },
-      organico: { qualificationRate: 55, schedulingRate: 40, attendanceRate: 70, conversionRate: 20 },
-    },
-    mqlsPerSdr: 150,
-    callsPerCloser: 60,
+    subFunnels: DEFAULT_SUB_FUNNELS,
   },
   scenarioConfig: DEFAULT_SCENARIO_CONFIG,
 };

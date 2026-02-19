@@ -2,10 +2,12 @@ import React, { useState, createContext, useContext } from 'react';
 import {
   Cpu, Bot, Webhook, GitBranch, Database, Shield, BarChart3,
   ChevronDown, ChevronRight, FileText, Zap, Eye, Clock,
-  Lock, AlertTriangle, CheckCircle2, Settings2, Layers, Loader2
+  Lock, AlertTriangle, CheckCircle2, Settings2, Layers, Loader2,
+  Activity, Timer, Wrench
 } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
+import { useSessionLogs, type SessionSummary } from '../../hooks/useSessionLogs';
 import {
   type AgentConfig, type HookConfig, type WorkflowConfig,
   type ConstitutionArticle, type SystemStats, type MemoryFile,
@@ -403,9 +405,156 @@ const StatsPanel: React.FC = () => {
 };
 
 // ============================================
+// SESSIONS PANEL
+// ============================================
+const SessionsPanel: React.FC = () => {
+  const { sessions, loading, error, totalToday, totalMinutesToday, avgDuration, fetchMore, hasMore } = useSessionLogs();
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' +
+      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDuration = (min: number | null) => {
+    if (!min) return '—';
+    if (min < 1) return '<1min';
+    if (min >= 60) return `${Math.floor(min / 60)}h${Math.round(min % 60)}m`;
+    return `${Math.round(min)}min`;
+  };
+
+  const topTools = (counts: Record<string, number> | null) => {
+    if (!counts) return '—';
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => `${name}(${count})`)
+      .join(', ');
+  };
+
+  const stats = [
+    { label: 'Sessoes Hoje', value: totalToday, icon: Activity, color: 'text-green-400' },
+    { label: 'Tempo Hoje', value: `${Math.round(totalMinutesToday)}min`, icon: Timer, color: 'text-blue-400' },
+    { label: 'Media Duracao', value: `${avgDuration}min`, icon: Clock, color: 'text-amber-400' },
+    { label: 'Total Sessoes', value: sessions.length, icon: Wrench, color: 'text-purple-400' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
+              <Icon size={20} className={`mx-auto mb-2 ${stat.color}`} />
+              <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+              <p className="text-xs text-text-muted mt-0.5">{stat.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400">
+          {error}
+        </div>
+      )}
+
+      {/* Sessions Table */}
+      <div className="bg-bg-secondary border border-border-default rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-border-default">
+          <h3 className="text-sm font-semibold text-text-primary">Historico de Sessoes</h3>
+        </div>
+
+        {loading && sessions.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={24} className="animate-spin text-accent-primary" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="px-5 py-8 text-center text-xs text-text-muted">
+            Nenhuma sessao registrada ainda. Os dados aparecerao na proxima sessao.
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border-default text-text-muted">
+                    <th className="text-left px-5 py-2 font-medium">Inicio</th>
+                    <th className="text-left px-3 py-2 font-medium">Duracao</th>
+                    <th className="text-left px-3 py-2 font-medium">Tools</th>
+                    <th className="text-left px-3 py-2 font-medium">Top Tools</th>
+                    <th className="text-left px-3 py-2 font-medium">Agentes</th>
+                    <th className="text-left px-3 py-2 font-medium">Prompt</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-default">
+                  {sessions.map((s) => (
+                    <tr key={s.session_id} className="hover:bg-bg-tertiary/50 transition-colors">
+                      <td className="px-5 py-3 text-text-primary whitespace-nowrap">{formatDate(s.started_at)}</td>
+                      <td className="px-3 py-3 text-text-secondary whitespace-nowrap">{formatDuration(s.duration_min)}</td>
+                      <td className="px-3 py-3 text-text-secondary">{s.tool_count}</td>
+                      <td className="px-3 py-3 text-text-muted font-mono">{topTools(s.tool_counts)}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {s.agents_used?.map((a) => (
+                            <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-accent-primary/10 text-accent-primary">{a}</span>
+                          )) || <span className="text-text-muted">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-text-muted max-w-[200px] truncate">{s.first_prompt || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-border-default">
+              {sessions.map((s) => (
+                <div key={s.session_id} className="px-5 py-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-text-primary">{formatDate(s.started_at)}</span>
+                    <span className="text-xs text-text-secondary">{formatDuration(s.duration_min)}</span>
+                  </div>
+                  <p className="text-[10px] text-text-muted truncate">{s.first_prompt || '—'}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                    <span>{s.tool_count} tools</span>
+                    {s.agents_used && s.agents_used.length > 0 && (
+                      <span>| {s.agents_used.join(', ')}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Load More */}
+            {hasMore && (
+              <div className="px-5 py-3 border-t border-border-default text-center">
+                <button
+                  onClick={fetchMore}
+                  disabled={loading}
+                  className="text-xs text-accent-primary hover:text-accent-primary/80 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Carregando...' : 'Carregar mais'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // TABS CONFIG
 // ============================================
-type TabId = 'agentes' | 'hooks' | 'workflows' | 'memory' | 'constituicao' | 'sistema';
+type TabId = 'agentes' | 'hooks' | 'workflows' | 'memory' | 'constituicao' | 'sessions' | 'sistema';
 
 const tabs: { id: TabId; label: string; icon: typeof Bot }[] = [
   { id: 'agentes', label: 'Agentes', icon: Bot },
@@ -413,6 +562,7 @@ const tabs: { id: TabId; label: string; icon: typeof Bot }[] = [
   { id: 'workflows', label: 'Workflows', icon: GitBranch },
   { id: 'memory', label: 'Memory', icon: Database },
   { id: 'constituicao', label: 'Constituicao', icon: Shield },
+  { id: 'sessions', label: 'Sessions', icon: Activity },
   { id: 'sistema', label: 'Sistema', icon: BarChart3 },
 ];
 
@@ -422,6 +572,7 @@ const panelMap: Record<TabId, React.FC> = {
   workflows: WorkflowsPanel,
   memory: MemoryPanel,
   constituicao: ConstitutionPanel,
+  sessions: SessionsPanel,
   sistema: StatsPanel,
 };
 

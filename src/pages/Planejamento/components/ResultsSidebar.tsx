@@ -118,38 +118,17 @@ export function ResultsSidebar({ results, scenarios, activeScenario, onScenarioC
         </table>
       </div>
 
-      {/* By channel */}
-      <div className="mt-3 pt-3 border-t border-border-default">
-        <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Por Canal</h5>
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr className="text-text-muted">
-              <th className="text-left py-1"></th>
-              <th className="text-center py-1 text-blue-400">SS</th>
-              <th className="text-center py-1 text-amber-400">Traf</th>
-              <th className="text-center py-1 text-emerald-400">Org</th>
-            </tr>
-          </thead>
-          <tbody className="text-text-secondary">
-            <tr><td className="py-0.5">Leads</td><td className="text-center">{r.byChannel.socialSelling.leads}</td><td className="text-center">{r.byChannel.trafego.leads}</td><td className="text-center">{r.byChannel.organico.leads}</td></tr>
-            <tr><td className="py-0.5">MQLs</td><td className="text-center">{r.byChannel.socialSelling.mqls}</td><td className="text-center">{r.byChannel.trafego.mqls}</td><td className="text-center">{r.byChannel.organico.mqls}</td></tr>
-            <tr><td className="py-0.5">Agend.</td><td className="text-center">{r.byChannel.socialSelling.scheduledCalls}</td><td className="text-center">{r.byChannel.trafego.scheduledCalls}</td><td className="text-center">{r.byChannel.organico.scheduledCalls}</td></tr>
-            <tr className="font-bold"><td className="py-0.5">Vendas</td><td className="text-center text-blue-400">{r.byChannel.socialSelling.sales}</td><td className="text-center text-amber-400">{r.byChannel.trafego.sales}</td><td className="text-center text-emerald-400">{r.byChannel.organico.sales}</td></tr>
-          </tbody>
-        </table>
-      </div>
-
       {/* By sub-funnel */}
       {r.bySubFunnel.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border-default">
-          <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Sub-funis Trafego</h5>
-          <div className="space-y-1">
-            {r.bySubFunnel.map((sf, i) => (
-              <div key={i} className="flex items-center justify-between text-[11px]">
+          <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Sub-funis</h5>
+          <div className="space-y-1.5">
+            {r.bySubFunnel.map((sf) => (
+              <div key={sf.id} className="flex items-center justify-between text-[11px]">
                 <span className="text-text-secondary truncate mr-2">{sf.name}</span>
                 <div className="flex items-center gap-2 whitespace-nowrap">
-                  <span className="text-text-muted">{sf.leads} leads</span>
-                  <span className="text-amber-400 font-semibold">{formatCurrency(sf.investment, currency)}</span>
+                  <span className="text-text-muted">{sf.leads}→{sf.sales}</span>
+                  <span className="text-blue-400 font-semibold">{formatCurrency(sf.investment, currency)}</span>
                 </div>
               </div>
             ))}

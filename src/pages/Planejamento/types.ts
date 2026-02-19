@@ -12,19 +12,11 @@ export interface ProductItem {
   upsellRate: number;
 }
 
-export interface ChannelConfig {
-  pctBudget: number;
-  cpl: number;
-}
-
 export interface SubFunnel {
   id: string;
   name: string;
   pctBudget: number;
   cpl: number;
-}
-
-export interface OriginRates {
   qualificationRate: number;
   schedulingRate: number;
   attendanceRate: number;
@@ -37,33 +29,23 @@ export interface PlanningState {
   products: ProductItem[];
   marketing: {
     dailyBudget: number;
-    channels: {
-      socialSelling: ChannelConfig;
-      trafego: ChannelConfig;
-      organico: ChannelConfig;
-    };
-    trafegoSubFunnels: SubFunnel[];
-  };
-  sales: {
-    origins: {
-      socialSelling: OriginRates;
-      trafego: OriginRates;
-      organico: OriginRates;
-    };
-    mqlsPerSdr: number;
-    callsPerCloser: number;
+    subFunnels: SubFunnel[];
   };
   scenarioConfig: ScenarioConfig;
 }
 
-export interface ChannelResults {
+export interface SubFunnelResults {
+  id: string;
+  name: string;
+  investment: number;
   leads: number;
+  cpl: number;
   mqls: number;
   scheduledCalls: number;
   attendedCalls: number;
   sales: number;
   revenue: number;
-  investment: number;
+  overallRate: number;
 }
 
 export type ScenarioKey = 'pessimista' | 'realista' | 'otimista';
@@ -88,11 +70,7 @@ export interface PlanResults {
   closerCount: number;
   totalOpCost: number;
   netProfit: number;
-  byChannel: {
-    socialSelling: ChannelResults;
-    trafego: ChannelResults;
-    organico: ChannelResults;
-  };
+  bySubFunnel: SubFunnelResults[];
   byProduct: {
     name: string;
     ticket: number;
@@ -102,12 +80,6 @@ export interface PlanResults {
     revenueUpsell: number;
     revenue: number;
     estimatedLeads: number;
-  }[];
-  bySubFunnel: {
-    name: string;
-    investment: number;
-    leads: number;
-    cpl: number;
   }[];
 }
 
