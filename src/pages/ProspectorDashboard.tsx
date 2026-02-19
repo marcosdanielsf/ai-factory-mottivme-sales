@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Target,
@@ -14,8 +14,11 @@ import {
   Linkedin,
   MessageCircle,
   Loader2,
+  Plus,
+  RefreshCw,
+  X,
 } from 'lucide-react';
-import { useProspectorCampaigns, useProspectorAnalytics, ProspectorCampaign } from '../hooks/useProspector';
+import { useProspectorCampaigns, useProspectorAnalytics, ProspectorCampaign, ProspectorChannel } from '../hooks/useProspector';
 
 // ═══════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -225,8 +228,44 @@ const CampaignCard = ({ campaign, onPause, onResume, onView, onEdit }: CampaignC
 
 export const ProspectorDashboard = () => {
   const navigate = useNavigate();
-  const { campaigns, loading: campaignsLoading, pauseCampaign, resumeCampaign } = useProspectorCampaigns();
+  const { campaigns, loading: campaignsLoading, pauseCampaign, resumeCampaign, createCampaign } = useProspectorCampaigns();
   const { metrics, loading: metricsLoading } = useProspectorAnalytics();
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    vertical: 'clinicas' as 'clinicas' | 'coaches' | 'infoprodutores',
+    channels: ['instagram'] as ProspectorChannel[],
+    daily_limit: '50',
+  });
+
+  const toggleChannel = (ch: ProspectorChannel) => {
+    setForm(f => ({
+      ...f,
+      channels: f.channels.includes(ch)
+        ? f.channels.filter(c => c !== ch)
+        : [...f.channels, ch],
+    }));
+  };
+
+  const handleCreate = async () => {
+    if (!form.name.trim() || form.channels.length === 0) return;
+    try {
+      setCreating(true);
+      await createCampaign({
+        name: form.name.trim(),
+        vertical: form.vertical,
+        channels: form.channels,
+        daily_limit: parseInt(form.daily_limit) || 50,
+      });
+      setForm({ name: '', vertical: 'clinicas', channels: ['instagram'], daily_limit: '50' });
+      setShowCreate(false);
+    } catch (err) {
+      console.error('Error creating campaign:', err);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handlePause = async (id: string) => {
     await pauseCampaign(id);
@@ -329,9 +368,10 @@ export const ProspectorDashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white">Campanhas</h2>
             <button
+              onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 px-4 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors"
             >
-              <Target size={16} />
+              <Plus size={16} />
               Nova Campanha
             </button>
           </div>
@@ -364,7 +404,10 @@ export const ProspectorDashboard = () => {
               <p className="text-sm text-[#8b949e] mb-4">
                 Crie sua primeira campanha de prospecção para começar
               </p>
-              <button className="px-6 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="px-6 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors"
+              >
                 Criar Campanha
               </button>
             </div>
@@ -427,6 +470,91 @@ export const ProspectorDashboard = () => {
           Dados atualizados em tempo real
         </div>
       </div>
+
+      {/* Create Campaign Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg w-full max-w-lg">
+            <div className="flex items-center justify-between p-4 border-b border-[#30363d]">
+              <h3 className="text-lg font-semibold text-white">Nova Campanha</h3>
+              <button onClick={() => setShowCreate(false)} className="p-1 hover:bg-[#0d1117] rounded text-[#8b949e] hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Nome *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Clinicas SP - Instagram"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white placeholder-[#8b949e] focus:border-[#58a6ff] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Vertical</label>
+                <select
+                  value={form.vertical}
+                  onChange={e => setForm(f => ({ ...f, vertical: e.target.value as typeof f.vertical }))}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:border-[#58a6ff] focus:outline-none"
+                >
+                  <option value="clinicas">Clinicas</option>
+                  <option value="coaches">Coaches</option>
+                  <option value="infoprodutores">Infoprodutores</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-2">Canais</label>
+                <div className="flex gap-2">
+                  {(['instagram', 'linkedin', 'whatsapp'] as ProspectorChannel[]).map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => toggleChannel(ch)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        form.channels.includes(ch)
+                          ? 'bg-[#58a6ff]/20 border-[#58a6ff]/40 text-[#58a6ff]'
+                          : 'bg-[#0d1117] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/40'
+                      }`}
+                    >
+                      {ch === 'instagram' && <Instagram size={16} />}
+                      {ch === 'linkedin' && <Linkedin size={16} />}
+                      {ch === 'whatsapp' && <MessageCircle size={16} />}
+                      {ch.charAt(0).toUpperCase() + ch.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Limite Diario</label>
+                <input
+                  type="number"
+                  placeholder="50"
+                  value={form.daily_limit}
+                  onChange={e => setForm(f => ({ ...f, daily_limit: e.target.value }))}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white placeholder-[#8b949e] focus:border-[#58a6ff] focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-[#30363d]">
+              <button
+                onClick={() => setShowCreate(false)}
+                className="px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-[#8b949e] hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!form.name.trim() || form.channels.length === 0 || creating}
+                className="flex items-center gap-2 px-4 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {creating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                Criar Campanha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

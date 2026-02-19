@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Check,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { useProspectorTemplates, DMTemplate, ProspectorChannel } from '../hooks/useProspector';
 
@@ -295,15 +296,27 @@ const PreviewModal = ({ template, onClose }: PreviewModalProps) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════
 
+const EMPTY_FORM = {
+  name: '',
+  channel: 'instagram' as ProspectorChannel,
+  stage: 'first_contact',
+  vertical: 'clinicas',
+  content: '',
+  variant: 'A',
+};
+
 export const ProspectorTemplates = () => {
   const navigate = useNavigate();
   const [activeChannel, setActiveChannel] = useState<ProspectorChannel | 'all'>('all');
-  const { templates, loading, deleteTemplate } = useProspectorTemplates(
+  const { templates, loading, deleteTemplate, createTemplate, updateTemplate } = useProspectorTemplates(
     activeChannel === 'all' ? undefined : activeChannel
   );
 
   const [previewTemplate, setPreviewTemplate] = useState<DMTemplate | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DMTemplate | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const channels: Array<{ value: ProspectorChannel | 'all'; label: string; icon: React.ReactNode }> = [
     { value: 'all', label: 'Todos', icon: <FileText size={16} /> },
@@ -317,15 +330,73 @@ export const ProspectorTemplates = () => {
     return templates.filter(t => t.channel === activeChannel);
   }, [templates, activeChannel]);
 
-  const handleEdit = (template: DMTemplate) => {
-    setEditingTemplate(template);
-    // TODO: Abrir modal de edição
-    console.log('Editing template:', template);
+  const openCreate = () => {
+    setEditingTemplate(null);
+    setForm({ ...EMPTY_FORM });
+    setShowForm(true);
   };
 
-  const handleDuplicate = (id: string) => {
-    console.log('Duplicating template:', id);
-    // TODO: Implementar duplicação
+  const handleEdit = (template: DMTemplate) => {
+    setEditingTemplate(template);
+    setForm({
+      name: template.name,
+      channel: template.channel,
+      stage: template.stage,
+      vertical: template.vertical,
+      content: template.content,
+      variant: template.variant || 'A',
+    });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.content.trim()) return;
+    try {
+      setSaving(true);
+      if (editingTemplate) {
+        await updateTemplate(editingTemplate.id, {
+          name: form.name.trim(),
+          channel: form.channel,
+          stage: form.stage,
+          vertical: form.vertical,
+          content: form.content.trim(),
+          variant: form.variant,
+        });
+      } else {
+        await createTemplate({
+          name: form.name.trim(),
+          channel: form.channel,
+          stage: form.stage,
+          vertical: form.vertical,
+          content: form.content.trim(),
+          variant: form.variant,
+        });
+      }
+      setForm({ ...EMPTY_FORM });
+      setEditingTemplate(null);
+      setShowForm(false);
+    } catch (err) {
+      console.error('Error saving template:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    const original = templates.find(t => t.id === id);
+    if (!original) return;
+    try {
+      await createTemplate({
+        name: `${original.name} (copia)`,
+        channel: original.channel,
+        stage: original.stage,
+        vertical: original.vertical,
+        content: original.content,
+        variant: original.variant,
+      });
+    } catch (err) {
+      console.error('Error duplicating template:', err);
+    }
   };
 
   const handleArchive = async (id: string) => {
@@ -369,7 +440,10 @@ export const ProspectorTemplates = () => {
               Gerencie suas mensagens de prospecção
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors">
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors"
+          >
             <Plus size={16} />
             Novo Template
           </button>
@@ -444,7 +518,10 @@ export const ProspectorTemplates = () => {
             <p className="text-sm text-[#8b949e] mb-4">
               Crie seu primeiro template para começar a prospectar
             </p>
-            <button className="px-6 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors">
+            <button
+              onClick={openCreate}
+              className="px-6 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium transition-colors"
+            >
               Criar Template
             </button>
           </div>
@@ -463,6 +540,122 @@ export const ProspectorTemplates = () => {
           </div>
         )}
       </div>
+
+      {/* Create/Edit Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg w-full max-w-2xl max-h-[85vh] overflow-auto">
+            <div className="sticky top-0 bg-[#161b22] flex items-center justify-between p-4 border-b border-[#30363d]">
+              <h3 className="text-lg font-semibold text-white">
+                {editingTemplate ? 'Editar Template' : 'Novo Template'}
+              </h3>
+              <button onClick={() => { setShowForm(false); setEditingTemplate(null); }} className="p-1 hover:bg-[#0d1117] rounded text-[#8b949e] hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Nome *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: DM Clinicas - Primeiro Contato A"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white placeholder-[#8b949e] focus:border-[#58a6ff] focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Canal</label>
+                  <select
+                    value={form.channel}
+                    onChange={e => setForm(f => ({ ...f, channel: e.target.value as ProspectorChannel }))}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:border-[#58a6ff] focus:outline-none"
+                  >
+                    <option value="instagram">Instagram</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="whatsapp">WhatsApp</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Vertical</label>
+                  <select
+                    value={form.vertical}
+                    onChange={e => setForm(f => ({ ...f, vertical: e.target.value }))}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:border-[#58a6ff] focus:outline-none"
+                  >
+                    <option value="clinicas">Clinicas</option>
+                    <option value="coaches">Coaches</option>
+                    <option value="infoprodutores">Infoprodutores</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Stage</label>
+                  <select
+                    value={form.stage}
+                    onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:border-[#58a6ff] focus:outline-none"
+                  >
+                    <option value="warm_up">Warm-up</option>
+                    <option value="first_contact">Primeiro Contato</option>
+                    <option value="follow_up">Follow-up</option>
+                    <option value="breakup">Breakup</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Variante</label>
+                  <select
+                    value={form.variant}
+                    onChange={e => setForm(f => ({ ...f, variant: e.target.value }))}
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white focus:border-[#58a6ff] focus:outline-none"
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Conteudo *</label>
+                <textarea
+                  placeholder="Oi {nome}, vi que voce atua com {nicho} em {cidade}..."
+                  value={form.content}
+                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                  rows={6}
+                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white placeholder-[#8b949e] resize-none focus:border-[#58a6ff] focus:outline-none font-mono"
+                />
+                <p className="text-[10px] text-[#8b949e] mt-1">Use {`{variavel}`} para personalizar. Ex: {`{nome}`}, {`{nicho}`}, {`{cidade}`}</p>
+              </div>
+              {form.content && (
+                <div>
+                  <label className="block text-xs font-bold text-[#8b949e] uppercase tracking-wider mb-1">Preview</label>
+                  <div className="bg-[#0d1117] border border-[#3fb950]/30 rounded-lg p-3 text-sm text-white whitespace-pre-wrap">
+                    {renderPreview(form.content)}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-[#30363d]">
+              <button
+                onClick={() => { setShowForm(false); setEditingTemplate(null); }}
+                className="px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-[#8b949e] hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!form.name.trim() || !form.content.trim() || saving}
+                className="flex items-center gap-2 px-4 py-2 bg-[#58a6ff] hover:bg-[#58a6ff]/90 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? <RefreshCw size={16} className="animate-spin" /> : editingTemplate ? <Edit size={16} /> : <Plus size={16} />}
+                {editingTemplate ? 'Salvar' : 'Criar Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal */}
       <PreviewModal template={previewTemplate} onClose={() => setPreviewTemplate(null)} />

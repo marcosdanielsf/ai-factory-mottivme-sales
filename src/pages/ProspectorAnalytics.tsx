@@ -225,7 +225,11 @@ export const ProspectorAnalytics = () => {
     return { startDate: start, endDate: end };
   });
 
-  const { analyticsData, templatePerformance, loading } = useProspectorAnalytics(undefined, dateRange);
+  const hookDateRange = dateRange.startDate && dateRange.endDate
+    ? { from: dateRange.startDate, to: dateRange.endDate }
+    : undefined;
+
+  const { analyticsData, templatePerformance, loading } = useProspectorAnalytics(undefined, hookDateRange);
 
   return (
     <div className="bg-[#0d1117] min-h-full">
