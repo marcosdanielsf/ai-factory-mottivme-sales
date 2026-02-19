@@ -25,10 +25,10 @@ export const useAgents = () => {
         }
       }
 
-      // 2. Buscar agent_versions (select('*') ok aqui — poucos agentes, ~15-30 rows)
+      // 2. Buscar agent_versions — so campos leves pra listagem (sem system_prompt/JSONBs pesados)
       const { data, error } = await supabase
         .from('agent_versions')
-        .select('*')
+        .select('id, client_id, agent_name, location_id, slug, created_at, updated_at, status, is_active, validation_status, version_number, version, last_test_score, validation_score, total_test_runs, framework_approved')
         .order('updated_at', { ascending: false });
 
       if (error) {
@@ -80,8 +80,6 @@ export const useAgents = () => {
           avg_score: agent.last_test_score || agent.validation_score || 0,
           version: agent.version_number || agent.version || '1.0.0',
           is_active: !!active,
-          system_prompt: agent.system_prompt,
-          hyperpersonalization: agent.hyperpersonalization,
           total_test_runs: agent.total_test_runs || 0,
           framework_approved: agent.framework_approved || false
         };
