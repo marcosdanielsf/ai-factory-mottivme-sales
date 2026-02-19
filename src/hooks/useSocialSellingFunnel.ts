@@ -20,9 +20,10 @@ interface FunnelSegment {
   fecharam: number;
 }
 
-interface AgentBreakdown {
+export interface AgentBreakdown {
   agente: string;
-  origem: string;
+  locationId: string;
+  origem: OrigemBucket;
   leads: number;
   responderam: number;
   agendaram: number;
@@ -55,13 +56,35 @@ export interface SocialSellingFunnelData {
   naoClassificado: FunnelSegment;
   porAgente: AgentBreakdown[];
   dailyTrend: DailyTrend[];
+  categorizedLeads: CategorizedLead[];
   totalLeads: number;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
-type OrigemBucket = 'social_selling' | 'trafego' | 'whatsapp_direto' | 'organico' | 'nao_classificado';
+export type OrigemBucket = 'social_selling' | 'trafego' | 'whatsapp_direto' | 'organico' | 'nao_classificado';
+
+export type SSSubtype = 'ns' | 'vs' | 'gs' | 'generico';
+
+export interface CategorizedLead {
+  unique_id: string;
+  first_name: string | null;
+  source: string | null;
+  location_id: string | null;
+  location_name: string | null;
+  origem_lead: string | null;
+  etapa_funil: string | null;
+  session_source: string | null;
+  created_at: string;
+  responded: boolean;
+  bucket: OrigemBucket;
+  ssSubtype: SSSubtype | null;
+  didRespond: boolean;
+  didSchedule: boolean;
+  didAttend: boolean;
+  didClose: boolean;
+}
 
 // Classifica origem_lead em 5 buckets
 function classifyOrigem(origemLead: string | null, sessionSource: string | null): OrigemBucket {
@@ -132,7 +155,7 @@ export const useSocialSellingFunnel = (
       // Query leads — so colunas necessarias (evita 500 por payload grande)
       let leadsQuery = supabase
         .from('n8n_schedule_tracking')
-        .select('unique_id,created_at,location_id,location_name,origem_lead,session_source,utm_source,etapa_funil,responded')
+        .select('unique_id,first_name,source,created_at,location_id,location_name,origem_lead,session_source,utm_source,etapa_funil,responded')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false })
@@ -226,7 +249,6 @@ export const useSocialSellingFunnel = (
     };
 
     // Sub-breakdown NS/VS/GS dentro de social_selling
-    type SSSubtype = 'ns' | 'vs' | 'gs' | 'generico';
     const ssBreakdown: Record<SSSubtype, FunnelSegment> = {
       ns: emptySegment(),
       vs: emptySegment(),
@@ -237,7 +259,8 @@ export const useSocialSellingFunnel = (
     // Agente breakdown
     const agenteMap: Record<string, {
       agente: string;
-      origem: string;
+      locationId: string;
+      origem: OrigemBucket;
       leads: number;
       responderam: number;
       agendaram: number;
@@ -248,6 +271,7 @@ export const useSocialSellingFunnel = (
     const dailyMap: Record<string, { socialSelling: number; trafego: number; whatsappDireto: number; organico: number; naoClassificado: number }> = {};
 
     const now = new Date();
+    const categorizedLeads: CategorizedLead[] = [];
 
     rawData.forEach((lead) => {
       const bucket = classifyLeadOrigem(lead);
@@ -269,6 +293,31 @@ export const useSocialSellingFunnel = (
         || agendou
         || (etapaVal && !['novo', ''].includes(etapaVal));
 
+      // SS Subtype
+      const ol = (lead.origem_lead || '').toLowerCase().trim();
+      const ssSubtype: SSSubtype | null = bucket === 'social_selling'
+        ? (ol === 'ns' ? 'ns' : ol === 'vs' ? 'vs' : ol === 'gs' ? 'gs' : 'generico')
+        : null;
+
+      categorizedLeads.push({
+        unique_id: lead.unique_id,
+        first_name: lead.first_name || null,
+        source: lead.source || null,
+        location_id: lead.location_id || null,
+        location_name: lead.location_name || null,
+        origem_lead: lead.origem_lead || null,
+        etapa_funil: lead.etapa_funil || null,
+        session_source: lead.session_source || null,
+        created_at: lead.created_at,
+        responded: !!responded,
+        bucket,
+        ssSubtype,
+        didRespond: !!responded,
+        didSchedule: agendou,
+        didAttend: compareceu,
+        didClose: fechou,
+      });
+
       // Segmento
       const seg = segments[bucket];
       seg.leads++;
@@ -279,7 +328,6 @@ export const useSocialSellingFunnel = (
 
       // Sub-breakdown NS/VS/GS
       if (bucket === 'social_selling') {
-        const ol = (lead.origem_lead || '').toLowerCase().trim();
         const ssKey: SSSubtype = ol === 'ns' ? 'ns' : ol === 'vs' ? 'vs' : ol === 'gs' ? 'gs' : 'generico';
         const ssSeg = ssBreakdown[ssKey];
         ssSeg.leads++;
@@ -294,7 +342,7 @@ export const useSocialSellingFunnel = (
       const locLabel = lead.location_name || (locId === '_sem_location' ? 'Leads Antigos (sem location)' : locId);
       const agenteKey = `${locId}__${bucket}`;
       if (!agenteMap[agenteKey]) {
-        agenteMap[agenteKey] = { agente: locLabel, origem: bucket, leads: 0, responderam: 0, agendaram: 0, fecharam: 0 };
+        agenteMap[agenteKey] = { agente: locLabel, locationId: locId, origem: bucket, leads: 0, responderam: 0, agendaram: 0, fecharam: 0 };
       }
       // Atualizar label caso tenha vindo null antes e agora tem nome
       if (lead.location_name && agenteMap[agenteKey].agente !== lead.location_name) {
@@ -339,6 +387,7 @@ export const useSocialSellingFunnel = (
       naoClassificado: segments.nao_classificado,
       porAgente,
       dailyTrend,
+      categorizedLeads,
       totalLeads: rawData.length,
     };
   }, [rawData, appointmentsData]);

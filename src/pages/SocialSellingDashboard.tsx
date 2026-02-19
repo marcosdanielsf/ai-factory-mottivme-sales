@@ -4,13 +4,27 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Line
 import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 import { useAccount } from '../contexts/AccountContext';
 import { useLocations } from '../hooks/useLocations';
-import { useSocialSellingFunnel } from '../hooks/useSocialSellingFunnel';
+import { useSocialSellingFunnel, type OrigemBucket, type SSSubtype } from '../hooks/useSocialSellingFunnel';
+import { SocialSellingLeadsDrawer } from '../components/SocialSellingLeadsDrawer';
 
 // ============================================================================
 // Social Selling Dashboard
 // Funil comparativo: Social Selling vs Trafego
 // Usa campos 3D: origem_lead, tipo_contato, tipo_servico
 // ============================================================================
+
+interface DrawerFilter {
+  bucket?: OrigemBucket;
+  ssSubtype?: SSSubtype;
+  etapa?: 'leads' | 'responderam' | 'agendaram' | 'compareceram' | 'fecharam';
+  locationId?: string;
+}
+
+interface DrawerState {
+  isOpen: boolean;
+  title: string;
+  filter: DrawerFilter;
+}
 
 const COLORS = {
   socialSelling: '#ec4899', // pink-500
@@ -62,6 +76,32 @@ export function SocialSellingDashboard() {
 
   const data = useSocialSellingFunnel(dateRange, effectiveLocationId);
 
+  // Drawer state
+  const [drawerState, setDrawerState] = useState<DrawerState>({ isOpen: false, title: '', filter: {} });
+
+  const openDrawer = (title: string, filter: DrawerFilter) => {
+    setDrawerState({ isOpen: true, title, filter });
+  };
+
+  const closeDrawer = () => {
+    setDrawerState({ isOpen: false, title: '', filter: {} });
+  };
+
+  // Filtered leads for drawer
+  const filteredLeads = useMemo(() => {
+    if (!drawerState.isOpen) return [];
+    const { filter } = drawerState;
+    let result = data.categorizedLeads;
+    if (filter.bucket) result = result.filter(l => l.bucket === filter.bucket);
+    if (filter.ssSubtype) result = result.filter(l => l.ssSubtype === filter.ssSubtype);
+    if (filter.etapa === 'responderam') result = result.filter(l => l.didRespond);
+    if (filter.etapa === 'agendaram') result = result.filter(l => l.didSchedule);
+    if (filter.etapa === 'compareceram') result = result.filter(l => l.didAttend);
+    if (filter.etapa === 'fecharam') result = result.filter(l => l.didClose);
+    if (filter.locationId) result = result.filter(l => l.location_id === filter.locationId);
+    return result;
+  }, [data.categorizedLeads, drawerState]);
+
   // Funil comparativo (SS vs Trafego vs WhatsApp Direto vs Organico)
   const buildRow = (etapa: string, key: keyof typeof data.socialSelling): FunnelRow => ({
     etapa,
@@ -75,13 +115,15 @@ export function SocialSellingDashboard() {
     organicoPct: key === 'leads' ? '100%' : pct(data.organico[key], data.organico.leads),
   });
 
-  const funnelRows: FunnelRow[] = [
-    buildRow('Leads', 'leads'),
-    buildRow('Responderam', 'responderam'),
-    buildRow('Agendaram', 'agendaram'),
-    buildRow('Compareceram', 'compareceram'),
-    buildRow('Fecharam', 'fecharam'),
+  const funnelEtapas: { label: string; key: keyof typeof data.socialSelling }[] = [
+    { label: 'Leads', key: 'leads' },
+    { label: 'Responderam', key: 'responderam' },
+    { label: 'Agendaram', key: 'agendaram' },
+    { label: 'Compareceram', key: 'compareceram' },
+    { label: 'Fecharam', key: 'fecharam' },
   ];
+
+  const funnelRows: FunnelRow[] = funnelEtapas.map(e => buildRow(e.label, e.key));
 
   // KPIs
   const ssConv = data.socialSelling.leads > 0
@@ -116,8 +158,8 @@ export function SocialSellingDashboard() {
     return (
       <div className="p-6 space-y-6">
         <div className="h-8 bg-bg-hover rounded w-64 animate-pulse" />
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="h-24 bg-bg-secondary rounded-xl animate-pulse border border-border-default" />
           ))}
         </div>
@@ -179,6 +221,7 @@ export function SocialSellingDashboard() {
           icon={<Target size={18} />}
           color="pink"
           subtitle={`${ssConv}% conv. | ${ssAgend}% agend.`}
+          onClick={() => openDrawer('Social Selling — Leads', { bucket: 'social_selling' })}
         />
         <KpiCard
           label="Trafego Pago"
@@ -186,6 +229,7 @@ export function SocialSellingDashboard() {
           icon={<TrendingUp size={18} />}
           color="orange"
           subtitle={`${trConv}% conv. | ${trAgend}% agend.`}
+          onClick={() => openDrawer('Trafego Pago — Leads', { bucket: 'trafego' })}
         />
         <KpiCard
           label="WhatsApp Direto"
@@ -193,6 +237,7 @@ export function SocialSellingDashboard() {
           icon={<Users size={18} />}
           color="green"
           subtitle={`${wdConv}% conv.`}
+          onClick={() => openDrawer('WhatsApp Direto — Leads', { bucket: 'whatsapp_direto' })}
         />
         <KpiCard
           label="Organico"
@@ -200,6 +245,7 @@ export function SocialSellingDashboard() {
           icon={<Award size={18} />}
           color="blue"
           subtitle={`${orgConv}% conv.`}
+          onClick={() => openDrawer('Organico — Leads', { bucket: 'organico' })}
         />
         <KpiCard
           label="Agendaram (SS)"
@@ -207,6 +253,7 @@ export function SocialSellingDashboard() {
           icon={<ArrowUpRight size={18} />}
           color="pink"
           subtitle={`${data.socialSelling.compareceram} comp. | ${data.socialSelling.fecharam} fecharam`}
+          onClick={() => openDrawer('Social Selling — Agendaram', { bucket: 'social_selling', etapa: 'agendaram' })}
         />
         <KpiCard
           label="Agendaram (Traf.)"
@@ -214,6 +261,7 @@ export function SocialSellingDashboard() {
           icon={<ArrowDownRight size={18} />}
           color="orange"
           subtitle={`${data.trafego.compareceram} comp. | ${data.trafego.fecharam} fecharam`}
+          onClick={() => openDrawer('Trafego — Agendaram', { bucket: 'trafego', etapa: 'agendaram' })}
         />
       </div>
 
@@ -231,6 +279,8 @@ export function SocialSellingDashboard() {
               icon={<UserPlus size={16} />}
               segment={data.socialSellingBreakdown.ns}
               total={data.socialSelling.leads}
+              onClickTotal={() => openDrawer('NS — Leads', { bucket: 'social_selling', ssSubtype: 'ns' })}
+              onClickEtapa={(etapa) => openDrawer(`NS — ${etapa}`, { bucket: 'social_selling', ssSubtype: 'ns', etapa: etapa as DrawerFilter['etapa'] })}
             />
             <SSBreakdownCard
               label="Visita Sincera"
@@ -238,6 +288,8 @@ export function SocialSellingDashboard() {
               icon={<Eye size={16} />}
               segment={data.socialSellingBreakdown.vs}
               total={data.socialSelling.leads}
+              onClickTotal={() => openDrawer('VS — Leads', { bucket: 'social_selling', ssSubtype: 'vs' })}
+              onClickEtapa={(etapa) => openDrawer(`VS — ${etapa}`, { bucket: 'social_selling', ssSubtype: 'vs', etapa: etapa as DrawerFilter['etapa'] })}
             />
             <SSBreakdownCard
               label="Gatilho Social"
@@ -245,6 +297,8 @@ export function SocialSellingDashboard() {
               icon={<Zap size={16} />}
               segment={data.socialSellingBreakdown.gs}
               total={data.socialSelling.leads}
+              onClickTotal={() => openDrawer('GS — Leads', { bucket: 'social_selling', ssSubtype: 'gs' })}
+              onClickEtapa={(etapa) => openDrawer(`GS — ${etapa}`, { bucket: 'social_selling', ssSubtype: 'gs', etapa: etapa as DrawerFilter['etapa'] })}
             />
             <SSBreakdownCard
               label="Sem subtipo"
@@ -252,6 +306,8 @@ export function SocialSellingDashboard() {
               icon={<Megaphone size={16} />}
               segment={data.socialSellingBreakdown.generico}
               total={data.socialSelling.leads}
+              onClickTotal={() => openDrawer('SS Generico — Leads', { bucket: 'social_selling', ssSubtype: 'generico' })}
+              onClickEtapa={(etapa) => openDrawer(`SS Generico — ${etapa}`, { bucket: 'social_selling', ssSubtype: 'generico', etapa: etapa as DrawerFilter['etapa'] })}
             />
           </div>
         </div>
@@ -279,27 +335,50 @@ export function SocialSellingDashboard() {
               </tr>
             </thead>
             <tbody>
-              {funnelRows.map((row, i) => (
-                <tr key={row.etapa} className={`border-b border-border-default ${i === funnelRows.length - 1 ? 'bg-bg-hover/50' : ''}`}>
-                  <td className="px-6 py-3 font-medium text-text-primary">{row.etapa}</td>
-                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.socialSelling }}>
-                    {row.socialSelling.toLocaleString()}
-                  </td>
-                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.socialSellingPct}</td>
-                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.trafego }}>
-                    {row.trafego.toLocaleString()}
-                  </td>
-                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.trafegoPct}</td>
-                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.whatsappDireto }}>
-                    {row.whatsappDireto.toLocaleString()}
-                  </td>
-                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.whatsappDiretoPct}</td>
-                  <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.organico }}>
-                    {row.organico.toLocaleString()}
-                  </td>
-                  <td className="text-center px-2 py-3 text-text-muted text-xs">{row.organicoPct}</td>
-                </tr>
-              ))}
+              {funnelRows.map((row, i) => {
+                const etapaKey = funnelEtapas[i].key as DrawerFilter['etapa'];
+                return (
+                  <tr key={row.etapa} className={`border-b border-border-default ${i === funnelRows.length - 1 ? 'bg-bg-hover/50' : ''}`}>
+                    <td className="px-6 py-3 font-medium text-text-primary">{row.etapa}</td>
+                    <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.socialSelling }}>
+                      <button
+                        onClick={() => openDrawer(`Social Selling — ${row.etapa}`, { bucket: 'social_selling', etapa: etapaKey })}
+                        className="hover:bg-white/10 rounded px-1 cursor-pointer transition-colors"
+                      >
+                        {row.socialSelling.toLocaleString()}
+                      </button>
+                    </td>
+                    <td className="text-center px-2 py-3 text-text-muted text-xs">{row.socialSellingPct}</td>
+                    <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.trafego }}>
+                      <button
+                        onClick={() => openDrawer(`Trafego — ${row.etapa}`, { bucket: 'trafego', etapa: etapaKey })}
+                        className="hover:bg-white/10 rounded px-1 cursor-pointer transition-colors"
+                      >
+                        {row.trafego.toLocaleString()}
+                      </button>
+                    </td>
+                    <td className="text-center px-2 py-3 text-text-muted text-xs">{row.trafegoPct}</td>
+                    <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.whatsappDireto }}>
+                      <button
+                        onClick={() => openDrawer(`WhatsApp — ${row.etapa}`, { bucket: 'whatsapp_direto', etapa: etapaKey })}
+                        className="hover:bg-white/10 rounded px-1 cursor-pointer transition-colors"
+                      >
+                        {row.whatsappDireto.toLocaleString()}
+                      </button>
+                    </td>
+                    <td className="text-center px-2 py-3 text-text-muted text-xs">{row.whatsappDiretoPct}</td>
+                    <td className="text-center px-3 py-3 font-bold" style={{ color: COLORS.organico }}>
+                      <button
+                        onClick={() => openDrawer(`Organico — ${row.etapa}`, { bucket: 'organico', etapa: etapaKey })}
+                        className="hover:bg-white/10 rounded px-1 cursor-pointer transition-colors"
+                      >
+                        {row.organico.toLocaleString()}
+                      </button>
+                    </td>
+                    <td className="text-center px-2 py-3 text-text-muted text-xs">{row.organicoPct}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -383,8 +462,12 @@ export function SocialSellingDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {data.porAgente.slice(0, 20).map((row, i) => (
-                  <tr key={i} className="border-b border-border-default hover:bg-bg-hover/50 transition-colors">
+                {data.porAgente.slice(0, 20).map((row) => (
+                  <tr
+                    key={`${row.locationId}__${row.origem}`}
+                    className="border-b border-border-default hover:bg-bg-hover/50 transition-colors cursor-pointer"
+                    onClick={() => openDrawer(`${row.agente} — ${row.origem}`, { bucket: row.origem, locationId: row.locationId })}
+                  >
                     <td className="px-6 py-3 text-text-primary font-medium truncate max-w-[200px]">{row.agente}</td>
                     <td className="px-4 py-3">
                       <OrigemBadge origem={row.origem} />
@@ -422,18 +505,28 @@ export function SocialSellingDashboard() {
       )}
 
       </div>{/* /Content */}
+
+      {/* Drawer */}
+      <SocialSellingLeadsDrawer
+        isOpen={drawerState.isOpen}
+        onClose={closeDrawer}
+        title={drawerState.title}
+        leads={filteredLeads}
+        onLeadUpdated={() => data.refetch()}
+      />
     </div>
   );
 }
 
 // Componentes auxiliares
 
-function KpiCard({ label, value, icon, color, subtitle }: {
+function KpiCard({ label, value, icon, color, subtitle, onClick }: {
   label: string;
   value: string | number;
   icon: React.ReactNode;
   color: 'pink' | 'orange' | 'green' | 'blue';
   subtitle?: string;
+  onClick?: () => void;
 }) {
   const colorMap = {
     pink: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
@@ -443,7 +536,10 @@ function KpiCard({ label, value, icon, color, subtitle }: {
   };
 
   return (
-    <div className={`rounded-xl border p-4 ${colorMap[color]}`}>
+    <div
+      className={`rounded-xl border p-4 ${colorMap[color]} ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-xs font-medium text-text-muted">{label}</span>
@@ -456,12 +552,14 @@ function KpiCard({ label, value, icon, color, subtitle }: {
   );
 }
 
-function SSBreakdownCard({ label, shortLabel, icon, segment, total }: {
+function SSBreakdownCard({ label, shortLabel, icon, segment, total, onClickTotal, onClickEtapa }: {
   label: string;
   shortLabel: string;
   icon: React.ReactNode;
   segment: { leads: number; responderam: number; agendaram: number; fecharam: number };
   total: number;
+  onClickTotal?: () => void;
+  onClickEtapa?: (etapa: string) => void;
 }) {
   const share = total > 0 ? ((segment.leads / total) * 100).toFixed(0) : '0';
   const convRate = segment.leads > 0 ? ((segment.fecharam / segment.leads) * 100).toFixed(1) : '0';
@@ -473,16 +571,31 @@ function SSBreakdownCard({ label, shortLabel, icon, segment, total }: {
         <span className="text-xs font-semibold text-text-primary">{label}</span>
         <span className="ml-auto text-[10px] text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">{shortLabel}</span>
       </div>
-      <div className="text-xl font-bold text-text-primary">{segment.leads.toLocaleString()}</div>
+      <button
+        onClick={onClickTotal}
+        className="text-xl font-bold text-text-primary hover:text-pink-400 transition-colors cursor-pointer"
+      >
+        {segment.leads.toLocaleString()}
+      </button>
       <p className="text-[10px] text-text-muted mt-1">{share}% do SS</p>
       <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
         <div>
           <span className="text-text-muted">Resp.</span>
-          <span className="block font-semibold text-text-secondary">{segment.responderam}</span>
+          <button
+            onClick={() => onClickEtapa?.('responderam')}
+            className="block font-semibold text-text-secondary hover:text-pink-400 transition-colors cursor-pointer"
+          >
+            {segment.responderam}
+          </button>
         </div>
         <div>
           <span className="text-text-muted">Agend.</span>
-          <span className="block font-semibold text-text-secondary">{segment.agendaram}</span>
+          <button
+            onClick={() => onClickEtapa?.('agendaram')}
+            className="block font-semibold text-text-secondary hover:text-pink-400 transition-colors cursor-pointer"
+          >
+            {segment.agendaram}
+          </button>
         </div>
         <div>
           <span className="text-text-muted">Conv.</span>
