@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   CalendarCheck,
   RefreshCw,
@@ -6,6 +6,7 @@ import {
   Target,
   MapPin,
   CalendarDays,
+  Crosshair,
 } from 'lucide-react';
 import { useAccount } from '../../contexts/AccountContext';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
@@ -23,12 +24,15 @@ import { OverviewTab } from './components/tabs/OverviewTab';
 import { PerformanceTab } from './components/tabs/PerformanceTab';
 import { SegmentacaoTab } from './components/tabs/SegmentacaoTab';
 import { AgendaTab } from './components/tabs/AgendaTab';
+import { TecnicaVendasTab } from './components/tabs/TecnicaVendasTab';
+import { useCallAnalytics } from '../../hooks/useCallAnalytics';
 
-type AgendamentosTab = 'overview' | 'performance' | 'segmentacao' | 'agenda';
+type AgendamentosTab = 'overview' | 'performance' | 'tecnica' | 'segmentacao' | 'agenda';
 
-const TABS: { id: AgendamentosTab; label: string; icon: React.FC<any> }[] = [
+const TABS: { id: AgendamentosTab; label: string; icon: React.FC<{ className?: string; size?: number }> }[] = [
   { id: 'overview', label: 'Visao Geral', icon: LayoutDashboard },
   { id: 'performance', label: 'Performance', icon: Target },
+  { id: 'tecnica', label: 'Tecnica de Vendas', icon: Crosshair },
   { id: 'segmentacao', label: 'Segmentacao', icon: MapPin },
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
 ];
@@ -76,6 +80,11 @@ export const Agendamentos: React.FC = () => {
 
   // Single unified hook replaces useAgendamentosStats + useCriativoPerformance + useLeadSegmentation
   const dashboard = useAgendamentosDashboard(dateRange, locationId, selectedResponsavel);
+
+  // Call analysis data for Tecnica de Vendas tab (lazy: only fetch on first visit)
+  const tecnicaVisited = useRef(false);
+  if (tab === 'tecnica' && !tecnicaVisited.current) tecnicaVisited.current = true;
+  const callAnalytics = useCallAnalytics(dateRange, locationId, tecnicaVisited.current);
 
   const buildFilters = useCallback((): AgendamentosFilters => {
     const filters: AgendamentosFilters = {
@@ -248,6 +257,14 @@ export const Agendamentos: React.FC = () => {
             locationId={locationId}
             onCardClick={handleCardClick}
             onCriativoClick={handleCriativoClick}
+          />
+        )}
+
+        {tab === 'tecnica' && (
+          <TecnicaVendasTab
+            calls={callAnalytics.calls}
+            stats={callAnalytics.stats}
+            loading={callAnalytics.loading}
           />
         )}
 
