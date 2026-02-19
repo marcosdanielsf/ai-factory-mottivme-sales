@@ -83,7 +83,7 @@ export const PromptEditor: React.FC = () => {
         setCode(latest.system_prompt);
         setConfig(JSON.stringify(latest.hyperpersonalization || {}, null, 2));
 
-        const modes = Object.keys(latest.prompts_por_modo || {});
+        const modes = Object.keys(latest.prompts_by_mode || {});
         if (modes.length > 0) {
           setSelectedMode(modes[0]);
         }
@@ -103,7 +103,7 @@ export const PromptEditor: React.FC = () => {
     if (activeTab === 'prompt') {
       setCode(version.system_prompt);
     } else if (activeTab === 'modes' && selectedMode) {
-      setCode(version.prompts_por_modo?.[selectedMode] || '');
+      setCode(version.prompts_by_mode?.[selectedMode] || '');
     }
     setConfig(JSON.stringify(version.hyperpersonalization || {}, null, 2));
     setIsDirty(false);
@@ -116,12 +116,12 @@ export const PromptEditor: React.FC = () => {
     if (tab === 'prompt') {
       setCode(activeVersion.system_prompt);
     } else if (tab === 'modes') {
-      const modes = Object.keys(activeVersion.prompts_por_modo || {});
+      const modes = Object.keys(activeVersion.prompts_by_mode || {});
       if (modes.length > 0 && !selectedMode) {
         setSelectedMode(modes[0]);
-        setCode(activeVersion.prompts_por_modo?.[modes[0]] || '');
+        setCode(activeVersion.prompts_by_mode?.[modes[0]] || '');
       } else if (selectedMode) {
-        setCode(activeVersion.prompts_por_modo?.[selectedMode] || '');
+        setCode(activeVersion.prompts_by_mode?.[selectedMode] || '');
       }
     } else if (tab === 'tools') {
       setConfig(JSON.stringify(activeVersion.tools_config || {}, null, 2));
@@ -139,7 +139,7 @@ export const PromptEditor: React.FC = () => {
   const handleModeChange = (mode: string) => {
     setSelectedMode(mode);
     if (activeVersion) {
-      setCode(activeVersion.prompts_por_modo?.[mode] || '');
+      setCode(activeVersion.prompts_by_mode?.[mode] || '');
     }
   };
 
@@ -162,13 +162,14 @@ export const PromptEditor: React.FC = () => {
     setIsTogglingActive(true);
     try {
       const newIsActive = !activeVersion.is_active;
-      const newStatus = newIsActive ? 'active' : 'inactive';
+      // C2: usar 'draft' em vez de 'inactive' (valor invalido no schema)
+      const newStatus = newIsActive ? 'active' : 'draft';
 
-      // Se estamos ativando, precisamos desativar outras versões deste cliente
+      // Se estamos ativando, precisamos desativar outras versoes deste cliente
       if (newIsActive) {
         await supabase
           .from('agent_versions')
-          .update({ is_active: false, validation_status: 'inactive' })
+          .update({ is_active: false, validation_status: 'draft' })
           .eq('client_id', selectedAgentId)
           .neq('id', activeVersionId);
       }
@@ -178,7 +179,6 @@ export const PromptEditor: React.FC = () => {
         .update({
           is_active: newIsActive,
           validation_status: newStatus,
-          updated_at: new Date().toISOString()
         })
         .eq('id', activeVersionId);
 
@@ -186,8 +186,8 @@ export const PromptEditor: React.FC = () => {
 
       showToast(
         newIsActive
-          ? `✅ Agente ativado! Versão ${activeVersion?.version_number || activeVersion?.version} agora está em produção.`
-          : `⏸️ Agente desativado. Versão ${activeVersion?.version_number || activeVersion?.version} pausada.`,
+          ? `Agente ativado! Versão ${activeVersion?.version_number || activeVersion?.version} agora está em produção.`
+          : `Agente desativado. Versão ${activeVersion?.version_number || activeVersion?.version} pausada.`,
         newIsActive ? 'success' : 'info'
       );
       refetchVersions();
@@ -199,19 +199,63 @@ export const PromptEditor: React.FC = () => {
     }
   };
 
+  const handleToggleField = async (field: 'is_active' | 'validation_status') => {
+    if (!activeVersionId || !activeVersion) return;
+
+    setIsTogglingActive(true);
+    try {
+      let updatePayload: Record<string, any> = {};
+
+      if (field === 'is_active') {
+        const newVal = !activeVersion.is_active;
+        updatePayload = { is_active: newVal };
+        // Se ativando, desativar outras versoes deste cliente
+        if (newVal) {
+          await supabase
+            .from('agent_versions')
+            .update({ is_active: false })
+            .eq('client_id', selectedAgentId)
+            .neq('id', activeVersionId);
+        }
+      } else {
+        const isActive = activeVersion.validation_status === 'active' || activeVersion.validation_status === 'production';
+        updatePayload = { validation_status: isActive ? 'draft' : 'active' };
+      }
+
+      const { error } = await supabase
+        .from('agent_versions')
+        .update(updatePayload)
+        .eq('id', activeVersionId);
+
+      if (error) throw error;
+
+      const label = field === 'is_active' ? 'is_active' : 'status';
+      const newVal = field === 'is_active'
+        ? (!activeVersion.is_active ? 'TRUE' : 'FALSE')
+        : (activeVersion.validation_status === 'active' || activeVersion.validation_status === 'production' ? 'draft' : 'active');
+      showToast(`${label} alterado para ${newVal}`, 'success');
+      refetchVersions();
+    } catch (err: any) {
+      console.error('Error toggling field:', err);
+      showToast('Erro ao alterar campo: ' + err.message, 'error');
+    } finally {
+      setIsTogglingActive(false);
+    }
+  };
+
   const handlePublish = async () => {
     if (!selectedAgent || !activeVersionId) return;
 
     setIsPublishing(true);
     try {
-      // 1. Marcar todas as outras versões deste cliente como inativas
+      // 1. Marcar todas as outras versoes deste cliente como inativas
       await supabase
         .from('agent_versions')
         .update({ is_active: false, validation_status: 'archived' })
         .eq('client_id', selectedAgentId)
         .neq('id', activeVersionId);
 
-      // 2. Marcar esta versão como ativa e em produção
+      // 2. Marcar esta versao como ativa e em producao
       const { error } = await supabase
         .from('agent_versions')
         .update({
@@ -242,22 +286,43 @@ export const PromptEditor: React.FC = () => {
       try {
         parsedConfig = JSON.parse(config);
       } catch (e) {
-        showToast('Erro no JSON de Hiperpersonalização', 'error');
+        // C3: mapear o nome da config pelo activeTab em vez de fixar "Hiperpersonalizacao"
+        const configFieldNames: Record<string, string> = {
+          config: 'Hiperpersonalização',
+          tools: 'Tools Config',
+          compliance: 'Compliance Rules',
+          personality: 'Personality Config',
+          qualification: 'Qualification Config',
+          business: 'Business Config',
+        };
+        showToast(`Erro no JSON de ${configFieldNames[activeTab] || 'Configuração'}`, 'error');
         setIsSaving(false);
         return;
       }
 
-      const updateData: any = {
-        hyperpersonalization: parsedConfig,
+      // C4: usar Record<string, unknown> em vez de any
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       };
 
       if (activeTab === 'prompt') {
         updateData.system_prompt = code;
       } else if (activeTab === 'modes' && selectedMode) {
-        const newModes = { ...(activeVersion?.prompts_por_modo || {}) };
+        const newModes = { ...(activeVersion?.prompts_by_mode || {}) };
         newModes[selectedMode] = code;
-        updateData.prompts_por_modo = newModes;
+        updateData.prompts_by_mode = newModes;
+      } else if (activeTab === 'config') {
+        updateData.hyperpersonalization = parsedConfig;
+      } else if (activeTab === 'tools') {
+        updateData.tools_config = parsedConfig;
+      } else if (activeTab === 'compliance') {
+        updateData.compliance_rules = parsedConfig;
+      } else if (activeTab === 'personality') {
+        updateData.personality_config = parsedConfig;
+      } else if (activeTab === 'qualification') {
+        updateData.qualification_config = parsedConfig;
+      } else if (activeTab === 'business') {
+        updateData.business_config = parsedConfig;
       }
 
       const { error } = await supabase
@@ -282,7 +347,15 @@ export const PromptEditor: React.FC = () => {
     if (!selectedAgent || !activeVersion) return;
 
     const currentVersionStr = activeVersion.version_number || activeVersion.version || 'v1.0';
-    const nextVersion = `v${(parseFloat(currentVersionStr.replace('v', '')) + 0.1).toFixed(1)}`;
+    const parts = currentVersionStr.replace('v', '').split('.').map(Number);
+    if (parts.length === 3) {
+      parts[2] = parts[2] + 1;
+    } else if (parts.length === 2) {
+      parts[1] = parts[1] + 1;
+    } else {
+      parts[0] = parts[0] + 1;
+    }
+    const nextVersion = `v${parts.join('.')}`;
 
     try {
       const { data, error } = await supabase
@@ -291,8 +364,14 @@ export const PromptEditor: React.FC = () => {
           client_id: selectedAgentId,
           version_number: nextVersion,
           system_prompt: activeVersion.system_prompt,
-          prompts_por_modo: activeVersion.prompts_por_modo,
-          hyperpersonalization: activeVersion.hyperpersonalization,
+          prompts_by_mode: activeVersion.prompts_by_mode || {},
+          hyperpersonalization: activeVersion.hyperpersonalization || {},
+          tools_config: activeVersion.tools_config || {},
+          compliance_rules: activeVersion.compliance_rules || {},
+          personality_config: activeVersion.personality_config || {},
+          qualification_config: activeVersion.qualification_config || {},
+          business_config: activeVersion.business_config || {},
+          location_id: activeVersion.location_id || null,
           validation_status: 'draft',
           is_active: false
         }])
@@ -326,7 +405,7 @@ export const PromptEditor: React.FC = () => {
 
       if (data && data.length > 0) {
         const content = data[0].content;
-        // Tentar extrair JSON se existir, senão colocar como string em uma chave
+        // Tentar extrair JSON se existir, senao colocar como string em uma chave
         let newConfig = {};
         try {
           newConfig = JSON.parse(content);
@@ -338,7 +417,7 @@ export const PromptEditor: React.FC = () => {
         setIsDirty(true);
         showToast('Dados carregados com sucesso!', 'success');
       } else {
-        showToast('Nenhum dado encontrado na Base de Conhecimento para este agente.', 'warning');
+        showToast('Nenhum dado encontrado na Base de Conhecimento para este agente.', 'info');
       }
     } catch (err: any) {
       showToast('Erro ao carregar dados: ' + err.message, 'error');
@@ -354,16 +433,25 @@ export const PromptEditor: React.FC = () => {
     }, 1500);
   };
 
-  const handleApplyAdjustment = async (zone: string, newContent: any, fieldPath?: string) => {
+  // C4: usar Record<string, unknown> em vez de any no handleApplyAdjustment
+  const handleApplyAdjustment = async (zone: string, newContent: unknown, fieldPath?: string) => {
     if (!selectedAgent || !activeVersionId) return;
 
     try {
       // Criar nova versao com a mudanca
       const currentVersionStr = activeVersion?.version_number || activeVersion?.version || 'v1.0';
-      const nextVersion = `v${(parseFloat(currentVersionStr.replace('v', '')) + 0.1).toFixed(1)}`;
+      const parts = currentVersionStr.replace('v', '').split('.').map(Number);
+      if (parts.length === 3) {
+        parts[2] = parts[2] + 1;
+      } else if (parts.length === 2) {
+        parts[1] = parts[1] + 1;
+      } else {
+        parts[0] = parts[0] + 1;
+      }
+      const nextVersion = `v${parts.join('.')}`;
 
       // Copiar dados atuais
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         client_id: selectedAgentId,
         version_number: nextVersion,
         system_prompt: activeVersion?.system_prompt || '',
@@ -381,50 +469,51 @@ export const PromptEditor: React.FC = () => {
       // Aplicar mudanca baseada na zona
       switch (zone) {
         case 'system_prompt':
-          // Se tem fieldPath, adicionar na seção específica
+          // Se tem fieldPath, adicionar na secao especifica
           if (fieldPath && fieldPath !== 'system_prompt') {
             const sectionTag = fieldPath.replace('system_prompt.', '');
             const sectionRegex = new RegExp(`(<${sectionTag}>)([\\s\\S]*?)(<\\/${sectionTag}>)`);
-            if (sectionRegex.test(updateData.system_prompt)) {
-              // Adicionar ao final da seção existente
-              updateData.system_prompt = updateData.system_prompt.replace(
+            if (sectionRegex.test(updateData.system_prompt as string)) {
+              // Adicionar ao final da secao existente
+              updateData.system_prompt = (updateData.system_prompt as string).replace(
                 sectionRegex,
                 `$1$2\n\n${newContent}\n$3`
               );
             } else {
-              // Seção não existe, adicionar ao final
-              updateData.system_prompt += `\n\n<${sectionTag}>\n${newContent}\n</${sectionTag}>`;
+              // Secao nao existe, adicionar ao final
+              updateData.system_prompt = `${updateData.system_prompt}\n\n<${sectionTag}>\n${newContent}\n</${sectionTag}>`;
             }
           } else {
             // Adicionar ao final do prompt
-            updateData.system_prompt += `\n\n<!-- Engenheiro de Prompts -->\n${newContent}`;
+            updateData.system_prompt = `${updateData.system_prompt}\n\n<!-- Engenheiro de Prompts -->\n${newContent}`;
           }
           break;
 
-        case 'compliance_rules':
-          const currentCompliance = { ...(activeVersion?.compliance_rules || {}) };
+        case 'compliance_rules': {
+          const currentCompliance = { ...(activeVersion?.compliance_rules || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const [, subField] = fieldPath.split('.');
             if (Array.isArray(currentCompliance[subField])) {
-              currentCompliance[subField] = [...currentCompliance[subField], newContent];
+              currentCompliance[subField] = [...(currentCompliance[subField] as unknown[]), newContent];
             } else {
               currentCompliance[subField] = newContent;
             }
           } else {
-            currentCompliance.adjustments = currentCompliance.adjustments || [];
-            currentCompliance.adjustments.push({ content: newContent, timestamp: new Date().toISOString() });
+            const adjustments = (currentCompliance.adjustments as unknown[] | undefined) || [];
+            currentCompliance.adjustments = [...adjustments, { content: newContent, timestamp: new Date().toISOString() }];
           }
           updateData.compliance_rules = currentCompliance;
           break;
+        }
 
-        case 'personality_config':
-          const currentPersonality = { ...(activeVersion?.personality_config || {}) };
+        case 'personality_config': {
+          const currentPersonality = { ...(activeVersion?.personality_config || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const pathParts = fieldPath.split('.');
             let target = currentPersonality;
             for (let i = 1; i < pathParts.length - 1; i++) {
               target[pathParts[i]] = target[pathParts[i]] || {};
-              target = target[pathParts[i]];
+              target = target[pathParts[i]] as Record<string, unknown>;
             }
             target[pathParts[pathParts.length - 1]] = newContent;
           } else {
@@ -432,15 +521,16 @@ export const PromptEditor: React.FC = () => {
           }
           updateData.personality_config = currentPersonality;
           break;
+        }
 
-        case 'business_config':
-          const currentBusiness = { ...(activeVersion?.business_config || {}) };
+        case 'business_config': {
+          const currentBusiness = { ...(activeVersion?.business_config || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const pathParts = fieldPath.split('.');
             let target = currentBusiness;
             for (let i = 1; i < pathParts.length - 1; i++) {
               target[pathParts[i]] = target[pathParts[i]] || {};
-              target = target[pathParts[i]];
+              target = target[pathParts[i]] as Record<string, unknown>;
             }
             target[pathParts[pathParts.length - 1]] = newContent;
           } else {
@@ -448,15 +538,16 @@ export const PromptEditor: React.FC = () => {
           }
           updateData.business_config = currentBusiness;
           break;
+        }
 
-        case 'tools_config':
-          const currentTools = { ...(activeVersion?.tools_config || {}) };
+        case 'tools_config': {
+          const currentTools = { ...(activeVersion?.tools_config || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const pathParts = fieldPath.split('.');
             let target = currentTools;
             for (let i = 1; i < pathParts.length - 1; i++) {
               target[pathParts[i]] = target[pathParts[i]] || {};
-              target = target[pathParts[i]];
+              target = target[pathParts[i]] as Record<string, unknown>;
             }
             target[pathParts[pathParts.length - 1]] = newContent;
           } else {
@@ -464,15 +555,16 @@ export const PromptEditor: React.FC = () => {
           }
           updateData.tools_config = currentTools;
           break;
+        }
 
-        case 'hyperpersonalization':
-          const currentHyper = { ...(activeVersion?.hyperpersonalization || {}) };
+        case 'hyperpersonalization': {
+          const currentHyper = { ...(activeVersion?.hyperpersonalization || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const pathParts = fieldPath.split('.');
             let target = currentHyper;
             for (let i = 1; i < pathParts.length - 1; i++) {
               target[pathParts[i]] = target[pathParts[i]] || {};
-              target = target[pathParts[i]];
+              target = target[pathParts[i]] as Record<string, unknown>;
             }
             target[pathParts[pathParts.length - 1]] = newContent;
           } else {
@@ -480,9 +572,10 @@ export const PromptEditor: React.FC = () => {
           }
           updateData.hyperpersonalization = currentHyper;
           break;
+        }
 
-        case 'prompts_by_mode':
-          const currentModes = { ...(activeVersion?.prompts_by_mode || {}) };
+        case 'prompts_by_mode': {
+          const currentModes = { ...(activeVersion?.prompts_by_mode || {}) } as Record<string, unknown>;
           if (fieldPath?.includes('.')) {
             const modeName = fieldPath.split('.')[1];
             currentModes[modeName] = newContent;
@@ -491,10 +584,11 @@ export const PromptEditor: React.FC = () => {
           }
           updateData.prompts_by_mode = currentModes;
           break;
+        }
 
         default:
           // Fallback: adicionar ao system prompt
-          updateData.system_prompt += `\n\n<!-- Ajuste (${zone}) -->\n${newContent}`;
+          updateData.system_prompt = `${updateData.system_prompt}\n\n<!-- Ajuste (${zone}) -->\n${newContent}`;
       }
 
       const { data, error } = await supabase
@@ -505,11 +599,11 @@ export const PromptEditor: React.FC = () => {
 
       if (error) throw error;
 
-      showToast(`✅ Ajuste aplicado! Nova versão ${nextVersion} criada.`, 'success');
+      showToast(`Ajuste aplicado! Nova versão ${nextVersion} criada.`, 'success');
       refetchVersions();
       setActiveVersionId(data.id);
     } catch (err: any) {
-      showToast('❌ Erro ao aplicar ajuste: ' + err.message, 'error');
+      showToast('Erro ao aplicar ajuste: ' + err.message, 'error');
       throw err;
     }
   };
@@ -601,7 +695,7 @@ export const PromptEditor: React.FC = () => {
                  onChange={handleConfigChange}
                  spellCheck="false"
                  placeholder='{ "config": "value" }'
-                 className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
+                 className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pt-10 pl-12 resize-none focus:outline-none leading-6"
                  style={{ tabSize: 2 }}
                />
             </div>
@@ -633,6 +727,7 @@ export const PromptEditor: React.FC = () => {
               activeVersion={activeVersion}
               isTogglingActive={isTogglingActive}
               onToggleActive={handleToggleActive}
+              onToggleField={handleToggleField}
               onShowChat={() => setShowAdjustmentsChat(true)}
             />
           )}

@@ -2,7 +2,7 @@ import React from 'react';
 import type { Agent, AgentVersion } from '../../../types';
 import {
   FileText,
-  GitBranch,
+  Layers,
   Sparkles,
   Code,
   Shield,
@@ -195,14 +195,14 @@ export function EditorHeader({
           <button
             onClick={() => onTabChange('modes')}
             className={`px-2 py-1 text-xs rounded transition-colors flex items-center ${activeTab === 'modes' ? 'bg-blue-500/20 text-blue-400' : 'text-text-muted hover:text-text-secondary'}`}
-            title={activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0
-              ? `${Object.keys(activeVersion.prompts_por_modo).length} modo(s)`
+            title={activeVersion?.prompts_by_mode && Object.keys(activeVersion.prompts_by_mode).length > 0
+              ? `${Object.keys(activeVersion.prompts_by_mode).length} modo(s)`
               : 'Modos'}
           >
-            <GitBranch size={14} />
-            {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
+            <Layers size={14} />
+            {activeVersion?.prompts_by_mode && Object.keys(activeVersion.prompts_by_mode).length > 0 && (
               <span className="ml-0.5 text-[8px] bg-blue-500/30 text-blue-300 px-1 rounded">
-                {Object.keys(activeVersion.prompts_por_modo).length}
+                {Object.keys(activeVersion.prompts_by_mode).length}
               </span>
             )}
           </button>
@@ -259,8 +259,8 @@ export function EditorHeader({
             onChange={(e) => onModeChange(e.target.value)}
             className="bg-bg-tertiary border border-border-default text-xs rounded px-2 py-1 text-text-primary focus:outline-none"
           >
-            {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 ? (
-              Object.keys(activeVersion.prompts_por_modo).map(mode => (
+            {activeVersion?.prompts_by_mode && Object.keys(activeVersion.prompts_by_mode).length > 0 ? (
+              Object.keys(activeVersion.prompts_by_mode).map(mode => (
                 <option key={mode} value={mode}>{mode}</option>
               ))
             ) : (

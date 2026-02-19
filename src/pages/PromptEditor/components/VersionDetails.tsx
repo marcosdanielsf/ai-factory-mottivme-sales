@@ -7,6 +7,7 @@ interface VersionDetailsProps {
   activeVersion: AgentVersion | undefined;
   isTogglingActive: boolean;
   onToggleActive: () => void;
+  onToggleField: (field: 'is_active' | 'validation_status') => void;
   onShowChat: () => void;
 }
 
@@ -14,6 +15,7 @@ export const VersionDetails: React.FC<VersionDetailsProps> = ({
   activeVersion,
   isTogglingActive,
   onToggleActive,
+  onToggleField,
   onShowChat,
 }) => {
   return (
@@ -99,24 +101,34 @@ export const VersionDetails: React.FC<VersionDetailsProps> = ({
               </span>
             </div>
 
-            {/* Status atual dos campos */}
+            {/* Status atual dos campos - cada um toggle independente */}
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className={`px-2 py-1.5 rounded border ${
-                activeVersion?.is_active
-                  ? 'bg-accent-success/10 border-accent-success/30 text-accent-success'
-                  : 'bg-bg-tertiary border-border-default text-text-muted'
-              }`}>
+              <button
+                onClick={() => onToggleField('is_active')}
+                disabled={isTogglingActive || !activeVersion}
+                className={`px-2 py-1.5 rounded border text-left cursor-pointer hover:opacity-70 transition-opacity ${
+                  activeVersion?.is_active
+                    ? 'bg-accent-success/10 border-accent-success/30 text-accent-success'
+                    : 'bg-bg-tertiary border-border-default text-text-muted'
+                }`}
+                title={activeVersion?.is_active ? 'Clique para desativar is_active' : 'Clique para ativar is_active'}
+              >
                 <div className="text-[10px] opacity-70">is_active</div>
                 <div className="font-mono font-medium">{activeVersion?.is_active ? 'TRUE' : 'FALSE'}</div>
-              </div>
-              <div className={`px-2 py-1.5 rounded border ${
-                activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production'
-                  ? 'bg-accent-success/10 border-accent-success/30 text-accent-success'
-                  : 'bg-bg-tertiary border-border-default text-text-muted'
-              }`}>
+              </button>
+              <button
+                onClick={() => onToggleField('validation_status')}
+                disabled={isTogglingActive || !activeVersion}
+                className={`px-2 py-1.5 rounded border text-left cursor-pointer hover:opacity-70 transition-opacity ${
+                  activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production'
+                    ? 'bg-accent-success/10 border-accent-success/30 text-accent-success'
+                    : 'bg-bg-tertiary border-border-default text-text-muted'
+                }`}
+                title={activeVersion?.validation_status === 'active' || activeVersion?.validation_status === 'production' ? 'Clique para desativar status' : 'Clique para ativar status'}
+              >
                 <div className="text-[10px] opacity-70">status</div>
                 <div className="font-mono font-medium">{activeVersion?.validation_status || activeVersion?.status || 'draft'}</div>
-              </div>
+              </button>
             </div>
 
             {activeVersion?.avg_score_overall !== undefined && (
@@ -153,11 +165,11 @@ export const VersionDetails: React.FC<VersionDetailsProps> = ({
           </p>
         </div>
 
-        {activeVersion?.prompts_por_modo && Object.keys(activeVersion.prompts_por_modo).length > 0 && (
+        {activeVersion?.prompts_by_mode && Object.keys(activeVersion.prompts_by_mode).length > 0 && (
           <div className="space-y-2">
             <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Modos Especificos</label>
             <div className="space-y-1">
-              {Object.keys(activeVersion.prompts_por_modo).map(key => (
+              {Object.keys(activeVersion.prompts_by_mode).map(key => (
                 <div key={key} className="text-xs bg-bg-tertiary px-2 py-1 rounded flex justify-between">
                   <span>{key}</span>
                   <span className="text-text-muted text-[10px] uppercase">Configurado</span>

@@ -47,7 +47,7 @@ export interface AgentVersion {
   version_number: string;
   version?: string; // Fallback se o banco usar 'version'
   system_prompt: string;
-  prompts_por_modo?: Record<string, string>;
+  prompts_by_mode?: Record<string, string>;
   hyperpersonalization?: Record<string, any>;
   change_log?: string;
   parent_version_id?: string;
