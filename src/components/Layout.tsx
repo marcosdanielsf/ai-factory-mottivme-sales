@@ -5,6 +5,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_ALERTS } from '../constants';
 import { useAgents } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 // AISupportWidget substituído pelo JARVIS
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
@@ -20,6 +21,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { agents } = useAgents();
+  const { brandName } = useTheme();
   const isMobile = useIsMobile();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -134,7 +136,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <Menu size={22} className="text-text-primary" />
               </button>
             )}
-            <span className="hidden md:inline">Mottiv.me</span>
+            <span className="hidden md:inline">{brandName}</span>
             <span className="hidden md:inline text-text-muted/50">/</span>
             <span className="text-text-primary font-medium">Dashboard</span>
           </div>

@@ -18,6 +18,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
 import { usePermissions, type Permissions } from '../hooks/usePermissions';
 import { useBrandConfig } from '../hooks/useBrandConfig';
+import { useTheme } from '../contexts/ThemeContext';
 import AISupportWidget from './AISupportWidget';
 
 interface LayoutClienteProps {
@@ -47,6 +48,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   const { selectedAccount, backToAdmin, isViewingSubconta } = useAccount();
   const { hasPermission, role } = usePermissions();
   const { brandConfig } = useBrandConfig(selectedAccount?.location_id);
+  const { brandName, logoUrl } = useTheme();
 
   const navItems = useMemo(() => {
     const base = ALL_CLIENT_NAV_ITEMS.filter(item => hasPermission(item.permission));
@@ -108,10 +110,14 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
         {/* Logo */}
         <div className="h-14 flex items-center justify-between px-4 border-b border-border-default">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
-            </div>
-            <span className="font-bold text-lg">MOTTIV.ME</span>
+            {logoUrl ? (
+              <img src={logoUrl} alt={brandName} className="w-8 h-8 rounded-lg object-contain" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">{brandName[0] ?? 'M'}</span>
+              </div>
+            )}
+            <span className="font-bold text-lg">{brandName}</span>
           </div>
           {isMobile && (
             <button
@@ -212,7 +218,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
               </button>
             )}
             <div className="text-sm">
-              <span className="text-text-muted">Mottiv.me</span>
+              <span className="text-text-muted">{brandName}</span>
               <span className="text-text-muted/50 mx-2">/</span>
               <span className="text-text-primary font-medium">
                 {navItems.find(item =>

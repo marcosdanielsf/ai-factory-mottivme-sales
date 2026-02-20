@@ -1,3 +1,14 @@
+export type ThemeVariableKey =
+  | 'bg-primary' | 'bg-secondary' | 'bg-tertiary' | 'bg-hover'
+  | 'text-primary' | 'text-secondary' | 'text-muted'
+  | 'border-default' | 'border-hover'
+  | 'accent-primary' | 'accent-success' | 'accent-warning' | 'accent-error';
+
+export interface ThemeOverrides extends Partial<Record<ThemeVariableKey, string>> {
+  'favicon-url'?: string;
+  'page-title'?: string;
+}
+
 export interface BrandConfig {
   id: string;
   client_slug: string;
@@ -10,6 +21,7 @@ export interface BrandConfig {
   fonts: FontEntry[];
   sections: string[];
   location_id: string | null;
+  theme_overrides: ThemeOverrides | null;
 }
 
 export interface ColorEntry {
