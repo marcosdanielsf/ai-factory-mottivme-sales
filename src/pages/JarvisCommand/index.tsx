@@ -24,12 +24,15 @@ import {
   RefreshCw,
   Power,
   ArrowLeft,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useJarvis, JARVIS_QUICK_ACTIONS } from '../../components/Jarvis/JarvisContext';
 import { useMegazordTTS } from '../../components/Jarvis/JarvisVoice';
-import type { JarvisAlert, JarvisVoiceState } from '../../components/Jarvis/types';
+import type { JarvisAlert, JarvisVoiceState, JarvisAttachment } from '../../components/Jarvis/types';
 import JarvisBootScreen from './JarvisBootScreen';
 import JarvisParticles from './JarvisParticles';
 import { JarvisWaveform } from './JarvisWaveform';
@@ -377,8 +380,58 @@ function ChatColumn({
 }) {
   const { messages, sendToJarvis, cancelProcessing, isProcessing } = useJarvis();
   const [inputText, setInputText] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<JarvisAttachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const TEXT_EXTENSIONS = new Set([
+    'txt', 'md', 'json', 'csv', 'ts', 'tsx', 'js', 'jsx', 'py', 'sql',
+    'yaml', 'yml', 'xml', 'html', 'css', 'sh', 'env', 'toml', 'ini', 'log',
+  ]);
+
+  const IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      if (IMAGE_MIMES.has(file.type)) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          setPendingFiles(prev => [...prev, {
+            name: file.name,
+            type: 'image',
+            data: base64,
+            mediaType: file.type,
+          }]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+        if (TEXT_EXTENSIONS.has(ext) || file.type.startsWith('text/')) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPendingFiles(prev => [...prev, {
+              name: file.name,
+              type: 'text',
+              data: reader.result as string,
+            }]);
+          };
+          reader.readAsText(file);
+        }
+      }
+    });
+
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -386,10 +439,12 @@ function ChatColumn({
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || isProcessing) return;
+    if ((!text && pendingFiles.length === 0) || isProcessing) return;
+    const files = [...pendingFiles];
     setInputText('');
-    await sendToJarvis(text);
-  }, [inputText, isProcessing, sendToJarvis]);
+    setPendingFiles([]);
+    await sendToJarvis(text || 'Analise este arquivo.', files.length > 0 ? files : undefined);
+  }, [inputText, pendingFiles, isProcessing, sendToJarvis]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -461,6 +516,16 @@ function ChatColumn({
                       JARVIS:
                     </span>
                   )}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {msg.attachments.map((att, i) => (
+                        <div key={i} className="flex items-center gap-1 bg-bg-primary/50 rounded px-1.5 py-0.5 text-[10px] text-text-muted">
+                          {att.type === 'image' ? <ImageIcon size={10} /> : <FileText size={10} />}
+                          <span className="max-w-[100px] truncate">{att.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {msg.loading ? <ScanlineLoading /> : (
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                   )}
@@ -487,6 +552,21 @@ function ChatColumn({
           </div>
         </div>
 
+        {/* File previews */}
+        {pendingFiles.length > 0 && (
+          <div className="border-t border-[rgba(59,130,246,0.1)] px-4 py-2 shrink-0 flex gap-2 flex-wrap">
+            {pendingFiles.map((file, i) => (
+              <div key={i} className="flex items-center gap-1.5 bg-bg-tertiary border border-[rgba(59,130,246,0.2)] rounded-lg px-2 py-1 text-xs text-text-secondary">
+                {file.type === 'image' ? <ImageIcon size={12} className="text-[#00d4ff]" /> : <FileText size={12} className="text-[#00d4ff]" />}
+                <span className="max-w-[120px] truncate">{file.name}</span>
+                <button onClick={() => removeFile(i)} className="text-text-muted hover:text-accent-error transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Input */}
         <div
           className={`flex items-center gap-2 px-4 py-3 border-t shrink-0 transition-colors ${
@@ -508,13 +588,29 @@ function ChatColumn({
               {voiceState === 'listening' ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
           )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing}
+            className="shrink-0 p-2 rounded-lg bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-[#00d4ff] transition-colors disabled:opacity-50"
+            title="Anexar arquivo"
+          >
+            <Paperclip size={16} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".txt,.md,.json,.csv,.ts,.tsx,.js,.jsx,.py,.sql,.yaml,.yml,.xml,.html,.css,.sh,.toml,.ini,.log,image/png,image/jpeg,image/gif,image/webp"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
           <input
             ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={voiceState === 'listening' ? 'Ouvindo...' : isProcessing ? 'Processando... clique ■ para parar' : 'Envie um comando ao JARVIS...'}
+            placeholder={voiceState === 'listening' ? 'Ouvindo...' : isProcessing ? 'Processando... clique ■ para parar' : pendingFiles.length > 0 ? 'Mensagem sobre o arquivo (opcional)...' : 'Envie um comando ao JARVIS...'}
             className={`flex-1 rounded-lg border bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-colors disabled:opacity-50 ${
               voiceState === 'listening'
                 ? 'border-accent-success/40 focus:ring-1 focus:ring-accent-success/30'
@@ -533,7 +629,7 @@ function ChatColumn({
           ) : (
             <button
               onClick={handleSend}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() && pendingFiles.length === 0}
               className="shrink-0 p-2 rounded-lg text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
               style={{ background: 'linear-gradient(135deg, #3b82f6, #00d4ff)' }}
               title="Enviar"

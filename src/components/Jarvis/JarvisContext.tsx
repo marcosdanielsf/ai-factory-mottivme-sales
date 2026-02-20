@@ -9,7 +9,7 @@ import React, {
 import { supabase } from '../../lib/supabase';
 import { askJarvis, detectProject, classifyIntent, buildJarvisContext, extractMemories } from './JarvisAIBrain';
 import { useJarvisAlerts } from './JarvisAlertEngine';
-import type { JarvisAlert, JarvisMessage } from './types';
+import type { JarvisAlert, JarvisMessage, JarvisAttachment } from './types';
 import type { JarvisConversation, JarvisStats } from '../../types/jarvis';
 
 export const JARVIS_QUICK_ACTIONS = [
@@ -35,7 +35,7 @@ interface JarvisContextValue {
   activeAlertCount: number;
 
   // AI Brain
-  sendToJarvis: (text: string) => Promise<void>;
+  sendToJarvis: (text: string, attachments?: JarvisAttachment[]) => Promise<void>;
   cancelProcessing: () => void;
   isProcessing: boolean;
 
@@ -239,7 +239,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sendToJarvis = useCallback(
-    async (text: string) => {
+    async (text: string, attachments?: JarvisAttachment[]) => {
       if (isProcessing) return;
 
       // Criar AbortController para permitir cancelamento
@@ -255,6 +255,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
         role: 'user',
         content: text,
         timestamp: new Date().toISOString(),
+        attachments: attachments?.length ? attachments : undefined,
       };
 
       // Add loading message placeholder
@@ -760,7 +761,8 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
               default:
                 return {};
             }
-          }
+          },
+          attachments?.length ? { attachments } : undefined,
         );
 
         // Salvar resposta do assistant

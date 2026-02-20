@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import type { JarvisProject, JarvisIntent } from '../../types/jarvis';
+import type { JarvisAttachment } from './types';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -466,7 +467,7 @@ export async function askJarvis(
   userMessage: string,
   systemContext: string,
   onToolCall?: (toolName: string, args: Record<string, unknown>) => Promise<unknown>,
-  options?: { model?: string; maxTokens?: number }
+  options?: { model?: string; maxTokens?: number; attachments?: JarvisAttachment[] }
 ): Promise<{ text: string; tokens: number; cost: number; model: string }> {
   const apiKey = getApiKey();
   const activeModel = options?.model ?? MODEL;
@@ -505,8 +506,34 @@ Data de hoje: ${new Date().toISOString().split('T')[0]}. PT-BR sempre. Contexto:
   }
 
   try {
+    // Build user content: text + optional attachments (images as vision blocks, text files inline)
+    const attachments = options?.attachments ?? [];
+    let userContent: unknown;
+
+    if (attachments.length === 0) {
+      userContent = userMessage;
+    } else {
+      const contentBlocks: unknown[] = [];
+      for (const att of attachments) {
+        if (att.type === 'image' && att.mediaType) {
+          contentBlocks.push({
+            type: 'image',
+            source: { type: 'base64', media_type: att.mediaType, data: att.data },
+          });
+        } else {
+          // Text file: prepend as context
+          contentBlocks.push({
+            type: 'text',
+            text: `[Arquivo: ${att.name}]\n${att.data.substring(0, 15000)}`,
+          });
+        }
+      }
+      contentBlocks.push({ type: 'text', text: userMessage });
+      userContent = contentBlocks;
+    }
+
     const messages: { role: string; content: unknown }[] = [
-      { role: 'user', content: userMessage },
+      { role: 'user', content: userContent },
     ];
 
     // First API call
