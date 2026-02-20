@@ -7,9 +7,10 @@ import React, {
   useRef,
 } from 'react';
 import { supabase } from '../../lib/supabase';
-import { askJarvis } from './JarvisAIBrain';
+import { askJarvis, detectProject, classifyIntent, buildJarvisContext, extractMemories } from './JarvisAIBrain';
 import { useJarvisAlerts } from './JarvisAlertEngine';
 import type { JarvisAlert, JarvisMessage } from './types';
+import type { JarvisConversation, JarvisStats } from '../../types/jarvis';
 
 export const JARVIS_QUICK_ACTIONS = [
   'Status geral',
@@ -35,7 +36,17 @@ interface JarvisContextValue {
 
   // AI Brain
   sendToJarvis: (text: string) => Promise<void>;
+  cancelProcessing: () => void;
   isProcessing: boolean;
+
+  // Conversas persistidas
+  conversations: JarvisConversation[];
+  activeConversationId: string | null;
+  setActiveConversation: (id: string | null) => void;
+  startNewConversation: () => void;
+
+  // Stats
+  jarvisStats: JarvisStats | null;
 }
 
 const JarvisContext = createContext<JarvisContextValue | null>(null);
@@ -106,9 +117,79 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const contextRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const extractingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Conversas persistidas
+  const [conversations, setConversations] = useState<JarvisConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [jarvisStats, setJarvisStats] = useState<JarvisStats | null>(null);
 
   const [jarvisActivated, setJarvisActivated] = useState(false);
   const { alerts, dismissAlert, activeCount: activeAlertCount } = useJarvisAlerts(jarvisActivated);
+
+  // Carregar conversas ao montar
+  useEffect(() => {
+    async function loadConversations() {
+      try {
+        const { data } = await supabase
+          .from('jarvis_conversations')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(50);
+        if (data) setConversations(data as JarvisConversation[]);
+      } catch {
+        // silencioso
+      }
+    }
+    loadConversations();
+  }, []);
+
+  // Carregar stats básicas
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const [convRes, msgRes, memRes] = await Promise.all([
+          supabase.from('jarvis_conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('jarvis_messages').select('id', { count: 'exact', head: true }),
+          supabase.from('jarvis_memory').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        ]);
+
+        setJarvisStats({
+          user_id: user.id,
+          total_conversations: convRes.count ?? 0,
+          total_messages: msgRes.count ?? 0,
+          total_cost: 0,
+          total_tokens: 0,
+          total_memories: memRes.count ?? 0,
+          active_projects: 0,
+          memories_tasks: 0,
+          memories_preferences: 0,
+          memories_decisions: 0,
+          memories_updates: 0,
+          memories_facts: 0,
+          last_conversation_at: null,
+          cost_last_30_days: 0,
+        });
+      } catch {
+        // silencioso
+      }
+    }
+    loadStats();
+  }, []);
+
+  const setActiveConversation = useCallback((id: string | null) => {
+    setActiveConversationId(id);
+    setMessages([]);
+  }, []);
+
+  const startNewConversation = useCallback(() => {
+    setActiveConversationId(null);
+    setMessages([]);
+  }, []);
 
   // Lazy-init: só busca contexto na primeira interação, não no mount
   const refreshContext = useCallback(async () => {
@@ -148,9 +229,22 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
     setMessages([]);
   }, []);
 
+  const cancelProcessing = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsProcessing(false);
+    setMessages(prev => prev.map(m => m.loading ? { ...m, loading: false, content: '(cancelado)' } : m));
+  }, []);
+
   const sendToJarvis = useCallback(
     async (text: string) => {
       if (isProcessing) return;
+
+      // Criar AbortController para permitir cancelamento
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       // Lazy-init: garante contexto na primeira mensagem
       await ensureReady();
@@ -177,10 +271,69 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
       setIsProcessing(true);
 
       try {
-        const response = await askJarvis(
+        // Brain Router: detectar projeto e intent
+        const [{ project }, intent] = await Promise.all([
+          detectProject(text),
+          classifyIntent(text),
+        ]);
+
+        // Garantir conversa ativa ou criar nova
+        let convId = activeConversationId;
+        if (!convId) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const title = text.substring(0, 60);
+              const { data: newConv } = await supabase
+                .from('jarvis_conversations')
+                .insert({
+                  user_id: user.id,
+                  title,
+                  project_slug: project?.slug ?? null,
+                  metadata: {},
+                })
+                .select()
+                .single();
+              if (newConv) {
+                convId = newConv.id;
+                setActiveConversationId(convId);
+                setConversations(prev => [newConv as JarvisConversation, ...prev]);
+              }
+            }
+          } catch {
+            // sem persistência — continua sem conversa salva
+          }
+        }
+
+        // Contexto enriquecido
+        const enrichedContext = await buildJarvisContext(text, project, convId);
+        const fullContext = [systemContext, enrichedContext].filter(Boolean).join('\n');
+
+        // Salvar mensagem do usuário
+        if (convId) {
+          try {
+            await supabase.from('jarvis_messages').insert({
+              conversation_id: convId,
+              role: 'user',
+              content: text,
+              tokens_used: 0,
+              cost: 0,
+              model: null,
+              intent,
+              project_slug: project?.slug ?? null,
+              metadata: {},
+            });
+          } catch {
+            // silencioso
+          }
+        }
+
+        const result = await askJarvis(
           text,
-          systemContext,
+          fullContext,
           async (toolName, args) => {
+            // Verificar se foi cancelado antes de processar tool
+            if (controller.signal.aborted) throw new Error('cancelled');
             // Provide live context data when tools are called
             switch (toolName) {
               case 'get_system_status':
@@ -336,7 +489,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
                     const { data } = await supabase
                       .from('n8n_schedule_tracking')
                       .select('id')
-                      .ilike('contact_name', `%${lead_name}%`)
+                      .ilike('first_name', `%${lead_name}%`)
                       .order('created_at', { ascending: false })
                       .limit(1)
                       .single();
@@ -610,13 +763,66 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
           }
         );
 
+        // Salvar resposta do assistant
+        if (convId) {
+          try {
+            await supabase.from('jarvis_messages').insert({
+              conversation_id: convId,
+              role: 'assistant',
+              content: result.text,
+              tokens_used: result.tokens,
+              cost: result.cost,
+              model: result.model,
+              intent,
+              project_slug: project?.slug ?? null,
+              metadata: {},
+            });
+            // Atualizar updated_at da conversa
+            await supabase
+              .from('jarvis_conversations')
+              .update({ updated_at: new Date().toISOString() })
+              .eq('id', convId);
+          } catch {
+            // silencioso
+          }
+        }
+
+        // Auto Memory Extraction (fire-and-forget, não bloqueia UX)
+        if (!extractingRef.current) {
+          extractingRef.current = true;
+          (async () => {
+            try {
+              const extracted = await extractMemories(text, result.text, project?.slug ?? null);
+              if (extracted.length === 0) return;
+
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return;
+
+              const inserts = extracted.map(m => ({
+                user_id: user.id,
+                type: m.type,
+                content: m.content,
+                project_slug: project?.slug ?? null,
+                importance: m.importance,
+                source: 'auto_extract',
+              }));
+
+              await supabase.from('jarvis_memory').insert(inserts);
+            } catch {
+              // silencioso — extração de memória nunca deve quebrar o chat
+            } finally {
+              extractingRef.current = false;
+            }
+          })();
+        }
+
         // Replace loading message with actual response
         setMessages((prev) =>
           prev.map((m) =>
             m.id === loadingMsgId
               ? {
                   ...m,
-                  content: response,
+                  content: result.text,
                   loading: false,
                   timestamp: new Date().toISOString(),
                 }
@@ -640,7 +846,7 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
         setIsProcessing(false);
       }
     },
-    [isProcessing, systemContext, activeAlertCount, ensureReady]
+    [isProcessing, systemContext, activeAlertCount, ensureReady, activeConversationId]
   );
 
   const value: JarvisContextValue = {
@@ -653,7 +859,13 @@ export function JarvisProvider({ children }: { children: React.ReactNode }) {
     dismissAlert,
     activeAlertCount,
     sendToJarvis,
+    cancelProcessing,
     isProcessing,
+    conversations,
+    activeConversationId,
+    setActiveConversation,
+    startNewConversation,
+    jarvisStats,
   };
 
   return <JarvisContext.Provider value={value}>{children}</JarvisContext.Provider>;

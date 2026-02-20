@@ -27,3 +27,6 @@ dist-ssr
 .env.*
 !.env.example
 .env*.local
+
+# Backups e orphans
+backup-orphans-2026-02-19.json

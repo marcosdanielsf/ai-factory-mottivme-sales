@@ -57,6 +57,11 @@ const ProspectorTemplates = lazy(() => import('./pages/ProspectorTemplates'));
 const ProspectorAnalytics = lazy(() => import('./pages/ProspectorAnalytics'));
 const ProspectorCampaignDetail = lazy(() => import('./pages/ProspectorCampaignDetail'));
 
+// Prospector - LinkedIn Inbox & AI
+const ProspectorInbox = lazy(() => import('./pages/ProspectorInbox'));
+const ProspectorAI = lazy(() => import('./pages/ProspectorAI'));
+const ProspectorAccounts = lazy(() => import('./pages/ProspectorAccounts'));
+
 // Video Producer pages (lazy loaded)
 const VideoProducerDashboard = lazy(() => import('./pages/VideoProducerDashboard'));
 const VideoProducerNew = lazy(() => import('./pages/VideoProducerNew'));
@@ -97,8 +102,12 @@ const Planejamento = lazy(() => import('./pages/Planejamento'));
 // Planejamento Publico (link unico para clientes)
 const PlanejamentoPublico = lazy(() => import('./pages/PlanejamentoPublico'));
 
-// JARVIS Command Center
+// JARVIS Command Center + sub-pages
 const JarvisCommand = lazy(() => import('./pages/JarvisCommand'));
+const JarvisMemory = lazy(() => import('./pages/JarvisMemory'));
+const JarvisProjects = lazy(() => import('./pages/JarvisProjects'));
+const JarvisProjectDetail = lazy(() => import('./pages/JarvisProjects/JarvisProjectDetail'));
+const JarvisConfig = lazy(() => import('./pages/JarvisConfig'));
 
 // Projetos (Kanban + Project Board)
 const Projetos = lazy(() => import('./pages/Projetos'));
@@ -423,6 +432,33 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <ProspectorCampaignDetail />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/inbox" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorInbox />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/ai" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorAI />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/prospector/accounts" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ProspectorAccounts />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>
@@ -822,6 +858,42 @@ const App = () => {
                   <Suspense fallback={<LoadingFallback />}>
                     <JarvisCommand />
                   </Suspense>
+                </ProtectedRoute>
+              } />
+              <Route path="/jarvis/memory" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <JarvisMemory />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/jarvis/projects" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <JarvisProjects />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/jarvis/projects/:slug" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <JarvisProjectDetail />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/jarvis/config" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <JarvisConfig />
+                    </Suspense>
+                  </Layout>
                 </ProtectedRoute>
               } />
 

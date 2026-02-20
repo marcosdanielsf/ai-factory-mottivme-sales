@@ -22,12 +22,21 @@ export interface Agent {
   id: string;
   slug: string;
   name: string;
-  role: string; // 'SDR', 'Closer', 'Support'
+  role?: string; // 'SDR', 'Closer', 'Support'
   description?: string;
   base_personality?: string;
   current_version_id?: string;
   is_active: boolean;
   created_at: string;
+  // Campos adicionais mapeados pelo useAgents (agent_versions)
+  agentName?: string;
+  locationId?: string;
+  updated_at?: string;
+  status?: string;
+  avg_score?: number;
+  version?: string;
+  total_test_runs?: number;
+  framework_approved?: boolean;
 }
 
 // --- Score Dimensions (Sistema 0-10) ---

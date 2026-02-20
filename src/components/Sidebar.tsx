@@ -106,7 +106,14 @@ const navSections: NavSection[] = [
     title: '',
     items: [
       { icon: Home, label: 'Control Tower', to: '/', permission: 'canAccessDashboard' },
-      { icon: Bot, label: 'JARVIS', to: '/jarvis', permission: 'canAccessDashboard' },
+      {
+        icon: Bot, label: 'JARVIS', to: '/jarvis', permission: 'canAccessDashboard', subItems: [
+          { icon: Bot, label: 'Command', to: '/jarvis' },
+          { icon: Brain, label: 'Memória', to: '/jarvis/memory' },
+          { icon: FolderKanban, label: 'Projetos', to: '/jarvis/projects' },
+          { icon: Settings, label: 'Config', to: '/jarvis/config' },
+        ]
+      },
     ]
   },
   {

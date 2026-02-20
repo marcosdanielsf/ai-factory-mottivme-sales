@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase';
 
 interface TimelineItem {
   id: string;
-  contact_name: string;
+  first_name: string | null;
+  last_name: string | null;
   etapa_funil: string;
   location_id: string;
   created_at: string;
@@ -55,7 +56,7 @@ function JarvisTimeline() {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const { data } = await supabase
         .from('n8n_schedule_tracking')
-        .select('id, contact_name, etapa_funil, location_id, created_at, updated_at')
+        .select('id, first_name, last_name, etapa_funil, location_id, created_at, updated_at')
         .gte('created_at', twentyFourHoursAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(15);
@@ -135,7 +136,7 @@ function JarvisTimeline() {
                   {/* Content */}
                   <div className="flex flex-col gap-0.5">
                     <div className="text-text-primary text-sm font-medium truncate max-w-[200px]">
-                      {item.contact_name || 'Sem nome'}
+                      {[item.first_name, item.last_name].filter(Boolean).join(' ') || 'Sem nome'}
                     </div>
                     <div className="flex items-center gap-2">
                       <span

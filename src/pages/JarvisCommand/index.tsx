@@ -7,6 +7,7 @@ import React, {
 import {
   Bot,
   Send,
+  Square,
   Mic,
   MicOff,
   Volume2,
@@ -135,15 +136,17 @@ function HUDCorners({ className = '' }: { className?: string }) {
     <svg
       className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
       xmlns="http://www.w3.org/2000/svg"
+      preserveAspectRatio="none"
+      viewBox="0 0 100 100"
     >
       {/* Top-left */}
-      <polyline points="0,16 0,0 16,0" fill="none" stroke={c} strokeWidth="1.5" opacity="0.6" />
+      <polyline points="0,8 0,0 8,0" fill="none" stroke={c} strokeWidth="0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />
       {/* Top-right */}
-      <polyline points="calc(100% - 16),0 100%,0 100%,16" fill="none" stroke={c} strokeWidth="1.5" opacity="0.6" />
+      <polyline points="92,0 100,0 100,8" fill="none" stroke={c} strokeWidth="0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />
       {/* Bottom-left */}
-      <polyline points="0,calc(100% - 16) 0,100% 16,100%" fill="none" stroke={c} strokeWidth="1.5" opacity="0.6" />
+      <polyline points="0,92 0,100 8,100" fill="none" stroke={c} strokeWidth="0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />
       {/* Bottom-right */}
-      <polyline points="calc(100% - 16),100% 100%,100% 100%,calc(100% - 16)" fill="none" stroke={c} strokeWidth="1.5" opacity="0.6" />
+      <polyline points="92,100 100,100 100,92" fill="none" stroke={c} strokeWidth="0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -372,7 +375,7 @@ function ChatColumn({
   onToggleTts: () => void;
   onStopSpeaking: () => void;
 }) {
-  const { messages, sendToJarvis, isProcessing } = useJarvis();
+  const { messages, sendToJarvis, cancelProcessing, isProcessing } = useJarvis();
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -511,23 +514,33 @@ function ChatColumn({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={voiceState === 'listening' ? 'Ouvindo...' : 'Envie um comando ao JARVIS...'}
-            disabled={isProcessing}
+            placeholder={voiceState === 'listening' ? 'Ouvindo...' : isProcessing ? 'Processando... clique ■ para parar' : 'Envie um comando ao JARVIS...'}
             className={`flex-1 rounded-lg border bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-colors disabled:opacity-50 ${
               voiceState === 'listening'
                 ? 'border-accent-success/40 focus:ring-1 focus:ring-accent-success/30'
                 : 'border-border-default focus:ring-1 focus:ring-[rgba(0,212,255,0.3)]'
             }`}
           />
-          <button
-            onClick={handleSend}
-            disabled={!inputText.trim() || isProcessing}
-            className="shrink-0 p-2 rounded-lg text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #00d4ff)' }}
-            title="Enviar"
-          >
-            <Send size={16} />
-          </button>
+          {isProcessing ? (
+            <button
+              onClick={cancelProcessing}
+              className="shrink-0 p-2 rounded-lg text-white transition-opacity hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)' }}
+              title="Parar"
+            >
+              <Square size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!inputText.trim()}
+              className="shrink-0 p-2 rounded-lg text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #00d4ff)' }}
+              title="Enviar"
+            >
+              <Send size={16} />
+            </button>
+          )}
         </div>
       </HUDCard>
     </div>

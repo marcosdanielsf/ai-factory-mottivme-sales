@@ -15,6 +15,13 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:5173',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/docs/, '')
+        },
+        // Proxy cold-call-bot Railway API (evita CORS)
+        '/cold-call-api': {
+          target: 'https://cold-call-bot-production.up.railway.app',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/cold-call-api/, ''),
+          secure: true
         }
       }
     },
