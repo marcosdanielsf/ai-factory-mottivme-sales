@@ -73,11 +73,21 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
           )}
 
           {docContent && (
-            <Suspense fallback={<div className="text-text-muted text-sm">Carregando renderizador...</div>}>
-              <div className="prose prose-invert max-w-none text-text-primary prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-a:text-accent-primary">
-                <ReactMarkdown>{docContent}</ReactMarkdown>
-              </div>
-            </Suspense>
+            selectedDoc.format === 'html' ? (
+              <iframe
+                srcDoc={docContent}
+                className="w-full rounded-lg border-0"
+                style={{ minHeight: '70vh', height: '80vh' }}
+                sandbox="allow-same-origin allow-popups"
+                title={selectedDoc.name}
+              />
+            ) : (
+              <Suspense fallback={<div className="text-text-muted text-sm">Carregando renderizador...</div>}>
+                <div className="prose prose-invert max-w-none text-text-primary prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-a:text-accent-primary">
+                  <ReactMarkdown>{docContent}</ReactMarkdown>
+                </div>
+              </Suspense>
+            )
           )}
 
           {!loadingContent && !docContent && (
