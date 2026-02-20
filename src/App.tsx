@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LayoutCliente } from './components/LayoutCliente';
 import { ConditionalLayout } from './components/ConditionalLayout';
 import { JarvisProvider, JarvisPanel } from './components/Jarvis';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Suspense fallback component
 const LoadingFallback = () => (
@@ -124,6 +125,9 @@ const SquadAI = lazy(() => import('./pages/SquadAI'));
 // System v4.0 Dashboard
 const SystemV4 = lazy(() => import('./pages/SystemV4'));
 
+// Clone do Marcos (coleta de mensagens + personalidade)
+const CloneDashboard = lazy(() => import('./pages/CloneDashboard'));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -142,7 +146,8 @@ const App = () => {
     <JarvisProvider>
       <AuthProvider>
         <AccountProvider>
-          <ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
             <HashRouter>
             <Routes>
               {/* Public Routes */}
@@ -908,6 +913,15 @@ const App = () => {
                   </Layout>
                 </ProtectedRoute>
               } />
+              <Route path="/jarvis/clone" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <CloneDashboard />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
               <Route path="*" element={
                 <ProtectedRoute>
@@ -919,7 +933,8 @@ const App = () => {
             </Routes>
             </HashRouter>
             <JarvisPanel />
-          </ToastProvider>
+            </ToastProvider>
+          </ThemeProvider>
         </AccountProvider>
       </AuthProvider>
     </JarvisProvider>

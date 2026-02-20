@@ -57,11 +57,15 @@ import {
   MapPin,
   Building2,
   ClipboardCheck,
+  Inbox,
+  UserCog,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
 import { AccountSwitcher } from './AccountSwitcher';
 import { useAccount } from '../contexts/AccountContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useLocations } from '../hooks/useLocations';
 import { useAiosContextHealth } from '../hooks/aios/useAiosContextHealth';
 
@@ -112,6 +116,7 @@ const navSections: NavSection[] = [
           { icon: Bot, label: 'Command', to: '/jarvis' },
           { icon: Brain, label: 'Memória', to: '/jarvis/memory' },
           { icon: FolderKanban, label: 'Projetos', to: '/jarvis/projects' },
+          { icon: Copy, label: 'Clone', to: '/jarvis/clone' },
           { icon: Settings, label: 'Config', to: '/jarvis/config' },
         ]
       },
@@ -133,6 +138,9 @@ const navSections: NavSection[] = [
       {
         icon: Target, label: 'Prospecção', to: '/prospector', permission: 'canAccessCalls', subItems: [
           { icon: LayoutDashboard, label: 'Dashboard', to: '/prospector' },
+          { icon: Inbox, label: 'LinkedIn Inbox', to: '/prospector/inbox' },
+          { icon: Bot, label: 'AI SDR', to: '/prospector/ai' },
+          { icon: UserCog, label: 'Contas LinkedIn', to: '/prospector/accounts' },
           { icon: Users, label: 'Fila', to: '/prospector/queue' },
           { icon: FileText, label: 'Templates', to: '/prospector/templates' },
           { icon: TrendingUp, label: 'Analytics', to: '/prospector/analytics' },
@@ -476,6 +484,7 @@ export const Sidebar = ({
   const { user, signOut } = useAuth();
   const { hasPermission, role, isAdmin, isClient } = usePermissions();
   const { selectedAccount, selectSubconta, backToAdmin, loading: accountLoading } = useAccount();
+  const { brandName, logoUrl } = useTheme();
   const { locations, loading: locationsLoading } = useLocations();
   const { criticalCount } = useAiosContextHealth();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -587,10 +596,14 @@ export const Sidebar = ({
       {/* Header */}
       <div className={`h-[52px] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 border-b border-border-default`}>
         <div className="flex items-center gap-2 font-semibold text-text-primary">
-          <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center flex-shrink-0">
-            <span className="text-bg-primary text-xs font-bold">M</span>
-          </div>
-          {!isCollapsed && <span>MOTTIV.ME</span>}
+          {logoUrl ? (
+            <img src={logoUrl} alt={brandName} className="w-5 h-5 rounded-sm object-contain flex-shrink-0" />
+          ) : (
+            <div className="w-5 h-5 bg-text-primary rounded-sm flex items-center justify-center flex-shrink-0">
+              <span className="text-bg-primary text-xs font-bold">{brandName[0] ?? 'M'}</span>
+            </div>
+          )}
+          {!isCollapsed && <span>{brandName}</span>}
         </div>
         {isMobile ? (
           <button
