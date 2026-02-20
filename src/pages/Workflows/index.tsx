@@ -24,7 +24,9 @@ import {
   Wrench,
   LayoutDashboard,
   LucideIcon,
+  ClipboardCheck,
 } from 'lucide-react';
+import { N8nAudit } from '../N8nAudit';
 import { sectors, getTotalWorkflows, getActiveWorkflows } from './data';
 import type { Sector, SubSector, WorkflowItem, ResourceType, ResourceLink } from './data';
 import { useN8nWorkflows } from '../../hooks/useN8nWorkflows';
@@ -353,8 +355,8 @@ const SectorTab = ({
 // PAGINA PRINCIPAL
 // ============================================
 
-// Tab especial para "Todos" e "Favoritos"
-type SpecialTab = 'all' | 'favorites';
+// Tab especial para "Todos", "Favoritos" e "Auditoria"
+type SpecialTab = 'all' | 'favorites' | 'audit';
 
 export const Workflows: React.FC = () => {
   const [activeSector, setActiveSector] = useState<string | SpecialTab>(sectors[0].id);
@@ -505,12 +507,31 @@ export const Workflows: React.FC = () => {
             </span>
           )}
         </button>
+        {/* Auditoria tab */}
+        <button
+          onClick={() => { setActiveSector('audit'); setSearch(''); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeSector === 'audit'
+              ? 'bg-red-500 text-white shadow-sm'
+              : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+          }`}
+        >
+          <ClipboardCheck size={16} />
+          <span>Auditoria</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+            activeSector === 'audit' ? 'bg-white/30' : 'bg-red-500/20 text-red-400'
+          }`}>
+            12
+          </span>
+        </button>
       </div>
 
       {/* Content */}
       <div className="space-y-4">
-        {/* Global search results */}
-        {isGlobalSearch ? (
+        {/* Auditoria tab content */}
+        {activeSector === 'audit' ? (
+          <N8nAudit />
+        ) : isGlobalSearch ? (
           globalResults.length === 0 ? (
             <div className="text-center py-12 text-text-muted text-sm">
               Nenhum workflow encontrado para &ldquo;{search}&rdquo;
