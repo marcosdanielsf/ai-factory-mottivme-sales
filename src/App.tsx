@@ -115,6 +115,9 @@ const Projetos = lazy(() => import('./pages/Projetos'));
 // Hub Operacional (Workflows por setor)
 const Workflows = lazy(() => import('./pages/Workflows'));
 
+// Auditoria n8n
+const N8nAudit = lazy(() => import('./pages/N8nAudit').then(m => ({ default: m.N8nAudit })));
+
 // Squad AI (Pipeline de agentes com execucoes n8n)
 const SquadAI = lazy(() => import('./pages/SquadAI'));
 
@@ -825,6 +828,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <Workflows />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/n8n-audit" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <N8nAudit />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>
