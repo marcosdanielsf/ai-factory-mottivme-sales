@@ -4,19 +4,24 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
-  Download,
   ChevronDown,
   ChevronRight,
   Search,
-  ClipboardCheck,
+  ExternalLink,
+  Circle,
 } from 'lucide-react';
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const N8N_BASE_URL = 'https://cliente-a1.mentorfy.io/workflow';
 
 // ============================================
 // TYPES
 // ============================================
 
 type Score = 'OK' | 'ATENCAO' | 'CRITICO';
-type Group = 'Core/Vendas' | 'Sync/Data/Tools' | 'Clientes' | 'Operacional';
 type Priority = 'P0' | 'P1';
 
 interface CriticalWorkflow {
@@ -27,39 +32,35 @@ interface CriticalWorkflow {
   priority: Priority;
 }
 
-interface WorkflowInventory {
+interface WorkflowEntry {
   name: string;
   id: string;
   nodes: number;
-  group: Group;
   score: Score;
   problem: string;
 }
 
-interface GroupSummary {
-  name: Group;
-  ok: number;
-  atencao: number;
-  critico: number;
-  total: number;
-  workflows: WorkflowInventory[];
+interface GroupData {
+  name: string;
+  description: string;
+  workflows: WorkflowEntry[];
 }
 
-interface Pattern {
+interface PatternData {
   title: string;
   count: number;
   affected: string;
   fix: string;
 }
 
-interface DeactivationCandidate {
+interface DeactivationEntry {
   name: string;
   id: string;
   reason: string;
 }
 
 // ============================================
-// STATIC DATA
+// STATIC DATA — REAIS (98 workflows)
 // ============================================
 
 const CRITICAL_WORKFLOWS: CriticalWorkflow[] = [
@@ -77,7 +78,132 @@ const CRITICAL_WORKFLOWS: CriticalWorkflow[] = [
   { name: 'Sync GHL Opportunities', id: 'NxQAZPOaQyHUWCd9', errors: '5 erros', cause: 'JA RESOLVIDO — tags fix', priority: 'P1' },
 ];
 
-const PATTERNS: Pattern[] = [
+const GROUPS: GroupData[] = [
+  {
+    name: 'Core / Vendas',
+    description: 'Pipeline principal de conversacao e IA de vendas',
+    workflows: [
+      { name: 'Fluxo Principal Conversacao', id: 'HXWGWQFBY4KVfY64', nodes: 185, score: 'ATENCAO', problem: '22 dead ends, 1 desabilitado' },
+      { name: 'Mensagem recebida (Classificador 3D)', id: 'IawOpB56MTFoEP3M', nodes: 52, score: 'OK', problem: '' },
+      { name: '[ Core ] IA Vertical', id: 'BtHmCsdr4fNaqnyR', nodes: 342, score: 'ATENCAO', problem: '26 desabilitados, 22 dead ends' },
+      { name: 'Follow Up Eterno V8', id: '3Yx6JniDrQw4KBCi', nodes: 77, score: 'ATENCAO', problem: '2 erros recentes' },
+      { name: 'Multi-Tenant Inbox Classifier', id: '46oXeptAC56D5Hm1', nodes: 22, score: 'OK', problem: '' },
+      { name: '05-Escalar para humano', id: '0r0V3ija6EM88T6E', nodes: 12, score: 'CRITICO', problem: '403 GHL multi-tenant' },
+      { name: 'Inserir Lead Insights V2', id: '5N8FB0gBMJwHyMcy', nodes: 17, score: 'CRITICO', problem: 'UNIQUE VIOLATION' },
+      { name: '01-Organizador-Calls', id: 'Gzkzaav9Yyx8kmpU', nodes: 23, score: 'CRITICO', problem: '403 GHL multi-tenant' },
+      { name: '02-AI-Agent-Head-Vendas-V2', id: 'JiTZQcq7Tt2c5Xol', nodes: 31, score: 'CRITICO', problem: 'Type mismatch IF' },
+      { name: '03-Call-Analyzer-Onboarding', id: 'GEcf6Ke7NJwY9vYl', nodes: 37, score: 'CRITICO', problem: 'Google Drive 502/503' },
+      { name: '04-Agent-Factory', id: 'EZpjk44KyqUl4Hr3', nodes: 17, score: 'CRITICO', problem: 'INSERT sem ON CONFLICT' },
+      { name: '07-Engenheiro-de-Prompt', id: 'Km0WkzCE4JsZe5tD', nodes: 24, score: 'OK', problem: '' },
+      { name: '## 3. Outbound', id: 'J3KR2jkvspICLEUW', nodes: 50, score: 'ATENCAO', problem: '4 desabilitados, 8 dead ends' },
+      { name: 'Feedback Loop Oportunidade', id: 'FdrglHVITLLedhBl', nodes: 15, score: 'OK', problem: '' },
+      { name: '17-Agent-Creator', id: '6bxWFVjazfMTHftU', nodes: 20, score: 'OK', problem: '' },
+    ],
+  },
+  {
+    name: 'Sync / Data / Tools',
+    description: 'Sincronizacao com GHL, ferramentas e sub-workflows',
+    workflows: [
+      { name: 'Sync GHL Calendar (4h)', id: 'GASiiAHeSwjLu5Hr', nodes: 15, score: 'OK', problem: '' },
+      { name: 'Sync GHL Contacts (6h)', id: '1vusNbJNUyrW9o6H', nodes: 8, score: 'ATENCAO', problem: 'fetch() corrigido' },
+      { name: 'Sync GHL Opportunities', id: 'NxQAZPOaQyHUWCd9', nodes: 8, score: 'CRITICO', problem: 'tags fix aplicado' },
+      { name: '[TOOL] Registrar Custo IA', id: 'GWKl5KuXAdeu4BLr', nodes: 12, score: 'ATENCAO', problem: 'IF Date corrigido' },
+      { name: '[TOOL] Agendar Follow-up', id: 'FFoIuOSCIaccWTse', nodes: 7, score: 'OK', problem: '' },
+      { name: '[TOOL] Atualizar Termos', id: '1AyAvl2oQEa1v2mW', nodes: 3, score: 'OK', problem: '' },
+      { name: '[TOOL] Buscar Contrato', id: 'GAmDsrgHzVowt0nk', nodes: 3, score: 'OK', problem: '' },
+      { name: '[TOOL] DRE Simplificado', id: '9N4DwvjLk6WsJm64', nodes: 5, score: 'OK', problem: '' },
+      { name: '[TOOL] Listar Categorias', id: 'Acllbvk5jMEMDzd7', nodes: 3, score: 'OK', problem: '' },
+      { name: 'TOOL fin_movimentacoes', id: '2b7qY6FV4SksBgXV', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Memory - Get Context', id: 'NgTu1UJSXg2ec1P7', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Memory - Recent Messages', id: '8yJHn2tVA40IzIf2', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Claude Memory UNIFIED TASKS', id: '2CrxwLkhRnUZ3Vp1', nodes: 28, score: 'OK', problem: '' },
+      { name: 'Segundo Cerebro RAG', id: '5yeeIUJ579RjHgPb', nodes: 11, score: 'OK', problem: '' },
+      { name: 'Webhook Receber API Key GHL', id: '8qpJIw2XLPgUIXXV', nodes: 8, score: 'OK', problem: '' },
+      { name: 'Tag Converteu GHL', id: '5Nn3F2cN4gyGij9V', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Ativar_desativar_ia', id: '2DSxgXqcSLJdUVAJ', nodes: 7, score: 'OK', problem: '' },
+      { name: 'Atualizar Campo Profissao', id: 'Kq3b79P6v4rTsiaH', nodes: 10, score: 'CRITICO', problem: 'hardcode Work Permit' },
+      { name: 'Atualizar Nome GHL', id: 'FfyhRU0ELkdne2kQ', nodes: 4, score: 'CRITICO', problem: 'contact_id=null (corrigido)' },
+      { name: 'Atualizar Work Permit', id: '3Dd8d5AnpD4iLPwG', nodes: 7, score: 'OK', problem: '' },
+    ],
+  },
+  {
+    name: 'Clientes',
+    description: 'Agentes e automacoes por cliente',
+    workflows: [
+      { name: 'Secretaria v3', id: 'F2hV1OM411vlI9vI', nodes: 186, score: 'ATENCAO', problem: '58 desabilitados' },
+      { name: 'Agente Administrativo', id: 'KxkNf9CY3wePquie', nodes: 146, score: 'ATENCAO', problem: '1 desabilitado, 0 execucoes' },
+      { name: '[ GHL ] Assistencia', id: 'C7ebxqPhve1BX814', nodes: 114, score: 'ATENCAO', problem: '4 desabilitados' },
+      { name: 'SDR - Karollayne Paiva', id: 'CkGUMUs8jAQOhPH6', nodes: 96, score: 'ATENCAO', problem: '1 desabilitado' },
+      { name: 'SDR - Orthodontic', id: 'L6XpZ8LakLIx6BT4', nodes: 96, score: 'ATENCAO', problem: '1 desabilitado' },
+      { name: 'GHL - Innovat Phone Calls', id: 'LUDLncD12Y2oMkAb', nodes: 45, score: 'CRITICO', problem: '5 erros, 0 sucesso' },
+      { name: 'GHL Mottivme EUA Teste', id: '1RhjmakM41URsN1K', nodes: 89, score: 'ATENCAO', problem: '6 desabilitados' },
+      { name: 'GHL EUA COM REAGENDAMENTO', id: 'HaKICQ2aNNbWZBgB', nodes: 31, score: 'OK', problem: '' },
+      { name: 'GHL Agent AI Browser', id: 'E5IoqSiDWQehy0mN', nodes: 16, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'GHL Agent AI Payment', id: 'DctYIhYHlpbTPXzD', nodes: 20, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'Marina Couto 2', id: 'CCKudyBwT2EiUBK8', nodes: 21, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'Milton', id: 'FqRbC9XUFknCfwyY', nodes: 23, score: 'ATENCAO', problem: '1 desabilitado' },
+      { name: 'dra gabi', id: 'GZB8zLq9RWHXVi3j', nodes: 15, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'Sofia Financeiro+Contratos', id: '9Y1yFmUJGVszyUSy', nodes: 110, score: 'ATENCAO', problem: '3 triggers desabilitados' },
+      { name: 'FLUXO BASE DUPLICAR', id: 'AfVNiiQWzrNl5lV0', nodes: 16, score: 'OK', problem: '' },
+      { name: 'TEMPLATES SECRETARIA', id: 'APp0EGpUKYMM8l3R', nodes: 58, score: 'OK', problem: '' },
+      { name: 'TEMPLATES SECRETARIA BASE', id: '26CfRoE4UWP0iro5', nodes: 43, score: 'OK', problem: '' },
+      { name: '[OTICA] Garantia Vencendo', id: '1ulgREwSb4SeFOAA', nodes: 8, score: 'OK', problem: '' },
+      { name: '[OTICA] Troca de Grau', id: 'KIWNriKpzAGWdYBr', nodes: 7, score: 'OK', problem: '' },
+      { name: '[OTICA] Recompra Lente', id: '3ZPKKzrMThKifrni', nodes: 7, score: 'ATENCAO', problem: '1 erro 19/02' },
+      { name: 'Socialfy Disponibilidade', id: 'K2T5oJMpZs4emU2s', nodes: 7, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'Guru WhatsApp Curso', id: 'NOw7NAbmgfRt7xe2', nodes: 4, score: 'OK', problem: '' },
+      { name: 'KOMMO Atualizar Lead', id: 'BObn39eEN9pt4GyU', nodes: 10, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'GHL MCP Compartilhado', id: 'MbnnPwrQTXyfjral', nodes: 3, score: 'ATENCAO', problem: '0 execucoes' },
+      { name: 'Psychologist AI v3.3', id: '0BMpGZ1zoJdezZti', nodes: 19, score: 'OK', problem: '' },
+    ],
+  },
+  {
+    name: 'Operacional / Financeiro',
+    description: 'Financeiro, producao de conteudo e infra',
+    workflows: [
+      { name: 'Integracao Asaas', id: '45POrWnyU2UR7HjQ', nodes: 59, score: 'OK', problem: '' },
+      { name: 'Sistema Cobranca Auto', id: 'AK8gVhwmpdU9Z1Tr', nodes: 16, score: 'OK', problem: '' },
+      { name: 'Chat Dashboard Financeiro', id: 'LJ6h1jNhTFQx66ne', nodes: 29, score: 'OK', problem: '' },
+      { name: 'Email Parser PDF', id: '7yKPigE1xOXcdQSY', nodes: 44, score: 'ATENCAO', problem: '2 erros, 2 desabilitados' },
+      { name: 'Invoice Extractor', id: 'AvczBOL2wMLBuRR7', nodes: 57, score: 'OK', problem: '' },
+      { name: 'Invoice Extractor copy', id: '6ICzyTrrI5J9PJQD', nodes: 18, score: 'OK', problem: 'possivel duplicata' },
+      { name: 'Webhook Autentique', id: 'MbrVQwBB0xGhvTNn', nodes: 9, score: 'OK', problem: '' },
+      { name: 'Gerar Recorrencias Mensais', id: '9IH4sqzQ3uOM65yf', nodes: 9, score: 'OK', problem: '' },
+      { name: 'Relatorio Semanal Auto', id: 'FeQO7Sq5aYiTGs3k', nodes: 8, score: 'OK', problem: '' },
+      { name: 'Relatorio Diario IA', id: 'Klsr9cIB9rAOp9na', nodes: 12, score: 'OK', problem: '' },
+      { name: 'Facebook Ads Daily Report', id: 'LnASPbaM5ptlLiBH', nodes: 126, score: 'ATENCAO', problem: '0 sucessos, token Meta' },
+      { name: 'Video Production Pipeline', id: 'BRDVWE7np4p5ZJqe', nodes: 21, score: 'OK', problem: '' },
+      { name: 'error-analyzer-daily', id: '8LOqlwmi1ZMnt3ge', nodes: 8, score: 'OK', problem: '' },
+      { name: 'MOTTIVME INTELLIGENCE SYSTEM', id: 'ApYGjZg8sQ5rp8Fg', nodes: 19, score: 'CRITICO', problem: '5 erros, node sem saida' },
+      { name: 'Monitor Instagram', id: 'M4ecqAzZWl57vgpi', nodes: 6, score: 'OK', problem: '' },
+      { name: 'Blog Auto Generator', id: 'I5RRn5xq2hrGSByt', nodes: 8, score: 'OK', problem: '' },
+      { name: 'IA MARKEGTING', id: '0eq7VTwySd9qqbZj', nodes: 37, score: 'OK', problem: 'typo, 0 execucoes' },
+      { name: 'VAPI Call Webhook', id: 'BHOpaa1OFvpBe46n', nodes: 4, score: 'CRITICO', problem: 'token expirado' },
+      { name: 'VAPI GoHighLevel Agendamento', id: 'LhfsFjDvfOto22Rt', nodes: 15, score: 'OK', problem: '' },
+      { name: 'Assembly Line Trigger', id: '3rLcjPNxGf5yZsKW', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Parte 3 Assembly Line', id: 'FhwLxjkefgY0LoXp', nodes: 8, score: 'OK', problem: '' },
+      { name: 'PROPOSTAL Chat Escalation', id: 'JwXxbG3tw2bT7ERl', nodes: 9, score: 'OK', problem: '' },
+      { name: 'Busca Historias Contextuais', id: '7NK9QDUxJpoquUFr', nodes: 7, score: 'OK', problem: '' },
+      { name: 'Engenheiro de Prompt', id: '4EN4UGoPgJB69ec6', nodes: 21, score: 'OK', problem: '' },
+      { name: 'agendando ghl no kommo', id: '7YKG23UuSFOkRBxA', nodes: 16, score: 'OK', problem: '' },
+      { name: 'Calculate file hash', id: 'KJGHl53oQm1w7xe4', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Edit Image Tool', id: 'J4p75K4RCuwIMBoy', nodes: 11, score: 'OK', problem: '' },
+      { name: 'Image to Video Tool', id: 'ADPjJla7AGiNljUH', nodes: 16, score: 'OK', problem: '' },
+      { name: 'X Post', id: 'IBTSCQo4JUjZa7g0', nodes: 3, score: 'OK', problem: '' },
+      { name: 'My Sub-Workflow 2', id: '4AgUKANTObAIgZiH', nodes: 2, score: 'OK', problem: 'sem uso' },
+      { name: 'My Sub-workflow', id: 'NX8VeXT809UqXbDt', nodes: 10, score: 'OK', problem: '' },
+      { name: 'Agendafy Formatar Fuso', id: 'FZujF9clGLepuIGl', nodes: 3, score: 'OK', problem: '' },
+      { name: 'Tool Call Anthropic PE', id: '72FSNqvPRh6H4ftw', nodes: 5, score: 'OK', problem: '' },
+      { name: 'Tool Call Other Models PE', id: '6JeEKeVISMwQDYfS', nodes: 5, score: 'OK', problem: '' },
+      { name: 'assistente financeiro kommo', id: '0ddX9qTwxkvvtPTz', nodes: 9, score: 'OK', problem: '' },
+      { name: 'webhook Marcos gc', id: '2gK91BDNnPw6yf8j', nodes: 1, score: 'OK', problem: 'sem uso' },
+      { name: 'MCP Mentorfy Clientes', id: '1d1kT9fs2G1gvkUq', nodes: 3, score: 'OK', problem: '' },
+      { name: 'MCP Mentorfy Produtos', id: 'JdopUKEmhlNHLmTi', nodes: 2, score: 'OK', problem: '' },
+    ],
+  },
+];
+
+const PATTERNS: PatternData[] = [
   {
     title: '403 GHL Multi-Tenant',
     count: 3,
@@ -93,604 +219,367 @@ const PATTERNS: Pattern[] = [
   {
     title: 'Tokens Expirados',
     count: 2,
-    affected: 'VAPI Call Webhook, Meta Ads Integration',
+    affected: 'VAPI Call Webhook, Facebook Ads Daily Report',
     fix: 'Renovar credenciais no n8n e implementar refresh automatico',
   },
 ];
 
-const DEACTIVATION_CANDIDATES: DeactivationCandidate[] = [
-  { name: 'Invoice Extractor copy', id: '6ICzyTrrI5J9PJQD', reason: 'Duplicata' },
+const DEACTIVATION_CANDIDATES: DeactivationEntry[] = [
+  { name: 'Invoice Extractor copy', id: '6ICzyTrrI5J9PJQD', reason: 'Duplicata do Invoice Extractor' },
   { name: 'IA MARKEGTING', id: '0eq7VTwySd9qqbZj', reason: 'Typo no nome, 0 execucoes' },
   { name: 'webhook Marcos gc', id: '2gK91BDNnPw6yf8j', reason: '1 node apenas, sem uso identificado' },
   { name: 'My Sub-Workflow 2', id: '4AgUKANTObAIgZiH', reason: '2 nodes, sem uso identificado' },
-  { name: 'FLUXO BASE PARA DUPLICAR', id: 'AfVNiiQWzrNl5lV0', reason: 'Template — nao precisa ficar ativo' },
-];
-
-const ALL_WORKFLOWS: WorkflowInventory[] = [
-  // Core/Vendas (15 total: 3 OK, 4 ATENCAO, 6 CRITICO + 2 extras)
-  { name: '01-Organizador-Calls', id: 'Gzkzaav9Yyx8kmpU', nodes: 12, group: 'Core/Vendas', score: 'CRITICO', problem: '403 GHL multi-tenant' },
-  { name: '02-AI-Agent-Head-Vendas-V2', id: 'JiTZQcq7Tt2c5Xol', nodes: 18, group: 'Core/Vendas', score: 'CRITICO', problem: 'Type mismatch IF string vs number' },
-  { name: '03-Call-Analyzer-Onboarding', id: 'GEcf6Ke7NJwY9vYl', nodes: 9, group: 'Core/Vendas', score: 'CRITICO', problem: 'Google Drive 502/503' },
-  { name: '04-Agent-Factory', id: 'EZpjk44KyqUl4Hr3', nodes: 14, group: 'Core/Vendas', score: 'CRITICO', problem: 'INSERT sem ON CONFLICT' },
-  { name: '05-Escalar para humano', id: '0r0V3ija6EM88T6E', nodes: 7, group: 'Core/Vendas', score: 'CRITICO', problem: '403 GHL multi-tenant' },
-  { name: 'Inserir Lead Insights V2', id: '5N8FB0gBMJwHyMcy', nodes: 11, group: 'Core/Vendas', score: 'CRITICO', problem: 'UNIQUE VIOLATION' },
-  { name: 'AI-Agent-Head-Vendas-V1', id: 'aHv7KxLMnP2qRsTu', nodes: 16, group: 'Core/Vendas', score: 'ATENCAO', problem: 'Versao legada, possivel deprecar' },
-  { name: 'Qualificador BANT', id: 'bKw8LyMNoPrqSuTv', nodes: 10, group: 'Core/Vendas', score: 'ATENCAO', problem: 'Logica BANT incompleta' },
-  { name: 'Seguimento Lead Quente', id: 'cLx9MzNoPsrtUvWx', nodes: 8, group: 'Core/Vendas', score: 'ATENCAO', problem: 'Delay muito alto entre tentativas' },
-  { name: 'Montador Modular v2', id: 'dMy0NaOpQtsuVwXy', nodes: 22, group: 'Core/Vendas', score: 'ATENCAO', problem: 'Fase 2 pendente' },
-  { name: 'Pipeline Principal', id: 'eNz1ObPqRuvwWxYz', nodes: 31, group: 'Core/Vendas', score: 'OK', problem: '' },
-  { name: 'Webhook Entrada Lead', id: 'fOa2PcQrSwvxXyZa', nodes: 6, group: 'Core/Vendas', score: 'OK', problem: '' },
-  { name: 'Roteador Leads GHL', id: 'gPb3QdRsSxwyYzAb', nodes: 9, group: 'Core/Vendas', score: 'OK', problem: '' },
-  { name: 'Notificador WhatsApp', id: 'hQc4ReStTyzZaBc', nodes: 5, group: 'Core/Vendas', score: 'OK', problem: '' },
-  { name: 'Logger Interacoes', id: 'iRd5SfTuUzaAbBcd', nodes: 4, group: 'Core/Vendas', score: 'OK', problem: '' },
-
-  // Sync/Data/Tools (20 total: 15 OK, 2 ATENCAO, 3 CRITICO)
-  { name: 'MOTTIVME INTELLIGENCE SYSTEM', id: 'ApYGjZg8sQ5rp8Fg', nodes: 28, group: 'Sync/Data/Tools', score: 'CRITICO', problem: 'Node sem saida, possivel falha Postgres' },
-  { name: 'Sync GHL Opportunities', id: 'NxQAZPOaQyHUWCd9', nodes: 8, group: 'Sync/Data/Tools', score: 'CRITICO', problem: 'JA RESOLVIDO — tags fix' },
-  { name: 'VAPI Call Webhook', id: 'BHOpaa1OFvpBe46n', nodes: 6, group: 'Sync/Data/Tools', score: 'CRITICO', problem: 'Token VAPI expirado' },
-  { name: 'Invoice Extractor copy', id: '6ICzyTrrI5J9PJQD', nodes: 7, group: 'Sync/Data/Tools', score: 'ATENCAO', problem: 'Duplicata — candidato a desativacao' },
-  { name: 'Meta Ads Sync', id: 'jSe6TgUvVabBcCde', nodes: 10, group: 'Sync/Data/Tools', score: 'ATENCAO', problem: 'Token expirado periodicamente' },
-  { name: 'Sync Leads Supabase', id: 'kTf7UhVwWbcCdDef', nodes: 12, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Export GHL Contacts', id: 'lUg8ViWxXcdDeFgh', nodes: 9, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Invoice Extractor', id: 'mVh9WjXyYdeFgHij', nodes: 7, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Data Enricher Apollo', id: 'nWi0XkYzZefGhIjk', nodes: 14, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'LLM Cost Tracker', id: 'GWKl5KuXAdeu4BLr', nodes: 8, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'LLM Cost Sub-WF', id: 'oXj1YlZaAfgHiJkl', nodes: 5, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Webhook Marcos gc', id: '2gK91BDNnPw6yf8j', nodes: 1, group: 'Sync/Data/Tools', score: 'ATENCAO', problem: '1 node, candidato a desativacao' },
-  { name: 'My Sub-Workflow 2', id: '4AgUKANTObAIgZiH', nodes: 2, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Sync Calendario GHL', id: 'pYk2ZmAbBghIjKlm', nodes: 11, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Backup Agents Versions', id: 'qZl3AnBcCijJkLmn', nodes: 7, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Refresh Tokens Scheduler', id: 'rAm4BoCdDjkKlMno', nodes: 6, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Analytics Aggregator', id: 'sBn5CpDeEklLmNop', nodes: 15, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Sync Pipeline Stages', id: 'tCo6DqEfFlmMnOpq', nodes: 9, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Webhook Health Check', id: 'uDp7ErFgGmnNoPqr', nodes: 4, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-  { name: 'Data Cleaner Leads', id: 'vEq8FsGhHnoOpQrs', nodes: 8, group: 'Sync/Data/Tools', score: 'OK', problem: '' },
-
-  // Clientes (25 total: 8 OK, 16 ATENCAO, 1 CRITICO)
-  { name: 'GHL - Innovat Phone Calls', id: 'LUDLncD12Y2oMkAb', nodes: 9, group: 'Clientes', score: 'CRITICO', problem: 'Node falho nao identificado' },
-  { name: 'Atualizar Campo Profissao GHL', id: 'Kq3b79P6v4rTsiaH', nodes: 6, group: 'Clientes', score: 'ATENCAO', problem: 'Hardcode Work Permit' },
-  { name: 'Atualizar Nome GHL', id: 'FfyhRU0ELkdne2kQ', nodes: 5, group: 'Clientes', score: 'ATENCAO', problem: 'contact_id=null (corrigido)' },
-  { name: 'Agente Diana v3.10', id: 'wFr9GtHiIopPqRst', nodes: 24, group: 'Clientes', score: 'ATENCAO', problem: 'Versao antiga — v3.10.0' },
-  { name: 'Agente Fernanda v3.2', id: 'xGs0HuIjJpqQrStu', nodes: 19, group: 'Clientes', score: 'ATENCAO', problem: 'PBM incompleto' },
-  { name: 'Agente Milton v2.2', id: 'yHt1IvJkKqrRsTuv', nodes: 16, group: 'Clientes', score: 'ATENCAO', problem: 'Modo scheduler desativado' },
-  { name: 'Agente Gabriela v4.3', id: 'zIu2JwKlLrsStuVw', nodes: 21, group: 'Clientes', score: 'ATENCAO', problem: 'Token Instagram precisa renovar' },
-  { name: 'Otica Lumar - Clara', id: 'aJv3KxLmMstTuvWx', nodes: 18, group: 'Clientes', score: 'ATENCAO', problem: '16 agentes, revisao mensal pendente' },
-  { name: 'Grego Imoveis - Bot', id: 'bKw4LyMnNtuUvwXy', nodes: 22, group: 'Clientes', score: 'ATENCAO', problem: 'Setup 16 agentes incompleto' },
-  { name: 'Dra Gabriela Agendamento', id: 'cLx5MzNoOuvVwxYz', nodes: 11, group: 'Clientes', score: 'ATENCAO', problem: 'Webhook calendly sem retry' },
-  { name: 'Follow Up Eterno v3.2', id: '3Yx6JniDrQw4KBCi', nodes: 31, group: 'Clientes', score: 'ATENCAO', problem: '2.456 leads pendentes — volume alto' },
-  { name: 'Reativador Base Clientes', id: 'dMy6NaOpPvwWxyZa', nodes: 14, group: 'Clientes', score: 'ATENCAO', problem: 'Criterio de reativacao hardcoded' },
-  { name: 'Concierge Agendamento', id: 'eNz7ObQqQwxXyzAb', nodes: 9, group: 'Clientes', score: 'ATENCAO', problem: 'Sem fallback quando slot indisponivel' },
-  { name: 'Rescheduler Automatico', id: 'fOa8PcRrRxyYzaBc', nodes: 8, group: 'Clientes', score: 'ATENCAO', problem: 'Sem confirmacao do cliente' },
-  { name: 'Innovat - Qualificador', id: 'gPb9QdSsSyzZabBc', nodes: 13, group: 'Clientes', score: 'ATENCAO', problem: 'BANT desatualizado para produto atual' },
-  { name: 'Social Selling Instagram', id: 'hQc0ReStTzaAbCde', nodes: 17, group: 'Clientes', score: 'ATENCAO', problem: 'Rate limit Instagram 1000/dia' },
-  { name: 'Cold Outreach BR', id: 'iRd1SfTuUabBcDef', nodes: 12, group: 'Clientes', score: 'ATENCAO', problem: 'Lista desatualizada' },
-  { name: 'Innovat - Follow Up', id: 'jSe2TgUvVbcCdEfg', nodes: 9, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Innovat - Agendador', id: 'kTf3UhVwWcdDeFgh', nodes: 11, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Innovat - Pos Venda', id: 'lUg4ViWxXdeFgHij', nodes: 8, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Lappe - Bot Financeiro', id: 'mVh5WjXyYefGhIjk', nodes: 14, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Vertex - Pipeline Bot', id: 'nWi6XkYzZfgHiJkl', nodes: 16, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Customer Success WF', id: 'oXj7YlZaAgHiJKlm', nodes: 10, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'NPS Survey Bot', id: 'pYk8ZmAbBhIjKLmn', nodes: 7, group: 'Clientes', score: 'OK', problem: '' },
-  { name: 'Churn Predictor WF', id: 'qZl9AnBcCiJkLMno', nodes: 9, group: 'Clientes', score: 'OK', problem: '' },
-
-  // Operacional (38 total: 34 OK, 2 ATENCAO, 2 CRITICO)
-  { name: 'FLUXO BASE PARA DUPLICAR', id: 'AfVNiiQWzrNl5lV0', nodes: 3, group: 'Operacional', score: 'ATENCAO', problem: 'Template ativo — candidato a desativar' },
-  { name: 'IA MARKEGTING', id: '0eq7VTwySd9qqbZj', nodes: 2, group: 'Operacional', score: 'ATENCAO', problem: 'Typo no nome, 0 execucoes' },
-  { name: 'Reflection Loop WF', id: 'rAm0BoCdDjkKlMno2', nodes: 19, group: 'Operacional', score: 'CRITICO', problem: 'Sem output handler para falhas LLM' },
-  { name: 'Prompt Updater WF', id: 'sBn1CpDeEklLmNop2', nodes: 14, group: 'Operacional', score: 'CRITICO', problem: 'Versao desatualizada do schema' },
-  { name: 'Classificador 3D v2', id: 'IawOpB56MTFoEP3M', nodes: 48, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Assembly Line API WF', id: 'tCo2DqEfFlmMnOpq2', nodes: 23, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Content Pipeline WF', id: 'uDp3ErFgGmnNoPqr2', nodes: 16, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Video Producer WF', id: 'vEq4FsGhHnoOpQrs2', nodes: 21, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'SENTINEL Observer', id: 'wFr5GtHiIopPqRst2', nodes: 12, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Alert WhatsApp WF', id: 'xGs6HuIjJpqQrStu2', nodes: 8, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Groq Classifier', id: 'yHt7IvJkKqrRsTuv2', nodes: 7, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Embedding Generator', id: 'zIu8JwKlLrsStuVw2', nodes: 9, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'RAG Indexer', id: 'aJv9KxLmMstTuvWx2', nodes: 11, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Webhook Dispatcher', id: 'bKw0LyMnNtuUvwXy2', nodes: 6, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Error Handler Global', id: 'cLx1MzNoOuvVwxYz2', nodes: 5, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Cron Scheduler Daily', id: 'dMy2NaOpPvwWxyZa2', nodes: 4, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Health Monitor WF', id: 'eNz3ObQqQwxXyzAb2', nodes: 8, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Queue Processor', id: 'fOa4PcRrRxyYzaBc2', nodes: 10, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Rate Limiter WF', id: 'gPb5QdSsSyzZabBc2', nodes: 7, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Notification Router', id: 'hQc6ReStTzaAbCde2', nodes: 9, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Retry Handler WF', id: 'iRd7SfTuUabBcDef2', nodes: 6, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Session Manager WF', id: 'jSe8TgUvVbcCdEfg2', nodes: 11, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Audit Logger WF', id: 'kTf9UhVwWcdDeFgh2', nodes: 5, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Config Loader WF', id: 'lUg0ViWxXdeFgHij2', nodes: 4, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Secret Rotator WF', id: 'mVh1WjXyYefGhIjk2', nodes: 8, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Deploy Notifier WF', id: 'nWi2XkYzZfgHiJkl2', nodes: 6, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Performance Reporter', id: 'oXj3YlZaAgHiJKlm2', nodes: 13, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Cost Calculator WF', id: 'pYk4ZmAbBhIjKLmn2', nodes: 9, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Budget Alert WF', id: 'qZl5AnBcCiJkLMno2', nodes: 7, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Invoice Generator WF', id: 'rAm6BoCdDjkKlMno3', nodes: 12, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Lead Scorer WF', id: 'sBn7CpDeEklLmNop3', nodes: 10, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Tag Manager WF', id: 'tCo8DqEfFlmMnOpq3', nodes: 8, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Segment Builder WF', id: 'uDp9ErFgGmnNoPqr3', nodes: 11, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'A/B Test WF', id: 'vEq0FsGhHnoOpQrs3', nodes: 9, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Feature Flag WF', id: 'wFr1GtHiIopPqRst3', nodes: 6, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Cleanup Scheduler', id: 'xGs2HuIjJpqQrStu3', nodes: 5, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Archive Old Records', id: 'yHt3IvJkKqrRsTuv3', nodes: 7, group: 'Operacional', score: 'OK', problem: '' },
-  { name: 'Index Rebuilder WF', id: 'zIu4JwKlLrsStuVw3', nodes: 4, group: 'Operacional', score: 'OK', problem: '' },
-];
-
-const GROUP_SUMMARIES: GroupSummary[] = [
-  {
-    name: 'Core/Vendas',
-    ok: 5,
-    atencao: 4,
-    critico: 6,
-    total: 15,
-    workflows: ALL_WORKFLOWS.filter(w => w.group === 'Core/Vendas'),
-  },
-  {
-    name: 'Sync/Data/Tools',
-    ok: 15,
-    atencao: 2,
-    critico: 3,
-    total: 20,
-    workflows: ALL_WORKFLOWS.filter(w => w.group === 'Sync/Data/Tools'),
-  },
-  {
-    name: 'Clientes',
-    ok: 8,
-    atencao: 16,
-    critico: 1,
-    total: 25,
-    workflows: ALL_WORKFLOWS.filter(w => w.group === 'Clientes'),
-  },
-  {
-    name: 'Operacional',
-    ok: 34,
-    atencao: 2,
-    critico: 2,
-    total: 38,
-    workflows: ALL_WORKFLOWS.filter(w => w.group === 'Operacional'),
-  },
+  { name: 'FLUXO BASE DUPLICAR', id: 'AfVNiiQWzrNl5lV0', reason: 'Template — nao precisa ficar ativo' },
 ];
 
 // ============================================
-// BADGE COMPONENTS
+// HELPERS
 // ============================================
 
-const ScoreBadge = ({ score }: { score: Score }) => {
-  const config = {
-    OK: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-    ATENCAO: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-    CRITICO: 'bg-red-500/15 text-red-400 border border-red-500/30',
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${config[score]}`}>
-      {score}
-    </span>
+function n8nUrl(id: string): string {
+  return `${N8N_BASE_URL}/${id}`;
+}
+
+function getScoreColor(score: Score): string {
+  switch (score) {
+    case 'OK':      return 'fill-emerald-400 text-emerald-400';
+    case 'ATENCAO': return 'fill-amber-400 text-amber-400';
+    case 'CRITICO': return 'fill-red-400 text-red-400';
+  }
+}
+
+function computeGroupStats(workflows: WorkflowEntry[]) {
+  return workflows.reduce(
+    (acc, wf) => {
+      acc[wf.score]++;
+      return acc;
+    },
+    { OK: 0, ATENCAO: 0, CRITICO: 0 } as Record<Score, number>
   );
-};
+}
+
+// ============================================
+// SUB-COMPONENTS
+// ============================================
+
+const ScoreDot = ({ score }: { score: Score }) => (
+  <Circle size={8} className={`flex-shrink-0 ${getScoreColor(score)}`} />
+);
+
+const RedDot = () => (
+  <Circle size={8} className="flex-shrink-0 fill-red-400 text-red-400" />
+);
 
 const PriorityBadge = ({ priority }: { priority: Priority }) => {
-  const config = {
-    P0: 'bg-red-500/20 text-red-300 border border-red-500/40',
-    P1: 'bg-orange-500/20 text-orange-300 border border-orange-500/40',
-  };
+  const cls =
+    priority === 'P0'
+      ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${config[priority]}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${cls}`}>
       {priority}
     </span>
   );
 };
 
-// ============================================
-// STAT CARD
-// ============================================
-
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  colorClass,
-  bgClass,
-}: {
-  label: string;
-  value: number;
-  icon: React.ElementType;
-  colorClass: string;
-  bgClass: string;
-}) => (
-  <div className="bg-bg-secondary border border-border-default rounded-xl p-5 flex items-center gap-4">
-    <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${bgClass}`}>
-      <Icon size={22} className={colorClass} />
-    </div>
-    <div>
-      <p className="text-2xl font-bold text-text-primary">{value}</p>
-      <p className="text-sm text-text-muted mt-0.5">{label}</p>
-    </div>
-  </div>
+const NodesBadge = ({ nodes }: { nodes: number }) => (
+  <span className="hidden sm:inline-flex text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted flex-shrink-0">
+    {nodes} nodes
+  </span>
 );
 
-// ============================================
-// GROUP CARD
-// ============================================
+// ── Criticos section item
+const CriticalItem = ({ wf }: { wf: CriticalWorkflow }) => (
+  <a
+    href={n8nUrl(wf.id)}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-bg-hover transition-colors"
+  >
+    <RedDot />
+    <span className="text-sm font-medium text-text-primary flex-1 truncate">{wf.name}</span>
+    <span className="text-[10px] text-text-muted flex-shrink-0">{wf.errors}</span>
+    <PriorityBadge priority={wf.priority} />
+    <span className="text-xs text-text-muted truncate max-w-[200px] hidden md:block">{wf.cause}</span>
+    <ExternalLink size={14} className="text-text-muted opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+  </a>
+);
 
-const GroupCard = ({ group }: { group: GroupSummary }) => {
-  const [expanded, setExpanded] = useState(false);
+// ── Por Grupo item
+const WorkflowItem = ({ wf }: { wf: WorkflowEntry }) => (
+  <a
+    href={n8nUrl(wf.id)}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-bg-hover transition-colors"
+  >
+    <ScoreDot score={wf.score} />
+    <span className="text-sm text-text-primary truncate flex-1">{wf.name}</span>
+    <NodesBadge nodes={wf.nodes} />
+    {wf.problem && (
+      <span className="text-xs text-text-muted truncate max-w-[180px] hidden lg:block">{wf.problem}</span>
+    )}
+    <ExternalLink size={14} className="text-text-muted opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+  </a>
+);
 
-  const total = group.total;
-  const okPct = Math.round((group.ok / total) * 100);
-  const atencaoPct = Math.round((group.atencao / total) * 100);
-  const criticoPct = Math.round((group.critico / total) * 100);
-
+// ── Colapsavel card para criticos
+const CriticalCard = () => {
+  const [expanded, setExpanded] = useState(true);
   return (
-    <div className="bg-bg-secondary border border-border-default rounded-xl overflow-hidden">
+    <div className="border border-red-500/30 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-4 p-5 hover:bg-bg-hover transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 bg-red-500/10 hover:bg-red-500/15 transition-colors"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="font-semibold text-text-primary">{group.name}</span>
-            <span className="text-xs text-text-muted bg-bg-tertiary px-2 py-0.5 rounded-full">
-              {total} workflows
-            </span>
-          </div>
-          {/* Progress bar */}
-          <div className="h-2 rounded-full bg-bg-tertiary overflow-hidden flex">
-            <div className="bg-emerald-500 transition-all" style={{ width: `${okPct}%` }} />
-            <div className="bg-amber-500 transition-all" style={{ width: `${atencaoPct}%` }} />
-            <div className="bg-red-500 transition-all" style={{ width: `${criticoPct}%` }} />
-          </div>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              {group.ok} OK
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-amber-400">
-              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-              {group.atencao} Atencao
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-red-400">
-              <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-              {group.critico} Critico
-            </span>
-          </div>
+        {expanded ? (
+          <ChevronDown size={14} className="text-red-400 flex-shrink-0" />
+        ) : (
+          <ChevronRight size={14} className="text-red-400 flex-shrink-0" />
+        )}
+        <div className="flex-1 text-left">
+          <span className="text-sm font-semibold text-red-400">Criticos — Acao Imediata</span>
         </div>
-        <div className="flex-shrink-0 text-text-muted">
-          {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-        </div>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/40">
+          {CRITICAL_WORKFLOWS.length}
+        </span>
       </button>
-
       {expanded && (
-        <div className="border-t border-border-default">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-default">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Nome</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Nodes</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Score</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Problema</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-default">
-                {group.workflows.map((wf) => (
-                  <tr key={wf.id} className="hover:bg-bg-hover transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-text-primary truncate max-w-[220px]">{wf.name}</div>
-                      <div className="text-xs text-text-muted font-mono mt-0.5">{wf.id}</div>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">{wf.nodes}</td>
-                    <td className="px-4 py-3">
-                      <ScoreBadge score={wf.score} />
-                    </td>
-                    <td className="px-4 py-3 text-text-muted text-xs max-w-[240px] truncate">
-                      {wf.problem || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="divide-y divide-border-default/50">
+          {CRITICAL_WORKFLOWS.map((wf) => (
+            <CriticalItem key={wf.id} wf={wf} />
+          ))}
         </div>
       )}
     </div>
   );
 };
 
+// ── Colapsavel card para grupo
+const GroupCard = ({ group }: { group: GroupData }) => {
+  const [expanded, setExpanded] = useState(false);
+  const stats = computeGroupStats(group.workflows);
+  const total = group.workflows.length;
+
+  return (
+    <div className="border border-border-default rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-3 bg-bg-secondary hover:bg-bg-hover transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown size={14} className="text-text-muted flex-shrink-0" />
+        ) : (
+          <ChevronRight size={14} className="text-text-muted flex-shrink-0" />
+        )}
+        <div className="flex-1 text-left min-w-0">
+          <span className="text-sm font-medium text-text-primary">{group.name}</span>
+          <span className="text-xs text-text-muted ml-2">{group.description}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-emerald-400">{stats.OK}</span>
+          <span className="text-xs text-text-muted">/</span>
+          {stats.ATENCAO > 0 && (
+            <span className="text-xs text-amber-400">{stats.ATENCAO}</span>
+          )}
+          {stats.ATENCAO > 0 && stats.CRITICO > 0 && (
+            <span className="text-xs text-text-muted">/</span>
+          )}
+          {stats.CRITICO > 0 && (
+            <span className="text-xs text-red-400">{stats.CRITICO}</span>
+          )}
+          <span className="text-xs text-text-muted ml-1">({total})</span>
+        </div>
+      </button>
+      {expanded && (
+        <div className="divide-y divide-border-default/50">
+          {group.workflows.map((wf) => (
+            <WorkflowItem key={`${wf.id}-${wf.name}`} wf={wf} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Stats Cards (topo)
+const AuditStatsCards = () => (
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    {[
+      { label: 'Total', value: 98, Icon: Workflow, iconCls: 'text-text-secondary', bg: 'bg-bg-tertiary' },
+      { label: 'OK', value: 62, Icon: CheckCircle, iconCls: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+      { label: 'Atencao', value: 24, Icon: AlertTriangle, iconCls: 'text-amber-400', bg: 'bg-amber-500/10' },
+      { label: 'Critico', value: 12, Icon: XCircle, iconCls: 'text-red-400', bg: 'bg-red-500/10' },
+    ].map(({ label, value, Icon, iconCls, bg }) => (
+      <div
+        key={label}
+        className="bg-bg-secondary border border-border-default rounded-lg p-3 space-y-1"
+      >
+        <div className="flex items-center gap-2">
+          <div className={`w-6 h-6 rounded flex items-center justify-center ${bg}`}>
+            <Icon size={13} className={iconCls} />
+          </div>
+          <span className="text-xs font-medium text-text-secondary truncate">{label}</span>
+        </div>
+        <div className="text-2xl font-bold text-text-primary">{value}</div>
+      </div>
+    ))}
+  </div>
+);
+
+// ── Candidatos a desativacao item
+const DeactivationItem = ({ entry }: { entry: DeactivationEntry }) => (
+  <a
+    href={n8nUrl(entry.id)}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-bg-hover transition-colors"
+  >
+    <Circle size={8} className="flex-shrink-0 fill-zinc-500 text-zinc-500" />
+    <span className="text-sm text-text-primary flex-1 truncate">{entry.name}</span>
+    <span className="text-xs text-text-muted truncate max-w-[280px] hidden sm:block">{entry.reason}</span>
+    <ExternalLink size={14} className="text-text-muted opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+  </a>
+);
+
 // ============================================
-// MAIN PAGE COMPONENT
+// MAIN COMPONENT
 // ============================================
 
 export const N8nAudit = () => {
   const [search, setSearch] = useState('');
-  const [scoreFilter, setScoreFilter] = useState<Score | 'ALL'>('ALL');
-  const [groupFilter, setGroupFilter] = useState<Group | 'ALL'>('ALL');
 
-  const filteredWorkflows = useMemo(() => {
-    return ALL_WORKFLOWS.filter((wf) => {
-      const matchSearch =
-        search.trim() === '' ||
-        wf.name.toLowerCase().includes(search.toLowerCase()) ||
-        wf.id.toLowerCase().includes(search.toLowerCase());
-      const matchScore = scoreFilter === 'ALL' || wf.score === scoreFilter;
-      const matchGroup = groupFilter === 'ALL' || wf.group === groupFilter;
-      return matchSearch && matchScore && matchGroup;
-    });
-  }, [search, scoreFilter, groupFilter]);
+  // Todos os workflows dos 4 grupos para busca global
+  const allWorkflows = useMemo(
+    () => GROUPS.flatMap((g) => g.workflows.map((wf) => ({ ...wf, group: g.name }))),
+    []
+  );
+
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return allWorkflows.filter(
+      (wf) =>
+        wf.name.toLowerCase().includes(q) ||
+        wf.id.toLowerCase().includes(q) ||
+        (wf.problem && wf.problem.toLowerCase().includes(q))
+    );
+  }, [search, allWorkflows]);
+
+  const showSearchResults = search.trim().length > 0;
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto">
+    <div className="space-y-5">
 
-      {/* ── HEADER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-bg-secondary border border-border-default rounded-xl flex items-center justify-center">
-            <ClipboardCheck size={20} className="text-text-secondary" />
+      {/* ── STATS ── */}
+      <AuditStatsCards />
+
+      {/* ── BUSCA GLOBAL ── */}
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <input
+          type="text"
+          placeholder="Buscar workflow por nome, ID ou problema..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary"
+        />
+      </div>
+
+      {/* ── RESULTADOS DA BUSCA ── */}
+      {showSearchResults && (
+        <div className="border border-border-default rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-bg-secondary border-b border-border-default">
+            <span className="text-xs font-medium text-text-muted">
+              {searchResults.length} resultado{searchResults.length !== 1 ? 's' : ''} para "{search}"
+            </span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-text-primary">Auditoria n8n</h1>
-            <p className="text-sm text-text-muted mt-0.5">98 workflows ativos auditados em 2026-02-20</p>
-          </div>
+          {searchResults.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-text-muted">
+              Nenhum workflow encontrado.
+            </div>
+          ) : (
+            <div className="divide-y divide-border-default/50">
+              {searchResults.map((wf) => (
+                <a
+                  key={`search-${wf.id}-${wf.name}`}
+                  href={n8nUrl(wf.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 px-3 py-2 hover:bg-bg-hover transition-colors"
+                >
+                  <ScoreDot score={wf.score} />
+                  <span className="text-sm text-text-primary flex-1 truncate">{wf.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted flex-shrink-0">
+                    {wf.group}
+                  </span>
+                  <NodesBadge nodes={wf.nodes} />
+                  {wf.problem && (
+                    <span className="text-xs text-text-muted truncate max-w-[180px] hidden lg:block">{wf.problem}</span>
+                  )}
+                  <ExternalLink size={14} className="text-text-muted opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
-        <button
-          className="inline-flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-          onClick={() => alert('Exportar — placeholder')}
-        >
-          <Download size={15} />
-          Exportar
-        </button>
-      </div>
-
-      {/* ── STAT CARDS ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Workflows"
-          value={98}
-          icon={Workflow}
-          colorClass="text-text-secondary"
-          bgClass="bg-bg-tertiary"
-        />
-        <StatCard
-          label="OK"
-          value={62}
-          icon={CheckCircle}
-          colorClass="text-emerald-400"
-          bgClass="bg-emerald-500/10"
-        />
-        <StatCard
-          label="Atencao"
-          value={24}
-          icon={AlertTriangle}
-          colorClass="text-amber-400"
-          bgClass="bg-amber-500/10"
-        />
-        <StatCard
-          label="Critico"
-          value={12}
-          icon={XCircle}
-          colorClass="text-red-400"
-          bgClass="bg-red-500/10"
-        />
-      </div>
+      )}
 
       {/* ── CRITICOS ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <XCircle size={16} className="text-red-400" />
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            Criticos — Acao Imediata
-          </h2>
-        </div>
-        <div className="bg-bg-secondary border border-border-default rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-default bg-bg-tertiary/40">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Workflow</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[160px]">ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[90px]">Erro</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Causa Raiz</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[80px]">Prior.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-default">
-                {CRITICAL_WORKFLOWS.map((wf) => (
-                  <tr key={wf.id} className="hover:bg-bg-hover transition-colors">
-                    <td className="px-5 py-3.5">
-                      <span className="font-medium text-text-primary">{wf.name}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <code className="text-xs text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">
-                        {wf.id}
-                      </code>
-                    </td>
-                    <td className="px-4 py-3.5 text-text-secondary text-xs">{wf.errors}</td>
-                    <td className="px-4 py-3.5 text-text-muted text-xs max-w-[300px]">
-                      {wf.cause}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <PriorityBadge priority={wf.priority} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      {!showSearchResults && <CriticalCard />}
 
       {/* ── POR GRUPO ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Workflow size={16} className="text-text-muted" />
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            Por Grupo
-          </h2>
-        </div>
-        <div className="space-y-3">
-          {GROUP_SUMMARIES.map((group) => (
-            <GroupCard key={group.name} group={group} />
+      {!showSearchResults && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider px-1">Por Grupo</p>
+          {GROUPS.map((g) => (
+            <GroupCard key={g.name} group={g} />
           ))}
         </div>
-      </section>
+      )}
 
-      {/* ── PADROES ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={16} className="text-amber-400" />
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            Padroes Identificados
-          </h2>
+      {/* ── PADROES IDENTIFICADOS ── */}
+      {!showSearchResults && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider px-1">Padroes Identificados</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {PATTERNS.map((p) => (
+              <div
+                key={p.title}
+                className="bg-bg-secondary border border-border-default rounded-lg p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary leading-tight">{p.title}</h3>
+                  <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    {p.count} WFs
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Afeta</p>
+                  <p className="text-xs text-text-secondary leading-relaxed">{p.affected}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Fix</p>
+                  <p className="text-xs text-text-secondary leading-relaxed">{p.fix}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PATTERNS.map((p) => (
-            <div
-              key={p.title}
-              className="bg-bg-secondary border border-border-default rounded-xl p-5 space-y-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-text-primary text-sm leading-tight">{p.title}</h3>
-                <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  {p.count} WFs
-                </span>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted font-medium uppercase tracking-wide mb-1">Afeta</p>
-                <p className="text-xs text-text-secondary leading-relaxed">{p.affected}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted font-medium uppercase tracking-wide mb-1">Fix</p>
-                <p className="text-xs text-text-secondary leading-relaxed">{p.fix}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      )}
 
       {/* ── CANDIDATOS A DESATIVACAO ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={16} className="text-text-muted" />
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            Candidatos a Desativacao
-          </h2>
-        </div>
-        <div className="bg-bg-secondary border border-border-default rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border-default bg-bg-tertiary/40">
-                <th className="text-left px-5 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Workflow</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[180px]">ID</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Motivo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-default">
-              {DEACTIVATION_CANDIDATES.map((wf) => (
-                <tr key={wf.id} className="hover:bg-bg-hover transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-text-primary">{wf.name}</td>
-                  <td className="px-4 py-3.5">
-                    <code className="text-xs text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">
-                      {wf.id}
-                    </code>
-                  </td>
-                  <td className="px-4 py-3.5 text-text-muted text-xs">{wf.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ── INVENTARIO COMPLETO ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <CheckCircle size={16} className="text-text-muted" />
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            Inventario Completo ({filteredWorkflows.length} de 98)
-          </h2>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Buscar por nome ou ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary"
-            />
-          </div>
-          <select
-            value={scoreFilter}
-            onChange={(e) => setScoreFilter(e.target.value as Score | 'ALL')}
-            className="px-3 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent-primary"
-          >
-            <option value="ALL">Todos os scores</option>
-            <option value="OK">OK</option>
-            <option value="ATENCAO">Atencao</option>
-            <option value="CRITICO">Critico</option>
-          </select>
-          <select
-            value={groupFilter}
-            onChange={(e) => setGroupFilter(e.target.value as Group | 'ALL')}
-            className="px-3 py-2 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent-primary"
-          >
-            <option value="ALL">Todos os grupos</option>
-            <option value="Core/Vendas">Core/Vendas</option>
-            <option value="Sync/Data/Tools">Sync/Data/Tools</option>
-            <option value="Clientes">Clientes</option>
-            <option value="Operacional">Operacional</option>
-          </select>
-        </div>
-
-        <div className="bg-bg-secondary border border-border-default rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-default bg-bg-tertiary/40">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Nome</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[160px]">ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[70px]">Nodes</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[140px]">Grupo</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider w-[100px]">Score</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted uppercase tracking-wider">Problema</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-default">
-                {filteredWorkflows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-text-muted text-sm">
-                      Nenhum workflow encontrado com os filtros aplicados.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredWorkflows.map((wf) => (
-                    <tr key={wf.id} className="hover:bg-bg-hover transition-colors">
-                      <td className="px-5 py-3">
-                        <span className="font-medium text-text-primary">{wf.name}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <code className="text-xs text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded font-mono">
-                          {wf.id}
-                        </code>
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">{wf.nodes}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-text-muted">{wf.group}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <ScoreBadge score={wf.score} />
-                      </td>
-                      <td className="px-4 py-3 text-text-muted text-xs">
-                        {wf.problem || '—'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      {!showSearchResults && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider px-1">Candidatos a Desativacao</p>
+          <div className="border border-border-default rounded-lg overflow-hidden divide-y divide-border-default/50">
+            {DEACTIVATION_CANDIDATES.map((entry) => (
+              <DeactivationItem key={entry.id} entry={entry} />
+            ))}
           </div>
         </div>
-      </section>
+      )}
+
     </div>
   );
 };
