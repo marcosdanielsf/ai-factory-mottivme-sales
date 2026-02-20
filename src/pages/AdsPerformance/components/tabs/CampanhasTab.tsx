@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { formatCurrency, formatNumber } from '../../helpers';
 import type { CampanhaMetrics } from '../../types';
 
 interface CampanhasTabProps {
@@ -7,27 +8,25 @@ interface CampanhasTabProps {
   loading: boolean;
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat('pt-BR').format(value);
-
 export const CampanhasTab: React.FC<CampanhasTabProps> = ({ campanhas, loading }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (loading) {
-    return <div className="p-8 text-text-muted">Carregando campanhas...</div>;
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <RefreshCw size={20} className="animate-spin text-text-muted" />
+      </div>
+    );
   }
 
-  const toggleExpand = (name: string) => {
+  const toggleExpand = useCallback((name: string) => {
     setExpanded(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
-  };
+  }, []);
 
   return (
     <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">

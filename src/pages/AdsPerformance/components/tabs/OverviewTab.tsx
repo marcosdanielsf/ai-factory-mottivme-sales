@@ -1,6 +1,8 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { DollarSign, Eye, MousePointer, MessageCircle, TrendingUp, Activity } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { DollarSign, Eye, MousePointer, MessageCircle, RefreshCw } from 'lucide-react';
+import { MetricCard } from '../../../../components/MetricCard';
+import { formatCurrency, formatNumber, formatDayLabel } from '../../helpers';
 import type { AdsOverview, AdsSummaryByDate, CampanhaMetrics } from '../../types';
 
 interface OverviewTabProps {
@@ -8,40 +10,18 @@ interface OverviewTabProps {
   porDia: AdsSummaryByDate[];
   campanhas: CampanhaMetrics[];
   loading: boolean;
+  dateRangeLabel: string;
 }
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#06b6a4', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#64748b'];
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
-
-const formatNumber = (value: number) => {
-  return new Intl.NumberFormat('pt-BR').format(value);
-};
-
-const MetricCard = ({ icon: Icon, label, value, subtitle, color }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  subtitle?: string;
-  color: string;
-}) => (
-  <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
-    <div className="flex items-center gap-2 mb-2">
-      <div className={`p-1.5 rounded-md ${color}`}>
-        <Icon size={16} />
-      </div>
-      <span className="text-xs text-text-muted">{label}</span>
-    </div>
-    <div className="text-xl font-semibold text-text-primary">{value}</div>
-    {subtitle && <div className="text-xs text-text-muted mt-1">{subtitle}</div>}
-  </div>
-);
-
-export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, campanhas, loading }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, campanhas, loading, dateRangeLabel }) => {
   if (loading) {
-    return <div className="p-8 text-text-muted">Carregando metricas...</div>;
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <RefreshCw size={20} className="animate-spin text-text-muted" />
+      </div>
+    );
   }
 
   const pieData = campanhas
@@ -61,92 +41,70 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, camp
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Cards de metricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <MetricCard
-          icon={DollarSign}
-          label="Gasto Total"
+          title="Gasto Total"
           value={formatCurrency(overview.totalSpend)}
-          color="bg-blue-500/10 text-blue-400"
-        />
-        <MetricCard
-          icon={Eye}
-          label="Impressoes"
-          value={formatNumber(overview.totalImpressions)}
-          color="bg-purple-500/10 text-purple-400"
-        />
-        <MetricCard
-          icon={MousePointer}
-          label="Cliques"
-          value={formatNumber(overview.totalClicks)}
-          subtitle={`CTR: ${overview.ctr.toFixed(2)}%`}
-          color="bg-emerald-500/10 text-emerald-400"
-        />
-        <MetricCard
-          icon={MessageCircle}
-          label="Conversas Iniciadas"
-          value={formatNumber(overview.totalConversas)}
-          color="bg-amber-500/10 text-amber-400"
-        />
-        <MetricCard
-          icon={TrendingUp}
-          label="CPC Medio"
-          value={formatCurrency(overview.avgCpc)}
-          color="bg-cyan-500/10 text-cyan-400"
-        />
-        <MetricCard
-          icon={Activity}
-          label="CPM Medio"
-          value={formatCurrency(overview.avgCpm)}
-          color="bg-pink-500/10 text-pink-400"
-        />
-        <MetricCard
           icon={DollarSign}
-          label="Custo por Conversa"
-          value={formatCurrency(overview.custoPorConversa)}
-          color="bg-orange-500/10 text-orange-400"
+          subtext="No periodo"
         />
         <MetricCard
+          title="Impressoes"
+          value={formatNumber(overview.totalImpressions)}
+          icon={Eye}
+          subtext={`CPM: ${formatCurrency(overview.avgCpm)}`}
+        />
+        <MetricCard
+          title="Cliques"
+          value={formatNumber(overview.totalClicks)}
           icon={MousePointer}
-          label="CTR"
-          value={`${overview.ctr.toFixed(2)}%`}
-          color="bg-indigo-500/10 text-indigo-400"
+          subtext={`CTR: ${overview.ctr.toFixed(2)}% | CPC: ${formatCurrency(overview.avgCpc)}`}
+        />
+        <MetricCard
+          title="Conversas Iniciadas"
+          value={formatNumber(overview.totalConversas)}
+          icon={MessageCircle}
+          subtext={`Custo: ${formatCurrency(overview.custoPorConversa)}/conversa`}
         />
       </div>
 
       {/* Graficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         {/* Gasto diario */}
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
-          <h3 className="text-sm font-medium text-text-primary mb-4">Gasto Diario (R$)</h3>
+        <div className="lg:col-span-2 bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">Gasto Diario (R$)</h3>
+              <p className="text-[10px] text-text-muted">{dateRangeLabel}</p>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded bg-blue-500" />
+                <span className="text-text-muted">Gasto</span>
+              </div>
+            </div>
+          </div>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
-                <XAxis
-                  dataKey="data"
-                  tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
-                  tickFormatter={(v) => {
-                    const d = new Date(v + 'T12:00:00');
-                    return `${d.getDate()}/${d.getMonth() + 1}`;
-                  }}
-                />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <XAxis dataKey="data" tickFormatter={formatDayLabel} tick={{ fontSize: 10, fill: '#888' }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10, fill: '#888' }} tickCount={8} />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--color-bg-tertiary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: '8px',
-                    color: 'var(--color-text-primary)',
-                  }}
-                  formatter={(value: number) => [formatCurrency(value), 'Gasto']}
-                  labelFormatter={(v) => {
-                    const d = new Date(v + 'T12:00:00');
-                    return d.toLocaleDateString('pt-BR');
+                  content={({ active, payload, label }: any) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-bg-secondary border border-border-default rounded px-2 py-1 shadow-lg text-xs">
+                          <p className="font-medium text-text-primary">{formatDayLabel(String(label))}</p>
+                          <p className="text-blue-400">{formatCurrency(payload[0]?.value)}</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
-                <Bar dataKey="spend" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="spend" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -157,36 +115,26 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, camp
         </div>
 
         {/* Pie por campanha */}
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
-          <h3 className="text-sm font-medium text-text-primary mb-4">Gasto por Campanha</h3>
+        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-2">Gasto por Campanha</h3>
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
+                  cy="45%"
+                  innerRadius={45}
+                  outerRadius={70}
+                  paddingAngle={3}
                   dataKey="value"
                 >
                   {pieData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--color-bg-tertiary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: '8px',
-                    color: 'var(--color-text-primary)',
-                  }}
-                  formatter={(value: number) => [formatCurrency(value), 'Gasto']}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '11px', color: 'var(--color-text-muted)' }}
-                />
+                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', fontSize: '12px' }} />
+                <Legend verticalAlign="bottom" height={28} formatter={(value) => <span className="text-text-primary text-xs">{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           ) : (

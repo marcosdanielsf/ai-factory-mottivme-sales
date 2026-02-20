@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { formatCurrency, formatNumber } from '../../helpers';
 import type { FbAdPerformance, AdsWithLeads } from '../../types';
 
 interface CriativosTabProps {
@@ -8,13 +9,12 @@ interface CriativosTabProps {
   loading: boolean;
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat('pt-BR').format(value);
-
 type SortKey = 'spend' | 'impressions' | 'clicks' | 'conversas_iniciadas' | 'cpc' | 'cpm';
+
+const SortIcon = ({ col, sortKey, sortAsc }: { col: SortKey; sortKey: SortKey; sortAsc: boolean }) => {
+  if (sortKey !== col) return null;
+  return sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+};
 
 export const CriativosTab: React.FC<CriativosTabProps> = ({ criativos, adsWithLeads, loading }) => {
   const [sortKey, setSortKey] = useState<SortKey>('spend');
@@ -98,7 +98,11 @@ export const CriativosTab: React.FC<CriativosTabProps> = ({ criativos, adsWithLe
   }, [criativos, adsWithLeads, sortKey, sortAsc]);
 
   if (loading) {
-    return <div className="p-8 text-text-muted">Carregando criativos...</div>;
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <RefreshCw size={20} className="animate-spin text-text-muted" />
+      </div>
+    );
   }
 
   const handleSort = (key: SortKey) => {
@@ -108,11 +112,6 @@ export const CriativosTab: React.FC<CriativosTabProps> = ({ criativos, adsWithLe
       setSortKey(key);
       setSortAsc(false);
     }
-  };
-
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return null;
-    return sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
   };
 
   const thClass = "px-3 py-2 text-left text-xs font-medium text-text-muted cursor-pointer hover:text-text-primary transition-colors whitespace-nowrap";
@@ -127,22 +126,22 @@ export const CriativosTab: React.FC<CriativosTabProps> = ({ criativos, adsWithLe
               <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">Campanha</th>
               <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">Status</th>
               <th className={thClass} onClick={() => handleSort('impressions')}>
-                <span className="flex items-center gap-1">Impressoes <SortIcon col="impressions" /></span>
+                <span className="flex items-center gap-1">Impressoes <SortIcon col="impressions" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className={thClass} onClick={() => handleSort('clicks')}>
-                <span className="flex items-center gap-1">Cliques <SortIcon col="clicks" /></span>
+                <span className="flex items-center gap-1">Cliques <SortIcon col="clicks" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className={thClass} onClick={() => handleSort('spend')}>
-                <span className="flex items-center gap-1">Gasto <SortIcon col="spend" /></span>
+                <span className="flex items-center gap-1">Gasto <SortIcon col="spend" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className={thClass} onClick={() => handleSort('cpc')}>
-                <span className="flex items-center gap-1">CPC <SortIcon col="cpc" /></span>
+                <span className="flex items-center gap-1">CPC <SortIcon col="cpc" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className={thClass} onClick={() => handleSort('cpm')}>
-                <span className="flex items-center gap-1">CPM <SortIcon col="cpm" /></span>
+                <span className="flex items-center gap-1">CPM <SortIcon col="cpm" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className={thClass} onClick={() => handleSort('conversas_iniciadas')}>
-                <span className="flex items-center gap-1">Conversas <SortIcon col="conversas_iniciadas" /></span>
+                <span className="flex items-center gap-1">Conversas <SortIcon col="conversas_iniciadas" sortKey={sortKey} sortAsc={sortAsc} /></span>
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-text-muted whitespace-nowrap">$/Conversa</th>
               <th className="px-3 py-2 text-left text-xs font-medium text-text-muted whitespace-nowrap">Leads</th>
