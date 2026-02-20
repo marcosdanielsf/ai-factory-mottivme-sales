@@ -60,6 +60,7 @@ import {
   Inbox,
   UserCog,
   Copy,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
@@ -117,6 +118,7 @@ const navSections: NavSection[] = [
           { icon: Brain, label: 'Memória', to: '/jarvis/memory' },
           { icon: FolderKanban, label: 'Projetos', to: '/jarvis/projects' },
           { icon: Copy, label: 'Clone', to: '/jarvis/clone' },
+          { icon: Smartphone, label: 'WhatsApp', to: '/jarvis/whatsapp' },
           { icon: Settings, label: 'Config', to: '/jarvis/config' },
         ]
       },

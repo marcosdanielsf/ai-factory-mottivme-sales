@@ -131,6 +131,9 @@ const SystemV4 = lazy(() => import('./pages/SystemV4'));
 // Clone do Marcos (coleta de mensagens + personalidade)
 const CloneDashboard = lazy(() => import('./pages/CloneDashboard'));
 
+// WhatsApp Manager (instancias, QR, conexao)
+const WhatsAppManager = lazy(() => import('./pages/WhatsAppManager'));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -930,6 +933,15 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <CloneDashboard />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/jarvis/whatsapp" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <WhatsAppManager />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>
