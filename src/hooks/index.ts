@@ -42,6 +42,7 @@ export * from './useVideoProducer';
 export * from './useContentJourneyLog';
 export * from './useSystemConfig';
 export * from './useSessionLogs';
+export { useAdsPerformance } from './useAdsPerformance';
 
 // Lead Gen hooks
 export { useLeadLists } from './leadgen/useLeadLists';

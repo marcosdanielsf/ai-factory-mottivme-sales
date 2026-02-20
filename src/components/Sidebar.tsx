@@ -163,6 +163,7 @@ const navSections: NavSection[] = [
           { icon: CalendarCheck, label: 'Agendamentos', to: '/agendamentos' },
           { icon: CheckCircle, label: 'Central de Status', to: '/status' },
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
+          { icon: BarChart3, label: 'Ads Performance', to: '/ads-performance' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
           { icon: Workflow, label: 'Hub Ops', to: '/workflows' },

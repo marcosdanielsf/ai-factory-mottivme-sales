@@ -71,6 +71,9 @@ const VideoProducerDetail = lazy(() => import('./pages/VideoProducerDetail'));
 // Social Selling Dashboard
 const SocialSellingDashboard = lazy(() => import('./pages/SocialSellingDashboard'));
 
+// Ads Performance Dashboard
+const AdsPerformance = lazy(() => import('./pages/AdsPerformance').then(m => ({ default: m.AdsPerformance })));
+
 // AIOS Dashboard pages (lazy loaded)
 const AiosAgentsPage = lazy(() => import('./pages/AiosAgents').then(m => ({ default: m.AiosAgents })));
 const AiosAgentDetailPage = lazy(() => import('./pages/AiosAgents/AgentDetail').then(m => ({ default: m.AiosAgentDetail })));
@@ -235,6 +238,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <SocialSellingDashboard />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ads-performance" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AdsPerformance />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>
