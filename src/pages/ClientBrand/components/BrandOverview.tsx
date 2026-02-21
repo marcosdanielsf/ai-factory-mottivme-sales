@@ -35,16 +35,21 @@ export const BrandOverview: React.FC<BrandOverviewProps> = ({ brand, assetCounts
           }}
         />
         <div className="relative flex items-center gap-6">
-          {brand.logo_url ? (
-            <img src={brand.logo_url} alt={brand.client_name} className="h-16 w-16 object-contain rounded-lg" />
-          ) : (
-            <div
-              className="h-16 w-16 rounded-lg flex items-center justify-center text-white text-2xl font-bold"
-              style={{ backgroundColor: brand.primary_color }}
-            >
-              {brand.client_name.charAt(0)}
-            </div>
-          )}
+          {(() => {
+            const heroImage = brand.theme_overrides?.['hero-image'];
+            const imgSrc = heroImage || brand.logo_url;
+            if (imgSrc) {
+              return <img src={imgSrc} alt={brand.client_name} className="h-20 w-20 object-cover rounded-xl" />;
+            }
+            return (
+              <div
+                className="h-20 w-20 rounded-xl flex items-center justify-center text-white text-2xl font-bold"
+                style={{ backgroundColor: brand.primary_color }}
+              >
+                {brand.client_name.charAt(0)}
+              </div>
+            );
+          })()}
           <div>
             <h1 className="text-2xl font-bold text-text-primary">{brand.client_name}</h1>
             {brand.client_tagline && (
