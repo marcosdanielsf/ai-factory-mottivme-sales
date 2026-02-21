@@ -1,5 +1,5 @@
 import React from 'react';
-import { salesOpsDAO, type ConversaoPorEtapa } from '../../../lib/supabase-sales-ops';
+import { salesOpsDAO, type ConversaoPorEtapa, type CustoPorEtapa } from '../../../lib/supabase-sales-ops';
 
 interface ConversionTableProps {
   data: ConversaoPorEtapa[];

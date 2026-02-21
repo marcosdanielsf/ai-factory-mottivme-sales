@@ -18,25 +18,32 @@ export default function GHLPipeline() {
     const activePipeline = pipelines[0];
 
     const funnelData = useMemo(() => {
-        if (!activePipeline || !opportunities.length) return [];
+        if (!activePipeline || !opportunities.length) {
+            return {
+                totalLeads: 0,
+                totalResponderam: 0,
+                totalAgendaram: 0,
+                totalCompareceram: 0,
+                totalFecharam: 0,
+            };
+        }
 
-        // Initialize counts for each stage
-        const stageCounts = activePipeline.stages.map(stage => ({
-            id: stage.id,
-            name: stage.name,
-            value: 0,
-            fill: 'var(--color-primary-500)', // Dynamic color assignment would be better
-        }));
+        const stages = activePipeline.stages;
+        const total = opportunities.length;
 
-        // Count opportunities in each stage
-        opportunities.forEach(opp => {
-            const stage = stageCounts.find(s => s.id === opp.pipelineStageId);
-            if (stage) {
-                stage.value += 1;
-            }
-        });
+        // Mapear etapas por posicao no pipeline (0=topo, last=fundo)
+        const getCountAtStage = (index: number) => {
+            if (!stages[index]) return 0;
+            return opportunities.filter(opp => opp.pipelineStageId === stages[index].id).length;
+        };
 
-        return stageCounts;
+        return {
+            totalLeads: total,
+            totalResponderam: stages.length > 1 ? total - getCountAtStage(0) : 0,
+            totalAgendaram: getCountAtStage(Math.floor(stages.length * 0.5)),
+            totalCompareceram: getCountAtStage(Math.floor(stages.length * 0.75)),
+            totalFecharam: stages.length > 1 ? getCountAtStage(stages.length - 1) : 0,
+        };
     }, [activePipeline, opportunities]);
 
     const totalValue = useMemo(() => {
@@ -128,7 +135,7 @@ export default function GHLPipeline() {
                     {activePipeline?.name || 'Pipeline'}
                 </h2>
 
-                {funnelData.length > 0 ? (
+                {funnelData.totalLeads > 0 ? (
                     <div className="h-[400px]">
                         <SalesFunnelChart data={funnelData} />
                     </div>

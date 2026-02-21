@@ -43,7 +43,7 @@ export function useAvailableContacts(): UseAvailableContactsReturn {
       setLoading(true);
       setError(null);
 
-      const apiUrl = import.meta.env.VITE_PIPECAT_API_URL || 'https://cold-call-bot-production.up.railway.app';
+      const apiUrl = import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api';
       
       // Build query params
       const params = new URLSearchParams();

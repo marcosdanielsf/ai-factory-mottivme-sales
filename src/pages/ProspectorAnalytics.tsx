@@ -165,7 +165,7 @@ const PerformanceTable = ({ data }: PerformanceTableProps) => {
                   <td className="p-3 text-white">
                     <div className="flex items-center gap-2">
                       {isTopPerformer && (
-                        <Trophy size={14} className="text-[#d29922]" title="Top Performer" />
+                        <span title="Top Performer"><Trophy size={14} className="text-[#d29922]" /></span>
                       )}
                       {row.template_name}
                     </div>

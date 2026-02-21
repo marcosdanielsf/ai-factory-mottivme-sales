@@ -25,9 +25,19 @@ import {
   LayoutDashboard,
   LucideIcon,
   ClipboardCheck,
+  Sparkles,
+  Target,
+  Zap,
+  Code,
+  Palette,
+  FileText,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { N8nAudit } from '../N8nAudit';
 import { sectors, getTotalWorkflows, getActiveWorkflows } from './data';
+import { skillSectors, getTotalSkills } from './skills-data';
+import type { SkillSector, SkillItem } from './skills-data';
 import type { Sector, SubSector, WorkflowItem, ResourceType, ResourceLink } from './data';
 import { useN8nWorkflows } from '../../hooks/useN8nWorkflows';
 
@@ -47,6 +57,10 @@ const typeIcons: Record<ResourceType, LucideIcon> = {
 
 const resourceTypeIcons: Record<string, LucideIcon> = {
   doc: BookOpen, dashboard: LayoutDashboard, api: Globe, tool: Wrench, repo: GitBranch,
+};
+
+const skillSectorIcons: Record<string, LucideIcon> = {
+  Target, Megaphone, Bot, Zap, Code, Palette, FileText, Settings,
 };
 
 // ============================================
@@ -352,11 +366,178 @@ const SectorTab = ({
 };
 
 // ============================================
+// SKILLS CATALOG
+// ============================================
+
+const SkillCard = ({ skill, onCopy }: { skill: SkillItem; onCopy: (slug: string) => void }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(`/sl ${skill.slug}`);
+    setCopied(true);
+    onCopy(skill.slug);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="group flex items-start gap-3 px-4 py-3 rounded-lg hover:bg-bg-hover transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-text-primary truncate">{skill.nome}</span>
+          <button
+            onClick={handleCopy}
+            className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-bg-tertiary transition-all"
+            title={`Copiar: /sl ${skill.slug}`}
+          >
+            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-text-muted" />}
+          </button>
+        </div>
+        <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{skill.descricao}</p>
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {skill.keywords.slice(0, 4).map((kw) => (
+            <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted">
+              {kw}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SkillSectorCard = ({ sector, searchQuery }: { sector: SkillSector; searchQuery: string }) => {
+  const [expanded, setExpanded] = useState(true);
+  const Icon = skillSectorIcons[sector.icone] || Sparkles;
+
+  const filteredSkills = searchQuery
+    ? sector.skills.filter(
+        (s) =>
+          s.nome.toLowerCase().includes(searchQuery) ||
+          s.descricao.toLowerCase().includes(searchQuery) ||
+          s.keywords.some((k) => k.toLowerCase().includes(searchQuery))
+      )
+    : sector.skills;
+
+  if (searchQuery && filteredSkills.length === 0) return null;
+
+  const handleCopy = (_slug: string) => {};
+
+  return (
+    <div className="border border-border-default rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-3 bg-bg-secondary hover:bg-bg-hover transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown size={14} className="text-text-muted" />
+        ) : (
+          <ChevronRight size={14} className="text-text-muted" />
+        )}
+        <Icon size={16} style={{ color: sector.cor }} />
+        <div className="flex-1 text-left">
+          <span className="text-sm font-medium text-text-primary">{sector.nome}</span>
+        </div>
+        <span className="text-xs text-text-muted">
+          {filteredSkills.length} skill{filteredSkills.length !== 1 ? 's' : ''}
+        </span>
+      </button>
+      {expanded && (
+        <div className="divide-y divide-border-default/50">
+          {filteredSkills.map((skill) => (
+            <SkillCard key={skill.slug} skill={skill} onCopy={handleCopy} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SkillsCatalog = () => {
+  const [skillSearch, setSkillSearch] = useState('');
+  const q = skillSearch.toLowerCase().trim();
+  const totalSkills = getTotalSkills();
+
+  const matchCount = q
+    ? skillSectors.reduce(
+        (acc, s) =>
+          acc +
+          s.skills.filter(
+            (sk) =>
+              sk.nome.toLowerCase().includes(q) ||
+              sk.descricao.toLowerCase().includes(q) ||
+              sk.keywords.some((k) => k.toLowerCase().includes(q))
+          ).length,
+        0
+      )
+    : totalSkills;
+
+  return (
+    <div className="space-y-4">
+      {/* Skills header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-amber-400" />
+          <span className="text-sm font-medium text-text-primary">
+            {totalSkills} skills em {skillSectors.length} setores
+          </span>
+          <span className="text-xs text-text-muted">
+            &middot; Use <code className="px-1 py-0.5 rounded bg-bg-tertiary text-amber-400 text-[10px]">/sl nome</code> no Claude Code
+          </span>
+        </div>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Buscar skills..."
+            value={skillSearch}
+            onChange={(e) => setSkillSearch(e.target.value)}
+            className="pl-8 pr-4 py-1.5 bg-bg-secondary border border-border-default rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary w-full sm:w-56"
+          />
+        </div>
+      </div>
+
+      {q && (
+        <p className="text-xs text-text-muted">
+          {matchCount} resultado{matchCount !== 1 ? 's' : ''} para &ldquo;{skillSearch}&rdquo;
+        </p>
+      )}
+
+      {/* Sector stats grid */}
+      {!q && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {skillSectors.map((s) => {
+            const Icon = skillSectorIcons[s.icone] || Sparkles;
+            return (
+              <div key={s.id} className="bg-bg-secondary border border-border-default rounded-lg p-2.5 text-center space-y-1">
+                <Icon size={16} style={{ color: s.cor }} className="mx-auto" />
+                <p className="text-xs font-medium text-text-secondary truncate">{s.nome}</p>
+                <p className="text-lg font-semibold text-text-primary">{s.skills.length}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sector cards */}
+      {skillSectors.map((sector) => (
+        <SkillSectorCard key={sector.id} sector={sector} searchQuery={q} />
+      ))}
+
+      {q && matchCount === 0 && (
+        <div className="text-center py-12 text-text-muted text-sm">
+          Nenhuma skill encontrada para &ldquo;{skillSearch}&rdquo;
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
 // PAGINA PRINCIPAL
 // ============================================
 
-// Tab especial para "Todos", "Favoritos" e "Auditoria"
-type SpecialTab = 'all' | 'favorites' | 'audit';
+// Tab especial para "Todos", "Favoritos", "Auditoria" e "Skills"
+type SpecialTab = 'all' | 'favorites' | 'audit' | 'skills';
 
 export const Workflows: React.FC = () => {
   const [activeSector, setActiveSector] = useState<string | SpecialTab>(sectors[0].id);
@@ -524,12 +705,31 @@ export const Workflows: React.FC = () => {
             12
           </span>
         </button>
+        {/* Skills tab */}
+        <button
+          onClick={() => { setActiveSector('skills'); setSearch(''); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            activeSector === 'skills'
+              ? 'bg-amber-400 text-zinc-900 shadow-sm'
+              : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+          }`}
+        >
+          <Sparkles size={16} />
+          <span>Skills</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+            activeSector === 'skills' ? 'bg-white/30' : 'bg-amber-400/20 text-amber-400'
+          }`}>
+            {getTotalSkills()}
+          </span>
+        </button>
       </div>
 
       {/* Content */}
       <div className="space-y-4">
-        {/* Auditoria tab content */}
-        {activeSector === 'audit' ? (
+        {/* Skills tab content */}
+        {activeSector === 'skills' ? (
+          <SkillsCatalog />
+        ) : activeSector === 'audit' ? (
           <N8nAudit />
         ) : isGlobalSearch ? (
           globalResults.length === 0 ? (

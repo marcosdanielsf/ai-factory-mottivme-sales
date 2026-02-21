@@ -286,7 +286,7 @@ export const ColdCallDashboard = () => {
           </div>
           <div className="lg:col-span-1">
             <RetryQueuePanel 
-              botApiUrl="https://cold-call-bot-production.up.railway.app"
+              botApiUrl={import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api'}
               autoRefresh={true}
               refreshInterval={30000}
             />

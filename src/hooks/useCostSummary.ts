@@ -40,11 +40,7 @@ export function useCostSummary(days: number = 30): UseCostSummaryReturn {
       setLoading(true);
       setError(null);
 
-      const baseUrl = import.meta.env.VITE_PIPECAT_API_URL;
-      
-      if (!baseUrl) {
-        throw new Error('VITE_PIPECAT_API_URL não configurado no .env.local');
-      }
+      const baseUrl = import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api';
 
       const url = `${baseUrl}/costs/summary?days=${days}`;
       const response = await fetch(url);
