@@ -76,7 +76,7 @@ function getOutcomeBadge(outcome?: string): { color: string; label: string } {
 
 export function RetryQueuePanel({
   className = '',
-  botApiUrl = 'https://cold-call-bot-production.up.railway.app',
+  botApiUrl = import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api',
   autoRefresh = true,
   refreshInterval = 30000, // 30s
 }: RetryQueuePanelProps) {

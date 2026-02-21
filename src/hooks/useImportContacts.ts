@@ -40,7 +40,7 @@ export function useImportContacts(): UseImportContactsReturn {
       setError(null);
       setResult(null);
 
-      const apiUrl = import.meta.env.VITE_PIPECAT_API_URL || 'https://cold-call-bot-production.up.railway.app';
+      const apiUrl = import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api';
 
       const response = await fetch(`${apiUrl}/campaign/${campaignId}/import-contacts`, {
         method: 'POST',
