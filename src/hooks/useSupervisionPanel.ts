@@ -41,7 +41,11 @@ const CONVERSATION_FIELDS = `
   converted_at,
   supervision_updated_at,
   message_count,
-  channel
+  channel,
+  meeting_status,
+  lost_reason,
+  lost_reason_notes,
+  lead_source
 `;
 
 // View a usar (v4 corrige duplicatas e nomes)

@@ -34,6 +34,10 @@ export const useSupervisionActions = (
         converted_at?: string;
         location_id?: string;
         contact_name?: string;
+        meeting_status?: string;
+        lost_reason?: string;
+        lost_reason_notes?: string;
+        lead_source?: string;
       }
     ): Promise<boolean> => {
       try {
@@ -166,7 +170,8 @@ export const useSupervisionActions = (
       return updateState(sessionId, {
         status: 'lost' as SupervisionStatus,
         ai_enabled: false,
-        notes: lostReasonNotes ? `[Perdido: ${lostReason}] ${lostReasonNotes}` : `[Perdido: ${lostReason}]`,
+        lost_reason: lostReason,
+        lost_reason_notes: lostReasonNotes,
       });
     },
     [updateState]
@@ -181,18 +186,13 @@ export const useSupervisionActions = (
         fechado: 'converted' as SupervisionStatus,
       };
       const newStatus = statusMap[meetingStatus] || ('ai_active' as SupervisionStatus);
-      const updateData: any = {
+      return updateState(sessionId, {
         status: newStatus,
-        notes: notes ? `[Reuniao: ${meetingStatus}] ${notes}` : `[Reuniao: ${meetingStatus}]`,
-      };
-      if (meetingStatus === 'fechado') {
-        updateData.converted_at = new Date().toISOString();
-        updateData.ai_enabled = false;
-      }
-      if (meetingStatus === 'cancelado') {
-        updateData.ai_enabled = false;
-      }
-      return updateState(sessionId, updateData);
+        meeting_status: meetingStatus,
+        notes: notes || undefined,
+        converted_at: meetingStatus === 'fechado' ? new Date().toISOString() : undefined,
+        ai_enabled: meetingStatus === 'cancelado' || meetingStatus === 'fechado' ? false : undefined,
+      });
     },
     [updateState]
   );
@@ -200,7 +200,7 @@ export const useSupervisionActions = (
   const updateLeadSource = useCallback(
     async (sessionId: string, leadSource: string): Promise<boolean> => {
       return updateState(sessionId, {
-        notes: `[Fonte: ${leadSource}]`,
+        lead_source: leadSource,
       });
     },
     [updateState]
