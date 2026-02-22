@@ -48,23 +48,30 @@ export const useFilterOptions = (): UseFilterOptionsReturn => {
       }
 
       if (filterRes.data) {
-        // Enriquecer locations com nomes da ghl_locations
+        // Enriquecer locations com nomes da ghl_locations e deduplicar por location_id
         const rawLocations = filterRes.data.filter((o) => o.filter_type === 'location');
-        const locations = rawLocations.map((loc) => ({
-          ...loc,
-          label: locationNameMap.get(loc.value) || loc.label || loc.value,
-        }));
+        const locationMap = new Map<string, FilterOption>();
 
-        const channels = filterRes.data.filter((o) => o.filter_type === 'channel');
-        const etapasFunil = filterRes.data.filter((o) => o.filter_type === 'etapa_funil');
-        const responsaveis = filterRes.data.filter((o) => o.filter_type === 'responsavel');
+        // Primeiro: locations da view (tem count real)
+        rawLocations.forEach((loc) => {
+          const id = loc.value;
+          const existing = locationMap.get(id);
+          if (existing) {
+            // Somar counts de duplicatas
+            existing.count = (existing.count || 0) + (loc.count || 0);
+          } else {
+            locationMap.set(id, {
+              ...loc,
+              label: locationNameMap.get(id) || loc.label || id,
+            });
+          }
+        });
 
-        // Se ghl_locations tem locations que nao estao no filter (sem conversas), adicionar com count 0
+        // Segundo: ghl_locations sem conversas (count 0)
         if (locationsRes.data) {
-          const existingIds = new Set(locations.map((l) => l.value));
           locationsRes.data.forEach((loc) => {
-            if (!existingIds.has(loc.location_id)) {
-              locations.push({
+            if (!locationMap.has(loc.location_id)) {
+              locationMap.set(loc.location_id, {
                 filter_type: 'location',
                 value: loc.location_id,
                 label: loc.location_name,
@@ -73,6 +80,11 @@ export const useFilterOptions = (): UseFilterOptionsReturn => {
             }
           });
         }
+
+        const locations = Array.from(locationMap.values());
+        const channels = filterRes.data.filter((o) => o.filter_type === 'channel');
+        const etapasFunil = filterRes.data.filter((o) => o.filter_type === 'etapa_funil');
+        const responsaveis = filterRes.data.filter((o) => o.filter_type === 'responsavel');
 
         setOptions({
           locations: locations.sort((a, b) => (a.label || '').localeCompare(b.label || '')),
