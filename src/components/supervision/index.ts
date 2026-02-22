@@ -6,3 +6,8 @@ export { SupervisionFiltersBar } from './SupervisionFilters';
 export { MessageComposer } from './MessageComposer';
 export { QualityBadge, QualityFlagIcon, QualityIndicator, SeverityBadge } from './QualityBadge';
 export { QualityFlagsList } from './QualityFlagsList';
+export { SupervisionKanban } from './SupervisionKanban';
+export { SupervisionMetrics } from './SupervisionMetrics';
+export { LostReasonModal } from './LostReasonModal';
+export { MeetingStatusModal } from './MeetingStatusModal';
+export { SavedFiltersPanel } from './SavedFiltersPanel';

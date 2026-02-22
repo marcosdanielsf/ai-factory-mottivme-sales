@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, LayoutList, Columns3, BarChart3 } from 'lucide-react';
 import {
   SupervisionHeader,
   ConversationList,
   ConversationDetail,
+  SupervisionKanban,
+  SupervisionMetrics,
 } from '../components/supervision';
 import { useSupervisionPanel } from '../hooks/useSupervisionPanel';
 import { useConversationMessages } from '../hooks/useConversationMessages';
@@ -11,20 +13,21 @@ import { useSupervisionActions } from '../hooks/useSupervisionActions';
 import { useFilterOptions } from '../hooks/useFilterOptions';
 import { useSupervisionRealtime, useConversationRealtime } from '../hooks/useSupervisionRealtime';
 import { useSendMessage } from '../hooks/useSendMessage';
+import { useSavedFilters } from '../hooks/useSavedFilters';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { SupervisionConversation } from '../types/supervision';
+import { SupervisionConversation, SupervisionStatus } from '../types/supervision';
+import { SavedFiltersPanel } from '../components/supervision/SavedFiltersPanel';
+
+type ViewMode = 'list' | 'kanban' | 'metrics';
 
 export const Supervision: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<SupervisionConversation | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
-  // Detecta se é mobile
   const isMobile = useIsMobile();
-
-  // Ref para selectedConversation - estabiliza callbacks do realtime
   const selectedConversationRef = useRef<SupervisionConversation | null>(null);
 
-  // Sincroniza ref com state
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
@@ -44,7 +47,6 @@ export const Supervision: React.FC = () => {
     refetch: refetchMessages,
   } = useConversationMessages(selectedConversation?.session_id || null);
 
-  // Opcoes de filtros (Fase 2)
   const { options: filterOptions, loading: filterOptionsLoading } = useFilterOptions();
 
   const {
@@ -55,51 +57,50 @@ export const Supervision: React.FC = () => {
     markAsConverted,
     addNote,
     archiveConversation,
+    markAsLost,
+    updateMeetingStatus,
+    updateLeadSource,
   } = useSupervisionActions(() => {
     refetch();
     refetchMessages();
   });
 
-  // Hook para envio de mensagens manuais
   const {
     sending: sendingMessage,
     error: sendError,
     sendMessage,
     clearError: clearSendError,
   } = useSendMessage(() => {
-    // Callback de sucesso - refetch mensagens
     refetchMessages();
   });
 
-  // Real-time: atualiza lista de conversas quando há mudanças
+  const { savedFilters, saveFilter, deleteFilter } = useSavedFilters();
+
+  // Real-time
   useSupervisionRealtime({
     onNewMessage: useCallback(() => {
-      // Nova mensagem em qualquer conversa - atualiza lista
       refetch();
     }, [refetch]),
     onConversationUpdate: useCallback(() => {
       refetch();
     }, [refetch]),
     onSupervisionStateChange: useCallback((payload) => {
-      // Estado de supervisão mudou - atualiza lista
       refetch();
-      // Usa ref para evitar re-criar callback quando selectedConversation muda
       const current = selectedConversationRef.current;
       if (current && payload.new?.session_id === current.session_id) {
-        // Atualiza conversa selecionada com novos dados
         setSelectedConversation((prev) =>
-          prev ? { ...prev, ai_enabled: payload.new?.ai_enabled, supervision_status: payload.new?.status } : null
+          prev
+            ? { ...prev, ai_enabled: payload.new?.ai_enabled, supervision_status: payload.new?.status }
+            : null
         );
       }
-    }, [refetch]), // Removido selectedConversation das deps!
+    }, [refetch]),
     enabled: true,
   });
 
-  // Real-time: atualiza mensagens da conversa selecionada
   useConversationRealtime(
     selectedConversation?.session_id || null,
     useCallback(() => {
-      // Nova mensagem na conversa selecionada - refetch imediato
       refetchMessages();
     }, [refetchMessages])
   );
@@ -155,10 +156,30 @@ export const Supervision: React.FC = () => {
     }
   }, [archiveConversation]);
 
+  const handleMarkAsLost = useCallback(async (reason: string, notes?: string) => {
+    const current = selectedConversationRef.current;
+    if (current) {
+      await markAsLost(current.session_id, reason, notes);
+    }
+  }, [markAsLost]);
+
+  const handleUpdateMeetingStatus = useCallback(async (meetingStatus: string, notes?: string) => {
+    const current = selectedConversationRef.current;
+    if (current) {
+      await updateMeetingStatus(current.session_id, meetingStatus, notes);
+    }
+  }, [updateMeetingStatus]);
+
+  const handleUpdateLeadSource = useCallback(async (source: string) => {
+    const current = selectedConversationRef.current;
+    if (current) {
+      await updateLeadSource(current.session_id, source);
+    }
+  }, [updateLeadSource]);
+
   const handleSendMessage = useCallback(async (message: string): Promise<boolean> => {
     const current = selectedConversationRef.current;
     if (!current) return false;
-
     return await sendMessage({
       sessionId: current.session_id,
       locationId: current.location_id || '',
@@ -168,32 +189,99 @@ export const Supervision: React.FC = () => {
     });
   }, [sendMessage]);
 
-  // Layout Mobile: mostra lista OU detalhe (não ambos)
+  const handleKanbanStatusChange = useCallback(
+    async (sessionId: string, newStatus: SupervisionStatus) => {
+      if (newStatus === 'converted') {
+        await markAsConverted(sessionId);
+      } else if (newStatus === 'archived') {
+        await archiveConversation(sessionId);
+      } else {
+        const { supabase } = await import('../lib/supabase');
+        await supabase
+          .from('supervision_states')
+          .upsert(
+            {
+              session_id: sessionId,
+              status: newStatus,
+              ai_enabled: newStatus === 'ai_active',
+              updated_by: 'user',
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'session_id' }
+          );
+        refetch();
+      }
+    },
+    [markAsConverted, archiveConversation, refetch]
+  );
+
+  // View Toggle Component
+  const ViewToggle = () => (
+    <div className="flex bg-bg-hover rounded-lg p-0.5">
+      <button
+        onClick={() => setViewMode('list')}
+        className={`p-1.5 rounded-md transition-colors ${
+          viewMode === 'list'
+            ? 'bg-accent-primary text-white'
+            : 'text-text-muted hover:text-text-secondary'
+        }`}
+        title="Lista"
+      >
+        <LayoutList size={14} />
+      </button>
+      <button
+        onClick={() => setViewMode('kanban')}
+        className={`p-1.5 rounded-md transition-colors ${
+          viewMode === 'kanban'
+            ? 'bg-accent-primary text-white'
+            : 'text-text-muted hover:text-text-secondary'
+        }`}
+        title="Kanban"
+      >
+        <Columns3 size={14} />
+      </button>
+      <button
+        onClick={() => setViewMode('metrics')}
+        className={`p-1.5 rounded-md transition-colors ${
+          viewMode === 'metrics'
+            ? 'bg-accent-primary text-white'
+            : 'text-text-muted hover:text-text-secondary'
+        }`}
+        title="Metricas"
+      >
+        <BarChart3 size={14} />
+      </button>
+    </div>
+  );
+
+  const detailProps = {
+    conversation: selectedConversation!,
+    messages,
+    loading: messagesLoading,
+    onClose: handleCloseDetail,
+    onPauseAI: handlePauseAI,
+    onResumeAI: handleResumeAI,
+    onMarkScheduled: handleMarkScheduled,
+    onMarkConverted: handleMarkConverted,
+    onAddNote: handleAddNote,
+    onArchive: handleArchive,
+    onMarkAsLost: handleMarkAsLost,
+    onUpdateMeetingStatus: handleUpdateMeetingStatus,
+    onUpdateLeadSource: handleUpdateLeadSource,
+    executing,
+    onSendMessage: handleSendMessage,
+    sendingMessage,
+    sendError,
+    onClearSendError: clearSendError,
+  };
+
+  // Mobile Layout
   if (isMobile) {
     return (
       <div className="h-full flex flex-col bg-bg-primary">
         {selectedConversation ? (
-          // Mobile: Detalhe da conversa (fullscreen)
-          <ConversationDetail
-            conversation={selectedConversation}
-            messages={messages}
-            loading={messagesLoading}
-            onClose={handleCloseDetail}
-            onPauseAI={handlePauseAI}
-            onResumeAI={handleResumeAI}
-            onMarkScheduled={handleMarkScheduled}
-            onMarkConverted={handleMarkConverted}
-            onAddNote={handleAddNote}
-            onArchive={handleArchive}
-            executing={executing}
-            onSendMessage={handleSendMessage}
-            sendingMessage={sendingMessage}
-            sendError={sendError}
-            onClearSendError={clearSendError}
-            isMobile={true}
-          />
+          <ConversationDetail {...detailProps} isMobile={true} />
         ) : (
-          // Mobile: Lista de conversas (fullscreen)
           <>
             <SupervisionHeader
               stats={stats}
@@ -203,78 +291,134 @@ export const Supervision: React.FC = () => {
               loading={listLoading}
               filterOptions={filterOptions}
               isMobile={true}
+              viewToggle={<ViewToggle />}
             />
-            <ConversationList
-              conversations={conversations}
-              selectedId={selectedConversation?.session_id || null}
-              onSelect={handleSelectConversation}
-              loading={listLoading}
-            />
+            {savedFilters.length > 0 && viewMode !== 'metrics' && (
+              <div className="px-3">
+                <SavedFiltersPanel
+                  savedFilters={savedFilters}
+                  currentFilters={filters}
+                  onApply={setFilters}
+                  onSave={saveFilter}
+                  onDelete={deleteFilter}
+                />
+              </div>
+            )}
+            {viewMode === 'list' && (
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.session_id || null}
+                onSelect={handleSelectConversation}
+                loading={listLoading}
+              />
+            )}
+            {viewMode === 'kanban' && (
+              <SupervisionKanban
+                conversations={conversations}
+                onSelect={handleSelectConversation}
+                onStatusChange={handleKanbanStatusChange}
+                selectedId={selectedConversation?.session_id || null}
+              />
+            )}
+            {viewMode === 'metrics' && (
+              <SupervisionMetrics conversations={conversations} />
+            )}
           </>
         )}
       </div>
     );
   }
 
-  // Layout Desktop: side-by-side
+  // Desktop Layout
   return (
     <div className="h-full flex bg-bg-primary">
-      {/* Left Panel - Conversation List */}
-      <div className="w-[400px] flex flex-col border-r border-border-default bg-bg-secondary">
-        <SupervisionHeader
-          stats={stats}
-          filters={filters}
-          onFilterChange={setFilters}
-          onRefresh={refetch}
-          loading={listLoading}
-          filterOptions={filterOptions}
-          isMobile={false}
-        />
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversation?.session_id || null}
-          onSelect={handleSelectConversation}
-          loading={listLoading}
-        />
-      </div>
-
-      {/* Right Panel - Conversation Detail */}
-      <div className="flex-1 flex flex-col">
-        {selectedConversation ? (
-          <ConversationDetail
-            conversation={selectedConversation}
-            messages={messages}
-            loading={messagesLoading}
-            onClose={handleCloseDetail}
-            onPauseAI={handlePauseAI}
-            onResumeAI={handleResumeAI}
-            onMarkScheduled={handleMarkScheduled}
-            onMarkConverted={handleMarkConverted}
-            onAddNote={handleAddNote}
-            onArchive={handleArchive}
-            executing={executing}
-            onSendMessage={handleSendMessage}
-            sendingMessage={sendingMessage}
-            sendError={sendError}
-            onClearSendError={clearSendError}
+      {/* Left Panel — only visible in list mode */}
+      {viewMode === 'list' && (
+        <div className="w-[400px] flex flex-col border-r border-border-default bg-bg-secondary">
+          <SupervisionHeader
+            stats={stats}
+            filters={filters}
+            onFilterChange={setFilters}
+            onRefresh={refetch}
+            loading={listLoading}
+            filterOptions={filterOptions}
             isMobile={false}
+            viewToggle={<ViewToggle />}
           />
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-bg-secondary">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-bg-hover flex items-center justify-center mx-auto mb-4">
-                <MessageSquare size={32} className="text-text-muted" />
-              </div>
-              <h3 className="text-lg font-medium text-text-primary mb-2">
-                Selecione uma conversa
-              </h3>
-              <p className="text-sm text-text-muted max-w-xs">
-                Escolha uma conversa na lista para visualizar as mensagens e realizar acoes
-              </p>
-            </div>
+          <div className="px-3">
+            <SavedFiltersPanel
+              savedFilters={savedFilters}
+              currentFilters={filters}
+              onApply={setFilters}
+              onSave={saveFilter}
+              onDelete={deleteFilter}
+            />
           </div>
-        )}
-      </div>
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversation?.session_id || null}
+            onSelect={handleSelectConversation}
+            loading={listLoading}
+          />
+        </div>
+      )}
+
+      {/* Kanban View */}
+      {viewMode === 'kanban' && (
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 py-2 border-b border-border-default bg-bg-secondary flex items-center gap-3">
+            <ViewToggle />
+            <h1 className="text-base font-semibold text-text-primary">Supervisao IA - Kanban</h1>
+          </div>
+          <div className="flex-1 flex overflow-hidden">
+            <SupervisionKanban
+              conversations={conversations}
+              onSelect={handleSelectConversation}
+              onStatusChange={handleKanbanStatusChange}
+              selectedId={selectedConversation?.session_id || null}
+            />
+            {selectedConversation && (
+              <div className="w-[400px] border-l border-border-default shrink-0">
+                <ConversationDetail {...detailProps} isMobile={false} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Metrics View */}
+      {viewMode === 'metrics' && (
+        <div className="flex-1 flex flex-col">
+          <div className="px-4 py-2 border-b border-border-default bg-bg-secondary flex items-center gap-3">
+            <ViewToggle />
+            <h1 className="text-base font-semibold text-text-primary">Supervisao IA - Metricas</h1>
+          </div>
+          <SupervisionMetrics conversations={conversations} />
+        </div>
+      )}
+
+      {/* List View — right panel */}
+      {viewMode === 'list' && (
+        <div className="flex-1 flex flex-col">
+          {selectedConversation ? (
+            <ConversationDetail {...detailProps} isMobile={false} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-bg-secondary">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-bg-hover flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare size={32} className="text-text-muted" />
+                </div>
+                <h3 className="text-lg font-medium text-text-primary mb-2">
+                  Selecione uma conversa
+                </h3>
+                <p className="text-sm text-text-muted max-w-xs">
+                  Escolha uma conversa na lista para visualizar as mensagens e realizar acoes
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

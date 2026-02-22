@@ -31,17 +31,48 @@ export const useFilterOptions = (): UseFilterOptionsReturn => {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('vw_filter_options')
-        .select('*');
+      // Buscar filter options e ghl_locations em paralelo
+      const [filterRes, locationsRes] = await Promise.all([
+        supabase.from('vw_filter_options').select('*'),
+        supabase.from('ghl_locations').select('location_id, location_name').order('location_name'),
+      ]);
 
-      if (fetchError) throw fetchError;
+      if (filterRes.error) throw filterRes.error;
 
-      if (data) {
-        const locations = data.filter((o) => o.filter_type === 'location');
-        const channels = data.filter((o) => o.filter_type === 'channel');
-        const etapasFunil = data.filter((o) => o.filter_type === 'etapa_funil');
-        const responsaveis = data.filter((o) => o.filter_type === 'responsavel');
+      // Criar mapa location_id → location_name
+      const locationNameMap = new Map<string, string>();
+      if (locationsRes.data) {
+        locationsRes.data.forEach((loc) => {
+          locationNameMap.set(loc.location_id, loc.location_name);
+        });
+      }
+
+      if (filterRes.data) {
+        // Enriquecer locations com nomes da ghl_locations
+        const rawLocations = filterRes.data.filter((o) => o.filter_type === 'location');
+        const locations = rawLocations.map((loc) => ({
+          ...loc,
+          label: locationNameMap.get(loc.value) || loc.label || loc.value,
+        }));
+
+        const channels = filterRes.data.filter((o) => o.filter_type === 'channel');
+        const etapasFunil = filterRes.data.filter((o) => o.filter_type === 'etapa_funil');
+        const responsaveis = filterRes.data.filter((o) => o.filter_type === 'responsavel');
+
+        // Se ghl_locations tem locations que nao estao no filter (sem conversas), adicionar com count 0
+        if (locationsRes.data) {
+          const existingIds = new Set(locations.map((l) => l.value));
+          locationsRes.data.forEach((loc) => {
+            if (!existingIds.has(loc.location_id)) {
+              locations.push({
+                filter_type: 'location',
+                value: loc.location_id,
+                label: loc.location_name,
+                count: 0,
+              });
+            }
+          });
+        }
 
         setOptions({
           locations: locations.sort((a, b) => (a.label || '').localeCompare(b.label || '')),

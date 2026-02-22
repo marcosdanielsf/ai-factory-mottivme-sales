@@ -11,6 +11,9 @@ interface UseSupervisionActionsReturn {
   markAsConverted: (conversationId: string, notes?: string) => Promise<boolean>;
   addNote: (conversationId: string, notes: string) => Promise<boolean>;
   archiveConversation: (conversationId: string) => Promise<boolean>;
+  markAsLost: (conversationId: string, lostReason: string, lostReasonNotes?: string) => Promise<boolean>;
+  updateMeetingStatus: (conversationId: string, meetingStatus: string, notes?: string) => Promise<boolean>;
+  updateLeadSource: (conversationId: string, leadSource: string) => Promise<boolean>;
   executeAction: (action: SupervisionAction) => Promise<boolean>;
 }
 
@@ -158,6 +161,51 @@ export const useSupervisionActions = (
     [updateState]
   );
 
+  const markAsLost = useCallback(
+    async (sessionId: string, lostReason: string, lostReasonNotes?: string): Promise<boolean> => {
+      return updateState(sessionId, {
+        status: 'lost' as SupervisionStatus,
+        ai_enabled: false,
+        notes: lostReasonNotes ? `[Perdido: ${lostReason}] ${lostReasonNotes}` : `[Perdido: ${lostReason}]`,
+      });
+    },
+    [updateState]
+  );
+
+  const updateMeetingStatus = useCallback(
+    async (sessionId: string, meetingStatus: string, notes?: string): Promise<boolean> => {
+      const statusMap: Record<string, SupervisionStatus> = {
+        cancelado: 'lost' as SupervisionStatus,
+        no_show: 'scheduled' as SupervisionStatus,
+        compareceu: 'ai_active' as SupervisionStatus,
+        fechado: 'converted' as SupervisionStatus,
+      };
+      const newStatus = statusMap[meetingStatus] || ('ai_active' as SupervisionStatus);
+      const updateData: any = {
+        status: newStatus,
+        notes: notes ? `[Reuniao: ${meetingStatus}] ${notes}` : `[Reuniao: ${meetingStatus}]`,
+      };
+      if (meetingStatus === 'fechado') {
+        updateData.converted_at = new Date().toISOString();
+        updateData.ai_enabled = false;
+      }
+      if (meetingStatus === 'cancelado') {
+        updateData.ai_enabled = false;
+      }
+      return updateState(sessionId, updateData);
+    },
+    [updateState]
+  );
+
+  const updateLeadSource = useCallback(
+    async (sessionId: string, leadSource: string): Promise<boolean> => {
+      return updateState(sessionId, {
+        notes: `[Fonte: ${leadSource}]`,
+      });
+    },
+    [updateState]
+  );
+
   const executeAction = useCallback(
     async (action: SupervisionAction): Promise<boolean> => {
       switch (action.type) {
@@ -181,7 +229,7 @@ export const useSupervisionActions = (
           return false;
       }
     },
-    [pauseAI, resumeAI, markAsScheduled, markAsConverted, addNote, archiveConversation]
+    [pauseAI, resumeAI, markAsScheduled, markAsConverted, addNote, archiveConversation, markAsLost, updateMeetingStatus, updateLeadSource]
   );
 
   return {
@@ -193,6 +241,9 @@ export const useSupervisionActions = (
     markAsConverted,
     addNote,
     archiveConversation,
+    markAsLost,
+    updateMeetingStatus,
+    updateLeadSource,
     executeAction,
   };
 };

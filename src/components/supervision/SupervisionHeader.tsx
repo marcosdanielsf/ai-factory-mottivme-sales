@@ -22,6 +22,7 @@ interface SupervisionHeaderProps {
     responsaveis: FilterOption[];
   };
   isMobile?: boolean;
+  viewToggle?: React.ReactNode;
 }
 
 export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
@@ -32,6 +33,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
   loading,
   filterOptions,
   isMobile = false,
+  viewToggle,
 }) => {
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showStatusPills, setShowStatusPills] = useState(!isMobile);
@@ -50,7 +52,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
     filters.locationId,
     filters.channel,
     filters.etapaFunil,
-    filters.responsavelId || filters.responsavel,
+    filters.responsavel,
     filters.dateFrom || filters.dateTo,
     filters.hasQualityIssues,
     filters.noResponse,
@@ -63,7 +65,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
       filters.locationId,
       filters.channel,
       filters.etapaFunil,
-      filters.responsavelId,
+      filters.responsavel,
       filters.search,
     ]),
   ].filter(Boolean).length;
@@ -79,6 +81,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
           {isMobile ? 'Supervisão' : 'Supervisão IA'}
         </h1>
         <div className="flex items-center gap-1.5">
+          {viewToggle}
           {/* Botão de filtros - Mobile */}
           {isMobile && (
             <button
@@ -244,7 +247,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                         locationId: undefined,
                         channel: undefined,
                         etapaFunil: undefined,
-                        responsavelId: undefined,
+                        responsavel: undefined,
                       });
                     }}
                     className="text-sm text-accent-primary"
@@ -351,8 +354,8 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                     <div>
                       <label className="block text-sm text-text-muted mb-2">Responsável</label>
                       <select
-                        value={filters.responsavelId || ''}
-                        onChange={(e) => onFilterChange({ ...filters, responsavelId: e.target.value || undefined })}
+                        value={filters.responsavel || ''}
+                        onChange={(e) => onFilterChange({ ...filters, responsavel: e.target.value || undefined })}
                         className="w-full px-3 py-2.5 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary"
                       >
                         <option value="">Todos</option>

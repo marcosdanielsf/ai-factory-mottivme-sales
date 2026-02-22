@@ -137,7 +137,8 @@ export type SupervisionStatus =
   | 'manual_takeover'
   | 'scheduled'
   | 'converted'
-  | 'archived';
+  | 'archived'
+  | 'lost';
 
 export interface SupervisionConversation {
   conversation_id: string;
@@ -173,6 +174,14 @@ export interface SupervisionConversation {
   instagram_username?: string | null;
   etapa_funil?: string | null;
   usuario_responsavel?: string | null;
+
+  // CRM fields
+  contact_id?: string | null;
+  meeting_status?: string | null;
+  lost_reason?: string | null;
+  lost_reason_notes?: string | null;
+  lead_source?: string | null;
+  tags?: string[] | null;
 }
 
 export interface SupervisionMessage {
@@ -221,6 +230,10 @@ export interface SupervisionFilters {
   hasQualityIssues?: boolean;
   // Filtro sem resposta (Fase 4)
   noResponse?: boolean;
+  // CRM filters (Topico 1/6)
+  leadSource?: string | null;
+  meetingStatus?: string | null;
+  tags?: string[] | null;
 }
 
 // Opcao de filtro para dropdowns
@@ -285,4 +298,102 @@ export const supervisionStatusConfig: Record<
     color: 'text-gray-400',
     bgColor: 'bg-gray-400/10',
   },
+  lost: {
+    label: 'Perdido',
+    color: 'text-red-400',
+    bgColor: 'bg-red-400/10',
+  },
 };
+
+// =====================================================
+// CRM IMPROVEMENTS - New Types
+// =====================================================
+
+// Topico 1: Saved Filters
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filters: SupervisionFilters;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Topico 4: Meeting Status
+export type MeetingStatus = 'cancelado' | 'no_show' | 'compareceu' | 'fechado';
+
+export const meetingStatusConfig: Record<MeetingStatus, { label: string; color: string; bgColor: string; icon: string }> = {
+  cancelado: { label: 'Cancelado', color: 'text-red-400', bgColor: 'bg-red-400/10', icon: 'XCircle' },
+  no_show: { label: 'No Show', color: 'text-orange-400', bgColor: 'bg-orange-400/10', icon: 'UserX' },
+  compareceu: { label: 'Compareceu', color: 'text-blue-400', bgColor: 'bg-blue-400/10', icon: 'UserCheck' },
+  fechado: { label: 'Fechado', color: 'text-emerald-400', bgColor: 'bg-emerald-400/10', icon: 'Trophy' },
+};
+
+// Topico 5: Lost Reason
+export type LostReason =
+  | 'sem_interesse'
+  | 'valor_alto'
+  | 'sem_documentacao'
+  | 'fechou_concorrente'
+  | 'nao_respondeu'
+  | 'lead_invalido'
+  | 'fora_do_perfil'
+  | 'outros';
+
+export const lostReasonConfig: Record<LostReason, { label: string }> = {
+  sem_interesse: { label: 'Sem interesse' },
+  valor_alto: { label: 'Valor alto' },
+  sem_documentacao: { label: 'Sem documentacao / sem work permit' },
+  fechou_concorrente: { label: 'Ja fechado com concorrente' },
+  nao_respondeu: { label: 'Nao respondeu' },
+  lead_invalido: { label: 'Lead invalido' },
+  fora_do_perfil: { label: 'Fora do perfil' },
+  outros: { label: 'Outros' },
+};
+
+// Topico 6: Lead Source
+export type LeadSource =
+  | 'bpo_carreira'
+  | 'bpo_consultoria'
+  | 'trafego_consultoria'
+  | 'trafego_carreira'
+  | 'contato_pessoal'
+  | 'novo_seguidor'
+  | 'seguidor_antigo'
+  | 'bpo_paciente'
+  | 'bpo_mentoria'
+  | 'trafego_mentoria'
+  | 'trafego_paciente'
+  | 'gatilho_social_mentoria'
+  | 'gatilho_social_paciente'
+  | 'trafego_matricula'
+  | 'bpo_matricula'
+  | 'gatilho_social_matricula';
+
+export const leadSourceConfig: Record<LeadSource, { label: string }> = {
+  bpo_carreira: { label: 'BPO Carreira' },
+  bpo_consultoria: { label: 'BPO Consultoria' },
+  trafego_consultoria: { label: 'Trafego Consultoria' },
+  trafego_carreira: { label: 'Trafego Carreira' },
+  contato_pessoal: { label: 'Contato Pessoal' },
+  novo_seguidor: { label: 'Novo Seguidor' },
+  seguidor_antigo: { label: 'Seguidor Antigo' },
+  bpo_paciente: { label: 'BPO Paciente' },
+  bpo_mentoria: { label: 'BPO Mentoria' },
+  trafego_mentoria: { label: 'Trafego Mentoria' },
+  trafego_paciente: { label: 'Trafego Paciente' },
+  gatilho_social_mentoria: { label: 'Gatilho Social Mentoria' },
+  gatilho_social_paciente: { label: 'Gatilho Social Paciente' },
+  trafego_matricula: { label: 'Trafego Matricula' },
+  bpo_matricula: { label: 'BPO Matricula' },
+  gatilho_social_matricula: { label: 'Gatilho Social Matricula' },
+};
+
+// Extended conversation with new CRM fields
+export interface SupervisionConversationExtended extends SupervisionConversation {
+  meeting_status?: MeetingStatus | null;
+  lost_reason?: LostReason | null;
+  lost_reason_notes?: string | null;
+  lead_source?: LeadSource | null;
+  contact_id?: string | null;
+  tags?: string[] | null;
+}

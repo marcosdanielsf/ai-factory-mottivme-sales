@@ -17,17 +17,25 @@ import {
   ChevronUp,
   ArrowLeft,
   MoreVertical,
+  UserCheck,
+  XCircle,
 } from 'lucide-react';
 import {
   SupervisionConversation,
   SupervisionMessage,
   supervisionStatusConfig,
+  LostReason,
+  MeetingStatus,
+  leadSourceConfig,
+  LeadSource,
 } from '../../types/supervision';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
 import { QualityIndicator } from './QualityBadge';
 import { QualityFlagsList } from './QualityFlagsList';
 import { useQualityFlags, useQualitySummary } from '../../hooks/useQualityFlags';
+import { LostReasonModal } from './LostReasonModal';
+import { MeetingStatusModal } from './MeetingStatusModal';
 
 interface ConversationDetailProps {
   conversation: SupervisionConversation;
@@ -40,6 +48,9 @@ interface ConversationDetailProps {
   onMarkConverted: (notes?: string) => void;
   onAddNote: (notes: string) => void;
   onArchive: () => void;
+  onMarkAsLost?: (reason: string, notes?: string) => void;
+  onUpdateMeetingStatus?: (status: string, notes?: string) => void;
+  onUpdateLeadSource?: (source: string) => void;
   executing: boolean;
   // Props para envio de mensagens
   onSendMessage: (message: string) => Promise<boolean>;
@@ -105,6 +116,9 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   onMarkConverted,
   onAddNote,
   onArchive,
+  onMarkAsLost,
+  onUpdateMeetingStatus,
+  onUpdateLeadSource,
   executing,
   onSendMessage,
   sendingMessage,
@@ -116,6 +130,8 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showQualityPanel, setShowQualityPanel] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showLostReasonModal, setShowLostReasonModal] = useState(false);
+  const [showMeetingStatusModal, setShowMeetingStatusModal] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleNotes, setScheduleNotes] = useState('');
@@ -167,6 +183,16 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
       setScheduleNotes('');
       setShowScheduleModal(false);
     }
+  };
+
+  const handleMarkLost = (reason: LostReason, notes?: string) => {
+    onMarkAsLost?.(reason, notes);
+    setShowLostReasonModal(false);
+  };
+
+  const handleMeetingStatus = (status: MeetingStatus, notes?: string) => {
+    onUpdateMeetingStatus?.(status, notes);
+    setShowMeetingStatusModal(false);
   };
 
   return (
@@ -297,6 +323,28 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                 >
                   <StickyNote size={15} />
                   Nota
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMeetingStatusModal(true);
+                    setShowActionsMenu(false);
+                  }}
+                  disabled={executing}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-blue-400 hover:bg-bg-hover disabled:opacity-50"
+                >
+                  <UserCheck size={15} />
+                  Status Reuniao
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLostReasonModal(true);
+                    setShowActionsMenu(false);
+                  }}
+                  disabled={executing}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-bg-hover disabled:opacity-50"
+                >
+                  <XCircle size={15} />
+                  Marcar Perdido
                 </button>
                 <div className="border-t border-border-default" />
                 <button
@@ -469,6 +517,24 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
           </div>
         </div>
       )}
+
+      {/* Lost Reason Modal */}
+      <LostReasonModal
+        isOpen={showLostReasonModal}
+        onClose={() => setShowLostReasonModal(false)}
+        onConfirm={handleMarkLost}
+        executing={executing}
+        isMobile={isMobile}
+      />
+
+      {/* Meeting Status Modal */}
+      <MeetingStatusModal
+        isOpen={showMeetingStatusModal}
+        onClose={() => setShowMeetingStatusModal(false)}
+        onConfirm={handleMeetingStatus}
+        executing={executing}
+        isMobile={isMobile}
+      />
     </div>
   );
 };
