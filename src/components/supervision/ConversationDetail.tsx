@@ -19,6 +19,8 @@ import {
   MoreVertical,
   UserCheck,
   XCircle,
+  Pencil,
+  Radio,
 } from 'lucide-react';
 import {
   SupervisionConversation,
@@ -26,6 +28,7 @@ import {
   supervisionStatusConfig,
   LostReason,
   MeetingStatus,
+  meetingStatusConfig,
   leadSourceConfig,
   LeadSource,
 } from '../../types/supervision';
@@ -132,11 +135,13 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showLostReasonModal, setShowLostReasonModal] = useState(false);
   const [showMeetingStatusModal, setShowMeetingStatusModal] = useState(false);
+  const [showLeadSourceDropdown, setShowLeadSourceDropdown] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleNotes, setScheduleNotes] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const leadSourceRef = useRef<HTMLDivElement>(null);
 
   // Quality Flags
   const {
@@ -154,11 +159,14 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
     }
   }, [messages]);
 
-  // Fecha menu ao clicar fora
+  // Fecha menus ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
         setShowActionsMenu(false);
+      }
+      if (leadSourceRef.current && !leadSourceRef.current.contains(event.target as Node)) {
+        setShowLeadSourceDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -374,9 +382,9 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
         </div>
       </div>
 
-      {/* Notes + Scheduled — compact inline banners */}
-      {(conversation.supervision_notes || conversation.scheduled_at) && (
-        <div className="flex gap-2 px-3 py-1.5 border-b border-border-default/50 text-xs">
+      {/* Notes + Scheduled + Meeting Status + Lead Source — compact inline banners */}
+      {(conversation.supervision_notes || conversation.scheduled_at || conversation.meeting_status || onUpdateLeadSource) && (
+        <div className="flex gap-2 px-3 py-1.5 border-b border-border-default/50 text-xs flex-wrap">
           {conversation.supervision_notes && (
             <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 rounded text-blue-400 truncate flex-1 min-w-0">
               <StickyNote size={11} className="shrink-0" />
@@ -387,6 +395,53 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
             <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 rounded text-purple-400 shrink-0">
               <Calendar size={11} />
               <span>{new Date(conversation.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
+          {conversation.meeting_status && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded shrink-0 ${meetingStatusConfig[conversation.meeting_status as MeetingStatus]?.bgColor || 'bg-blue-500/10'} ${meetingStatusConfig[conversation.meeting_status as MeetingStatus]?.color || 'text-blue-400'}`}>
+              <UserCheck size={11} />
+              <span>Reuniao: {meetingStatusConfig[conversation.meeting_status as MeetingStatus]?.label || conversation.meeting_status}</span>
+            </div>
+          )}
+          {/* Lead Source inline dropdown */}
+          {onUpdateLeadSource && (
+            <div className="relative shrink-0" ref={leadSourceRef}>
+              {conversation.lead_source ? (
+                <button
+                  onClick={() => setShowLeadSourceDropdown(v => !v)}
+                  className="flex items-center gap-1 px-2 py-1 bg-accent-primary/10 rounded text-accent-primary hover:bg-accent-primary/20 transition-colors"
+                >
+                  <Radio size={11} className="shrink-0" />
+                  <span>{leadSourceConfig[conversation.lead_source as LeadSource]?.label || conversation.lead_source}</span>
+                  <Pencil size={9} className="opacity-60" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLeadSourceDropdown(v => !v)}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-text-muted hover:text-text-secondary hover:bg-bg-hover transition-colors"
+                >
+                  <Radio size={11} />
+                  <span>Definir Fonte</span>
+                </button>
+              )}
+              {showLeadSourceDropdown && (
+                <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-bg-secondary border border-border-default rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                  {Object.entries(leadSourceConfig).map(([value, cfg]) => (
+                    <button
+                      key={value}
+                      onClick={() => {
+                        onUpdateLeadSource(value);
+                        setShowLeadSourceDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover cursor-pointer transition-colors ${
+                        conversation.lead_source === value ? 'text-accent-primary bg-accent-primary/5' : 'text-text-secondary'
+                      }`}
+                    >
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

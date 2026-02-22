@@ -13,10 +13,22 @@ import {
   Clock,
   Target,
 } from 'lucide-react';
-import { SupervisionConversation, supervisionStatusConfig } from '../../types/supervision';
+import {
+  SupervisionConversation,
+  supervisionStatusConfig,
+  FilterOption,
+  lostReasonConfig,
+  LostReason,
+} from '../../types/supervision';
 
 interface SupervisionMetricsProps {
   conversations: SupervisionConversation[];
+  filterOptions?: {
+    locations: FilterOption[];
+    channels: FilterOption[];
+    etapasFunil: FilterOption[];
+    responsaveis: FilterOption[];
+  };
 }
 
 interface MetricCard {
@@ -28,18 +40,53 @@ interface MetricCard {
   change?: number;
 }
 
-export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversations }) => {
+const PERIOD_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: '7d', label: '7d' },
+  { value: '14d', label: '14d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+] as const;
+
+type PeriodFilter = typeof PERIOD_OPTIONS[number]['value'];
+
+export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversations, filterOptions }) => {
   const [viewMode, setViewMode] = useState<'geral' | 'individual'>('geral');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
+  const [clientFilter, setClientFilter] = useState<string | null>(null);
+  const [channelFilter, setChannelFilter] = useState<string | null>(null);
+
+  // Apply local filters before computing metrics
+  const filteredConversations = useMemo(() => {
+    let filtered = conversations;
+
+    if (periodFilter !== 'all') {
+      const days = parseInt(periodFilter);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      filtered = filtered.filter((c) => new Date(c.last_message_at) >= cutoff);
+    }
+
+    if (clientFilter) {
+      filtered = filtered.filter((c) => c.location_id === clientFilter);
+    }
+
+    if (channelFilter) {
+      filtered = filtered.filter((c) => c.channel === channelFilter);
+    }
+
+    return filtered;
+  }, [conversations, periodFilter, clientFilter, channelFilter]);
 
   const metrics = useMemo(() => {
-    const total = conversations.length;
-    const aiActive = conversations.filter((c) => c.supervision_status === 'ai_active').length;
-    const aiPaused = conversations.filter((c) => c.supervision_status === 'ai_paused').length;
-    const scheduled = conversations.filter((c) => c.supervision_status === 'scheduled').length;
-    const converted = conversations.filter((c) => c.supervision_status === 'converted').length;
-    const lost = conversations.filter((c) => c.supervision_status === 'lost').length;
-    const archived = conversations.filter((c) => c.supervision_status === 'archived').length;
-    const noResponse = conversations.filter((c) => c.last_message_role === 'user').length;
+    const total = filteredConversations.length;
+    const aiActive = filteredConversations.filter((c) => c.supervision_status === 'ai_active').length;
+    const aiPaused = filteredConversations.filter((c) => c.supervision_status === 'ai_paused').length;
+    const scheduled = filteredConversations.filter((c) => c.supervision_status === 'scheduled').length;
+    const converted = filteredConversations.filter((c) => c.supervision_status === 'converted').length;
+    const lost = filteredConversations.filter((c) => c.supervision_status === 'lost').length;
+    const archived = filteredConversations.filter((c) => c.supervision_status === 'archived').length;
+    const noResponse = filteredConversations.filter((c) => c.last_message_role === 'user').length;
 
     const conversionRate = total > 0 ? ((converted / total) * 100).toFixed(1) : '0';
     const lossRate = total > 0 ? ((lost / total) * 100).toFixed(1) : '0';
@@ -49,12 +96,12 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
       total, aiActive, aiPaused, scheduled, converted, lost, archived, noResponse,
       conversionRate, lossRate, responseRate,
     };
-  }, [conversations]);
+  }, [filteredConversations]);
 
   // Group by responsavel
   const byResponsavel = useMemo(() => {
     const groups: Record<string, SupervisionConversation[]> = {};
-    conversations.forEach((c) => {
+    filteredConversations.forEach((c) => {
       const resp = c.usuario_responsavel || 'Sem responsavel';
       if (!groups[resp]) groups[resp] = [];
       groups[resp].push(c);
@@ -72,12 +119,12 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
           : '0',
       }))
       .sort((a, b) => b.total - a.total);
-  }, [conversations]);
+  }, [filteredConversations]);
 
   // Group by client
   const byClient = useMemo(() => {
     const groups: Record<string, SupervisionConversation[]> = {};
-    conversations.forEach((c) => {
+    filteredConversations.forEach((c) => {
       const client = c.client_name || 'Sem cliente';
       if (!groups[client]) groups[client] = [];
       groups[client].push(c);
@@ -90,12 +137,12 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
         lost: convs.filter((c) => c.supervision_status === 'lost').length,
       }))
       .sort((a, b) => b.total - a.total);
-  }, [conversations]);
+  }, [filteredConversations]);
 
   // Lost reasons breakdown
   const lostReasons = useMemo(() => {
     const reasons: Record<string, number> = {};
-    conversations
+    filteredConversations
       .filter((c) => c.supervision_status === 'lost')
       .forEach((c) => {
         const reason = c.lost_reason || 'nao_especificado';
@@ -104,7 +151,7 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
     return Object.entries(reasons)
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count);
-  }, [conversations]);
+  }, [filteredConversations]);
 
   const cards: MetricCard[] = [
     { label: 'Total de Leads', value: metrics.total, icon: <Users size={18} />, color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
@@ -143,6 +190,75 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
             Por Vendedor
           </button>
         </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Periodo */}
+        <div className="flex bg-bg-hover rounded-lg p-0.5">
+          {PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setPeriodFilter(opt.value)}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                periodFilter === opt.value
+                  ? 'bg-accent-primary text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Cliente */}
+        {filterOptions?.locations && filterOptions.locations.length > 0 && (
+          <select
+            value={clientFilter ?? ''}
+            onChange={(e) => setClientFilter(e.target.value || null)}
+            className="px-2 py-1 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent-primary"
+          >
+            <option value="">Todos Clientes</option>
+            {filterOptions.locations.map((loc) => (
+              <option key={loc.value} value={loc.value}>
+                {loc.label} ({loc.count})
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Canal */}
+        {filterOptions?.channels && filterOptions.channels.length > 0 && (
+          <select
+            value={channelFilter ?? ''}
+            onChange={(e) => setChannelFilter(e.target.value || null)}
+            className="px-2 py-1 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent-primary"
+          >
+            <option value="">Todos Canais</option>
+            {filterOptions.channels.map((ch) => (
+              <option key={ch.value} value={ch.value}>
+                {ch.label} ({ch.count})
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Indicador de filtros ativos */}
+        {(periodFilter !== 'all' || clientFilter || channelFilter) && (
+          <button
+            onClick={() => { setPeriodFilter('all'); setClientFilter(null); setChannelFilter(null); }}
+            className="px-2 py-1 text-xs text-text-muted hover:text-text-secondary border border-border-default rounded-lg transition-colors"
+          >
+            Limpar filtros
+          </button>
+        )}
+
+        {/* Contador de resultados filtrados */}
+        {(periodFilter !== 'all' || clientFilter || channelFilter) && (
+          <span className="text-xs text-text-muted ml-auto">
+            {filteredConversations.length} de {conversations.length} leads
+          </span>
+        )}
       </div>
 
       {/* Metric Cards */}
@@ -214,19 +330,20 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
           </div>
 
           {/* Lost Reasons */}
-          {lostReasons.length > 0 && (
+          {(lostReasons.length > 0 || metrics.lost > 0) && (
             <div className="bg-bg-secondary border border-border-default rounded-xl p-4">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <XCircle size={16} className="text-red-400" />
                 Motivos de Perda
+                <span className="text-xs text-text-muted ml-1">({metrics.lost} total)</span>
               </h3>
               <div className="space-y-2">
                 {lostReasons.map(({ reason, count }) => {
                   const pct = metrics.lost > 0 ? (count / metrics.lost) * 100 : 0;
                   return (
                     <div key={reason} className="flex items-center gap-3">
-                      <span className="text-xs text-text-secondary w-40 truncate capitalize">
-                        {reason.replace(/_/g, ' ')}
+                      <span className="text-xs text-text-secondary w-40 truncate">
+                        {lostReasonConfig[reason as LostReason]?.label || reason.replace(/_/g, ' ')}
                       </span>
                       <div className="flex-1 h-4 bg-bg-hover rounded-full overflow-hidden">
                         <div
@@ -236,6 +353,21 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
                       </div>
                       <span className="text-xs text-text-muted w-16 text-right">
                         {count} ({pct.toFixed(0)}%)
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Tabela resumo com todos os motivos (inclusive zerados) */}
+              <div className="mt-3 pt-3 border-t border-border-default/30 grid grid-cols-2 gap-2">
+                {Object.entries(lostReasonConfig).map(([key, config]) => {
+                  const count = lostReasons.find((r) => r.reason === key)?.count || 0;
+                  return (
+                    <div key={key} className="flex items-center justify-between text-xs">
+                      <span className="text-text-muted truncate pr-2">{config.label}</span>
+                      <span className={count > 0 ? 'text-red-400 font-medium shrink-0' : 'text-text-muted shrink-0'}>
+                        {count}
                       </span>
                     </div>
                   );

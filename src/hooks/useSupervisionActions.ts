@@ -31,18 +31,25 @@ export const useSupervisionActions = (
         ai_enabled?: boolean;
         notes?: string;
         scheduled_at?: string;
-        converted_at?: string;
+        converted_at?: string | null;
         location_id?: string;
         contact_name?: string;
         meeting_status?: string;
         lost_reason?: string;
         lost_reason_notes?: string;
         lead_source?: string;
+        lost_at?: string | null;
       }
     ): Promise<boolean> => {
       try {
         setExecuting(true);
         setError(null);
+
+        // Injetar campos automaticos ao marcar como perdido
+        if (updates.status === 'lost') {
+          updates.lost_at = new Date().toISOString();
+          updates.converted_at = null;
+        }
 
         // Primeiro, verificar se já existe um estado
         const { data: existing } = await supabase

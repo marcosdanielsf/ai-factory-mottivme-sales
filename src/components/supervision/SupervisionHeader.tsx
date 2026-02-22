@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RefreshCw, Search, Filter, ChevronDown, ChevronUp, X, SlidersHorizontal } from 'lucide-react';
-import { SupervisionFilters, SupervisionStatus, FilterOption } from '../../types/supervision';
+import { SupervisionFilters, SupervisionStatus, FilterOption, leadSourceConfig, meetingStatusConfig } from '../../types/supervision';
 import { SupervisionFiltersBar } from './SupervisionFilters';
 
 interface SupervisionHeaderProps {
@@ -56,6 +56,9 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
     filters.dateFrom || filters.dateTo,
     filters.hasQualityIssues,
     filters.noResponse,
+    filters.leadSource,
+    filters.meetingStatus,
+    filters.lastInteractionDays,
   ].filter(Boolean).length;
 
   // Conta total de filtros ativos
@@ -367,6 +370,52 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                       </select>
                     </div>
                   )}
+
+                  {/* Lead Source */}
+                  <div>
+                    <label className="block text-sm text-text-muted mb-2">Fonte do Lead</label>
+                    <select
+                      value={filters.leadSource || ''}
+                      onChange={(e) => onFilterChange({ ...filters, leadSource: e.target.value || undefined })}
+                      className="w-full px-3 py-2.5 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                    >
+                      <option value="">Todas as fontes</option>
+                      {Object.entries(leadSourceConfig).map(([value, cfg]) => (
+                        <option key={value} value={value}>{cfg.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Meeting Status */}
+                  <div>
+                    <label className="block text-sm text-text-muted mb-2">Status da Reuniao</label>
+                    <select
+                      value={filters.meetingStatus || ''}
+                      onChange={(e) => onFilterChange({ ...filters, meetingStatus: e.target.value || undefined })}
+                      className="w-full px-3 py-2.5 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                    >
+                      <option value="">Todos os status</option>
+                      {Object.entries(meetingStatusConfig).map(([value, cfg]) => (
+                        <option key={value} value={value}>{cfg.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ultima Interacao */}
+                  <div>
+                    <label className="block text-sm text-text-muted mb-2">Ultima Interacao</label>
+                    <select
+                      value={filters.lastInteractionDays ? String(filters.lastInteractionDays) : ''}
+                      onChange={(e) => onFilterChange({ ...filters, lastInteractionDays: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-2.5 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+                    >
+                      <option value="">Qualquer periodo</option>
+                      <option value="3">Ultimos 3 dias</option>
+                      <option value="7">Ultimos 7 dias</option>
+                      <option value="14">Ultimos 14 dias</option>
+                      <option value="30">Ultimos 30 dias</option>
+                    </select>
+                  </div>
                 </>
               )}
             </div>

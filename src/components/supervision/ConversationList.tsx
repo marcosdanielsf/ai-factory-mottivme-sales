@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MessageSquare, Bot, User, Clock, CheckCircle, PauseCircle, Calendar, Instagram } from 'lucide-react';
+import { MessageSquare, Bot, User, Clock, CheckCircle, PauseCircle, Calendar, Instagram, Check } from 'lucide-react';
 import {
   SupervisionConversation,
   SupervisionStatus,
@@ -15,6 +15,11 @@ interface ConversationListProps {
   selectedId: string | null;
   onSelect: (conversation: SupervisionConversation) => void;
   loading?: boolean;
+  // Selection mode props
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (sessionId: string) => void;
+  onSelectAll?: () => void;
 }
 
 // Altura estimada de cada item da lista (aumentado para evitar sobreposição)
@@ -26,6 +31,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   selectedId,
   onSelect,
   loading,
+  selectionMode = false,
+  selectedIds = new Set(),
+  onToggleSelect,
+  onSelectAll,
 }) => {
   // Ref para o container de scroll
   const parentRef = useRef<HTMLDivElement>(null);
@@ -140,11 +149,36 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
   };
 
+  const allSelected = conversations.length > 0 && conversations.every(c => selectedIds.has(c.session_id));
+
   return (
-    <div
-      ref={parentRef}
-      className="flex-1 overflow-y-auto"
-    >
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Select All header — only in selection mode */}
+      {selectionMode && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border-default/50 bg-bg-secondary shrink-0">
+          <button
+            onClick={onSelectAll}
+            className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                allSelected
+                  ? 'bg-accent-primary border-accent-primary'
+                  : 'border-border-default bg-bg-primary'
+              }`}
+            >
+              {allSelected && <Check size={10} className="text-white" strokeWidth={3} />}
+            </span>
+            <span>{allSelected ? 'Desmarcar todos' : 'Selecionar todos'}</span>
+          </button>
+          <span className="ml-auto text-xs text-text-muted">{selectedIds.size} selecionado(s)</span>
+        </div>
+      )}
+
+      <div
+        ref={parentRef}
+        className="flex-1 overflow-y-auto"
+      >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -155,6 +189,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         {virtualizer.getVirtualItems().map((virtualItem) => {
           const conversation = conversations[virtualItem.index];
           const isSelected = selectedId === conversation.session_id;
+          const isChecked = selectedIds.has(conversation.session_id);
           const statusConfig = supervisionStatusConfig[conversation.supervision_status];
           const qualitySummary = getSummary(conversation.session_id);
 
@@ -171,27 +206,52 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               }}
             >
               <div
-                onClick={() => onSelect(conversation)}
+                onClick={() => {
+                  if (selectionMode) {
+                    onToggleSelect?.(conversation.session_id);
+                  } else {
+                    onSelect(conversation);
+                  }
+                }}
                 className={`
                   p-2.5 md:p-3 mx-2 mb-1 rounded-lg cursor-pointer transition-colors active:bg-bg-hover/80
-                  ${isSelected 
-                    ? 'bg-accent-primary/10 border border-accent-primary' 
-                    : conversation.last_message_role === 'user'
-                      ? 'bg-yellow-400/20 hover:bg-yellow-400/25 border border-yellow-400/40'
-                      : 'hover:bg-bg-hover border border-transparent'
+                  ${selectionMode && isChecked
+                    ? 'bg-accent-primary/10 border border-accent-primary/60'
+                    : isSelected
+                      ? 'bg-accent-primary/10 border border-accent-primary'
+                      : conversation.last_message_role === 'user'
+                        ? 'bg-yellow-400/20 hover:bg-yellow-400/25 border border-yellow-400/40'
+                        : 'hover:bg-bg-hover border border-transparent'
                   }
                 `}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* Checkbox in selection mode, avatar otherwise */}
+                    {selectionMode ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSelect?.(conversation.session_id);
+                        }}
+                        className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isChecked
+                            ? 'bg-accent-primary border-accent-primary'
+                            : 'border-border-default bg-bg-primary hover:border-accent-primary'
+                        }`}
+                      >
+                        {isChecked && <Check size={10} className="text-white" strokeWidth={3} />}
+                      </button>
+                    ) : (
                     <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
-                      conversation.last_message_role === 'user' 
-                        ? 'bg-yellow-400/20 text-yellow-400 ring-2 ring-yellow-400/50' 
+                      conversation.last_message_role === 'user'
+                        ? 'bg-yellow-400/20 text-yellow-400 ring-2 ring-yellow-400/50'
                         : 'bg-bg-hover text-text-primary'
                     }`}>
                       {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
                     </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
                         <p className="text-xs md:text-sm font-medium text-text-primary truncate">
@@ -266,6 +326,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

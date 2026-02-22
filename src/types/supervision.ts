@@ -234,6 +234,8 @@ export interface SupervisionFilters {
   leadSource?: string | null;
   meetingStatus?: string | null;
   tags?: string[] | null;
+  // Filtro de ultima interacao (Feature #5)
+  lastInteractionDays?: number | null;
 }
 
 // Opcao de filtro para dropdowns

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MessageSquare, LayoutList, Columns3, BarChart3 } from 'lucide-react';
+import { MessageSquare, LayoutList, Columns3, BarChart3, CheckSquare, X, ChevronDown, Archive, MoveRight } from 'lucide-react';
 import {
   SupervisionHeader,
   ConversationList,
@@ -15,8 +15,9 @@ import { useSupervisionRealtime, useConversationRealtime } from '../hooks/useSup
 import { useSendMessage } from '../hooks/useSendMessage';
 import { useSavedFilters } from '../hooks/useSavedFilters';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { SupervisionConversation, SupervisionStatus } from '../types/supervision';
+import { SupervisionConversation, SupervisionStatus, supervisionStatusConfig } from '../types/supervision';
 import { SavedFiltersPanel } from '../components/supervision/SavedFiltersPanel';
+import { LostReasonModal } from '../components/supervision/LostReasonModal';
 
 type ViewMode = 'list' | 'kanban' | 'metrics';
 
@@ -24,6 +25,12 @@ export const Supervision: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<SupervisionConversation | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+  const bulkStatusRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile();
   const selectedConversationRef = useRef<SupervisionConversation | null>(null);
@@ -189,8 +196,82 @@ export const Supervision: React.FC = () => {
     });
   }, [sendMessage]);
 
+  // Selection handlers
+  const handleToggleSelect = useCallback((sessionId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) {
+        next.delete(sessionId);
+      } else {
+        next.add(sessionId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      const allIds = conversations.map(c => c.session_id);
+      const allSelected = allIds.every(id => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(allIds);
+    });
+  }, [conversations]);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setBulkStatusOpen(false);
+  }, []);
+
+  const handleBulkMoveStatus = useCallback(async (newStatus: SupervisionStatus) => {
+    setBulkStatusOpen(false);
+    const ids = Array.from(selectedIds);
+    for (const sessionId of ids) {
+      if (newStatus === 'converted') {
+        await markAsConverted(sessionId);
+      } else if (newStatus === 'archived') {
+        await archiveConversation(sessionId);
+      } else if (newStatus === 'ai_active') {
+        await resumeAI(sessionId);
+      } else if (newStatus === 'ai_paused') {
+        await pauseAI(sessionId);
+      } else if (newStatus === 'scheduled') {
+        await markAsScheduled(sessionId, new Date(Date.now() + 86400000).toISOString());
+      }
+    }
+    refetch();
+    handleCancelSelection();
+  }, [selectedIds, markAsConverted, archiveConversation, resumeAI, pauseAI, markAsScheduled, refetch, handleCancelSelection]);
+
+  const handleBulkArchive = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    for (const sessionId of ids) {
+      await archiveConversation(sessionId);
+    }
+    refetch();
+    handleCancelSelection();
+  }, [selectedIds, archiveConversation, refetch, handleCancelSelection]);
+
+  // Close bulk status dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bulkStatusRef.current && !bulkStatusRef.current.contains(e.target as Node)) {
+        setBulkStatusOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const [pendingLostSessionId, setPendingLostSessionId] = useState<string | null>(null);
+
   const handleKanbanStatusChange = useCallback(
     async (sessionId: string, newStatus: SupervisionStatus) => {
+      if (newStatus === 'lost') {
+        setPendingLostSessionId(sessionId);
+        return;
+      }
       if (newStatus === 'converted') {
         await markAsConverted(sessionId);
       } else if (newStatus === 'archived') {
@@ -215,42 +296,120 @@ export const Supervision: React.FC = () => {
     [markAsConverted, archiveConversation, refetch]
   );
 
+  const handleKanbanLostConfirm = useCallback(
+    async (reason: string, notes?: string) => {
+      if (pendingLostSessionId) {
+        await markAsLost(pendingLostSessionId, reason, notes);
+        setPendingLostSessionId(null);
+        refetch();
+      }
+    },
+    [pendingLostSessionId, markAsLost, refetch]
+  );
+
+  // Bulk Actions Bar Component
+  const BulkActionsBar = () => (
+    <div className="flex items-center gap-2 px-3 py-2 bg-accent-primary/10 border-b border-accent-primary/30 shrink-0">
+      <span className="text-xs font-medium text-accent-primary">
+        {selectedIds.size} selecionado(s)
+      </span>
+      <div className="flex items-center gap-1.5 ml-auto">
+        {/* Mover Status dropdown */}
+        <div className="relative" ref={bulkStatusRef}>
+          <button
+            onClick={() => setBulkStatusOpen(v => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-secondary transition-colors"
+          >
+            <MoveRight size={12} />
+            <span>Mover Status</span>
+            <ChevronDown size={11} className={`transition-transform ${bulkStatusOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {bulkStatusOpen && (
+            <div className="absolute top-full left-0 mt-1 w-44 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
+              {(Object.entries(supervisionStatusConfig) as [SupervisionStatus, typeof supervisionStatusConfig[SupervisionStatus]][]).map(([status, config]) => (
+                <button
+                  key={status}
+                  onClick={() => handleBulkMoveStatus(status)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-secondary hover:bg-bg-hover transition-colors"
+                >
+                  <span className={`w-2 h-2 rounded-full ${config.bgColor}`} />
+                  <span className={config.color}>{config.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Arquivar */}
+        <button
+          onClick={handleBulkArchive}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-muted transition-colors"
+        >
+          <Archive size={12} />
+          <span>Arquivar</span>
+        </button>
+        {/* Cancelar */}
+        <button
+          onClick={handleCancelSelection}
+          className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-muted hover:text-text-primary transition-colors"
+        >
+          <X size={12} />
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+
   // View Toggle Component
   const ViewToggle = () => (
-    <div className="flex bg-bg-hover rounded-lg p-0.5">
-      <button
-        onClick={() => setViewMode('list')}
-        className={`p-1.5 rounded-md transition-colors ${
-          viewMode === 'list'
-            ? 'bg-accent-primary text-white'
-            : 'text-text-muted hover:text-text-secondary'
-        }`}
-        title="Lista"
-      >
-        <LayoutList size={14} />
-      </button>
-      <button
-        onClick={() => setViewMode('kanban')}
-        className={`p-1.5 rounded-md transition-colors ${
-          viewMode === 'kanban'
-            ? 'bg-accent-primary text-white'
-            : 'text-text-muted hover:text-text-secondary'
-        }`}
-        title="Kanban"
-      >
-        <Columns3 size={14} />
-      </button>
-      <button
-        onClick={() => setViewMode('metrics')}
-        className={`p-1.5 rounded-md transition-colors ${
-          viewMode === 'metrics'
-            ? 'bg-accent-primary text-white'
-            : 'text-text-muted hover:text-text-secondary'
-        }`}
-        title="Metricas"
-      >
-        <BarChart3 size={14} />
-      </button>
+    <div className="flex items-center gap-1">
+      {viewMode === 'list' && (
+        <button
+          onClick={() => selectionMode ? handleCancelSelection() : setSelectionMode(true)}
+          className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+            selectionMode
+              ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
+              : 'bg-bg-hover text-text-muted hover:text-text-secondary'
+          }`}
+          title="Selecionar conversas"
+        >
+          <CheckSquare size={13} />
+        </button>
+      )}
+      <div className="flex bg-bg-hover rounded-lg p-0.5">
+        <button
+          onClick={() => { setViewMode('list'); handleCancelSelection(); }}
+          className={`p-1.5 rounded-md transition-colors ${
+            viewMode === 'list'
+              ? 'bg-accent-primary text-white'
+              : 'text-text-muted hover:text-text-secondary'
+          }`}
+          title="Lista"
+        >
+          <LayoutList size={14} />
+        </button>
+        <button
+          onClick={() => { setViewMode('kanban'); handleCancelSelection(); }}
+          className={`p-1.5 rounded-md transition-colors ${
+            viewMode === 'kanban'
+              ? 'bg-accent-primary text-white'
+              : 'text-text-muted hover:text-text-secondary'
+          }`}
+          title="Kanban"
+        >
+          <Columns3 size={14} />
+        </button>
+        <button
+          onClick={() => { setViewMode('metrics'); handleCancelSelection(); }}
+          className={`p-1.5 rounded-md transition-colors ${
+            viewMode === 'metrics'
+              ? 'bg-accent-primary text-white'
+              : 'text-text-muted hover:text-text-secondary'
+          }`}
+          title="Metricas"
+        >
+          <BarChart3 size={14} />
+        </button>
+      </div>
     </div>
   );
 
@@ -305,12 +464,19 @@ export const Supervision: React.FC = () => {
               </div>
             )}
             {viewMode === 'list' && (
-              <ConversationList
-                conversations={conversations}
-                selectedId={selectedConversation?.session_id || null}
-                onSelect={handleSelectConversation}
-                loading={listLoading}
-              />
+              <>
+                {selectionMode && <BulkActionsBar />}
+                <ConversationList
+                  conversations={conversations}
+                  selectedId={selectedConversation?.session_id || null}
+                  onSelect={handleSelectConversation}
+                  loading={listLoading}
+                  selectionMode={selectionMode}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onSelectAll={handleSelectAll}
+                />
+              </>
             )}
             {viewMode === 'kanban' && (
               <SupervisionKanban
@@ -321,7 +487,7 @@ export const Supervision: React.FC = () => {
               />
             )}
             {viewMode === 'metrics' && (
-              <SupervisionMetrics conversations={conversations} />
+              <SupervisionMetrics conversations={conversations} filterOptions={filterOptions} />
             )}
           </>
         )}
@@ -354,11 +520,16 @@ export const Supervision: React.FC = () => {
               onDelete={deleteFilter}
             />
           </div>
+          {selectionMode && <BulkActionsBar />}
           <ConversationList
             conversations={conversations}
             selectedId={selectedConversation?.session_id || null}
             onSelect={handleSelectConversation}
             loading={listLoading}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onSelectAll={handleSelectAll}
           />
         </div>
       )}
@@ -393,7 +564,7 @@ export const Supervision: React.FC = () => {
             <ViewToggle />
             <h1 className="text-base font-semibold text-text-primary">Supervisao IA - Metricas</h1>
           </div>
-          <SupervisionMetrics conversations={conversations} />
+          <SupervisionMetrics conversations={conversations} filterOptions={filterOptions} />
         </div>
       )}
 
@@ -419,6 +590,14 @@ export const Supervision: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Kanban Lost Reason Modal — intercepta drag para 'lost' */}
+      <LostReasonModal
+        isOpen={!!pendingLostSessionId}
+        onClose={() => setPendingLostSessionId(null)}
+        onConfirm={handleKanbanLostConfirm}
+        executing={executing}
+      />
     </div>
   );
 };

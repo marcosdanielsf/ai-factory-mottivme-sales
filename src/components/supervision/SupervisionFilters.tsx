@@ -9,8 +9,10 @@ import {
   Calendar,
   Filter,
   AlertTriangle,
+  Radio,
+  Clock,
 } from 'lucide-react';
-import { SupervisionFilters as FiltersType, FilterOption } from '../../types/supervision';
+import { SupervisionFilters as FiltersType, FilterOption, leadSourceConfig, meetingStatusConfig } from '../../types/supervision';
 
 interface FilterDropdownProps {
   label: string;
@@ -262,6 +264,9 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
     filters.dateFrom || filters.dateTo,
     filters.hasQualityIssues,
     filters.noResponse,
+    filters.leadSource,
+    filters.meetingStatus,
+    filters.lastInteractionDays,
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -275,6 +280,9 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
       dateTo: undefined,
       hasQualityIssues: undefined,
       noResponse: undefined,
+      leadSource: undefined,
+      meetingStatus: undefined,
+      lastInteractionDays: undefined,
     });
   };
 
@@ -368,6 +376,51 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
         <AlertTriangle size={14} />
         <span className="hidden sm:inline">Problemas</span>
       </button>
+
+      {/* Dropdown: Lead Source */}
+      <FilterDropdown
+        label="Fonte"
+        icon={<Radio size={14} />}
+        value={filters.leadSource || null}
+        options={Object.entries(leadSourceConfig).map(([value, cfg]) => ({
+          filter_type: 'location' as const,
+          value,
+          label: cfg.label,
+          count: 0,
+        }))}
+        onChange={(v) => onFilterChange({ ...filters, leadSource: v })}
+        placeholder="Todas as fontes"
+      />
+
+      {/* Dropdown: Meeting Status */}
+      <FilterDropdown
+        label="Reuniao"
+        icon={<Users size={14} />}
+        value={filters.meetingStatus || null}
+        options={Object.entries(meetingStatusConfig).map(([value, cfg]) => ({
+          filter_type: 'location' as const,
+          value,
+          label: cfg.label,
+          count: 0,
+        }))}
+        onChange={(v) => onFilterChange({ ...filters, meetingStatus: v })}
+        placeholder="Todos os status"
+      />
+
+      {/* Dropdown: Ultima Interacao */}
+      <FilterDropdown
+        label="Interacao"
+        icon={<Clock size={14} />}
+        value={filters.lastInteractionDays ? String(filters.lastInteractionDays) : null}
+        options={[
+          { filter_type: 'location' as const, value: '3', label: 'Ultimos 3 dias', count: 0 },
+          { filter_type: 'location' as const, value: '7', label: 'Ultimos 7 dias', count: 0 },
+          { filter_type: 'location' as const, value: '14', label: 'Ultimos 14 dias', count: 0 },
+          { filter_type: 'location' as const, value: '30', label: 'Ultimos 30 dias', count: 0 },
+        ]}
+        onChange={(v) => onFilterChange({ ...filters, lastInteractionDays: v ? Number(v) : null })}
+        placeholder="Qualquer periodo"
+      />
 
       {/* Botao limpar filtros */}
       {activeFiltersCount > 0 && (

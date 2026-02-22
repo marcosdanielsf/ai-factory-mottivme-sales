@@ -131,6 +131,20 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
         query = query.eq('last_message_role', 'user');
       }
 
+      // CRM filters (Feature #5)
+      if (filters.leadSource) {
+        query = query.eq('lead_source', filters.leadSource);
+      }
+
+      if (filters.meetingStatus) {
+        query = query.eq('meeting_status', filters.meetingStatus);
+      }
+
+      if (filters.lastInteractionDays) {
+        const dateXDaysAgo = new Date(Date.now() - filters.lastInteractionDays * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('last_message_at', dateXDaysAgo);
+      }
+
       const { data, error: fetchError } = await query;
 
       console.timeEnd('[SupervisionPanel] fetch-conversations');
@@ -176,7 +190,7 @@ export const useSupervisionPanel = (): UseSupervisionPanelReturn => {
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.dateFrom, filters.dateTo, filters.locationId, filters.channel, filters.etapaFunil, filters.responsavel, filters.hasQualityIssues, filters.noResponse, debouncedSearch]);
+  }, [filters.status, filters.dateFrom, filters.dateTo, filters.locationId, filters.channel, filters.etapaFunil, filters.responsavel, filters.hasQualityIssues, filters.noResponse, filters.leadSource, filters.meetingStatus, filters.lastInteractionDays, debouncedSearch]);
 
   // Fetch inicial e quando filtros mudam
   useEffect(() => {
