@@ -52,9 +52,11 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
   }
 
   const handleOpenNewTab = () => {
-    if (selectedDoc?.signedUrl) {
-      window.open(selectedDoc.signedUrl, '_blank', 'noopener,noreferrer');
-    }
+    if (!docContent || !selectedDoc) return;
+    const mimeType = selectedDoc.format === 'html' ? 'text/html' : 'text/markdown';
+    const blob = new Blob([docContent], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
   };
 
   const handleDownload = () => {
