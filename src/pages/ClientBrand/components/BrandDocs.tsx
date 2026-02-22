@@ -1,5 +1,5 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { ArrowLeft, FileText, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { ArrowLeft, FileText, Loader2, ExternalLink, Maximize2, Download, X } from 'lucide-react';
 import { useBrandAssets, type BrandAssetWithUrl } from '../../../hooks/useBrandAssets';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
@@ -13,6 +13,8 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
   const [selectedDoc, setSelectedDoc] = useState<BrandAssetWithUrl | null>(null);
   const [docContent, setDocContent] = useState<string | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!selectedDoc?.signedUrl) return;
@@ -49,8 +51,115 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
     );
   }
 
+  const handleOpenNewTab = () => {
+    if (selectedDoc?.signedUrl) {
+      window.open(selectedDoc.signedUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleDownload = () => {
+    if (!selectedDoc || !docContent) return;
+    const blob = new Blob([docContent], { type: selectedDoc.format === 'html' ? 'text/html' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = selectedDoc.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleToggleFullscreen = () => {
+    setIsFullscreen((prev) => !prev);
+  };
+
+  const docTitle = selectedDoc
+    ? selectedDoc.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+    : '';
+
+  const renderDocContent = () => {
+    if (loadingContent) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="animate-spin text-text-muted" size={24} />
+        </div>
+      );
+    }
+    if (docContent) {
+      if (selectedDoc?.format === 'html') {
+        return (
+          <iframe
+            srcDoc={docContent}
+            className="w-full rounded-lg border-0"
+            style={{ minHeight: isFullscreen ? 'calc(100vh - 80px)' : '70vh', height: isFullscreen ? 'calc(100vh - 80px)' : '80vh' }}
+            sandbox="allow-same-origin allow-popups"
+            title={selectedDoc?.name}
+          />
+        );
+      }
+      return (
+        <Suspense fallback={<div className="text-text-muted text-sm">Carregando renderizador...</div>}>
+          <div className="prose prose-invert max-w-none text-text-primary prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-a:text-accent-primary">
+            <ReactMarkdown>{docContent}</ReactMarkdown>
+          </div>
+        </Suspense>
+      );
+    }
+    return <p className="text-text-muted text-sm">Nao foi possivel carregar o documento.</p>;
+  };
+
   // Document viewer
   if (selectedDoc) {
+    // Fullscreen overlay
+    if (isFullscreen) {
+      return (
+        <div
+          ref={fullscreenRef}
+          className="fixed inset-0 z-50 flex flex-col bg-bg-primary"
+        >
+          {/* Fullscreen header */}
+          <div className="flex items-center justify-between px-6 py-3 border-b border-border-default bg-bg-secondary shrink-0">
+            <h2 className="text-base font-semibold text-text-primary truncate max-w-[60%]">
+              {docTitle}
+            </h2>
+            <div className="flex items-center gap-1">
+              {selectedDoc.format === 'html' && (
+                <button
+                  onClick={handleOpenNewTab}
+                  title="Abrir em nova aba"
+                  className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors"
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+              <button
+                onClick={handleDownload}
+                disabled={!docContent}
+                title="Download"
+                className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Download size={16} />
+              </button>
+              <button
+                onClick={handleToggleFullscreen}
+                title="Sair do fullscreen"
+                className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Fullscreen content */}
+          <div className="flex-1 overflow-auto p-4">
+            {renderDocContent()}
+          </div>
+        </div>
+      );
+    }
+
+    // Normal viewer
     return (
       <div className="space-y-4">
         <button
@@ -62,37 +171,40 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
         </button>
 
         <div className="rounded-xl border border-border-default bg-bg-secondary p-6 min-h-[60vh]">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            {selectedDoc.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')}
-          </h2>
-
-          {loadingContent && (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="animate-spin text-text-muted" size={24} />
+          {/* Title bar with action buttons */}
+          <div className="flex items-center justify-between mb-4 gap-4">
+            <h2 className="text-lg font-semibold text-text-primary truncate">
+              {docTitle}
+            </h2>
+            <div className="flex items-center gap-1 shrink-0">
+              {selectedDoc.format === 'html' && (
+                <button
+                  onClick={handleOpenNewTab}
+                  title="Abrir em nova aba"
+                  className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors"
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+              <button
+                onClick={handleToggleFullscreen}
+                title="Tela cheia"
+                className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors"
+              >
+                <Maximize2 size={16} />
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={!docContent}
+                title="Download"
+                className="p-2 rounded-lg text-text-muted hover:text-accent-primary hover:bg-accent-primary/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Download size={16} />
+              </button>
             </div>
-          )}
+          </div>
 
-          {docContent && (
-            selectedDoc.format === 'html' ? (
-              <iframe
-                srcDoc={docContent}
-                className="w-full rounded-lg border-0"
-                style={{ minHeight: '70vh', height: '80vh' }}
-                sandbox="allow-same-origin allow-popups"
-                title={selectedDoc.name}
-              />
-            ) : (
-              <Suspense fallback={<div className="text-text-muted text-sm">Carregando renderizador...</div>}>
-                <div className="prose prose-invert max-w-none text-text-primary prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-a:text-accent-primary">
-                  <ReactMarkdown>{docContent}</ReactMarkdown>
-                </div>
-              </Suspense>
-            )
-          )}
-
-          {!loadingContent && !docContent && (
-            <p className="text-text-muted text-sm">Nao foi possivel carregar o documento.</p>
-          )}
+          {renderDocContent()}
         </div>
       </div>
     );
