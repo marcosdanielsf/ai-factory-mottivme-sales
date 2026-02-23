@@ -34,6 +34,16 @@ interface UseGHLSyncReturn {
     contactId?: string;
     leadSource: string;
   }) => Promise<boolean>;
+  syncAddTag: (params: {
+    contactId?: string;
+    locationId: string;
+    tags: string[];
+  }) => Promise<boolean>;
+  syncRemoveTag: (params: {
+    contactId?: string;
+    locationId: string;
+    tags: string[];
+  }) => Promise<boolean>;
 }
 
 /**
@@ -147,5 +157,77 @@ export const useGHLSync = (): UseGHLSyncReturn => {
     [session?.access_token]
   );
 
-  return { syncing, error, syncMeetingStatus, syncLeadSource };
+  const syncAddTag = useCallback(
+    async (params: {
+      contactId?: string;
+      locationId: string;
+      tags: string[];
+    }): Promise<boolean> => {
+      const token = session?.access_token;
+      if (!token || !params.contactId || !params.locationId) {
+        console.warn('[GHLSync] Skipping syncAddTag: missing token, contactId or locationId');
+        return false;
+      }
+
+      try {
+        setSyncing(true);
+        setError(null);
+
+        await ghlClient.addContactTags(
+          params.contactId,
+          params.tags,
+          token,
+          params.locationId
+        );
+
+        console.log(`[GHLSync] Tags added: ${params.tags.join(', ')}`);
+        return true;
+      } catch (err: any) {
+        console.warn('[GHLSync] syncAddTag failed (non-blocking):', err.message);
+        setError(err.message);
+        return false;
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [session?.access_token]
+  );
+
+  const syncRemoveTag = useCallback(
+    async (params: {
+      contactId?: string;
+      locationId: string;
+      tags: string[];
+    }): Promise<boolean> => {
+      const token = session?.access_token;
+      if (!token || !params.contactId || !params.locationId) {
+        console.warn('[GHLSync] Skipping syncRemoveTag: missing token, contactId or locationId');
+        return false;
+      }
+
+      try {
+        setSyncing(true);
+        setError(null);
+
+        await ghlClient.removeContactTags(
+          params.contactId,
+          params.tags,
+          token,
+          params.locationId
+        );
+
+        console.log(`[GHLSync] Tags removed: ${params.tags.join(', ')}`);
+        return true;
+      } catch (err: any) {
+        console.warn('[GHLSync] syncRemoveTag failed (non-blocking):', err.message);
+        setError(err.message);
+        return false;
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [session?.access_token]
+  );
+
+  return { syncing, error, syncMeetingStatus, syncLeadSource, syncAddTag, syncRemoveTag };
 };

@@ -17,6 +17,8 @@ import { useGHLSync } from '../hooks/useGHLSync';
 import { useSavedFilters } from '../hooks/useSavedFilters';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useAccount } from '../contexts/AccountContext';
+import { useAuth } from '../contexts/AuthContext';
+import { ghlClient } from '../services/ghl/ghlClient';
 import { SupervisionConversation, SupervisionStatus, supervisionStatusConfig, leadSourceConfig, LeadSource } from '../types/supervision';
 import { SavedFiltersPanel } from '../components/supervision/SavedFiltersPanel';
 import { LostReasonModal } from '../components/supervision/LostReasonModal';
@@ -36,7 +38,12 @@ export const Supervision: React.FC = () => {
 
   const isMobile = useIsMobile();
   const { isClientUser } = useAccount();
+  const { session } = useAuth();
   const selectedConversationRef = useRef<SupervisionConversation | null>(null);
+
+  // Tags do contato GHL
+  const [contactTags, setContactTags] = useState<string[]>([]);
+  const [contactTagsLoading, setContactTagsLoading] = useState(false);
 
   // Feature #15: Lead Source Prompt state
   const [showLeadSourcePrompt, setShowLeadSourcePrompt] = useState<{
@@ -49,6 +56,39 @@ export const Supervision: React.FC = () => {
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  // Fetch tags do contato GHL quando muda a conversa selecionada
+  useEffect(() => {
+    const contact_id = selectedConversation?.contact_id;
+    const location_id = selectedConversation?.location_id;
+    const token = session?.access_token;
+
+    if (!contact_id || !location_id || !token) {
+      setContactTags([]);
+      return;
+    }
+
+    let cancelled = false;
+    setContactTagsLoading(true);
+
+    ghlClient.getContact(contact_id, token, location_id)
+      .then(({ contact }) => {
+        if (!cancelled) {
+          setContactTags(contact.tags || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.warn('[Supervision] Failed to fetch contact tags:', err.message);
+          setContactTags([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setContactTagsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedConversation?.contact_id, selectedConversation?.location_id, session?.access_token]);
 
   const {
     conversations,
@@ -92,7 +132,7 @@ export const Supervision: React.FC = () => {
     refetchMessages();
   });
 
-  const { syncMeetingStatus, syncLeadSource } = useGHLSync();
+  const { syncMeetingStatus, syncLeadSource, syncAddTag, syncRemoveTag } = useGHLSync();
 
   const { savedFilters, saveFilter, deleteFilter } = useSavedFilters();
 
@@ -234,6 +274,36 @@ export const Supervision: React.FC = () => {
       leadSource: source,
     });
   }, [updateLeadSource, syncLeadSource]);
+
+  const handleAddTag = useCallback((tag: string) => {
+    const current = selectedConversationRef.current;
+    if (!current?.contact_id || !current?.location_id) return;
+
+    // Optimistic update
+    setContactTags(prev => [...prev, tag]);
+
+    // Sync to GHL (non-blocking)
+    syncAddTag({
+      contactId: current.contact_id,
+      locationId: current.location_id,
+      tags: [tag],
+    });
+  }, [syncAddTag]);
+
+  const handleRemoveTag = useCallback((tag: string) => {
+    const current = selectedConversationRef.current;
+    if (!current?.contact_id || !current?.location_id) return;
+
+    // Optimistic update
+    setContactTags(prev => prev.filter(t => t !== tag));
+
+    // Sync to GHL (non-blocking)
+    syncRemoveTag({
+      contactId: current.contact_id,
+      locationId: current.location_id,
+      tags: [tag],
+    });
+  }, [syncRemoveTag]);
 
   const handleSendMessage = useCallback(async (message: string): Promise<boolean> => {
     const current = selectedConversationRef.current;
@@ -534,6 +604,10 @@ export const Supervision: React.FC = () => {
     sendingMessage,
     sendError,
     onClearSendError: clearSendError,
+    onAddTag: handleAddTag,
+    onRemoveTag: handleRemoveTag,
+    contactTags,
+    contactTagsLoading,
   };
 
   // Mobile Layout

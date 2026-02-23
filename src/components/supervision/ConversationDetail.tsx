@@ -21,6 +21,8 @@ import {
   XCircle,
   Pencil,
   Radio,
+  Tag,
+  Plus,
 } from 'lucide-react';
 import {
   SupervisionConversation,
@@ -61,6 +63,11 @@ interface ConversationDetailProps {
   sendingMessage: boolean;
   sendError: string | null;
   onClearSendError: () => void;
+  // Tags GHL
+  onAddTag?: (tag: string) => void;
+  onRemoveTag?: (tag: string) => void;
+  contactTags?: string[];
+  contactTagsLoading?: boolean;
   // Mobile
   isMobile?: boolean;
 }
@@ -128,6 +135,10 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   sendingMessage,
   sendError,
   onClearSendError,
+  onAddTag,
+  onRemoveTag,
+  contactTags = [],
+  contactTagsLoading = false,
   isMobile = false,
 }) => {
   // Feature #16: permissao por perfil
@@ -143,9 +154,11 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   const [noteText, setNoteText] = useState('');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleNotes, setScheduleNotes] = useState('');
+  const [tagInput, setTagInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const leadSourceRef = useRef<HTMLDivElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   // Quality Flags
   const {
@@ -205,6 +218,17 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   const handleMeetingStatus = (status: MeetingStatus, notes?: string) => {
     onUpdateMeetingStatus?.(status, notes);
     setShowMeetingStatusModal(false);
+  };
+
+  const handleAddTagSubmit = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (!tag) return;
+    if (contactTags.includes(tag)) {
+      setTagInput('');
+      return;
+    }
+    onAddTag?.(tag);
+    setTagInput('');
   };
 
   return (
@@ -467,6 +491,61 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
                 </>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Tags GHL — sync bidirecional */}
+      {(contactTags.length > 0 || contactTagsLoading || (!isClientUser && onAddTag)) && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border-default/50 flex-wrap">
+          <Tag size={11} className="text-text-muted shrink-0" />
+          {contactTagsLoading ? (
+            <Loader2 size={11} className="animate-spin text-text-muted" />
+          ) : (
+            <>
+              {contactTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px] font-medium"
+                >
+                  {tag}
+                  {!isClientUser && onRemoveTag && (
+                    <button
+                      onClick={() => onRemoveTag(tag)}
+                      className="hover:text-blue-200 transition-colors ml-0.5"
+                      aria-label={`Remover tag ${tag}`}
+                    >
+                      <X size={9} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              {!isClientUser && onAddTag && (
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={tagInputRef}
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTagSubmit();
+                      }
+                    }}
+                    placeholder="Nova tag..."
+                    className="h-5 px-1.5 bg-bg-primary border border-border-default rounded text-[10px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500/50 w-20"
+                  />
+                  <button
+                    onClick={handleAddTagSubmit}
+                    disabled={!tagInput.trim()}
+                    className="flex items-center justify-center w-5 h-5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    aria-label="Adicionar tag"
+                  >
+                    <Plus size={10} />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -3,14 +3,14 @@ import { GHL_BASE_URL, getGHLApiKey } from '../../_utils';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
-    if (req.method !== 'POST') {
+    if (req.method !== 'POST' && req.method !== 'DELETE') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const apiKey = await getGHLApiKey(locationId);
 
         const ghlRes = await fetch(`${GHL_BASE_URL}/contacts/${id}/tags`, {
-            method: 'POST',
+            method: req.method,
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 Version: '2021-07-28',
