@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { X, Key, Mail, Trash2, Copy, Check } from 'lucide-react';
+import { X, Key, Mail, Trash2, Copy, Check, Shield } from 'lucide-react';
 import type { User, GroupedUser } from '../types';
+import { PermissionsEditorDrawer } from './PermissionsEditorDrawer';
 import {
   getAvatarColor,
   getInitials,
@@ -21,6 +22,8 @@ interface UserDetailDrawerProps {
   onResetPassword: (email: string) => void;
   onRemoveAccess: (userId: string, locationId: string, email: string) => void;
   onRemoveAllAccess: () => void;
+  onPermissionsSaved?: () => void;
+  onPermissionsError?: (message: string) => void;
 }
 
 export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
@@ -32,7 +35,16 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
   onResetPassword,
   onRemoveAccess,
   onRemoveAllAccess,
+  onPermissionsSaved,
+  onPermissionsError,
 }) => {
+  const [permissionsTarget, setPermissionsTarget] = useState<{
+    locationId: string;
+    locationName: string;
+    role: string;
+    customPermissions: Record<string, boolean> | null;
+  } | null>(null);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
@@ -43,7 +55,7 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
         {/* Drawer Header */}
         <div className="sticky top-0 bg-bg-secondary border-b border-border-default p-6 z-10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-text-primary">Detalhes do Usuário</h3>
+            <h3 className="text-lg font-bold text-text-primary">Detalhes do Usuario</h3>
             <button
               onClick={onClose}
               className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
@@ -84,7 +96,7 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
         <div className="p-6 space-y-6">
           {/* Details Grid */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Informações</h4>
+            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Informacoes</h4>
             <div className="bg-bg-tertiary border border-border-default rounded-xl divide-y divide-border-default">
               <div className="flex justify-between items-center px-4 py-3">
                 <span className="text-sm text-text-muted">Criado em</span>
@@ -93,7 +105,7 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center px-4 py-3">
-                <span className="text-sm text-text-muted">Último acesso</span>
+                <span className="text-sm text-text-muted">Ultimo acesso</span>
                 <span className="text-sm text-text-primary font-medium">
                   {drawerUser.user.last_sign_in_at
                     ? formatDate(drawerUser.user.last_sign_in_at)
@@ -129,21 +141,42 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                   className="bg-bg-tertiary border border-border-default rounded-xl px-4 py-3 flex items-center justify-between"
                 >
                   <div>
-                    <p className="text-sm font-medium text-text-primary">{loc.location_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-text-primary">{loc.location_name}</p>
+                      {loc.custom_permissions && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-medium">
+                          custom
+                        </span>
+                      )}
+                    </div>
                     <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeClass(loc.role)}`}>
                       {getRoleLabel(loc.role)}
                     </span>
                   </div>
-                  <button
-                    onClick={() => {
-                      onRemoveAccess(drawerUser.user.user_id, loc.location_id, drawerUser.user.email);
-                      if (drawerUser.locations.length <= 1) onClose();
-                    }}
-                    className="p-2 hover:bg-red-500/10 text-red-400/50 hover:text-red-400 rounded-lg transition-colors"
-                    title="Remover desta location"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPermissionsTarget({
+                        locationId: loc.location_id,
+                        locationName: loc.location_name,
+                        role: loc.role,
+                        customPermissions: loc.custom_permissions ?? null,
+                      })}
+                      className="p-2 hover:bg-blue-500/10 text-blue-400/50 hover:text-blue-400 rounded-lg transition-colors"
+                      title="Editar permissoes"
+                    >
+                      <Shield className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onRemoveAccess(drawerUser.user.user_id, loc.location_id, drawerUser.user.email);
+                        if (drawerUser.locations.length <= 1) onClose();
+                      }}
+                      className="p-2 hover:bg-red-500/10 text-red-400/50 hover:text-red-400 rounded-lg transition-colors"
+                      title="Remover desta location"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -151,7 +184,7 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
           {/* Quick Actions */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Ações Rápidas</h4>
+            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Acoes Rapidas</h4>
             <div className="space-y-2">
               <button
                 onClick={() => onSelectUserForPassword(drawerUser.user)}
@@ -178,6 +211,21 @@ export const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Permissions Editor Drawer (overlay on top) */}
+      {permissionsTarget && (
+        <PermissionsEditorDrawer
+          userId={drawerUser.user.user_id}
+          email={drawerUser.user.email}
+          locationId={permissionsTarget.locationId}
+          locationName={permissionsTarget.locationName}
+          role={permissionsTarget.role}
+          currentCustomPermissions={permissionsTarget.customPermissions}
+          onClose={() => setPermissionsTarget(null)}
+          onSaved={() => onPermissionsSaved?.()}
+          onError={onPermissionsError}
+        />
+      )}
     </div>
   );
 };

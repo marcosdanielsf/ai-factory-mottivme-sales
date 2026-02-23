@@ -6,6 +6,7 @@ export interface User {
   location_id: string;
   location_name: string;
   role: 'admin' | 'client' | 'viewer';
+  custom_permissions?: Record<string, boolean> | null;
 }
 
 export interface Location {
@@ -26,5 +27,5 @@ export interface PendingInvite {
 
 export interface GroupedUser {
   user: User;
-  locations: Array<{ location_id: string; location_name: string; role: string }>;
+  locations: Array<{ location_id: string; location_name: string; role: string; custom_permissions?: Record<string, boolean> | null }>;
 }

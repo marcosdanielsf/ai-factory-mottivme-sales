@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 // Tipos de usuário
 export type UserRole = 'admin' | 'manager' | 'client' | 'recruiter' | 'employee';
@@ -35,8 +36,8 @@ export interface Permissions {
   canManageUsers: boolean;
 }
 
-// Permissões por role
-const rolePermissions: Record<UserRole, Permissions> = {
+// Permissões por role (exportado para uso no PermissionsEditorDrawer)
+export const rolePermissions: Record<UserRole, Permissions> = {
   admin: {
     // Páginas - Admin vê TUDO
     canAccessDashboard: true,
@@ -212,17 +213,17 @@ export const allNavItems: NavItem[] = [
 // Hook principal
 export const usePermissions = () => {
   const { user } = useAuth();
-  
+
   // Pegar role do user_metadata (Supabase Auth) - SEM tabela extra!
   const role = useMemo((): UserRole => {
     if (!user) return 'client';
-    
+
     // 1. Tentar pegar do user_metadata (definido na criação do usuário)
     const metadataRole = user.user_metadata?.role as UserRole | undefined;
     if (metadataRole && rolePermissions[metadataRole]) {
       return metadataRole;
     }
-    
+
     // 2. Verificar se é admin pelo email (fallback - lista de admins conhecidos)
     const adminEmails = [
       'ceo@marcosdaniels.com',
@@ -236,41 +237,77 @@ export const usePermissions = () => {
     if (user.email && adminEmails.includes(user.email.toLowerCase())) {
       return 'admin';
     }
-    
+
     // 3. Verificar domínio do email (opcional - todos @mottivme.com são managers)
     if (user.email?.endsWith('@mottivme.com')) {
       return 'manager';
     }
-    
+
     // 4. Default: client
     return 'client';
   }, [user]);
-  
+
   // Pegar location_id do metadata (para filtrar dados do cliente)
   const locationId = useMemo(() => {
     return user?.user_metadata?.location_id as string | undefined;
   }, [user]);
-  
-  // Permissões baseadas no role
-  const permissions = useMemo(() => rolePermissions[role], [role]);
-  
+
+  // Buscar custom_permissions do Supabase (skip para admins)
+  const [customOverride, setCustomOverride] = useState<Partial<Permissions> | null>(null);
+  const [overrideLoading, setOverrideLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || !locationId || role === 'admin') {
+      setCustomOverride(null);
+      return;
+    }
+
+    let cancelled = false;
+    setOverrideLoading(true);
+
+    supabase
+      .from('user_locations')
+      .select('custom_permissions')
+      .eq('user_id', user.id)
+      .eq('location_id', locationId)
+      .single()
+      .then(({ data, error }) => {
+        if (!cancelled) {
+          if (error) console.error('[usePermissions] custom_permissions fetch error:', error);
+          setCustomOverride(data?.custom_permissions ?? null);
+          setOverrideLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [user?.id, locationId, role]);
+
+  // Permissoes: role defaults + custom override merge
+  const permissions = useMemo(() => {
+    const base = rolePermissions[role];
+    if (!customOverride) return base;
+    return { ...base, ...customOverride } as Permissions;
+  }, [role, customOverride]);
+
+  const hasCustomPermissions = customOverride !== null;
+
   // Itens de navegação filtrados
   const navItems = useMemo(() => {
     return allNavItems.filter(item => permissions[item.permission]);
   }, [permissions]);
-  
+
   // Helper para verificar permissão específica
   const hasPermission = (permission: keyof Permissions): boolean => {
     return permissions[permission];
   };
-  
+
   // Helper para verificar se pode acessar rota
   const canAccessRoute = (path: string): boolean => {
     const item = allNavItems.find(i => i.path === path);
     if (!item) return true; // Rotas não listadas são acessíveis
     return permissions[item.permission];
   };
-  
+
   return {
     role,
     locationId,
@@ -283,6 +320,8 @@ export const usePermissions = () => {
     isClient: role === 'client',
     isRecruiter: role === 'recruiter',
     isEmployee: role === 'employee',
+    overrideLoading,
+    hasCustomPermissions,
   };
 };
 
@@ -293,10 +332,10 @@ export const RequirePermission: React.FC<{
   fallback?: React.ReactNode;
 }> = ({ permission, children, fallback = null }) => {
   const { hasPermission } = usePermissions();
-  
+
   if (!hasPermission(permission)) {
     return <>{fallback}</>;
   }
-  
+
   return <>{children}</>;
 };

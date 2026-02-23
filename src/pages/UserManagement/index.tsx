@@ -107,7 +107,8 @@ export const UserManagement: React.FC = () => {
           user_id,
           location_id,
           role,
-          created_at
+          created_at,
+          custom_permissions
         `);
 
       if (ulError) throw ulError;
@@ -131,6 +132,7 @@ export const UserManagement: React.FC = () => {
           location_id: ul.location_id,
           location_name: location?.location_name || ul.location_id,
           role: ul.role,
+          custom_permissions: ul.custom_permissions ?? null,
         });
       }
 
@@ -395,6 +397,7 @@ export const UserManagement: React.FC = () => {
         location_id: u.location_id,
         location_name: u.location_name,
         role: u.role,
+        custom_permissions: u.custom_permissions ?? null,
       });
     });
     return Object.values(groups);
@@ -633,6 +636,8 @@ export const UserManagement: React.FC = () => {
           onSelectUserForPassword={(user) => { setSelectedUser(user); setShowPasswordModal(true); setDrawerUser(null); }}
           onResetPassword={handleResetPassword}
           onRemoveAccess={(userId, locationId, email) => { handleRemoveAccess(userId, locationId, email); }}
+          onPermissionsSaved={loadData}
+          onPermissionsError={(msg) => showToast(msg, 'error')}
           onRemoveAllAccess={() => {
             if (confirm(`Remover TODO o acesso de ${drawerUser.user.email}?`)) {
               Promise.all(

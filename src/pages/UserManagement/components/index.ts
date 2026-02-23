@@ -5,3 +5,4 @@ export { ChangePasswordModal } from './ChangePasswordModal';
 export { CreateInviteModal } from './CreateInviteModal';
 export { SuccessCard } from './SuccessCard';
 export { UserDetailDrawer } from './UserDetailDrawer';
+export { PermissionsEditorDrawer } from './PermissionsEditorDrawer';
