@@ -20,6 +20,7 @@ import {
   lostReasonConfig,
   LostReason,
 } from '../../types/supervision';
+import { useSupervisionMetrics } from '../../hooks/useSupervisionMetrics';
 
 interface SupervisionMetricsProps {
   conversations: SupervisionConversation[];
@@ -56,7 +57,15 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
   const [clientFilter, setClientFilter] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
 
-  // Apply local filters before computing metrics
+  // Buscar metricas reais via RPC do Supabase (cobre todos os leads, nao apenas os 50 carregados)
+  const daysBack = periodFilter !== 'all' ? parseInt(periodFilter) : null;
+  const { data: serverMetrics, loading: serverLoading } = useSupervisionMetrics({
+    locationId: clientFilter,
+    channel: channelFilter,
+    daysBack,
+  });
+
+  // Apply local filters before computing metrics (fallback client-side)
   const filteredConversations = useMemo(() => {
     let filtered = conversations;
 
@@ -79,6 +88,29 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
   }, [conversations, periodFilter, clientFilter, channelFilter]);
 
   const metrics = useMemo(() => {
+    // Usar dados reais do servidor quando disponivel
+    if (serverMetrics) {
+      const s = serverMetrics.by_status ?? {};
+      const total = serverMetrics.total ?? 0;
+      const noResponse = serverMetrics.no_response ?? 0;
+      const converted = s['converted'] ?? 0;
+      const lost = s['lost'] ?? 0;
+      return {
+        total,
+        aiActive: s['ai_active'] ?? 0,
+        aiPaused: s['ai_paused'] ?? 0,
+        scheduled: s['scheduled'] ?? 0,
+        converted,
+        lost,
+        archived: s['archived'] ?? 0,
+        noResponse,
+        conversionRate: total > 0 ? ((converted / total) * 100).toFixed(1) : '0',
+        lossRate: total > 0 ? ((lost / total) * 100).toFixed(1) : '0',
+        responseRate: total > 0 ? (((total - noResponse) / total) * 100).toFixed(1) : '0',
+      };
+    }
+
+    // Fallback: calculo client-side com os dados carregados (ate 50 leads)
     const total = filteredConversations.length;
     const aiActive = filteredConversations.filter((c) => c.supervision_status === 'ai_active').length;
     const aiPaused = filteredConversations.filter((c) => c.supervision_status === 'ai_paused').length;
@@ -96,10 +128,25 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
       total, aiActive, aiPaused, scheduled, converted, lost, archived, noResponse,
       conversionRate, lossRate, responseRate,
     };
-  }, [filteredConversations]);
+  }, [serverMetrics, filteredConversations]);
 
-  // Group by responsavel
+  // Group by responsavel — usar dados do servidor quando disponivel
   const byResponsavel = useMemo(() => {
+    if (serverMetrics?.by_responsavel) {
+      return serverMetrics.by_responsavel.map((r) => ({
+        name: r.name,
+        total: r.total,
+        converted: r.converted,
+        scheduled: r.scheduled,
+        lost: r.lost,
+        noResponse: r.no_response,
+        conversionRate: r.total > 0
+          ? ((r.converted / r.total) * 100).toFixed(1)
+          : '0',
+      }));
+    }
+
+    // Fallback client-side
     const groups: Record<string, SupervisionConversation[]> = {};
     filteredConversations.forEach((c) => {
       const resp = c.usuario_responsavel || 'Sem responsavel';
@@ -119,10 +166,20 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
           : '0',
       }))
       .sort((a, b) => b.total - a.total);
-  }, [filteredConversations]);
+  }, [serverMetrics, filteredConversations]);
 
-  // Group by client
+  // Group by client — usar dados do servidor quando disponivel
   const byClient = useMemo(() => {
+    if (serverMetrics?.by_client) {
+      return serverMetrics.by_client.map((c) => ({
+        name: c.client_name,
+        total: c.total,
+        converted: c.converted,
+        lost: c.lost,
+      }));
+    }
+
+    // Fallback client-side
     const groups: Record<string, SupervisionConversation[]> = {};
     filteredConversations.forEach((c) => {
       const client = c.client_name || 'Sem cliente';
@@ -137,10 +194,18 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
         lost: convs.filter((c) => c.supervision_status === 'lost').length,
       }))
       .sort((a, b) => b.total - a.total);
-  }, [filteredConversations]);
+  }, [serverMetrics, filteredConversations]);
 
-  // Lost reasons breakdown
+  // Lost reasons — usar dados do servidor quando disponivel
   const lostReasons = useMemo(() => {
+    if (serverMetrics?.lost_reasons) {
+      return serverMetrics.lost_reasons.map((l) => ({
+        reason: l.reason,
+        count: l.cnt,
+      }));
+    }
+
+    // Fallback client-side
     const reasons: Record<string, number> = {};
     filteredConversations
       .filter((c) => c.supervision_status === 'lost')
@@ -151,7 +216,7 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
     return Object.entries(reasons)
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count);
-  }, [filteredConversations]);
+  }, [serverMetrics, filteredConversations]);
 
   const cards: MetricCard[] = [
     { label: 'Total de Leads', value: metrics.total, icon: <Users size={18} />, color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
@@ -171,6 +236,20 @@ export const SupervisionMetrics: React.FC<SupervisionMetricsProps> = ({ conversa
         <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
           <BarChart3 size={20} className="text-accent-primary" />
           Metricas do Time
+          {/* Indicador de fonte dos dados */}
+          {serverLoading ? (
+            <span className="text-[10px] px-2 py-0.5 bg-bg-hover text-text-muted rounded-full animate-pulse">
+              Carregando...
+            </span>
+          ) : serverMetrics ? (
+            <span className="text-[10px] px-2 py-0.5 bg-green-400/10 text-green-400 rounded-full">
+              Dados completos ({metrics.total} leads)
+            </span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 bg-yellow-400/10 text-yellow-400 rounded-full">
+              Dados parciais ({metrics.total} leads)
+            </span>
+          )}
         </h2>
         <div className="flex bg-bg-hover rounded-lg p-0.5">
           <button

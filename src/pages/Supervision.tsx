@@ -13,9 +13,11 @@ import { useSupervisionActions } from '../hooks/useSupervisionActions';
 import { useFilterOptions } from '../hooks/useFilterOptions';
 import { useSupervisionRealtime, useConversationRealtime } from '../hooks/useSupervisionRealtime';
 import { useSendMessage } from '../hooks/useSendMessage';
+import { useGHLSync } from '../hooks/useGHLSync';
 import { useSavedFilters } from '../hooks/useSavedFilters';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { SupervisionConversation, SupervisionStatus, supervisionStatusConfig } from '../types/supervision';
+import { useAccount } from '../contexts/AccountContext';
+import { SupervisionConversation, SupervisionStatus, supervisionStatusConfig, leadSourceConfig, LeadSource } from '../types/supervision';
 import { SavedFiltersPanel } from '../components/supervision/SavedFiltersPanel';
 import { LostReasonModal } from '../components/supervision/LostReasonModal';
 
@@ -33,7 +35,16 @@ export const Supervision: React.FC = () => {
   const bulkStatusRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile();
+  const { isClientUser } = useAccount();
   const selectedConversationRef = useRef<SupervisionConversation | null>(null);
+
+  // Feature #15: Lead Source Prompt state
+  const [showLeadSourcePrompt, setShowLeadSourcePrompt] = useState<{
+    sessionId: string;
+    pendingAction: 'scheduled' | 'converted';
+    scheduledAt?: string;
+    notes?: string;
+  } | null>(null);
 
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
@@ -80,6 +91,8 @@ export const Supervision: React.FC = () => {
   } = useSendMessage(() => {
     refetchMessages();
   });
+
+  const { syncMeetingStatus, syncLeadSource } = useGHLSync();
 
   const { savedFilters, saveFilter, deleteFilter } = useSavedFilters();
 
@@ -136,16 +149,37 @@ export const Supervision: React.FC = () => {
 
   const handleMarkScheduled = useCallback(async (scheduledAt: string, notes?: string) => {
     const current = selectedConversationRef.current;
-    if (current) {
-      await markAsScheduled(current.session_id, scheduledAt, notes);
+    if (!current) return;
+
+    // Feature #15: validar lead_source antes de agendar
+    if (!current.lead_source) {
+      setShowLeadSourcePrompt({
+        sessionId: current.session_id,
+        pendingAction: 'scheduled',
+        scheduledAt,
+        notes,
+      });
+      return;
     }
+
+    await markAsScheduled(current.session_id, scheduledAt, notes);
   }, [markAsScheduled]);
 
   const handleMarkConverted = useCallback(async (notes?: string) => {
     const current = selectedConversationRef.current;
-    if (current) {
-      await markAsConverted(current.session_id, notes);
+    if (!current) return;
+
+    // Feature #15: validar lead_source antes de converter
+    if (!current.lead_source) {
+      setShowLeadSourcePrompt({
+        sessionId: current.session_id,
+        pendingAction: 'converted',
+        notes,
+      });
+      return;
     }
+
+    await markAsConverted(current.session_id, notes);
   }, [markAsConverted]);
 
   const handleAddNote = useCallback(async (notes: string) => {
@@ -172,17 +206,34 @@ export const Supervision: React.FC = () => {
 
   const handleUpdateMeetingStatus = useCallback(async (meetingStatus: string, notes?: string) => {
     const current = selectedConversationRef.current;
-    if (current) {
-      await updateMeetingStatus(current.session_id, meetingStatus, notes);
-    }
-  }, [updateMeetingStatus]);
+    if (!current) return;
+
+    await updateMeetingStatus(current.session_id, meetingStatus, notes);
+
+    // Feature #11: Non-blocking GHL sync (fire-and-forget)
+    syncMeetingStatus({
+      sessionId: current.session_id,
+      locationId: current.location_id || '',
+      contactId: current.contact_id || undefined,
+      meetingStatus,
+      notes,
+    });
+  }, [updateMeetingStatus, syncMeetingStatus]);
 
   const handleUpdateLeadSource = useCallback(async (source: string) => {
     const current = selectedConversationRef.current;
-    if (current) {
-      await updateLeadSource(current.session_id, source);
-    }
-  }, [updateLeadSource]);
+    if (!current) return;
+
+    await updateLeadSource(current.session_id, source);
+
+    // Feature #11: Non-blocking GHL sync (fire-and-forget)
+    syncLeadSource({
+      sessionId: current.session_id,
+      locationId: current.location_id || '',
+      contactId: current.contact_id || undefined,
+      leadSource: source,
+    });
+  }, [updateLeadSource, syncLeadSource]);
 
   const handleSendMessage = useCallback(async (message: string): Promise<boolean> => {
     const current = selectedConversationRef.current;
@@ -272,10 +323,28 @@ export const Supervision: React.FC = () => {
         setPendingLostSessionId(sessionId);
         return;
       }
+
+      // Feature #15: validar lead_source antes de 'scheduled' ou 'converted' no Kanban
+      if (newStatus === 'scheduled' || newStatus === 'converted') {
+        const conversation = conversations.find(c => c.session_id === sessionId);
+        if (conversation && !conversation.lead_source) {
+          setShowLeadSourcePrompt({
+            sessionId,
+            pendingAction: newStatus,
+            scheduledAt: newStatus === 'scheduled'
+              ? new Date(Date.now() + 86400000).toISOString()
+              : undefined,
+          });
+          return;
+        }
+      }
+
       if (newStatus === 'converted') {
         await markAsConverted(sessionId);
       } else if (newStatus === 'archived') {
         await archiveConversation(sessionId);
+      } else if (newStatus === 'scheduled') {
+        await markAsScheduled(sessionId, new Date(Date.now() + 86400000).toISOString());
       } else {
         const { supabase } = await import('../lib/supabase');
         await supabase
@@ -293,7 +362,7 @@ export const Supervision: React.FC = () => {
         refetch();
       }
     },
-    [markAsConverted, archiveConversation, refetch]
+    [conversations, markAsConverted, markAsScheduled, archiveConversation, refetch]
   );
 
   const handleKanbanLostConfirm = useCallback(
@@ -308,45 +377,50 @@ export const Supervision: React.FC = () => {
   );
 
   // Bulk Actions Bar Component
+  // Feature #16: isClientUser nao ve botoes de mover status
   const BulkActionsBar = () => (
     <div className="flex items-center gap-2 px-3 py-2 bg-accent-primary/10 border-b border-accent-primary/30 shrink-0">
       <span className="text-xs font-medium text-accent-primary">
         {selectedIds.size} selecionado(s)
       </span>
       <div className="flex items-center gap-1.5 ml-auto">
-        {/* Mover Status dropdown */}
-        <div className="relative" ref={bulkStatusRef}>
+        {/* Mover Status dropdown — apenas para admins/gestores */}
+        {!isClientUser && (
+          <div className="relative" ref={bulkStatusRef}>
+            <button
+              onClick={() => setBulkStatusOpen(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-secondary transition-colors"
+            >
+              <MoveRight size={12} />
+              <span>Mover Status</span>
+              <ChevronDown size={11} className={`transition-transform ${bulkStatusOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {bulkStatusOpen && (
+              <div className="absolute top-full left-0 mt-1 w-44 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
+                {(Object.entries(supervisionStatusConfig) as [SupervisionStatus, typeof supervisionStatusConfig[SupervisionStatus]][]).map(([status, config]) => (
+                  <button
+                    key={status}
+                    onClick={() => handleBulkMoveStatus(status)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-secondary hover:bg-bg-hover transition-colors"
+                  >
+                    <span className={`w-2 h-2 rounded-full ${config.bgColor}`} />
+                    <span className={config.color}>{config.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {/* Arquivar — apenas para admins/gestores */}
+        {!isClientUser && (
           <button
-            onClick={() => setBulkStatusOpen(v => !v)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-secondary transition-colors"
+            onClick={handleBulkArchive}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-muted transition-colors"
           >
-            <MoveRight size={12} />
-            <span>Mover Status</span>
-            <ChevronDown size={11} className={`transition-transform ${bulkStatusOpen ? 'rotate-180' : ''}`} />
+            <Archive size={12} />
+            <span>Arquivar</span>
           </button>
-          {bulkStatusOpen && (
-            <div className="absolute top-full left-0 mt-1 w-44 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
-              {(Object.entries(supervisionStatusConfig) as [SupervisionStatus, typeof supervisionStatusConfig[SupervisionStatus]][]).map(([status, config]) => (
-                <button
-                  key={status}
-                  onClick={() => handleBulkMoveStatus(status)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-secondary hover:bg-bg-hover transition-colors"
-                >
-                  <span className={`w-2 h-2 rounded-full ${config.bgColor}`} />
-                  <span className={config.color}>{config.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Arquivar */}
-        <button
-          onClick={handleBulkArchive}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-muted transition-colors"
-        >
-          <Archive size={12} />
-          <span>Arquivar</span>
-        </button>
+        )}
         {/* Cancelar */}
         <button
           onClick={handleCancelSelection}
@@ -412,6 +486,34 @@ export const Supervision: React.FC = () => {
       </div>
     </div>
   );
+
+  // Feature #15: handler executado pelo LeadSourcePromptModal apos usuario escolher fonte
+  const handleLeadSourcePromptSelect = useCallback(async (source: string) => {
+    if (!showLeadSourcePrompt) return;
+    const { sessionId, pendingAction, scheduledAt, notes } = showLeadSourcePrompt;
+
+    // 1. Salvar lead source localmente
+    await updateLeadSource(sessionId, source);
+
+    // 2. Sync GHL (non-blocking)
+    const conversation = conversations.find(c => c.session_id === sessionId);
+    syncLeadSource({
+      sessionId,
+      locationId: conversation?.location_id || '',
+      contactId: conversation?.contact_id || undefined,
+      leadSource: source,
+    });
+
+    // 3. Executar acao pendente
+    if (pendingAction === 'scheduled' && scheduledAt) {
+      await markAsScheduled(sessionId, scheduledAt, notes);
+    } else if (pendingAction === 'converted') {
+      await markAsConverted(sessionId, notes);
+    }
+
+    setShowLeadSourcePrompt(null);
+    refetch();
+  }, [showLeadSourcePrompt, updateLeadSource, syncLeadSource, markAsScheduled, markAsConverted, conversations, refetch]);
 
   const detailProps = {
     conversation: selectedConversation!,
@@ -588,6 +690,39 @@ export const Supervision: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Feature #15: Lead Source Prompt Modal — intercepta scheduled/converted sem lead_source */}
+      {showLeadSourcePrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-bg-secondary rounded-xl p-6 max-w-sm mx-4 w-full shadow-2xl border border-border-default">
+            <h3 className="text-lg font-semibold text-text-primary mb-1">
+              Fonte do Lead
+            </h3>
+            <p className="text-sm text-text-muted mb-4">
+              Defina a fonte antes de{' '}
+              {showLeadSourcePrompt.pendingAction === 'scheduled' ? 'agendar' : 'converter'}{' '}
+              este lead.
+            </p>
+            <div className="max-h-52 overflow-y-auto space-y-0.5 mb-4 -mx-1 px-1">
+              {(Object.entries(leadSourceConfig) as [LeadSource, { label: string }][]).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  onClick={() => handleLeadSourcePromptSelect(key)}
+                  className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-hover rounded-lg transition-colors"
+                >
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowLeadSourcePrompt(null)}
+              className="w-full py-2 bg-bg-hover text-text-secondary rounded-lg text-sm hover:bg-border-default transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 

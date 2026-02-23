@@ -39,6 +39,7 @@ import { QualityFlagsList } from './QualityFlagsList';
 import { useQualityFlags, useQualitySummary } from '../../hooks/useQualityFlags';
 import { LostReasonModal } from './LostReasonModal';
 import { MeetingStatusModal } from './MeetingStatusModal';
+import { useAccount } from '../../contexts/AccountContext';
 
 interface ConversationDetailProps {
   conversation: SupervisionConversation;
@@ -129,6 +130,9 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
   onClearSendError,
   isMobile = false,
 }) => {
+  // Feature #16: permissao por perfil
+  const { isClientUser } = useAccount();
+
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showQualityPanel, setShowQualityPanel] = useState(false);
@@ -403,44 +407,64 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
               <span>Reuniao: {meetingStatusConfig[conversation.meeting_status as MeetingStatus]?.label || conversation.meeting_status}</span>
             </div>
           )}
-          {/* Lead Source inline dropdown */}
-          {onUpdateLeadSource && (
+          {/* Lead Source — read-only para clientes (Feature #16), editavel para gestores */}
+          {(onUpdateLeadSource || conversation.lead_source) && (
             <div className="relative shrink-0" ref={leadSourceRef}>
-              {conversation.lead_source ? (
-                <button
-                  onClick={() => setShowLeadSourceDropdown(v => !v)}
-                  className="flex items-center gap-1 px-2 py-1 bg-accent-primary/10 rounded text-accent-primary hover:bg-accent-primary/20 transition-colors"
-                >
-                  <Radio size={11} className="shrink-0" />
-                  <span>{leadSourceConfig[conversation.lead_source as LeadSource]?.label || conversation.lead_source}</span>
-                  <Pencil size={9} className="opacity-60" />
-                </button>
+              {/* Cliente: pill read-only com tooltip */}
+              {isClientUser ? (
+                conversation.lead_source ? (
+                  <span
+                    title="Somente gestores podem alterar a fonte"
+                    className="flex items-center gap-1 px-2 py-1 bg-accent-primary/10 rounded text-accent-primary cursor-default"
+                  >
+                    <Radio size={11} className="shrink-0" />
+                    <span>{leadSourceConfig[conversation.lead_source as LeadSource]?.label || conversation.lead_source}</span>
+                  </span>
+                ) : null
               ) : (
-                <button
-                  onClick={() => setShowLeadSourceDropdown(v => !v)}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-text-muted hover:text-text-secondary hover:bg-bg-hover transition-colors"
-                >
-                  <Radio size={11} />
-                  <span>Definir Fonte</span>
-                </button>
-              )}
-              {showLeadSourceDropdown && (
-                <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-bg-secondary border border-border-default rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                  {Object.entries(leadSourceConfig).map(([value, cfg]) => (
+                /* Gestor/Admin: dropdown editavel */
+                <>
+                  {conversation.lead_source ? (
                     <button
-                      key={value}
-                      onClick={() => {
-                        onUpdateLeadSource(value);
-                        setShowLeadSourceDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover cursor-pointer transition-colors ${
-                        conversation.lead_source === value ? 'text-accent-primary bg-accent-primary/5' : 'text-text-secondary'
-                      }`}
+                      onClick={() => setShowLeadSourceDropdown(v => !v)}
+                      className="flex items-center gap-1 px-2 py-1 bg-accent-primary/10 rounded text-accent-primary hover:bg-accent-primary/20 transition-colors"
                     >
-                      {cfg.label}
+                      <Radio size={11} className="shrink-0" />
+                      <span>{leadSourceConfig[conversation.lead_source as LeadSource]?.label || conversation.lead_source}</span>
+                      <Pencil size={9} className="opacity-60" />
                     </button>
-                  ))}
-                </div>
+                  ) : (
+                    onUpdateLeadSource && (
+                      <button
+                        onClick={() => setShowLeadSourceDropdown(v => !v)}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-text-muted hover:text-text-secondary hover:bg-bg-hover transition-colors"
+                      >
+                        <Radio size={11} />
+                        <span>Definir Fonte</span>
+                      </button>
+                    )
+                  )}
+                  {showLeadSourceDropdown && onUpdateLeadSource && (
+                    <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-bg-secondary border border-border-default rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                      {Object.entries(leadSourceConfig).map(([value, cfg]) => (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            onUpdateLeadSource(value);
+                            setShowLeadSourceDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover cursor-pointer transition-colors ${
+                            conversation.lead_source === value
+                              ? 'text-accent-primary bg-accent-primary/5'
+                              : 'text-text-secondary'
+                          }`}
+                        >
+                          {cfg.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
