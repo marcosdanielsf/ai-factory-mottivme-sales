@@ -17,7 +17,8 @@ import {
   Eye,
   EyeOff,
   Search,
-  ExternalLink
+  ExternalLink,
+  GitBranch
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import {
@@ -26,6 +27,11 @@ import {
   useGlobalCostSummary,
   ClientCostSummary
 } from '../hooks/useClientCosts';
+import {
+  useWorkflowCosts,
+  useWorkflowClientBreakdown,
+  WorkflowCostSummary
+} from '../hooks/useWorkflowCosts';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { DateRangePicker, DateRange } from '../components/DateRangePicker';
 
@@ -37,6 +43,12 @@ export const ClientCosts = () => {
   const [dateRange, setDateRange] = useState<DateRange>({ startDate: null, endDate: null });
 
   const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'clients' | 'workflows'>('clients');
+
+  // Workflow state
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowCostSummary | null>(null);
 
   // Novos filtros
   const [clientFilter, setClientFilter] = useState<string>(''); // Filtro por cliente específico
@@ -62,8 +74,15 @@ export const ClientCosts = () => {
     { dateRange }
   );
 
+  // Workflow hooks
+  const { workflows, totalCost: wfTotalCost, totalRequests: wfTotalRequests, loading: loadingWorkflows, refetch: refetchWorkflows } = useWorkflowCosts({ dateRange });
+  const { clients: workflowClients, loading: loadingWfBreakdown } = useWorkflowClientBreakdown(
+    selectedWorkflow?.workflow_name || null,
+    dateRange
+  );
+
   const handleRefresh = async () => {
-    await refetch();
+    await Promise.all([refetch(), refetchWorkflows()]);
     showToast('Dados de custos atualizados', 'info');
   };
 
@@ -107,7 +126,7 @@ export const ClientCosts = () => {
         <div>
           <div className="flex items-center gap-2 md:gap-3 mb-1">
             <DollarSign size={isMobile ? 24 : 28} className="text-accent-primary" />
-            <h1 className="text-xl md:text-3xl font-semibold">Custos por Cliente</h1>
+            <h1 className="text-xl md:text-3xl font-semibold">Custos de IA</h1>
           </div>
           <p className="text-text-secondary text-sm md:text-base">Monitore o consumo de IA e custos por cliente.</p>
         </div>
@@ -244,6 +263,32 @@ export const ClientCosts = () => {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-bg-secondary border border-border-default rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab('clients')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === 'clients'
+              ? 'bg-accent-primary text-white shadow-sm'
+              : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'
+          }`}
+        >
+          <Users size={16} />
+          Por Cliente
+        </button>
+        <button
+          onClick={() => setActiveTab('workflows')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === 'workflows'
+              ? 'bg-accent-primary text-white shadow-sm'
+              : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'
+          }`}
+        >
+          <GitBranch size={16} />
+          Por Workflow
+        </button>
+      </div>
+
       {/* Error Alert */}
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
@@ -259,73 +304,81 @@ export const ClientCosts = () => {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {/* Total Cost */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Total</span>
-            <div className="p-1.5 md:p-2 bg-accent-primary/10 rounded-lg">
-              <DollarSign size={14} className="text-accent-primary" />
-            </div>
-          </div>
-          <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
-            {loading ? '...' : formatUSD(totalCost)}
-          </div>
-          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-            Periodo: {dateRange.startDate && dateRange.endDate
-              ? `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
-              : 'Selecione um período'}
-          </p>
-        </div>
+      {(() => {
+        const isWf = activeTab === 'workflows';
+        const currentLoading = isWf ? loadingWorkflows : loading;
+        const currentTotalCost = isWf ? wfTotalCost : totalCost;
+        const currentTotalRequests = isWf ? wfTotalRequests : totalRequests;
+        const currentCount = isWf ? workflows.length : clients.length;
+        const countLabel = isWf ? 'Workflows' : 'Clientes';
+        const countSublabel = isWf ? 'Com consumo registrado' : 'Locations com consumo';
 
-        {/* Total Clients */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Clientes</span>
-            <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-lg">
-              <Users size={14} className="text-blue-500" />
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Total</span>
+                <div className="p-1.5 md:p-2 bg-accent-primary/10 rounded-lg">
+                  <DollarSign size={14} className="text-accent-primary" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
+                {currentLoading ? '...' : formatUSD(currentTotalCost)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Periodo: {dateRange.startDate && dateRange.endDate
+                  ? `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                  : 'Selecione um período'}
+              </p>
             </div>
-          </div>
-          <div className="text-lg md:text-2xl font-bold text-text-primary">
-            {loading ? '...' : clients.length}
-          </div>
-          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-            Locations com consumo
-          </p>
-        </div>
 
-        {/* Total Requests */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Requests</span>
-            <div className="p-1.5 md:p-2 bg-green-500/10 rounded-lg">
-              <Zap size={14} className="text-green-500" />
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">{countLabel}</span>
+                <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-lg">
+                  {isWf ? <GitBranch size={14} className="text-blue-500" /> : <Users size={14} className="text-blue-500" />}
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary">
+                {currentLoading ? '...' : currentCount}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                {countSublabel}
+              </p>
             </div>
-          </div>
-          <div className="text-lg md:text-2xl font-bold text-text-primary">
-            {loading ? '...' : formatNumber(totalRequests)}
-          </div>
-          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-            Chamadas de IA
-          </p>
-        </div>
 
-        {/* Avg Cost per Request */}
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Médio</span>
-            <div className="p-1.5 md:p-2 bg-purple-500/10 rounded-lg">
-              <TrendingUp size={14} className="text-purple-500" />
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Requests</span>
+                <div className="p-1.5 md:p-2 bg-green-500/10 rounded-lg">
+                  <Zap size={14} className="text-green-500" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary">
+                {currentLoading ? '...' : formatNumber(currentTotalRequests)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Chamadas de IA
+              </p>
+            </div>
+
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Médio</span>
+                <div className="p-1.5 md:p-2 bg-purple-500/10 rounded-lg">
+                  <TrendingUp size={14} className="text-purple-500" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
+                {currentLoading || currentTotalRequests === 0 ? '...' : formatUSD(currentTotalCost / currentTotalRequests)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Por requisicao
+              </p>
             </div>
           </div>
-          <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
-            {loading || totalRequests === 0 ? '...' : formatUSD(totalCost / totalRequests)}
-          </div>
-          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-            Por requisicao
-          </p>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Global Summary */}
       {!loadingSummary && (
@@ -526,181 +579,469 @@ export const ClientCosts = () => {
         </div>
       )}
 
-      {/* Clients Table */}
-      <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-        <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-          <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-            <Users size={16} />
-            Custos por Cliente
-          </h2>
-        </div>
+      {/* ===== TAB: POR CLIENTE ===== */}
+      {activeTab === 'clients' && (
+        <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+          <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+            <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+              <Users size={16} />
+              Custos por Cliente
+            </h2>
+          </div>
 
-        <div className="divide-y divide-border-default">
-          {loading ? (
-            [...Array(5)].map((_, i) => (
-              <div key={i} className="p-4 md:p-5 animate-pulse">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-bg-tertiary flex-shrink-0"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-bg-tertiary rounded w-24 md:w-32"></div>
-                      <div className="h-3 bg-bg-tertiary rounded w-16 md:w-24"></div>
+          <div className="divide-y divide-border-default">
+            {loading ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="p-4 md:p-5 animate-pulse">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-bg-tertiary flex-shrink-0"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-bg-tertiary rounded w-24 md:w-32"></div>
+                        <div className="h-3 bg-bg-tertiary rounded w-16 md:w-24"></div>
+                      </div>
                     </div>
+                    <div className="h-6 bg-bg-tertiary rounded w-16 md:w-20"></div>
                   </div>
-                  <div className="h-6 bg-bg-tertiary rounded w-16 md:w-20"></div>
                 </div>
-              </div>
-            ))
-          ) : clients.length > 0 ? (
-            clients.map((client) => (
-              <div
-                key={client.location_name}
-                onClick={() => setSelectedClient(client)}
-                className="p-4 md:p-5 hover:bg-bg-hover active:bg-bg-hover transition-all cursor-pointer group"
-              >
-                {isMobile ? (
-                  /* VERSÃO MOBILE - Card Layout */
-                  <div className="space-y-3">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-sm font-bold text-accent-primary flex-shrink-0">
-                          {client.location_name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-text-primary text-sm truncate">
-                            {client.location_name}
-                          </h3>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
-                              {client.models_used[0] || 'N/A'}
-                            </span>
-                            {client.canais_used?.map((canal) => (
-                              <span key={canal} className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
-                                {canal}
+              ))
+            ) : clients.length > 0 ? (
+              clients.map((client) => (
+                <div
+                  key={client.location_name}
+                  onClick={() => setSelectedClient(client)}
+                  className="p-4 md:p-5 hover:bg-bg-hover active:bg-bg-hover transition-all cursor-pointer group"
+                >
+                  {isMobile ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-sm font-bold text-accent-primary flex-shrink-0">
+                            {client.location_name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-text-primary text-sm truncate">
+                              {client.location_name}
+                            </h3>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {client.models_used[0] || 'N/A'}
                               </span>
-                            ))}
+                              {client.canais_used?.map((canal) => (
+                                <span key={canal} className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                                  {canal}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-base font-bold text-accent-primary font-mono">
-                          {formatUSD(client.total_cost_usd)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center justify-between text-[10px] text-text-muted">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <Zap size={10} />
-                          {formatNumber(client.total_requests)} req
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Cpu size={10} />
-                          {formatNumber(client.total_tokens_input)} tokens
-                        </span>
-                      </div>
-                      <ChevronRight size={16} className="text-text-muted" />
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-bg-tertiary rounded-full h-1.5">
-                      <div
-                        className="bg-accent-primary h-1.5 rounded-full transition-all"
-                        style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  /* VERSÃO DESKTOP - Row Layout */
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {/* Avatar */}
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-lg font-bold text-accent-primary group-hover:border-accent-primary/40 transition-colors">
-                        {client.location_name.substring(0, 2).toUpperCase()}
-                      </div>
-
-                      {/* Info */}
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
-                            {client.location_name}
-                          </h3>
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
-                            {client.models_used[0] || 'N/A'}
-                          </span>
-                          {client.canais_used?.map((canal) => (
-                            <span key={canal} className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
-                              {canal}
-                            </span>
-                          ))}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-base font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-text-muted">
+                        <div className="flex items-center gap-3">
                           <span className="flex items-center gap-1">
                             <Zap size={10} />
-                            {formatNumber(client.total_requests)} requests
+                            {formatNumber(client.total_requests)} req
                           </span>
                           <span className="flex items-center gap-1">
                             <Cpu size={10} />
                             {formatNumber(client.total_tokens_input)} tokens
                           </span>
-                          {client.last_activity && (
-                            <span className="flex items-center gap-1">
-                              <Clock size={10} />
-                              {formatDate(client.last_activity)}
-                            </span>
-                          )}
                         </div>
+                        <ChevronRight size={16} className="text-text-muted" />
+                      </div>
+                      <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                        <div
+                          className="bg-accent-primary h-1.5 rounded-full transition-all"
+                          style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
+                        />
                       </div>
                     </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-lg font-bold text-accent-primary group-hover:border-accent-primary/40 transition-colors">
+                          {client.location_name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
+                              {client.location_name}
+                            </h3>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                              {client.models_used[0] || 'N/A'}
+                            </span>
+                            {client.canais_used?.map((canal) => (
+                              <span key={canal} className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                                {canal}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                            <span className="flex items-center gap-1">
+                              <Zap size={10} />
+                              {formatNumber(client.total_requests)} requests
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Cpu size={10} />
+                              {formatNumber(client.total_tokens_input)} tokens
+                            </span>
+                            {client.last_activity && (
+                              <span className="flex items-center gap-1">
+                                <Clock size={10} />
+                                {formatDate(client.last_activity)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="hidden md:block w-32">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-text-muted">{getPercentage(client.total_cost_usd).toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                            <div
+                              className="bg-accent-primary h-1.5 rounded-full transition-all"
+                              style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-lg font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
+                          <p className="text-[10px] text-text-muted">
+                            {formatUSD(client.avg_cost_per_request)}/req
+                          </p>
+                        </div>
+                        <ChevronRight size={20} className="text-text-muted group-hover:text-accent-primary transition-colors" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-4">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                  <DollarSign size={32} className="opacity-20" />
+                </div>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">Nenhum custo registrado</h3>
+                <p className="text-xs md:text-sm text-text-muted max-w-xs">
+                  Os custos de IA aparecerão aqui conforme os agentes processam conversas.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-                    {/* Cost & Progress */}
-                    <div className="flex items-center gap-6">
-                      {/* Progress Bar */}
-                      <div className="hidden md:block w-32">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-text-muted">{getPercentage(client.total_cost_usd).toFixed(1)}%</span>
+      {/* ===== TAB: POR WORKFLOW ===== */}
+      {activeTab === 'workflows' && (
+        <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+          <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+            <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+              <GitBranch size={16} />
+              Custos por Workflow
+            </h2>
+          </div>
+
+          <div className="divide-y divide-border-default">
+            {loadingWorkflows ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="p-4 md:p-5 animate-pulse">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-bg-tertiary flex-shrink-0"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-bg-tertiary rounded w-32 md:w-48"></div>
+                        <div className="h-3 bg-bg-tertiary rounded w-20 md:w-32"></div>
+                      </div>
+                    </div>
+                    <div className="h-6 bg-bg-tertiary rounded w-16 md:w-20"></div>
+                  </div>
+                </div>
+              ))
+            ) : workflows.length > 0 ? (
+              workflows.map((wf) => {
+                const wfPercentage = wfTotalCost > 0 ? (wf.total_cost_usd / wfTotalCost) * 100 : 0;
+                return (
+                  <div
+                    key={`${wf.workflow_name}-${wf.workflow_id}`}
+                    onClick={() => setSelectedWorkflow(wf)}
+                    className="p-4 md:p-5 hover:bg-bg-hover active:bg-bg-hover transition-all cursor-pointer group"
+                  >
+                    {isMobile ? (
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-blue-500/20 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+                              <GitBranch size={16} className="text-green-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-text-primary text-sm truncate">
+                                {wf.workflow_name}
+                              </h3>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {wf.models_used.slice(0, 2).map((model) => (
+                                  <span key={model} className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                    {model}
+                                  </span>
+                                ))}
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                                  {wf.total_clients} cliente{wf.total_clients !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-base font-bold text-accent-primary font-mono">
+                              {formatUSD(wf.total_cost_usd)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-text-muted">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <Zap size={10} />
+                              {formatNumber(wf.total_requests)} req
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Cpu size={10} />
+                              {formatNumber(wf.total_tokens_input)} tokens
+                            </span>
+                          </div>
+                          <ChevronRight size={16} className="text-text-muted" />
                         </div>
                         <div className="w-full bg-bg-tertiary rounded-full h-1.5">
                           <div
-                            className="bg-accent-primary h-1.5 rounded-full transition-all"
-                            style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
+                            className="bg-green-500 h-1.5 rounded-full transition-all"
+                            style={{ width: `${Math.min(wfPercentage, 100)}%` }}
                           />
                         </div>
                       </div>
-
-                      {/* Cost */}
-                      <div className="text-right min-w-[100px]">
-                        <p className="text-lg font-bold text-accent-primary font-mono">
-                          {formatUSD(client.total_cost_usd)}
-                        </p>
-                        <p className="text-[10px] text-text-muted">
-                          {formatUSD(client.avg_cost_per_request)}/req
-                        </p>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-blue-500/20 border border-green-500/20 flex items-center justify-center group-hover:border-green-500/40 transition-colors">
+                            <GitBranch size={20} className="text-green-500" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
+                                {wf.workflow_name}
+                              </h3>
+                              {wf.models_used.slice(0, 2).map((model) => (
+                                <span key={model} className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  {model}
+                                </span>
+                              ))}
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                                {wf.total_clients} cliente{wf.total_clients !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                              <span className="flex items-center gap-1">
+                                <Zap size={10} />
+                                {formatNumber(wf.total_requests)} requests
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Cpu size={10} />
+                                {formatNumber(wf.total_tokens_input)} tokens
+                              </span>
+                              {wf.last_activity && (
+                                <span className="flex items-center gap-1">
+                                  <Clock size={10} />
+                                  {formatDate(wf.last_activity)}
+                                </span>
+                              )}
+                              {wf.workflow_id && (
+                                <a
+                                  href={`${N8N_BASE_URL}/${wf.workflow_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 text-accent-primary hover:text-accent-primary/80"
+                                >
+                                  <ExternalLink size={10} />
+                                  n8n
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="hidden md:block w-32">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] text-text-muted">{wfPercentage.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                              <div
+                                className="bg-green-500 h-1.5 rounded-full transition-all"
+                                style={{ width: `${Math.min(wfPercentage, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-right min-w-[100px]">
+                            <p className="text-lg font-bold text-accent-primary font-mono">
+                              {formatUSD(wf.total_cost_usd)}
+                            </p>
+                            <p className="text-[10px] text-text-muted">
+                              {formatUSD(wf.avg_cost_per_request)}/req
+                            </p>
+                          </div>
+                          <ChevronRight size={20} className="text-text-muted group-hover:text-accent-primary transition-colors" />
+                        </div>
                       </div>
-
-                      {/* Arrow */}
-                      <ChevronRight size={20} className="text-text-muted group-hover:text-accent-primary transition-colors" />
-                    </div>
+                    )}
                   </div>
+                );
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-4">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                  <GitBranch size={32} className="opacity-20" />
+                </div>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">Nenhum workflow registrado</h3>
+                <p className="text-xs md:text-sm text-text-muted max-w-xs">
+                  Os custos por workflow aparecerão aqui após a view ser criada no Supabase.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Workflow Detail Modal */}
+      {selectedWorkflow && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
+          <div className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
+            isMobile ? 'h-full max-h-full rounded-none' : 'max-w-3xl max-h-[80vh]'
+          }`}>
+            <div className="p-4 md:p-6 border-b border-border-default flex items-center justify-between">
+              <div className="min-w-0 flex-1 mr-4">
+                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">{selectedWorkflow.workflow_name}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedWorkflow.workflow_id && (
+                    <a
+                      href={`${N8N_BASE_URL}/${selectedWorkflow.workflow_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] md:text-xs text-accent-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink size={10} />
+                      Abrir no n8n
+                    </a>
+                  )}
+                  <span className="text-[10px] md:text-xs text-text-muted font-mono">{selectedWorkflow.workflow_id}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedWorkflow(null)}
+                className="p-2 hover:bg-bg-tertiary rounded-full transition-colors flex-shrink-0"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className={`p-4 md:p-6 overflow-y-auto ${isMobile ? 'h-[calc(100%-80px)]' : 'max-h-[calc(80vh-120px)]'}`}>
+              {/* Workflow Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Custo Total</p>
+                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">{formatUSD(selectedWorkflow.total_cost_usd)}</p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Requests</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedWorkflow.total_requests)}</p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Clientes</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">{selectedWorkflow.total_clients}</p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Request</p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">{formatUSD(selectedWorkflow.avg_cost_per_request)}</p>
+                </div>
+              </div>
+
+              {/* Models Used */}
+              <div className="mb-4 md:mb-6">
+                <h3 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
+                  <Cpu size={14} />
+                  Modelos Utilizados
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedWorkflow.models_used.map((model) => (
+                    <span key={model} className="text-xs px-3 py-1.5 rounded-lg bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-medium">
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Client Breakdown */}
+              <div>
+                <h3 className="text-sm font-bold text-text-primary mb-2 md:mb-3 flex items-center gap-2">
+                  <Users size={14} />
+                  Breakdown por Cliente
+                </h3>
+                {loadingWfBreakdown ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="animate-spin text-text-muted" size={24} />
+                  </div>
+                ) : workflowClients.length > 0 ? (
+                  isMobile ? (
+                    <div className="space-y-2">
+                      {workflowClients.map((client) => (
+                        <div key={client.location_name} className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">{client.location_name}</p>
+                            <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
+                              <span>{formatNumber(client.total_requests)} req</span>
+                              <span>{formatNumber(client.total_tokens_input)} tokens</span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">{formatUSD(client.total_cost_usd)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-bg-primary border border-border-default rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-bg-tertiary">
+                          <tr>
+                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">Cliente</th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Custo</th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Requests</th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Tokens</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-default">
+                          {workflowClients.map((client) => (
+                            <tr key={client.location_name} className="hover:bg-bg-hover">
+                              <td className="p-3 font-medium">{client.location_name}</td>
+                              <td className="p-3 text-right text-accent-primary font-mono">{formatUSD(client.total_cost_usd)}</td>
+                              <td className="p-3 text-right text-text-muted">{formatNumber(client.total_requests)}</td>
+                              <td className="p-3 text-right text-text-muted">{formatNumber(client.total_tokens_input)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  <p className="text-center text-text-muted py-4 text-sm">Nenhum dado de cliente encontrado</p>
                 )}
               </div>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-4">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
-                <DollarSign size={32} className="opacity-20" />
-              </div>
-              <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">Nenhum custo registrado</h3>
-              <p className="text-xs md:text-sm text-text-muted max-w-xs">
-                Os custos de IA aparecerão aqui conforme os agentes processam conversas.
-              </p>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
