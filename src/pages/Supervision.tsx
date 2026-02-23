@@ -58,8 +58,9 @@ export const Supervision: React.FC = () => {
   }, [selectedConversation]);
 
   // Fetch tags do contato GHL quando muda a conversa selecionada
+  // No MOTTIVME, session_id = GHL contactId (n8n usa contactId como session key)
   useEffect(() => {
-    const contact_id = selectedConversation?.contact_id;
+    const contact_id = selectedConversation?.contact_id || selectedConversation?.session_id;
     const location_id = selectedConversation?.location_id;
     const token = session?.access_token;
 
@@ -88,7 +89,7 @@ export const Supervision: React.FC = () => {
       });
 
     return () => { cancelled = true; };
-  }, [selectedConversation?.contact_id, selectedConversation?.location_id, session?.access_token]);
+  }, [selectedConversation?.contact_id, selectedConversation?.session_id, selectedConversation?.location_id, session?.access_token]);
 
   const {
     conversations,
@@ -277,14 +278,15 @@ export const Supervision: React.FC = () => {
 
   const handleAddTag = useCallback((tag: string) => {
     const current = selectedConversationRef.current;
-    if (!current?.contact_id || !current?.location_id) return;
+    const contactId = current?.contact_id || current?.session_id;
+    if (!contactId || !current?.location_id) return;
 
     // Optimistic update
     setContactTags(prev => [...prev, tag]);
 
     // Sync to GHL (non-blocking)
     syncAddTag({
-      contactId: current.contact_id,
+      contactId,
       locationId: current.location_id,
       tags: [tag],
     });
@@ -292,14 +294,15 @@ export const Supervision: React.FC = () => {
 
   const handleRemoveTag = useCallback((tag: string) => {
     const current = selectedConversationRef.current;
-    if (!current?.contact_id || !current?.location_id) return;
+    const contactId = current?.contact_id || current?.session_id;
+    if (!contactId || !current?.location_id) return;
 
     // Optimistic update
     setContactTags(prev => prev.filter(t => t !== tag));
 
     // Sync to GHL (non-blocking)
     syncRemoveTag({
-      contactId: current.contact_id,
+      contactId,
       locationId: current.location_id,
       tags: [tag],
     });
