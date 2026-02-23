@@ -154,7 +154,7 @@ export const ghlClient = {
      * Add tags to a contact
      */
     async addContactTags(contactId: string, tags: string[], token: string, locationId?: string): Promise<void> {
-        const res = await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
+        const res = await fetch(`${API_BASE}/contact-tags?contactId=${encodeURIComponent(contactId)}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -172,7 +172,7 @@ export const ghlClient = {
      * Remove tags from a contact
      */
     async removeContactTags(contactId: string, tags: string[], token: string, locationId?: string): Promise<void> {
-        const res = await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
+        const res = await fetch(`${API_BASE}/contact-tags?contactId=${encodeURIComponent(contactId)}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
