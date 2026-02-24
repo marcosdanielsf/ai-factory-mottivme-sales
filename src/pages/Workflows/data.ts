@@ -312,6 +312,25 @@ export const sectors: Sector[] = [
           { id: 'OZUPCf0nolzpgSp2', name: 'Detectar No-Shows (Attendance Tracker)', status: 'on', type: 'workflow', url: `${N8N_BASE}/OZUPCf0nolzpgSp2` },
         ],
       },
+      {
+        id: 'aif-donna-wendy',
+        name: 'Donna Wendy (Life OS)',
+        description: 'Gestao de vida, briefing, check-in, lembretes, behavior tracking',
+        resources: [
+          { label: 'Donna Wendy App', url: 'https://donna-wendy.vercel.app', type: 'dashboard' },
+          { label: 'GitHub Repo', url: 'https://github.com/marcosdanielsf/donna-wendy', type: 'repo' },
+        ],
+        items: [
+          { id: 'ObseW87cNpRDdAFv', name: 'Morning Briefing (7h)', status: 'off', type: 'workflow', url: `${N8N_BASE}/ObseW87cNpRDdAFv`, tags: ['Donna Wendy'], description: 'Puxa tasks P0/P1, habitos, calendario e gera briefing matinal' },
+          { id: 'BvOqK49zqODHXVog', name: 'Check-in Analyzer (10h/14h/16h)', status: 'off', type: 'workflow', url: `${N8N_BASE}/BvOqK49zqODHXVog`, tags: ['Donna Wendy'], description: 'Analisa tasks atrasadas e em progresso, gera alertas' },
+          { id: 'y2N3k53Vtv5WjdPP', name: 'Agents Monitor (15min)', status: 'off', type: 'workflow', url: `${N8N_BASE}/y2N3k53Vtv5WjdPP`, tags: ['Donna Wendy'], description: 'Monitora status dos agentes SDR/bots a cada 15min' },
+          { id: 'U7z13GXHwThUHDQA', name: 'Evening Report (20h)', status: 'off', type: 'workflow', url: `${N8N_BASE}/U7z13GXHwThUHDQA`, tags: ['Donna Wendy'], description: 'Relatorio do dia: tasks concluidas, score, sugestoes' },
+          { id: 'ahWhFNhi9408xlH8', name: 'Behavior Tracker (Webhook)', status: 'off', type: 'workflow', url: `${N8N_BASE}/ahWhFNhi9408xlH8`, tags: ['Donna Wendy'], description: 'Webhook para logar atividades (deep_work, meeting, social_media, etc)' },
+          { id: '7fTSlNsdwbR8PbQF', name: 'Briefing Matinal (API)', status: 'off', type: 'workflow', url: `${N8N_BASE}/7fTSlNsdwbR8PbQF`, tags: ['Donna Wendy'], description: 'Gera briefing via DONNA API endpoint' },
+          { id: 'W8BwYWTGrVAQINFk', name: 'Google Calendar Sync (15min)', status: 'off', type: 'workflow', url: `${N8N_BASE}/W8BwYWTGrVAQINFk`, tags: ['Donna Wendy'], description: 'Sincroniza eventos do Google Calendar com Supabase' },
+          { id: 'BeYOP0TxK97Bdleb', name: 'Enviar Lembretes (1min)', status: 'off', type: 'workflow', url: `${N8N_BASE}/BeYOP0TxK97Bdleb`, tags: ['Donna Wendy'], description: 'Verifica lembretes pendentes e envia notificacoes' },
+        ],
+      },
     ],
   },
 
