@@ -1,0 +1,444 @@
+{
+  "name": "Fetch Creative Thumbnails - Meta API",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Fetch Creative Thumbnails - Meta API\n\n**Objetivo:** Popular `meta_creatives` com thumbnail_url, image_url, title e body de cada ad_id ativo.\n\n**Fluxo:**\n1. Busca todos os ad_ids distintos em `fb_ads_performance`\n2. Busca quais ja foram fetchados nos ultimos 7 dias (`meta_creatives`)\n3. Filtra apenas os novos/desatualizados\n4. Processa em batches de 50 via Meta Graph API\n5. Aguarda 20s entre batches (rate limit: 200 calls/hora)\n6. Faz UPSERT em `meta_creatives`\n7. Agrega e loga resultado\n\n**Prerequisito:** Rodar `sql/041_meta_creatives_fields.sql` antes da primeira execucao.\n\n**Meta API:** `graph.facebook.com/v21.0/`\n**Access Token:** Configurado no Code node `Config`\n\n**Schedule:** Domingos 03:00",
+        "height": 460,
+        "width": 520,
+        "color": 4
+      },
+      "id": "sticky-main",
+      "name": "Sticky Note - Visao Geral",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Config\n\nAlterar o node **Config** para:\n- `META_ACCESS_TOKEN` — System User Token com permissao `ads_read`\n- `BATCH_SIZE` — padrao 50 (maximo seguro)\n- `FRESHNESS_DAYS` — padrao 7\n\nSe o token expirar:\n1. Business Manager → System Users\n2. Gerar novo token com `ads_read`\n3. Atualizar o Code node `Config`",
+        "height": 260,
+        "width": 380,
+        "color": 6
+      },
+      "id": "sticky-config",
+      "name": "Sticky Note - Config",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Rate Limit Meta API\n\n- Limite: 200 calls/hora por ad account\n- Batch de 50 IDs = 1 call\n- Wait 20s entre batches = seguro para ate 9k ads\n\nSe receber `(#4) Application request limit reached`:\n1. Aumentar Wait para 30s\n2. Reduzir BATCH_SIZE para 25",
+        "height": 200,
+        "width": 380,
+        "color": 5
+      },
+      "id": "sticky-ratelimit",
+      "name": "Sticky Note - Rate Limit",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 290]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [0],
+              "triggerAtHour": 3,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [1100, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configuracoes centralizadas — ALTERAR AQUI antes de ativar\nreturn [{\n  json: {\n    META_ACCESS_TOKEN: 'SEU_ACCESS_TOKEN_AQUI',\n    META_API_BASE: 'https://graph.facebook.com/v21.0',\n    BATCH_SIZE: 50,\n    SUPABASE_URL: 'https://bfumywvwubvernvhjehk.supabase.co',\n    SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE'\n  }\n}];"
+      },
+      "id": "config-node",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 380]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.SUPABASE_URL }}/rest/v1/fb_ads_performance",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Config').first().json.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config').first().json.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "ad_id"
+            },
+            {
+              "name": "ad_id",
+              "value": "not.is.null"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-get-ad-ids",
+      "name": "Supabase Get Ad IDs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 300],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.SUPABASE_URL }}/rest/v1/meta_creatives",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Config').first().json.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config').first().json.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "ad_id,fetched_at"
+            },
+            {
+              "name": "fetched_at",
+              "value": "=gte.{{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-get-existing",
+      "name": "Supabase Get Existing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 460],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Coletar todos os ad_ids de fb_ads_performance\nconst allRaw = $('Supabase Get Ad IDs').all();\nconst allAdIds = [];\nconst seen = new Set();\n\nfor (const item of allRaw) {\n  const val = item.json;\n  // O PostgREST retorna um array de objetos na raiz OU um unico objeto\n  if (Array.isArray(val)) {\n    val.forEach(r => { if (r.ad_id && !seen.has(r.ad_id)) { seen.add(r.ad_id); allAdIds.push(r.ad_id); } });\n  } else if (val && val.ad_id && !seen.has(val.ad_id)) {\n    seen.add(val.ad_id);\n    allAdIds.push(val.ad_id);\n  }\n}\n\n// Coletar ad_ids frescos (fetchados nos ultimos 7 dias)\nconst freshRaw = $('Supabase Get Existing').all();\nconst freshSet = new Set();\n\nfor (const item of freshRaw) {\n  const val = item.json;\n  if (Array.isArray(val)) {\n    val.forEach(r => { if (r.ad_id) freshSet.add(r.ad_id); });\n  } else if (val && val.ad_id) {\n    freshSet.add(val.ad_id);\n  }\n}\n\n// Filtrar apenas os que precisam ser fetchados\nconst toFetch = allAdIds.filter(id => !freshSet.has(id));\n\nconsole.log(`Total ad_ids: ${allAdIds.length} | Frescos: ${freshSet.size} | A buscar: ${toFetch.length}`);\n\nif (toFetch.length === 0) {\n  return [{ json: { ad_id: '__SKIP__', total_to_fetch: 0, message: 'Todos ad_ids ja sao frescos' } }];\n}\n\nreturn toFetch.map(ad_id => ({ json: { ad_id } }));"
+      },
+      "id": "code-filter-new",
+      "name": "Code: Filter New",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 380],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.ad_id }}",
+              "rightValue": "__SKIP__",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-new",
+      "name": "IF: Has New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1980, 380]
+    },
+    {
+      "parameters": {
+        "batchSize": 50,
+        "options": {}
+      },
+      "id": "split-in-batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2200, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Montar URL do batch para a Meta Graph API\n// Formato: /?ids=ID1,ID2,...&fields=creative{...}&access_token=TOKEN\nconst items = $input.all();\nconst ids = items.map(item => item.json.ad_id).filter(Boolean).join(',');\n\nconst config = $('Config').first().json;\nconst fields = 'creative{thumbnail_url,image_url,video_id,title,body}';\nconst url = `${config.META_API_BASE}/?ids=${encodeURIComponent(ids)}&fields=${encodeURIComponent(fields)}&access_token=${config.META_ACCESS_TOKEN}`;\n\nconsole.log(`Batch de ${items.length} IDs preparado`);\n\nreturn [{ json: { ids_csv: ids, id_count: items.length, meta_url: url } }];"
+      },
+      "id": "code-prepare-batch",
+      "name": "Code: Prepare Batch URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 280]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.meta_url }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "meta-api-batch",
+      "name": "Meta API Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 280],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsear resposta da Meta API\n// Formato da resposta: { \"AD_ID\": { \"creative\": { thumbnail_url, image_url, video_id, title, body }, \"id\": \"AD_ID\" }, ... }\n\nconst response = $input.first().json;\n\n// Checar erro de API\nif (response.error) {\n  console.error('Meta API Error:', JSON.stringify(response.error));\n  return [{\n    json: {\n      _meta_error: true,\n      error_code: response.error.code,\n      error_message: response.error.message\n    }\n  }];\n}\n\nconst now = new Date().toISOString();\nconst results = [];\n\nfor (const [adId, adData] of Object.entries(response)) {\n  if (adId === 'error' || !adData || typeof adData !== 'object') continue;\n\n  const creative = adData.creative || {};\n\n  let creativeType = 'image';\n  if (creative.video_id) creativeType = 'video';\n  else if (!creative.thumbnail_url && !creative.image_url) creativeType = 'unknown';\n\n  results.push({\n    json: {\n      ad_id: adId,\n      thumbnail_url: creative.thumbnail_url || null,\n      image_url: creative.image_url || null,\n      video_id: creative.video_id || null,\n      title: creative.title || null,\n      body: creative.body || null,\n      creative_type: creativeType,\n      fetched_at: now,\n      updated_at: now\n    }\n  });\n}\n\nconsole.log(`Parse concluido: ${results.length} criativos extraidos da resposta Meta API`);\n\nif (results.length === 0) {\n  return [{ json: { _empty: true } }];\n}\n\nreturn results;"
+      },
+      "id": "code-parse-response",
+      "name": "Code: Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2860, 280],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "no-error",
+              "leftValue": "={{ $json._meta_error }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            },
+            {
+              "id": "not-empty",
+              "leftValue": "={{ $json._empty }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-response",
+      "name": "IF: Valid Response?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3080, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.SUPABASE_URL }}/rest/v1/meta_creatives",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Config').first().json.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config').first().json.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "supabase-upsert",
+      "name": "Supabase Upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3300, 180],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "amount": 20
+      },
+      "id": "wait-node",
+      "name": "Wait 20s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3520, 280],
+      "webhookId": "wait-creative-thumbnails-20s"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_results",
+        "options": {}
+      },
+      "id": "aggregate-node",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [3740, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sumarizar resultado final\nconst raw = $input.first().json;\nconst all = raw.all_results || [];\n\nconst total = all.length;\nconst withThumb = all.filter(r => r.thumbnail_url).length;\nconst withImage = all.filter(r => r.image_url).length;\nconst withVideo = all.filter(r => r.video_id).length;\nconst errors = all.filter(r => r._meta_error).length;\n\nconst summary = {\n  execution_time: new Date().toISOString(),\n  total_processed: total,\n  with_thumbnail: withThumb,\n  with_image_url: withImage,\n  with_video_id: withVideo,\n  errors: errors,\n  success_rate: total > 0 ? `${Math.round((total - errors) / total * 100)}%` : 'N/A'\n};\n\nconsole.log('Resumo da execucao:', JSON.stringify(summary, null, 2));\nreturn [{ json: summary }];"
+      },
+      "id": "code-summary",
+      "name": "Code: Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3960, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nenhum ad_id novo para processar\nconst data = $('Code: Filter New').first().json;\nconst msg = data.message || 'Todos ad_ids ja sao frescos - sem acao necessaria';\nconsole.log(msg);\nreturn [{ json: { skipped: true, message: msg, execution_time: new Date().toISOString() } }];"
+      },
+      "id": "code-skip",
+      "name": "Code: Skip (All Fresh)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 480]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger": {
+      "main": [[{ "node": "Config", "type": "main", "index": 0 }]]
+    },
+    "Config": {
+      "main": [[
+        { "node": "Supabase Get Ad IDs", "type": "main", "index": 0 },
+        { "node": "Supabase Get Existing", "type": "main", "index": 0 }
+      ]]
+    },
+    "Supabase Get Ad IDs": {
+      "main": [[{ "node": "Code: Filter New", "type": "main", "index": 0 }]]
+    },
+    "Supabase Get Existing": {
+      "main": [[{ "node": "Code: Filter New", "type": "main", "index": 0 }]]
+    },
+    "Code: Filter New": {
+      "main": [[{ "node": "IF: Has New?", "type": "main", "index": 0 }]]
+    },
+    "IF: Has New?": {
+      "main": [
+        [{ "node": "Split In Batches", "type": "main", "index": 0 }],
+        [{ "node": "Code: Skip (All Fresh)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [{ "node": "Code: Prepare Batch URL", "type": "main", "index": 0 }],
+        [{ "node": "Aggregate Results", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code: Prepare Batch URL": {
+      "main": [[{ "node": "Meta API Batch", "type": "main", "index": 0 }]]
+    },
+    "Meta API Batch": {
+      "main": [[{ "node": "Code: Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Code: Parse Response": {
+      "main": [[{ "node": "IF: Valid Response?", "type": "main", "index": 0 }]]
+    },
+    "IF: Valid Response?": {
+      "main": [
+        [{ "node": "Supabase Upsert", "type": "main", "index": 0 }],
+        [{ "node": "Wait 20s", "type": "main", "index": 0 }]
+      ]
+    },
+    "Supabase Upsert": {
+      "main": [[{ "node": "Wait 20s", "type": "main", "index": 0 }]]
+    },
+    "Wait 20s": {
+      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Results": {
+      "main": [[{ "node": "Code: Summary", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  }
+}

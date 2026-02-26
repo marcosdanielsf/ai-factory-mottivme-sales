@@ -1,0 +1,444 @@
+{
+  "name": "Backfill Ad Attribution - n8n_schedule_tracking",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Backfill Ad Attribution\n\n**Objetivo:** Recuperar `ad_id`, `adset_id`, `campaign_id` e campos UTM de leads sem atribuicao em `n8n_schedule_tracking` via API do GHL.\n\n**Contexto:** 88% dos leads (1.998 de 2.185) nao tem `ad_id`. O GHL armazena `attributionSource` no contato.\n\n**Schedule:** 09:00 BRT diariamente | Processa 100 leads por execucao\n\n**Rate Limiting:** Batches de 10 + Wait 2s entre batches\n\n**Campos atualizados:**\n- `ad_id` ← `attributionSource.adId`\n- `adset_id` ← `attributionSource.adsetId` (NAO adSetId)\n- `campaign_id` ← `attributionSource.campaignId`\n- `utm_campaign` ← `attributionSource.utmCampaign`\n- `utm_source` ← `attributionSource.utmSource`\n- `utm_medium` ← `attributionSource.medium` (NAO utmMedium)\n- `utm_content` ← `attributionSource.utmContent`\n- `session_source` ← `attributionSource.sessionSource`\n\n**IMPORTANTE:**\nSe a tabela `n8n_schedule_tracking` nao tiver colunas `adset_id`, `utm_source`, etc., rodar migration SQL para adiciona-las antes de ativar.",
+        "height": 500,
+        "width": 520,
+        "color": 4
+      },
+      "id": "sticky-info",
+      "name": "Sticky Note - Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "content": "## COMO USAR\n\n1. Importar no n8n\n2. Verificar GHL API Key (Agency PIT)\n3. Manual Trigger para testar com batch pequeno\n4. Conferir Supabase que os campos foram atualizados\n5. Ativar Schedule quando validado\n\n**GHL API Key:**\n`pit-e09bd2ef-157d-4d19-b080-9ae5882308f4`\n(Agency PIT principal)\n\n**Supabase:**\n`bfumywvwubvernvhjehk.supabase.co`\n\n**SQL para adicionar colunas (se necessario):**\n```sql\nALTER TABLE n8n_schedule_tracking\nADD COLUMN IF NOT EXISTS adset_id TEXT,\nADD COLUMN IF NOT EXISTS utm_campaign TEXT,\nADD COLUMN IF NOT EXISTS utm_source TEXT,\nADD COLUMN IF NOT EXISTS utm_medium TEXT,\nADD COLUMN IF NOT EXISTS utm_content TEXT,\nADD COLUMN IF NOT EXISTS session_source TEXT;\n```",
+        "height": 440,
+        "width": 420,
+        "color": 6
+      },
+      "id": "sticky-usage",
+      "name": "Sticky Note - Uso",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [540, 0]
+    },
+    {
+      "parameters": {
+        "content": "## FLUXO\n\n1. Trigger (schedule 09h ou manual)\n2. Buscar 100 leads sem `ad_id` no Supabase\n3. Split em batches de 10\n4. Para cada lead: GET /contacts/{id} no GHL\n5. Extrair `attributionSource` do contato\n6. Filtrar apenas quem tem `adId` preenchido\n7. PATCH no Supabase atualizando os campos\n8. Wait 2s (rate limiting GHL)\n9. Proximo batch ate acabar\n10. Agregar e logar resultado",
+        "height": 340,
+        "width": 360,
+        "color": 5
+      },
+      "id": "sticky-flow",
+      "name": "Sticky Note - Fluxo",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [980, 0]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [120, 560]
+    },
+    {
+      "parameters": {},
+      "id": "node-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [120, 720]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://bfumywvwubvernvhjehk.supabase.co/rest/v1/n8n_schedule_tracking",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE"
+            },
+            {
+              "name": "Prefer",
+              "value": "count=none"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "unique_id"
+            },
+            {
+              "name": "or",
+              "value": "(ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined)"
+            },
+            {
+              "name": "unique_id",
+              "value": "not.is.null"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-supabase-query",
+      "name": "Supabase Query - Leads sem Ad",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 640]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalizar resposta do Supabase REST\n// REST retorna array JSON — n8n converte para items automaticamente\n// Mas se a resposta vier como item unico com array, expandir manualmente\n\nconst items = $input.all();\n\n// Caso 1: Veio como array dentro do primeiro item (comportamento ocasional do HTTP Request)\nif (items.length === 1 && Array.isArray(items[0].json)) {\n  const rows = items[0].json;\n  if (rows.length === 0) {\n    // Nenhum lead sem ad_id — finalizar\n    return [{ json: { _empty: true, message: 'Nenhum lead sem ad_id encontrado. Backfill concluido.' } }];\n  }\n  return rows.map(row => ({ json: row }));\n}\n\n// Caso 2: Ja veio expandido (cada row = um item)\nif (items.length > 0 && !items[0].json._empty) {\n  return items;\n}\n\n// Sem dados\nreturn [{ json: { _empty: true, message: 'Nenhum lead sem ad_id encontrado.' } }];"
+      },
+      "id": "node-normalize",
+      "name": "Normalize - Expand Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 640]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-not-empty",
+              "leftValue": "={{ $json._empty }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-check-has-data",
+      "name": "Has Leads to Process",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [880, 640]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "node-split-batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1120, 560]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.unique_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-e09bd2ef-157d-4d19-b080-9ae5882308f4"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-ghl-get-contact",
+      "name": "GHL Get Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair attributionSource do contato retornado pelo GHL\n// Referencia de campos (MEMORIA MOTTIVME):\n//   adId, adsetId (NAO adSetId), campaignId, utmCampaign\n//   utmSource, medium (NAO utmMedium), utmContent, sessionSource\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // GHL retorna { contact: { id, attributionSource, ... } }\n  const contact = item.json?.contact || item.json || {};\n  const contactId = contact?.id || null;\n  const attribution = contact?.attributionSource || {};\n\n  // Verificar se a resposta e valida (status 200 com contact)\n  if (!contactId) {\n    // Contato nao encontrado ou erro na API — pular\n    console.log('Contact nao encontrado ou resposta invalida:', JSON.stringify(item.json).substring(0, 200));\n    continue;\n  }\n\n  const adId = attribution.adId || null;\n  const adsetId = attribution.adsetId || null;          // CORRETO: adsetId (nao adSetId)\n  const campaignId = attribution.campaignId || null;\n  const utmCampaign = attribution.utmCampaign || null;\n  const utmSource = attribution.utmSource || null;\n  const utmMedium = attribution.medium || null;         // CORRETO: medium (nao utmMedium)\n  const utmContent = attribution.utmContent || null;\n  const sessionSource = attribution.sessionSource || null;\n\n  results.push({\n    json: {\n      contactId,\n      adId,\n      adsetId,\n      campaignId,\n      utmCampaign,\n      utmSource,\n      utmMedium,\n      utmContent,\n      sessionSource,\n      hasAttribution: !!(adId),\n      // Guardar raw para debug\n      _rawAttribution: Object.keys(attribution).length > 0 ? attribution : null\n    }\n  });\n}\n\n// Se nenhum resultado valido, retornar item vazio para nao quebrar o workflow\nif (results.length === 0) {\n  return [{ json: { _noValidContacts: true } }];\n}\n\nreturn results;"
+      },
+      "id": "node-extract-attribution",
+      "name": "Extract Attribution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-has-ad-id",
+              "leftValue": "={{ $json.hasAttribution }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-filter-has-ad",
+      "name": "Filter Has Ad ID",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1840, 480]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://bfumywvwubvernvhjehk.supabase.co/rest/v1/n8n_schedule_tracking?unique_id=eq.{{ $json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  ad_id: $json.adId,\n  adset_id: $json.adsetId,\n  campaign_id: $json.campaignId,\n  utm_campaign: $json.utmCampaign,\n  utm_source: $json.utmSource,\n  utm_medium: $json.utmMedium,\n  utm_content: $json.utmContent,\n  session_source: $json.sessionSource\n}) }}",
+        "options": {}
+      },
+      "id": "node-supabase-update",
+      "name": "Supabase Update - Ad Attribution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2080, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aguarda 2 segundos entre batches para respeitar rate limit do GHL\n// GHL Agency PIT tem limite maior (~600 req/min), mas 2s por batch de 10 = seguro\nawait new Promise(resolve => setTimeout(resolve, 2000));\nreturn $input.all();"
+      },
+      "id": "node-wait",
+      "name": "Wait 2s Between Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 680]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sumarizar resultados do backfill\nconst allItems = $input.all();\n\n// Contar registros que foram efetivamente atualizados (tem unique_id ou id na resposta do PATCH)\nconst updatedCount = allItems.filter(item => {\n  const j = item.json;\n  return Array.isArray(j) ? j.length > 0 : (j?.unique_id || j?.id);\n}).length;\n\nconst now = new Date().toISOString();\n\nconsole.log(`[Backfill Ad Attribution] ${now} | Atualizados: ${updatedCount} registros`);\n\nreturn [{\n  json: {\n    executedAt: now,\n    totalUpdated: updatedCount,\n    message: `Backfill concluido: ${updatedCount} leads tiveram ad_id e campos de atribuicao preenchidos.`\n  }\n}];"
+      },
+      "id": "node-aggregate",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 720]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Query - Leads sem Ad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Query - Leads sem Ad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Query - Leads sem Ad": {
+      "main": [
+        [
+          {
+            "node": "Normalize - Expand Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize - Expand Rows": {
+      "main": [
+        [
+          {
+            "node": "Has Leads to Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Leads to Process": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "GHL Get Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL Get Contact": {
+      "main": [
+        [
+          {
+            "node": "Extract Attribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Attribution": {
+      "main": [
+        [
+          {
+            "node": "Filter Has Ad ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Has Ad ID": {
+      "main": [
+        [
+          {
+            "node": "Supabase Update - Ad Attribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Update - Ad Attribution": {
+      "main": [
+        [
+          {
+            "node": "Wait 2s Between Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2s Between Batches": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 3600,
+    "timezone": "America/Sao_Paulo"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
