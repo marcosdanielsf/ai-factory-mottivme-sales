@@ -4,7 +4,9 @@ import { SavedFilter, SupervisionFilters } from '../../types/supervision';
 
 interface SavedFiltersPanelProps {
   savedFilters: SavedFilter[];
+  defaultClientFilters: SavedFilter[];
   currentFilters: SupervisionFilters;
+  activeLocationId?: string | null;
   onApply: (filters: SupervisionFilters) => void;
   onSave: (name: string, filters: SupervisionFilters) => void;
   onDelete: (id: string) => void;
@@ -12,7 +14,9 @@ interface SavedFiltersPanelProps {
 
 export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
   savedFilters,
+  defaultClientFilters,
   currentFilters,
+  activeLocationId,
   onApply,
   onSave,
   onDelete,
@@ -27,72 +31,120 @@ export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
     setIsCreating(false);
   };
 
-  return (
-    <div className="mt-2 pt-2 border-t border-border-default/50">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-text-muted text-xs">
-          <Bookmark size={12} />
-          <span>Filtros Salvos</span>
-        </div>
-        <button
-          onClick={() => setIsCreating(!isCreating)}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-accent-primary hover:bg-accent-primary/10 rounded transition-colors"
-        >
-          {isCreating ? <X size={12} /> : <Plus size={12} />}
-          {isCreating ? 'Cancelar' : 'Salvar Atual'}
-        </button>
-      </div>
+  const handleClientPillClick = (filter: SavedFilter) => {
+    const isActive = activeLocationId === filter.filters.locationId;
+    if (isActive) {
+      // Toggle off: clear locationId filter
+      onApply({ ...currentFilters, locationId: undefined });
+    } else {
+      onApply(filter.filters);
+    }
+  };
 
-      {/* Create new filter */}
-      {isCreating && (
-        <div className="flex items-center gap-2 mb-2">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nome do filtro..."
-            className="flex-1 px-2.5 py-1.5 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          />
-          <button
-            onClick={handleSave}
-            disabled={!newName.trim()}
-            className="p-1.5 bg-accent-primary text-white rounded-lg disabled:opacity-50"
-          >
-            <Check size={14} />
-          </button>
+  return (
+    <div className="mt-2 pt-2 border-t border-border-default/50 space-y-2">
+      {/* Client quick-access pills */}
+      {defaultClientFilters.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {defaultClientFilters.map((filter) => {
+            const isActive = activeLocationId === filter.filters.locationId;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => handleClientPillClick(filter)}
+                className={`
+                  px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap
+                  ${isActive
+                    ? 'bg-accent-primary text-white'
+                    : 'bg-bg-hover/80 text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+                  }
+                `}
+              >
+                {filter.name}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Saved filter list */}
-      <div className="flex flex-wrap gap-1.5">
-        {savedFilters.map((filter) => (
-          <div
-            key={filter.id}
-            className="group flex items-center gap-1 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs transition-colors cursor-pointer"
-          >
+      {/* User-saved filters section */}
+      {(savedFilters.length > 0 || isCreating) && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5 text-text-muted text-xs">
+              <Bookmark size={11} />
+              <span>Filtros Salvos</span>
+            </div>
             <button
-              onClick={() => onApply(filter.filters)}
-              className="text-text-secondary hover:text-text-primary"
+              onClick={() => setIsCreating(!isCreating)}
+              className="flex items-center gap-1 px-2 py-0.5 text-xs text-accent-primary hover:bg-accent-primary/10 rounded transition-colors"
             >
-              {filter.name}
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(filter.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 text-text-muted transition-all"
-            >
-              <Trash2 size={10} />
+              {isCreating ? <X size={11} /> : <Plus size={11} />}
+              {isCreating ? 'Cancelar' : 'Salvar Atual'}
             </button>
           </div>
-        ))}
-        {savedFilters.length === 0 && !isCreating && (
+
+          {isCreating && (
+            <div className="flex items-center gap-2 mb-1.5">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Nome do filtro..."
+                className="flex-1 px-2.5 py-1.5 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              />
+              <button
+                onClick={handleSave}
+                disabled={!newName.trim()}
+                className="p-1.5 bg-accent-primary text-white rounded-lg disabled:opacity-50"
+              >
+                <Check size={13} />
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            {savedFilters.map((filter) => (
+              <div
+                key={filter.id}
+                className="group flex items-center gap-1 px-2.5 py-1 bg-bg-hover hover:bg-border-default rounded-full text-xs transition-colors cursor-pointer"
+              >
+                <button
+                  onClick={() => onApply(filter.filters)}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  {filter.name}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(filter.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 text-text-muted transition-all"
+                >
+                  <Trash2 size={9} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Show "Salvar Atual" button alone when no saved filters and not creating */}
+      {savedFilters.length === 0 && !isCreating && (
+        <div className="flex items-center justify-between">
           <span className="text-xs text-text-muted italic">Nenhum filtro salvo</span>
-        )}
-      </div>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="flex items-center gap-1 px-2 py-0.5 text-xs text-accent-primary hover:bg-accent-primary/10 rounded transition-colors"
+          >
+            <Plus size={11} />
+            Salvar Atual
+          </button>
+        </div>
+      )}
     </div>
   );
 };

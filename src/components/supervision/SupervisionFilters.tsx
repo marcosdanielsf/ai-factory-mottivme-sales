@@ -52,10 +52,10 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap
           ${value
-            ? 'bg-accent-primary/10 border border-accent-primary text-accent-primary'
-            : 'bg-bg-hover border border-transparent text-text-secondary hover:bg-border-default'
+            ? 'bg-accent-primary/10 border border-accent-primary/40 text-accent-primary'
+            : 'bg-bg-secondary border border-border-default/50 text-text-secondary hover:border-border-default hover:text-text-primary'
           }
         `}
       >
@@ -68,7 +68,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1 w-56 bg-bg-secondary border border-border-default/60 rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="max-h-64 overflow-y-auto">
             {/* Opcao "Todos" */}
             <button
@@ -77,7 +77,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                 setIsOpen(false);
               }}
               className={`
-                w-full flex items-center justify-between px-3 py-2 text-sm
+                w-full flex items-center justify-between px-3 py-2 text-sm rounded-md
                 ${!value ? 'bg-accent-primary/10 text-accent-primary' : 'text-text-secondary hover:bg-bg-hover'}
               `}
             >
@@ -85,7 +85,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
             </button>
 
             {/* Separador */}
-            <div className="border-t border-border-default my-1" />
+            <div className="border-t border-border-default/60 my-1" />
 
             {/* Opcoes */}
             {options.map((option) => (
@@ -96,7 +96,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                   setIsOpen(false);
                 }}
                 className={`
-                  w-full flex items-center justify-between px-3 py-2 text-sm
+                  w-full flex items-center justify-between px-3 py-2 text-sm rounded-md
                   ${value === option.value
                     ? 'bg-accent-primary/10 text-accent-primary'
                     : 'text-text-secondary hover:bg-bg-hover'
@@ -165,17 +165,17 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, dateTo, onC
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap
           ${hasDateFilter
-            ? 'bg-accent-primary/10 border border-accent-primary text-accent-primary'
-            : 'bg-bg-hover border border-transparent text-text-secondary hover:bg-border-default'
+            ? 'bg-accent-primary/10 border border-accent-primary/40 text-accent-primary'
+            : 'bg-bg-secondary border border-border-default/50 text-text-secondary hover:border-border-default hover:text-text-primary'
           }
         `}
       >
-        <Calendar size={16} />
+        <Calendar size={14} />
         <span className="hidden sm:inline">Periodo:</span>
         <span className="font-medium">{formatDisplayDate()}</span>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={13} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -287,7 +287,7 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap py-2">
+    <div className="flex items-center gap-1.5 flex-wrap py-2">
       {/* Icone de filtros */}
       <div className="flex items-center gap-1 text-text-muted text-sm mr-1">
         <Filter size={14} />
@@ -349,15 +349,15 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
       <button
         onClick={() => onFilterChange({ ...filters, noResponse: !filters.noResponse })}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap
           ${filters.noResponse
-            ? 'bg-yellow-400/10 border border-yellow-400 text-yellow-400'
-            : 'bg-bg-hover border border-transparent text-text-secondary hover:bg-border-default'
+            ? 'bg-yellow-400/10 border border-yellow-400/40 text-yellow-400'
+            : 'bg-bg-secondary border border-border-default/50 text-text-secondary hover:border-border-default hover:text-text-primary'
           }
         `}
         title="Filtrar conversas aguardando resposta da IA"
       >
-        <MessageCircle size={14} />
+        <MessageCircle size={13} />
         <span className="hidden sm:inline">Sem Resposta</span>
       </button>
 
@@ -365,15 +365,15 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
       <button
         onClick={() => onFilterChange({ ...filters, hasQualityIssues: !filters.hasQualityIssues })}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap
           ${filters.hasQualityIssues
-            ? 'bg-red-500/10 border border-red-500 text-red-400'
-            : 'bg-bg-hover border border-transparent text-text-secondary hover:bg-border-default'
+            ? 'bg-red-400/10 border border-red-400/40 text-red-400'
+            : 'bg-bg-secondary border border-border-default/50 text-text-secondary hover:border-border-default hover:text-text-primary'
           }
         `}
         title="Filtrar conversas com problemas de qualidade"
       >
-        <AlertTriangle size={14} />
+        <AlertTriangle size={13} />
         <span className="hidden sm:inline">Problemas</span>
       </button>
 

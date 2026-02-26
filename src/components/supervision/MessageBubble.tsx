@@ -49,10 +49,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile 
   }
 
   return (
-    <div className={`flex gap-1.5 md:gap-2 mb-2 md:mb-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}>
-      {isAssistant && (
-        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0`}>
-          <Bot size={isMobile ? 12 : 16} className="text-accent-primary" />
+    <div className={`flex gap-1.5 md:gap-2 mb-2 md:mb-3 ${isAssistant ? 'justify-end' : 'justify-start'}`}>
+      {!isAssistant && (
+        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-bg-hover flex items-center justify-center flex-shrink-0`}>
+          <User size={isMobile ? 12 : 16} className="text-text-secondary" />
         </div>
       )}
 
@@ -61,8 +61,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile 
           ${isMobile ? 'max-w-[80%] px-2.5 py-1.5' : 'max-w-[70%] px-3 py-2'} rounded-2xl
           ${
             isAssistant
-              ? 'bg-bg-hover text-text-primary rounded-tl-sm'
-              : 'bg-accent-primary text-white rounded-tr-sm'
+              ? 'bg-accent-primary text-white rounded-br-sm'
+              : 'bg-bg-hover text-text-primary rounded-bl-sm'
           }
         `}
       >
@@ -72,7 +72,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile 
         <div
           className={`
             flex items-center gap-1.5 md:gap-2 mt-1 ${isMobile ? 'text-[10px]' : 'text-xs'}
-            ${isAssistant ? 'text-text-muted' : 'text-white/70'}
+            ${isAssistant ? 'text-white/70' : 'text-text-muted'}
           `}
         >
           <span>{formatTime(message.created_at)}</span>
@@ -81,7 +81,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile 
               {getChannelIcon(message.channel)}
             </span>
           )}
-          {message.sentiment_score !== null && isAssistant && !isMobile && (
+          {message.sentiment_score !== null && !isAssistant && !isMobile && (
             <span
               className={`
                 px-1.5 py-0.5 rounded text-[10px]
@@ -100,9 +100,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMobile 
         </div>
       </div>
 
-      {!isAssistant && (
-        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-bg-hover flex items-center justify-center flex-shrink-0`}>
-          <User size={isMobile ? 12 : 16} className="text-text-secondary" />
+      {isAssistant && (
+        <div className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full bg-accent-primary/20 flex items-center justify-center flex-shrink-0`}>
+          <Bot size={isMobile ? 12 : 16} className="text-accent-primary" />
         </div>
       )}
     </div>

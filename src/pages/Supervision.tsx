@@ -135,7 +135,7 @@ export const Supervision: React.FC = () => {
 
   const { syncMeetingStatus, syncLeadSource, syncAddTag, syncRemoveTag } = useGHLSync();
 
-  const { savedFilters, saveFilter, deleteFilter } = useSavedFilters();
+  const { savedFilters, defaultClientFilters, saveFilter, deleteFilter } = useSavedFilters(filterOptions.locations);
 
   // Real-time
   useSupervisionRealtime({
@@ -631,11 +631,13 @@ export const Supervision: React.FC = () => {
               isMobile={true}
               viewToggle={<ViewToggle />}
             />
-            {savedFilters.length > 0 && viewMode !== 'metrics' && (
+            {(savedFilters.length > 0 || defaultClientFilters.length > 0) && viewMode !== 'metrics' && (
               <div className="px-3">
                 <SavedFiltersPanel
                   savedFilters={savedFilters}
+                  defaultClientFilters={defaultClientFilters}
                   currentFilters={filters}
+                  activeLocationId={filters.locationId}
                   onApply={setFilters}
                   onSave={saveFilter}
                   onDelete={deleteFilter}
@@ -693,7 +695,9 @@ export const Supervision: React.FC = () => {
           <div className="px-3">
             <SavedFiltersPanel
               savedFilters={savedFilters}
+              defaultClientFilters={defaultClientFilters}
               currentFilters={filters}
+              activeLocationId={filters.locationId}
               onApply={setFilters}
               onSave={saveFilter}
               onDelete={deleteFilter}

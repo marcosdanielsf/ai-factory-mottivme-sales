@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
-import { SupervisionFilters, SavedFilter } from '../types/supervision';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { SupervisionFilters, SavedFilter, FilterOption } from '../types/supervision';
 
 const STORAGE_KEY = 'mottivme_supervision_saved_filters';
 
-export const useSavedFilters = () => {
+export const useSavedFilters = (locations?: FilterOption[]) => {
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
 
   // Load from localStorage on mount
@@ -51,8 +51,22 @@ export const useSavedFilters = () => {
     persist(savedFilters.filter((f) => f.id !== id));
   }, [savedFilters, persist]);
 
+  const defaultClientFilters: SavedFilter[] = useMemo(() => {
+    if (!locations) return [];
+    return locations
+      .filter(loc => (loc.count || 0) > 0)
+      .map(loc => ({
+        id: `auto_${loc.value}`,
+        name: loc.label || loc.value,
+        filters: { locationId: loc.value } as SupervisionFilters,
+        createdAt: '',
+        updatedAt: '',
+      }));
+  }, [locations]);
+
   return {
     savedFilters,
+    defaultClientFilters,
     saveFilter,
     updateFilter,
     deleteFilter,
