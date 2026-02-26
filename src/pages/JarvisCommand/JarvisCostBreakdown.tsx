@@ -76,7 +76,7 @@ function JarvisCostBreakdown() {
                   className="text-xs font-mono font-bold flex-shrink-0 ml-2"
                   style={{ color: '#00d4ff' }}
                 >
-                  ${agent.total_cost.toFixed(2)}
+                  ${(agent.total_cost ?? 0).toFixed(2)}
                 </span>
               </div>
               <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">

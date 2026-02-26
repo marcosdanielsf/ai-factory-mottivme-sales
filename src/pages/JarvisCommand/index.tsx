@@ -283,7 +283,7 @@ function LeftColumn({
         <MetricCard
           icon={DollarSign}
           label="Custo IA"
-          value={loadingMetrics ? '—' : `$${metrics.custoHoje.toFixed(2)}`}
+          value={loadingMetrics ? '—' : `$${(metrics.custoHoje ?? 0).toFixed(2)}`}
           color="text-[#00d4ff]"
         />
         <MetricCard
@@ -320,7 +320,7 @@ function LeftColumn({
                     <div className="flex items-center gap-2 mt-0.5">
                       <StatusBadge status={agent.status} />
                       {agent.total_cost !== undefined && (
-                        <span className="text-[10px] text-text-muted">${agent.total_cost.toFixed(3)}</span>
+                        <span className="text-[10px] text-text-muted">${(agent.total_cost ?? 0).toFixed(3)}</span>
                       )}
                     </div>
                   </div>
