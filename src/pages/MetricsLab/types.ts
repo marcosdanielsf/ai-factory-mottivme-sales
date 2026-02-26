@@ -70,6 +70,42 @@ export interface PeriodDeltas {
   leads_delta: number | null;
 }
 
+// P2.4: Heatmap de horarios
+export interface HeatmapRow {
+  hour_of_day: number;   // 0-23
+  day_of_week: number;   // 0=domingo, 6=sabado
+  total_leads: number;
+  leads_agendou: number;
+  leads_won: number;
+  conversion_rate: number; // %
+}
+
+// P1.2 — Tempo Medio de Conversao (vw_conversion_time_stats)
+export interface ConversionTimeStats {
+  ad_id: string;
+  total_leads: number;
+  avg_hours_to_contact: number | null;
+  avg_hours_to_schedule: number | null;
+  avg_hours_to_won: number | null;
+  conversion_rate_schedule: number | null;
+  conversion_rate_won: number | null;
+}
+
+// P2.2 — Anomaly Detection (vw_ads_anomaly_detection)
+export interface AnomalyRow {
+  ad_id: string;
+  ad_name: string;
+  cpl_7d: number;
+  cpl_30d: number;
+  cpl_delta_pct: number;
+  ctr_7d: number;
+  ctr_30d: number;
+  ctr_delta_pct: number;
+  spend_7d: number;
+  spend_30d: number;
+  is_anomaly: boolean;
+}
+
 // Full Funnel Tracking (GHL data per ad)
 export interface FunnelTracking {
   ad_id: string;

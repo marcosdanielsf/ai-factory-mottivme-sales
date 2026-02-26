@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
-import { CheckCircle2, XCircle, Minus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle2, XCircle, Minus, Clock } from 'lucide-react';
 import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
-import type { LeadScoreRow, FunnelAd, FunnelStep } from '../types';
+import type { LeadScoreRow, FunnelAd, FunnelStep, HeatmapRow, ConversionTimeStats } from '../types';
 import { FunnelVisual } from './shared/FunnelVisual';
 import { TrendChart } from './shared/TrendChart';
+import { HeatmapChart, type HeatmapMetric } from './shared/HeatmapChart';
 
 interface FunnelPanelProps {
   scoreRow: LeadScoreRow | null;
   funnelAd: FunnelAd | null;
   arcData?: { hook_rate: number; hold_rate: number; body_rate: number } | null;
+  heatmapData?: HeatmapRow[];
+  conversionTime?: ConversionTimeStats | null;
 }
 
 // ─── ARC Pills ──────────────────────────────────────────────────────────────
@@ -188,9 +191,92 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
   );
 };
 
+// ─── Conversion Time Section ─────────────────────────────────────────────────
+
+function formatHours(hours: number | null): string {
+  if (hours === null) return '—';
+  if (hours < 24) return `${Math.round(hours)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
+interface ConvTimePillProps {
+  label: string;
+  hours: number | null;
+  thresholdGood: number;
+  thresholdBad: number;
+}
+
+const ConvTimePill: React.FC<ConvTimePillProps> = ({ label, hours, thresholdGood, thresholdBad }) => {
+  const color =
+    hours === null
+      ? 'bg-white/[0.04] text-[var(--text-secondary)]'
+      : hours <= thresholdGood
+      ? 'bg-emerald-500/10 text-emerald-300'
+      : hours <= thresholdBad
+      ? 'bg-amber-500/10 text-amber-300'
+      : 'bg-rose-500/10 text-rose-300';
+
+  return (
+    <div className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl ${color}`}>
+      <Clock size={12} className="opacity-60" />
+      <span className="text-[11px] font-semibold tabular-nums">{formatHours(hours)}</span>
+      <span className="text-[10px] opacity-70 whitespace-nowrap">{label}</span>
+    </div>
+  );
+};
+
+const ConversionTimeSection: React.FC<{ data: ConversionTimeStats }> = ({ data }) => (
+  <div className="bg-white/[0.03] rounded-2xl p-4 mb-4">
+    <div className="text-[11px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mb-3">
+      Tempo de Conversao
+    </div>
+    <div className="flex items-stretch gap-2">
+      <ConvTimePill
+        label="Contato"
+        hours={data.avg_hours_to_contact}
+        thresholdGood={4}
+        thresholdBad={24}
+      />
+      <ConvTimePill
+        label="Agendamento"
+        hours={data.avg_hours_to_schedule}
+        thresholdGood={48}
+        thresholdBad={120}
+      />
+      <ConvTimePill
+        label="Fechamento"
+        hours={data.avg_hours_to_won}
+        thresholdGood={168}
+        thresholdBad={336}
+      />
+      {(data.conversion_rate_schedule !== null || data.conversion_rate_won !== null) && (
+        <div className="flex-1 flex flex-col justify-center gap-1.5 pl-3 border-l border-white/[0.06]">
+          {data.conversion_rate_schedule !== null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[var(--text-secondary)]">Taxa agendamento</span>
+              <span className="text-[12px] font-bold text-[var(--text-primary)] tabular-nums">
+                {data.conversion_rate_schedule.toFixed(1)}%
+              </span>
+            </div>
+          )}
+          {data.conversion_rate_won !== null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[var(--text-secondary)]">Taxa fechamento</span>
+              <span className="text-[12px] font-bold text-[var(--text-primary)] tabular-nums">
+                {data.conversion_rate_won.toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 // ─── Main Panel ─────────────────────────────────────────────────────────────
 
-export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, arcData }) => {
+export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, arcData, heatmapData = [], conversionTime }) => {
+  const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('leads');
   const maxValue = funnelAd ? (funnelAd.steps[0]?.value ?? 1) : 1;
   const ghlMaxValue = useMemo(() => {
     if (!funnelAd) return 1;
@@ -282,6 +368,9 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
         ) : null}
       </div>
 
+      {/* Conversion Time */}
+      {conversionTime && <ConversionTimeSection data={conversionTime} />}
+
       {/* Charts */}
       {funnelAd && funnelAd.steps.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-4">
@@ -326,6 +415,49 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
           </div>
         )}
       </div>
+
+      {/* Heatmap de Horarios */}
+      {heatmapData.length > 0 && (
+        <div className="bg-white/[0.03] rounded-2xl p-5 mt-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock size={13} className="text-violet-400 opacity-70" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                Horarios de Pico
+              </span>
+            </div>
+            {/* Metric toggle */}
+            <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
+              {(['leads', 'agendamentos', 'conversao'] as HeatmapMetric[]).map((m) => {
+                const labels: Record<HeatmapMetric, string> = {
+                  leads: 'Leads',
+                  agendamentos: 'Agendou',
+                  conversao: 'Conv%',
+                };
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setHeatmapMetric(m)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all duration-150 ${
+                      heatmapMetric === m
+                        ? 'bg-violet-500/20 text-violet-300'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {labels[m]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="overflow-x-auto">
+            <HeatmapChart data={heatmapData} metric={heatmapMetric} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

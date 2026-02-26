@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { MOCK_LEAD_SCORE_ROWS, MOCK_CRIATIVOS_ARC, MOCK_FUNNEL_ADS } from '../pages/MetricsLab/mockData';
-import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking, PeriodDeltas } from '../pages/MetricsLab/types';
+import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking, PeriodDeltas, HeatmapRow, ConversionTimeStats, AnomalyRow } from '../pages/MetricsLab/types';
 
 // ─── Raw DB shapes ──────────────────────────────────────────────────────────
 
@@ -454,12 +454,15 @@ interface UseMetricsLabReturn {
   leadScoreRows: LeadScoreRow[];
   criativosARC: CriativoARC[];
   funnelAds: FunnelAd[];
+  heatmapData: HeatmapRow[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
   accounts: string[];
   unattributedCount: number;
   periodDeltas: PeriodDeltas | null;
+  conversionTimeMap: Map<string, ConversionTimeStats> | null;
+  anomalies: AnomalyRow[];
 }
 
 export const useMetricsLab = (
@@ -470,6 +473,9 @@ export const useMetricsLab = (
   const [rawAds, setRawAds] = useState<RawAdRow[]>([]);
   const [rawAdsPrev, setRawAdsPrev] = useState<RawAdRow[]>([]);
   const [rawTracking, setRawTracking] = useState<RawFunnelTracking[]>([]);
+  const [heatmapData, setHeatmapData] = useState<HeatmapRow[]>([]);
+  const [rawConversionTime, setRawConversionTime] = useState<ConversionTimeStats[]>([]);
+  const [rawAnomalies, setRawAnomalies] = useState<AnomalyRow[]>([]);
   const [unattributedCount, setUnattributedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -572,8 +578,14 @@ export const useMetricsLab = (
         .select('*', { count: 'exact', head: true })
         .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.');
 
-      const [leadResult, adsResult, adsPrevResult, unattributedResult] = await Promise.all([
-        leadQuery, adsQuery, adsPrevQuery, unattributedQuery,
+      // Q5: Heatmap de horarios — fallback gracioso se view nao existir
+      const heatmapQuery = supabase
+        .from('vw_ads_hourly_heatmap')
+        .select('hour_of_day, day_of_week, total_leads, leads_agendou, leads_won, conversion_rate')
+        .limit(168); // 7 dias x 24 horas
+
+      const [leadResult, adsResult, adsPrevResult, unattributedResult, heatmapResult] = await Promise.all([
+        leadQuery, adsQuery, adsPrevQuery, unattributedQuery, heatmapQuery,
       ]);
 
       const queryErrors = [leadResult.error, adsResult.error, trackingResult.error]
@@ -589,6 +601,44 @@ export const useMetricsLab = (
       setRawAdsPrev(((adsPrevResult.data ?? []) as unknown) as RawAdRow[]);
       setRawTracking(((trackingResult.data ?? []) as unknown) as RawFunnelTracking[]);
       setUnattributedCount(unattributedResult.count ?? 0);
+      // Heatmap: fallback gracioso se view nao existir (retorna [] sem lancar erro)
+      if (!heatmapResult.error) {
+        setHeatmapData(((heatmapResult.data ?? []) as unknown) as HeatmapRow[]);
+      } else {
+        console.warn('[MetricsLab] vw_ads_hourly_heatmap nao disponivel:', heatmapResult.error.message);
+        setHeatmapData([]);
+      }
+
+      // Q6: Conversion time stats — fallback gracioso se view nao existir
+      try {
+        const convTimeResult = await supabase
+          .from('vw_conversion_time_stats')
+          .select('*')
+          .limit(500);
+        if (!convTimeResult.error) {
+          setRawConversionTime(((convTimeResult.data ?? []) as unknown) as ConversionTimeStats[]);
+        } else {
+          console.warn('[MetricsLab] vw_conversion_time_stats indisponivel:', convTimeResult.error.message);
+        }
+      } catch {
+        console.warn('[MetricsLab] vw_conversion_time_stats nao existe ainda');
+      }
+
+      // Q7: Anomaly detection — fallback gracioso se view nao existir
+      try {
+        const anomalyResult = await supabase
+          .from('vw_ads_anomaly_detection')
+          .select('*')
+          .eq('is_anomaly', true)
+          .limit(100);
+        if (!anomalyResult.error) {
+          setRawAnomalies(((anomalyResult.data ?? []) as unknown) as AnomalyRow[]);
+        } else {
+          console.warn('[MetricsLab] vw_ads_anomaly_detection indisponivel:', anomalyResult.error.message);
+        }
+      } catch {
+        console.warn('[MetricsLab] vw_ads_anomaly_detection nao existe ainda');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar Metrics Lab';
       setError(message);
@@ -717,15 +767,24 @@ export const useMetricsLab = (
         ? buildFunnelAds(rawAds, trackingMap)
         : MOCK_FUNNEL_ADS;
 
-    return { leadScoreRows, criativosARC, funnelAds, accounts, periodDeltas };
-  }, [rawLeadScore, rawAds, rawAdsPrev, rawTracking]);
+    // Conversion time map keyed by ad_id
+    const conversionTimeMap: Map<string, ConversionTimeStats> | null =
+      rawConversionTime.length > 0
+        ? new Map(rawConversionTime.map(r => [r.ad_id, r]))
+        : null;
+
+    return { leadScoreRows, criativosARC, funnelAds, accounts, periodDeltas, conversionTimeMap };
+  }, [rawLeadScore, rawAds, rawAdsPrev, rawTracking, rawConversionTime]);
 
   return {
     leadScoreRows: computed.leadScoreRows,
     criativosARC: computed.criativosARC,
     funnelAds: computed.funnelAds,
+    heatmapData,
     accounts: computed.accounts,
     periodDeltas: computed.periodDeltas,
+    conversionTimeMap: computed.conversionTimeMap,
+    anomalies: rawAnomalies,
     loading,
     error,
     refetch: fetchData,
