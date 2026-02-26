@@ -114,7 +114,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Status pills — compact inline chips */}
+      {/* Row 2: Status pills — segmented control style (Kommo-like) */}
       {isMobile ? (
         <div className="mb-2">
           <button
@@ -122,7 +122,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
             className="w-full flex items-center justify-between px-2.5 py-1.5 bg-bg-hover rounded-lg text-xs"
           >
             <span className="text-text-secondary">
-              {currentStatus?.label || 'Todos'} 
+              {currentStatus?.label || 'Todos'}
               <span className="ml-1 text-text-muted">({currentStatus?.count || stats.total})</span>
             </span>
             {showStatusPills ? (
@@ -131,9 +131,9 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
               <ChevronDown size={14} className="text-text-muted" />
             )}
           </button>
-          
+
           {showStatusPills && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="inline-flex items-center bg-bg-primary/30 rounded-lg p-0.5 gap-0.5 mt-2 flex-wrap">
               {statusOptions.map((option) => (
                 <button
                   key={option.value}
@@ -142,42 +142,36 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
                     setShowStatusPills(false);
                   }}
                   className={`
-                    px-2 py-1 rounded-full text-[11px] font-medium transition-colors
-                    ${
-                      filters.status === option.value
-                        ? 'bg-accent-primary text-white'
-                        : 'bg-bg-hover text-text-secondary hover:bg-border-default'
+                    px-2 py-1 rounded-md text-[11px] font-medium transition-colors
+                    ${filters.status === option.value
+                      ? 'bg-accent-primary text-white'
+                      : 'text-text-muted hover:text-text-secondary hover:bg-bg-hover/50'
                     }
                   `}
                 >
                   {option.shortLabel}
-                  <span className="ml-1 opacity-70 text-[10px]">
-                    {option.count}
-                  </span>
+                  <span className="ml-1 text-[10px] opacity-60">{option.count}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="inline-flex items-center bg-bg-primary/30 rounded-lg p-0.5 gap-0.5 mb-2">
           {statusOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => onFilterChange({ ...filters, status: option.value })}
               className={`
-                px-2.5 py-1 rounded-full text-xs font-medium transition-colors
-                ${
-                  filters.status === option.value
-                    ? 'bg-accent-primary text-white'
-                    : 'bg-bg-hover text-text-secondary hover:bg-border-default'
+                px-2 py-1 rounded-md text-[11px] font-medium transition-colors
+                ${filters.status === option.value
+                  ? 'bg-accent-primary text-white'
+                  : 'text-text-muted hover:text-text-secondary hover:bg-bg-hover/50'
                 }
               `}
             >
               {option.shortLabel}
-              <span className="ml-1 opacity-70 text-[10px]">
-                {option.count}
-              </span>
+              <span className="ml-1 text-[10px] opacity-60">{option.count}</span>
             </button>
           ))}
         </div>
@@ -205,8 +199,8 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
             className={`
               flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-all shrink-0
               ${showAdvancedFilters || advancedFiltersCount > 0
-                ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
-                : 'bg-bg-hover text-text-muted hover:text-text-secondary border border-transparent'
+                ? 'border border-accent-primary/30 bg-accent-primary/5 text-accent-primary'
+                : 'border border-border-default/50 bg-transparent text-text-muted hover:text-text-secondary hover:border-border-default'
               }
             `}
             title="Filtros avançados"
@@ -223,7 +217,7 @@ export const SupervisionHeader: React.FC<SupervisionHeaderProps> = ({
 
       {/* Filtros Avancados — Desktop, colapsável */}
       {!isMobile && filterOptions && showAdvancedFilters && (
-        <div className="mt-2 pt-2 border-t border-border-default/50">
+        <div className="mt-2 bg-bg-primary/30 rounded-lg p-2">
           <SupervisionFiltersBar
             filters={filters}
             onFilterChange={onFilterChange}

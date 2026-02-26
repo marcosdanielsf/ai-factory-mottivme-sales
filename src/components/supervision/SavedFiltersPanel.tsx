@@ -42,7 +42,7 @@ export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
   };
 
   return (
-    <div className="mt-2 pt-2 border-t border-border-default/50 space-y-2">
+    <div className="mt-2 pt-2 border-t border-border-default/30 space-y-2">
       {/* Client quick-access pills */}
       {defaultClientFilters.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -53,7 +53,7 @@ export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
                 key={filter.id}
                 onClick={() => handleClientPillClick(filter)}
                 className={`
-                  px-2.5 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap
+                  px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap
                   ${isActive
                     ? 'bg-accent-primary text-white'
                     : 'bg-bg-hover/80 text-text-secondary hover:bg-bg-hover hover:text-text-primary'

@@ -287,7 +287,7 @@ export const SupervisionFiltersBar: React.FC<SupervisionFiltersProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap py-2">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {/* Icone de filtros */}
       <div className="flex items-center gap-1 text-text-muted text-sm mr-1">
         <Filter size={14} />
