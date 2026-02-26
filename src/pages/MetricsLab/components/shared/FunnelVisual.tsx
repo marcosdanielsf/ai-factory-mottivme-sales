@@ -8,62 +8,65 @@ interface FunnelVisualProps {
 
 const GHL_KEYS = new Set(['ghl_separator', 'ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
 
-const FB_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'];
-const GHL_COLORS = ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7'];
+const FB_COLORS = ['#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'];
+const GHL_COLORS = ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e'];
 
 export const FunnelVisual: React.FC<FunnelVisualProps> = ({ steps }) => {
-  // Split into FB and GHL steps, skip separator and zero-value
   const fbSteps = steps.filter(s => !GHL_KEYS.has(s.key) && s.value > 0);
   const ghlSteps = steps.filter(s => GHL_KEYS.has(s.key) && s.key !== 'ghl_separator' && s.value > 0);
 
   if (fbSteps.length === 0 && ghlSteps.length === 0) return null;
 
-  const renderFunnel = (items: FunnelStep[], colors: string[], maxVal: number) => {
-    const height = 32;
-    const gap = 3;
+  const renderFunnel = (items: FunnelStep[], colors: string[], maxVal: number, id: string) => {
+    const height = 34;
+    const gap = 4;
     const totalHeight = items.length * (height + gap) - gap;
     const svgWidth = 320;
 
     return (
       <svg width="100%" viewBox={`0 0 ${svgWidth} ${totalHeight}`} className="block">
+        <defs>
+          {colors.map((color, i) => (
+            <linearGradient key={`grad-${id}-${i}`} id={`grad-${id}-${i}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={color} stopOpacity={0.55} />
+              <stop offset="100%" stopColor={color} stopOpacity={0.1} />
+            </linearGradient>
+          ))}
+        </defs>
         {items.map((step, i) => {
           const widthPct = maxVal > 0 ? step.value / maxVal : 0;
-          const barWidth = Math.max(widthPct * (svgWidth - 120), 8);
+          const barWidth = Math.max(widthPct * (svgWidth - 120), 12);
           const x = (svgWidth - 120 - barWidth) / 2;
           const y = i * (height + gap);
-          const color = colors[Math.min(i, colors.length - 1)];
+          const gradIdx = Math.min(i, colors.length - 1);
 
-          // Trapezoid: wider top, narrower bottom
           const nextWidthPct = i < items.length - 1 && maxVal > 0
             ? items[i + 1].value / maxVal
             : widthPct * 0.7;
-          const nextBarWidth = Math.max(nextWidthPct * (svgWidth - 120), 8);
+          const nextBarWidth = Math.max(nextWidthPct * (svgWidth - 120), 12);
           const nextX = (svgWidth - 120 - nextBarWidth) / 2;
 
           return (
             <g key={step.key}>
               <polygon
                 points={`${x},${y} ${x + barWidth},${y} ${nextX + nextBarWidth},${y + height} ${nextX},${y + height}`}
-                fill={color}
-                opacity={0.85}
-                rx={4}
+                fill={`url(#grad-${id}-${gradIdx})`}
               />
-              {/* Label */}
               <text
                 x={svgWidth - 115}
                 y={y + height / 2 + 1}
-                fill="var(--text-secondary)"
+                fill="#9ca3af"
                 fontSize={11}
+                fontWeight={500}
                 dominantBaseline="middle"
               >
                 {step.label}
               </text>
-              {/* Value */}
               <text
                 x={svgWidth - 8}
                 y={y + height / 2 + 1}
-                fill="var(--text-primary)"
-                fontSize={12}
+                fill="#f0f2f5"
+                fontSize={13}
                 fontWeight={700}
                 dominantBaseline="middle"
                 textAnchor="end"
@@ -81,24 +84,22 @@ export const FunnelVisual: React.FC<FunnelVisualProps> = ({ steps }) => {
   const ghlMax = ghlSteps.length > 0 ? ghlSteps[0].value : 1;
 
   return (
-    <div className="space-y-4">
-      {/* FB Funnel */}
+    <div className="space-y-5">
       {fbSteps.length > 0 && (
         <div>
-          <div className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider mb-2">
+          <div className="text-[11px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mb-3">
             Facebook Ads
           </div>
-          {renderFunnel(fbSteps, FB_COLORS, fbMax)}
+          {renderFunnel(fbSteps, FB_COLORS, fbMax, 'fb')}
         </div>
       )}
 
-      {/* GHL Funnel */}
       {ghlSteps.length > 0 && (
         <div>
-          <div className="text-[10px] text-amber-400/80 font-medium uppercase tracking-wider mb-2">
+          <div className="text-[11px] text-amber-300 font-semibold uppercase tracking-wider mb-3">
             Funil de Vendas
           </div>
-          {renderFunnel(ghlSteps, GHL_COLORS, ghlMax)}
+          {renderFunnel(ghlSteps, GHL_COLORS, ghlMax, 'ghl')}
         </div>
       )}
     </div>

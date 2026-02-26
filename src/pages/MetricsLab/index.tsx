@@ -42,7 +42,7 @@ export const MetricsLab: React.FC = () => {
   return (
     <div className="bg-[var(--bg-primary)] min-h-screen flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[var(--bg-primary)]/95 backdrop-blur border-b border-[var(--border-default)]">
+      <div className="sticky top-0 z-20 bg-[var(--bg-primary)]/95 backdrop-blur-lg">
         <div className="px-4 md:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -51,7 +51,7 @@ export const MetricsLab: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-[var(--text-primary)]">Metrics Lab</h1>
-                <p className="text-xs text-[var(--text-muted)]">Ranking de anuncios + funil completo</p>
+                <p className="text-xs text-[var(--text-secondary)]">Ranking de anuncios + funil completo</p>
               </div>
             </div>
 
@@ -61,7 +61,7 @@ export const MetricsLab: React.FC = () => {
                 <select
                   value={selectedAccount ?? ''}
                   onChange={(e) => setSelectedAccount(e.target.value || null)}
-                  className="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-lg border border-[var(--border-default)] bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 cursor-pointer"
+                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl bg-white/[0.05] text-[var(--text-primary)] border-0 focus:outline-none focus:ring-2 focus:ring-violet-500/30 cursor-pointer"
                 >
                   <option value="">Todas as contas</option>
                   {accounts.map((acc) => (
@@ -70,16 +70,18 @@ export const MetricsLab: React.FC = () => {
                 </select>
                 <ChevronDown
                   size={14}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none"
                 />
               </div>
             )}
           </div>
         </div>
+        {/* Subtle bottom gradient instead of border */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
 
         {/* Error banner */}
         {error && (
-          <div className="mx-4 md:mx-6 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+          <div className="mx-4 md:mx-6 my-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 text-rose-300 text-xs">
             <AlertCircle size={14} className="flex-shrink-0" />
             <span>Erro ao carregar dados reais — exibindo dados de exemplo. ({error})</span>
           </div>
@@ -88,8 +90,8 @@ export const MetricsLab: React.FC = () => {
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-16 text-[var(--text-muted)] text-sm">
-          <Loader2 size={16} className="animate-spin" />
+        <div className="flex items-center justify-center gap-2 py-16 text-[var(--text-secondary)] text-sm">
+          <Loader2 size={16} className="animate-spin text-violet-400" />
           <span>Carregando dados...</span>
         </div>
       )}

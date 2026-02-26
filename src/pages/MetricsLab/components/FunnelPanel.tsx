@@ -18,19 +18,19 @@ const ARCPill: React.FC<{ label: string; value: number; benchmark: number; suffi
 }) => {
   const pass = value >= benchmark;
   return (
-    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium ${
-      pass ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium ${
+      pass ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'
     }`}>
-      {pass ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-      <span>{label}: {value.toFixed(1)}{suffix}</span>
+      {pass ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+      <span className="font-semibold">{label}</span>
+      <span className="opacity-70">{value.toFixed(1)}{suffix}</span>
     </div>
   );
 };
 
-// ─── Conversion Summary (when no trend data) ───────────────────────────────
+// ─── Conversion Summary ─────────────────────────────────────────────────────
 
 const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
-  // Show key conversion rates as visual donut-like rings
   const metrics: { label: string; value: number; color: string }[] = [];
 
   const impressions = steps.find(s => s.key === 'impressoes')?.value ?? 0;
@@ -42,58 +42,48 @@ const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
   const compareceu = steps.find(s => s.key === 'ghl_compareceu')?.value ?? 0;
 
   if (impressions > 0 && clicks > 0) {
-    metrics.push({ label: 'CTR', value: (clicks / impressions) * 100, color: '#6366f1' });
+    metrics.push({ label: 'CTR', value: (clicks / impressions) * 100, color: '#818cf8' });
   }
   if (clicks > 0 && conversas > 0) {
-    metrics.push({ label: 'Click→Conv', value: (conversas / clicks) * 100, color: '#22d3ee' });
+    metrics.push({ label: 'Click → Conv', value: (conversas / clicks) * 100, color: '#38bdf8' });
   }
   if (leads > 0 && respondeu > 0) {
-    metrics.push({ label: 'Resposta', value: (respondeu / leads) * 100, color: '#f59e0b' });
+    metrics.push({ label: 'Resposta', value: (respondeu / leads) * 100, color: '#fbbf24' });
   }
   if (respondeu > 0 && agendou > 0) {
-    metrics.push({ label: 'Agendamento', value: (agendou / respondeu) * 100, color: '#10b981' });
+    metrics.push({ label: 'Agendamento', value: (agendou / respondeu) * 100, color: '#34d399' });
   }
   if (agendou > 0 && compareceu > 0) {
-    metrics.push({ label: 'Comparecimento', value: (compareceu / agendou) * 100, color: '#8b5cf6' });
+    metrics.push({ label: 'Comparecimento', value: (compareceu / agendou) * 100, color: '#a78bfa' });
   }
 
   if (metrics.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-xs">
-        Dados insuficientes para grafico
+      <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-xs">
+        Dados insuficientes
       </div>
     );
   }
 
   return (
     <div>
-      <div className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider mb-3">
+      <div className="text-[11px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider mb-4">
         Taxas de Conversao
       </div>
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {metrics.map(m => {
           const capped = Math.min(m.value, 100);
-          const circumference = 2 * Math.PI * 28;
-          const offset = circumference - (capped / 100) * circumference;
-
           return (
-            <div key={m.label} className="flex items-center gap-3">
-              {/* Ring */}
-              <svg width={64} height={64} className="flex-shrink-0 -rotate-90">
-                <circle cx={32} cy={32} r={28} fill="none" stroke="var(--bg-hover)" strokeWidth={5} />
-                <circle
-                  cx={32} cy={32} r={28} fill="none"
-                  stroke={m.color} strokeWidth={5}
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
-                  className="transition-all duration-700"
+            <div key={m.label}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">{m.label}</span>
+                <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{m.value.toFixed(1)}%</span>
+              </div>
+              <div className="h-2 bg-white/[0.04] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${capped}%`, backgroundColor: m.color, opacity: 0.7 }}
                 />
-              </svg>
-              {/* Label + value */}
-              <div>
-                <div className="text-sm font-bold text-[var(--text-primary)]">{m.value.toFixed(1)}%</div>
-                <div className="text-[10px] text-[var(--text-muted)]">{m.label}</div>
               </div>
             </div>
           );
@@ -106,7 +96,7 @@ const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
 // ─── Funnel Step Row ────────────────────────────────────────────────────────
 
 const GHL_KEYS = new Set(['ghl_separator', 'ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
-const GHL_GOOD_THRESHOLD = 25; // 25%+ conversion between GHL steps is good
+const GHL_GOOD_THRESHOLD = 25;
 
 const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; ghlMaxValue: number }> = ({
   step, isFirst, maxValue, ghlMaxValue,
@@ -116,13 +106,13 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
 
   if (isSeparator) {
     return (
-      <div className="py-3">
+      <div className="py-3 my-1">
         <div className="flex items-center gap-3">
-          <div className="flex-1 border-t border-dashed border-amber-500/30" />
-          <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest px-2">
+          <div className="flex-1 border-t border-dashed border-amber-500/20" />
+          <span className="text-[10px] font-bold text-amber-400/70 uppercase tracking-[0.15em] px-2">
             Funil de Vendas
           </span>
-          <div className="flex-1 border-t border-dashed border-amber-500/30" />
+          <div className="flex-1 border-t border-dashed border-amber-500/20" />
         </div>
       </div>
     );
@@ -131,39 +121,40 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
   const effectiveMax = isGhl ? ghlMaxValue : maxValue;
   const widthPct = effectiveMax > 0 ? (step.value / effectiveMax) * 100 : 0;
 
-  // Color logic: for GHL steps, any conv > 25% is good. For FB, > 1% CTR is fine
   const convOk = step.conversion_rate !== null && step.conversion_rate >= (isGhl ? GHL_GOOD_THRESHOLD : 1);
   const convColor = convOk ? 'good' : (step.conversion_rate !== null ? 'bad' : 'neutral');
-
-  const barColor = isGhl
-    ? 'bg-amber-500/30 border-r-2 border-amber-500'
-    : 'bg-[var(--accent-primary)]/30 border-r-2 border-[var(--accent-primary)]';
 
   return (
     <div>
       {!isFirst && (
         <div className="flex justify-center py-0.5">
-          <div className={`w-px h-2 ${isGhl ? 'bg-amber-500/20' : 'bg-[var(--border-default)]'}`} />
+          <div className={`w-px h-2 ${isGhl ? 'bg-amber-500/15' : 'bg-white/[0.06]'}`} />
         </div>
       )}
-      <div className="flex items-center gap-2 py-1.5">
+      <div className="flex items-center gap-3 py-1.5">
         {/* Label */}
         <div className="w-24 flex-shrink-0 text-right">
-          <span className={`text-[11px] ${isGhl ? 'text-amber-300/80 font-medium' : 'text-[var(--text-secondary)]'}`}>
+          <span className={`text-[12px] ${isGhl ? 'text-amber-300 font-medium' : 'text-[var(--text-secondary)]'}`}>
             {step.label}
           </span>
         </div>
 
         {/* Bar + value */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-6 bg-[var(--bg-hover)] rounded overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-7 bg-white/[0.03] rounded-lg overflow-hidden">
               <div
-                className={`h-full rounded transition-all duration-500 ${barColor}`}
+                className={`h-full rounded-lg transition-all duration-500 ${
+                  isGhl
+                    ? 'bg-gradient-to-r from-amber-500/35 to-amber-500/10'
+                    : 'bg-gradient-to-r from-violet-500/35 to-violet-500/10'
+                }`}
                 style={{ width: `${Math.max(widthPct, step.value > 0 ? 3 : 0)}%` }}
               />
             </div>
-            <span className={`text-sm font-bold w-16 text-right flex-shrink-0 ${isGhl ? 'text-amber-300' : 'text-[var(--text-primary)]'}`}>
+            <span className={`text-[13px] font-bold w-16 text-right flex-shrink-0 tabular-nums ${
+              isGhl ? 'text-amber-200' : 'text-[var(--text-primary)]'
+            }`}>
               {formatNumber(step.value)}
             </span>
           </div>
@@ -172,8 +163,8 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
         {/* Cost */}
         <div className="w-24 flex-shrink-0 text-right">
           {step.cost_metric !== null && step.cost_label ? (
-            <span className="text-[10px] text-[var(--text-muted)]">
-              {step.cost_label}: <span className={`font-medium ${isGhl ? 'text-amber-300/70' : 'text-[var(--text-secondary)]'}`}>
+            <span className="text-[11px] text-[var(--text-secondary)]">
+              {step.cost_label}: <span className={`font-semibold ${isGhl ? 'text-amber-200/80' : 'text-[var(--text-primary)]'}`}>
                 {formatCurrency(step.cost_metric)}
               </span>
             </span>
@@ -183,8 +174,10 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
         {/* Conv % */}
         <div className="w-14 flex-shrink-0 text-center">
           {step.conversion_rate !== null ? (
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-              convColor === 'good' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-[var(--text-muted)]'
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+              convColor === 'good'
+                ? 'bg-emerald-500/10 text-emerald-300'
+                : 'bg-white/[0.04] text-[var(--text-secondary)]'
             }`}>
               {step.conversion_rate.toFixed(1)}%
             </span>
@@ -208,8 +201,8 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
 
   if (!scoreRow) {
     return (
-      <div className="flex items-center justify-center h-64 text-[var(--text-muted)] text-sm">
-        Selecione um anuncio
+      <div className="flex items-center justify-center h-64 text-[var(--text-secondary)] text-sm">
+        Selecione um anuncio na lista
       </div>
     );
   }
@@ -220,46 +213,44 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4 mb-3">
+      <div className="bg-white/[0.03] rounded-2xl p-5 mb-4 relative overflow-hidden">
+        {/* Accent gradient line */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+
         {/* Name + score */}
-        <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">{scoreRow.ad_name}</h3>
-            <p className="text-[11px] text-[var(--text-muted)] truncate">{scoreRow.campaign_name}</p>
+            <h3 className="text-base font-bold text-[var(--text-primary)] truncate leading-tight">{scoreRow.ad_name}</h3>
+            <p className="text-[12px] text-[var(--text-secondary)] truncate mt-1">{scoreRow.campaign_name}</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${potConfig.bgClass} ${potConfig.textClass}`}>
+            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${potConfig.bgClass} ${potConfig.textClass}`}>
               {potConfig.label}
             </span>
-            <span className={`text-sm font-bold px-2 py-0.5 rounded border ${scoreBg}`}>
+            <span className={`text-base font-bold px-3 py-1 rounded-lg ${scoreBg}`}>
               {scoreRow.score}
             </span>
           </div>
         </div>
 
         {/* KPI row */}
-        <div className="flex flex-wrap gap-4 text-[11px]">
-          <div className="text-center">
-            <div className="text-[var(--text-muted)]">Gasto</div>
-            <div className="font-bold text-[var(--text-primary)]">{formatCurrency(scoreRow.gasto)}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[var(--text-muted)]">Leads</div>
-            <div className="font-bold text-[var(--text-primary)]">{formatNumber(scoreRow.leads)}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[var(--text-muted)]">CPL</div>
-            <div className="font-bold text-[var(--text-primary)]">{scoreRow.cpl > 0 ? formatCurrency(scoreRow.cpl) : '—'}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-[var(--text-muted)]">Resp%</div>
-            <div className="font-bold text-[var(--text-primary)]">{scoreRow.resp_pct.toFixed(0)}%</div>
-          </div>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Gasto', value: formatCurrency(scoreRow.gasto) },
+            { label: 'Leads', value: formatNumber(scoreRow.leads) },
+            { label: 'CPL', value: scoreRow.cpl > 0 ? formatCurrency(scoreRow.cpl) : '—' },
+            { label: 'Resp%', value: `${scoreRow.resp_pct.toFixed(0)}%` },
+          ].map(kpi => (
+            <div key={kpi.label} className="bg-white/[0.03] rounded-xl px-3 py-2.5 text-center">
+              <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-medium mb-0.5">{kpi.label}</div>
+              <div className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{kpi.value}</div>
+            </div>
+          ))}
         </div>
 
         {/* ARC pills */}
         {arcData && (arcData.hook_rate > 0 || arcData.hold_rate > 0 || arcData.body_rate > 0) && (
-          <div className="flex flex-wrap gap-2 mt-2.5 pt-2.5 border-t border-[var(--border-default)]">
+          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-white/[0.05]">
             <ARCPill label="Hook" value={arcData.hook_rate} benchmark={30} />
             <ARCPill label="Hold" value={arcData.hold_rate} benchmark={2.5} />
             <ARCPill label="Body" value={arcData.body_rate} benchmark={2.5} />
@@ -269,13 +260,11 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
 
       {/* Charts */}
       {funnelAd && funnelAd.steps.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
-          {/* Funnel Visual */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-4">
+          <div className="bg-white/[0.03] rounded-2xl p-5">
             <FunnelVisual steps={funnelAd.steps} />
           </div>
-          {/* Trend Chart or Conversion Summary */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
+          <div className="bg-white/[0.03] rounded-2xl p-5">
             <TrendChart steps={funnelAd.steps} />
             <ConversionSummary steps={funnelAd.steps} />
           </div>
@@ -283,13 +272,13 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
       )}
 
       {/* Detail table */}
-      <div className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4 overflow-y-auto">
+      <div className="flex-1 bg-white/[0.03] rounded-2xl p-5 overflow-y-auto">
         {/* Column headers */}
-        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border-default)]">
-          <div className="w-24 flex-shrink-0 text-right text-[9px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Etapa</div>
-          <div className="flex-1 text-[9px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Volume</div>
-          <div className="w-24 flex-shrink-0 text-right text-[9px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Custo</div>
-          <div className="w-14 flex-shrink-0 text-center text-[9px] text-[var(--text-muted)] font-medium uppercase tracking-wider">Conv%</div>
+        <div className="flex items-center gap-3 mb-3 pb-2 border-b border-white/[0.05]">
+          <div className="w-24 flex-shrink-0 text-right text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Etapa</div>
+          <div className="flex-1 text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Volume</div>
+          <div className="w-24 flex-shrink-0 text-right text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Custo</div>
+          <div className="w-14 flex-shrink-0 text-center text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Conv%</div>
         </div>
 
         {/* Steps */}
@@ -298,16 +287,16 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
             <StepRow key={step.key} step={step} isFirst={i === 0} maxValue={maxValue} ghlMaxValue={ghlMaxValue} />
           ))
         ) : (
-          <div className="text-center text-[var(--text-muted)] text-sm py-8">
+          <div className="text-center text-[var(--text-secondary)] text-sm py-8">
             Sem dados de funil para este anuncio
           </div>
         )}
 
         {/* No GHL data notice */}
         {funnelAd && !hasGhl && (
-          <div className="mt-4 pt-3 border-t border-dashed border-[var(--border-default)] text-center">
-            <span className="text-[11px] text-[var(--text-muted)]">
-              <Minus size={12} className="inline mr-1" />
+          <div className="mt-4 pt-3 border-t border-dashed border-white/[0.06] text-center">
+            <span className="text-[12px] text-[var(--text-secondary)]">
+              <Minus size={12} className="inline mr-1 opacity-50" />
               Sem dados de leads GHL para este anuncio
             </span>
           </div>
