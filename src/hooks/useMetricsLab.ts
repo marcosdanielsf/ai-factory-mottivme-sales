@@ -164,6 +164,7 @@ function buildCriativosARC(rows: RawAdRow[]): CriativoARC[] {
 
 interface RawFunnelTracking {
   ad_id: string;
+  attribution_level: string;
   total_leads: number;
   novo: number;
   em_contato: number;
@@ -174,9 +175,13 @@ interface RawFunnelTracking {
   won_value: number;
 }
 
+interface MergedFunnelTracking extends RawFunnelTracking {
+  inferred_leads: number;
+}
+
 // ─── Aggregation for Funil por Anuncio ──────────────────────────────────────
 
-function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTracking>): FunnelAd[] {
+function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, MergedFunnelTracking>): FunnelAd[] {
   // Group rows by ad_id, keeping rows sorted by data_relatorio asc for trend
   const map = new Map<string, {
     ad_name: string | null;
@@ -406,6 +411,11 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
       campaign_name: m.campaign_name ?? 'N/A',
       steps,
       won_value: tracking?.won_value ?? 0,
+      attribution_level:
+        tracking?.inferred_leads && tracking.inferred_leads > 0
+          ? 'campaign_inferred'
+          : 'exact',
+      inferred_leads: tracking?.inferred_leads ?? 0,
     };
   });
 }
@@ -483,10 +493,20 @@ export const useMetricsLab = (
 
       adsQuery = adsQuery.limit(5000);
 
-      // Q3: Funnel tracking from GHL (vw_funnel_tracking_by_ad)
-      const trackingQuery = supabase
-        .from('vw_funnel_tracking_by_ad')
+      // Q3: Funnel tracking — tenta vw_funnel_tracking_enhanced, fallback para vw_funnel_tracking_by_ad
+      let trackingResult = await supabase
+        .from('vw_funnel_tracking_enhanced')
         .select('*');
+
+      if (
+        trackingResult.error &&
+        trackingResult.error.message.includes('vw_funnel_tracking_enhanced')
+      ) {
+        console.warn('[MetricsLab] vw_funnel_tracking_enhanced nao existe, usando fallback');
+        trackingResult = await supabase
+          .from('vw_funnel_tracking_by_ad')
+          .select('*');
+      }
 
       // Q4: Count unattributed leads (sem ad_id)
       const unattributedQuery = supabase
@@ -494,8 +514,8 @@ export const useMetricsLab = (
         .select('*', { count: 'exact', head: true })
         .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.');
 
-      const [leadResult, adsResult, trackingResult, unattributedResult] = await Promise.all([
-        leadQuery, adsQuery, trackingQuery, unattributedQuery,
+      const [leadResult, adsResult, unattributedResult] = await Promise.all([
+        leadQuery, adsQuery, unattributedQuery,
       ]);
 
       const queryErrors = [leadResult.error, adsResult.error, trackingResult.error]
@@ -546,10 +566,28 @@ export const useMetricsLab = (
         ? buildCriativosARC(rawAds)
         : MOCK_CRIATIVOS_ARC;
 
-    // Build tracking map (ad_id → GHL funnel data)
-    const trackingMap = new Map<string, RawFunnelTracking>();
+    // Build tracking map — merge exact + inferred per ad_id
+    const trackingMap = new Map<string, MergedFunnelTracking>();
     for (const t of rawTracking) {
-      trackingMap.set(t.ad_id, t);
+      const existing = trackingMap.get(t.ad_id);
+      if (existing) {
+        existing.total_leads += Number(t.total_leads) || 0;
+        existing.novo += Number(t.novo) || 0;
+        existing.em_contato += Number(t.em_contato) || 0;
+        existing.agendou += Number(t.agendou) || 0;
+        existing.no_show += Number(t.no_show) || 0;
+        existing.perdido += Number(t.perdido) || 0;
+        existing.won += Number(t.won) || 0;
+        existing.won_value += Number(t.won_value) || 0;
+        if (t.attribution_level === 'campaign_inferred') {
+          existing.inferred_leads += Number(t.total_leads) || 0;
+        }
+      } else {
+        trackingMap.set(t.ad_id, {
+          ...t,
+          inferred_leads: t.attribution_level === 'campaign_inferred' ? Number(t.total_leads) || 0 : 0,
+        });
+      }
     }
 
     // Funil por Anuncio — fall back to mock if empty

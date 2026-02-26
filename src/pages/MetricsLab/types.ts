@@ -56,11 +56,14 @@ export interface FunnelAd {
   campaign_name: string;
   steps: FunnelStep[];
   won_value: number;
+  attribution_level?: 'exact' | 'campaign_inferred';
+  inferred_leads?: number;
 }
 
 // Full Funnel Tracking (GHL data per ad)
 export interface FunnelTracking {
   ad_id: string;
+  attribution_level: 'exact' | 'campaign_inferred';
   total_leads: number;
   novo: number;
   em_contato: number;

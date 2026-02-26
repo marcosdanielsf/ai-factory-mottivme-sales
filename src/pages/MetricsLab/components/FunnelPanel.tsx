@@ -268,6 +268,18 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
             <ARCPill label="Body" value={arcData.body_rate} benchmark={2.5} />
           </div>
         )}
+
+        {/* Badge de confianca — atribuicao por campanha */}
+        {funnelAd && funnelAd.inferred_leads && funnelAd.inferred_leads > 0 ? (
+          <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/[0.05]">
+            <span className="text-[11px] text-amber-300/80 bg-amber-500/10 px-2 py-0.5 rounded-md font-medium">
+              ~{funnelAd.inferred_leads} leads atribuidos por campanha
+            </span>
+            <span className="text-[10px] text-[var(--text-secondary)]">
+              (inferido — sem UTM de anuncio)
+            </span>
+          </div>
+        ) : null}
       </div>
 
       {/* Charts */}
