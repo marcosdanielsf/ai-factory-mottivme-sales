@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
 import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
-import type { LeadScoreRow } from '../types';
+import type { LeadScoreRow, FunnelAd } from '../types';
 
-type SortKey = 'score' | 'leads' | 'gasto' | 'cpl';
+type SortKey = 'score' | 'leads' | 'gasto' | 'cpl' | 'roas';
 
 interface AdRankingListProps {
   rows: LeadScoreRow[];
   selectedAdId: string;
   onSelect: (adId: string) => void;
+  funnelAds?: FunnelAd[];
 }
 
 const SORT_OPTIONS: { key: SortKey; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
@@ -16,10 +17,18 @@ const SORT_OPTIONS: { key: SortKey; label: string; icon: React.FC<{ size?: numbe
   { key: 'leads', label: 'Leads', icon: Users },
   { key: 'gasto', label: 'Gasto', icon: DollarSign },
   { key: 'cpl', label: 'CPL', icon: TrendingUp },
+  { key: 'roas', label: 'ROAS', icon: TrendingUp },
 ];
 
-export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId, onSelect }) => {
+export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId, onSelect, funnelAds = [] }) => {
   const [sortBy, setSortBy] = useState<SortKey>('score');
+
+  // Build a map for O(1) lookup of won_value per ad
+  const funnelMap = React.useMemo(() => {
+    const m = new Map<string, FunnelAd>();
+    for (const f of funnelAds) m.set(f.ad_id, f);
+    return m;
+  }, [funnelAds]);
 
   const sorted = [...rows].sort((a, b) => {
     switch (sortBy) {
@@ -27,6 +36,11 @@ export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId
       case 'leads': return b.leads - a.leads;
       case 'gasto': return b.gasto - a.gasto;
       case 'cpl': return (a.cpl || Infinity) - (b.cpl || Infinity);
+      case 'roas': {
+        const roasA = a.gasto > 0 ? (funnelMap.get(a.ad_id)?.won_value ?? 0) / a.gasto : 0;
+        const roasB = b.gasto > 0 ? (funnelMap.get(b.ad_id)?.won_value ?? 0) / b.gasto : 0;
+        return roasB - roasA;
+      }
       default: return 0;
     }
   });
@@ -62,6 +76,10 @@ export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId
           const isSelected = row.ad_id === selectedAdId;
           const potConfig = getPotencialConfig(row.potencial);
           const scoreBg = getScoreBgClass(row.score);
+
+          const funnel = funnelMap.get(row.ad_id);
+          const wonValue = funnel?.won_value ?? 0;
+          const roas = row.gasto > 0 && wonValue > 0 ? wonValue / row.gasto : 0;
 
           return (
             <button
@@ -118,6 +136,25 @@ export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId
                       {potConfig.label}
                     </span>
                   </div>
+
+                  {/* GHL wins row — only when real data exists */}
+                  {wonValue > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-white/[0.04] text-[11px]">
+                      <span className="text-emerald-400 font-semibold tabular-nums">
+                        {formatCurrency(wonValue)}
+                      </span>
+                      <span className="text-[var(--text-secondary)]">receita</span>
+                      {roas > 0 && (
+                        <>
+                          <span className="text-white/10">|</span>
+                          <span className={`font-bold tabular-nums ${roas >= 3 ? 'text-emerald-400' : roas >= 1 ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {roas.toFixed(1)}x
+                          </span>
+                          <span className="text-[var(--text-secondary)]">ROAS</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </button>

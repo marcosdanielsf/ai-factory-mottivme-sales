@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { MOCK_LEAD_SCORE_ROWS, MOCK_CRIATIVOS_ARC, MOCK_FUNNEL_ADS } from '../pages/MetricsLab/mockData';
-import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking } from '../pages/MetricsLab/types';
+import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking, PeriodDeltas } from '../pages/MetricsLab/types';
 
 // ─── Raw DB shapes ──────────────────────────────────────────────────────────
 
@@ -422,6 +422,34 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, MergedFunnel
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
+// ─── Period delta helpers ─────────────────────────────────────────────────────
+
+function calcDelta(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+interface AggregatedPeriodMetrics {
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number; // conversas_iniciadas as proxy for leads
+}
+
+function aggregateAdRows(rows: RawAdRow[]): AggregatedPeriodMetrics {
+  let spend = 0;
+  let impressions = 0;
+  let clicks = 0;
+  let leads = 0;
+  for (const r of rows) {
+    spend += Number(r.spend) || 0;
+    impressions += Number(r.impressions) || 0;
+    clicks += Number(r.clicks) || 0;
+    leads += Number(r.conversas_iniciadas) || 0;
+  }
+  return { spend, impressions, clicks, leads };
+}
+
 interface UseMetricsLabReturn {
   leadScoreRows: LeadScoreRow[];
   criativosARC: CriativoARC[];
@@ -431,6 +459,7 @@ interface UseMetricsLabReturn {
   refetch: () => void;
   accounts: string[];
   unattributedCount: number;
+  periodDeltas: PeriodDeltas | null;
 }
 
 export const useMetricsLab = (
@@ -439,6 +468,7 @@ export const useMetricsLab = (
 ): UseMetricsLabReturn => {
   const [rawLeadScore, setRawLeadScore] = useState<RawLeadScoreRow[]>([]);
   const [rawAds, setRawAds] = useState<RawAdRow[]>([]);
+  const [rawAdsPrev, setRawAdsPrev] = useState<RawAdRow[]>([]);
   const [rawTracking, setRawTracking] = useState<RawFunnelTracking[]>([]);
   const [unattributedCount, setUnattributedCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -493,6 +523,34 @@ export const useMetricsLab = (
 
       adsQuery = adsQuery.limit(5000);
 
+      // Q2b: Previous period for comparison (same duration, shifted back)
+      let adsPrevQuery = supabase
+        .from('fb_ads_performance')
+        .select(
+          'ad_id, ad_name, adset_name, campaign_name, account_name, data_relatorio, ' +
+          'impressions, clicks, spend, reach, ctr_link, hook_rate, hold_rate, body_rate, ' +
+          'video_views_3s, video_p75, outbound_clicks, conversas_iniciadas, ' +
+          'custo_por_conversa, conversions, conversion_value',
+        )
+        .order('data_relatorio', { ascending: true });
+
+      if (accountName) {
+        adsPrevQuery = adsPrevQuery.eq('account_name', accountName);
+      }
+
+      if (dateRange?.startDate && dateRange?.endDate) {
+        const rangeMs = dateRange.endDate.getTime() - dateRange.startDate.getTime();
+        const prevEnd = new Date(dateRange.startDate.getTime() - 1);
+        const prevStart = new Date(prevEnd.getTime() - rangeMs);
+        prevEnd.setHours(23, 59, 59, 999);
+        prevStart.setHours(0, 0, 0, 0);
+        adsPrevQuery = adsPrevQuery
+          .gte('data_relatorio', formatDateISO(prevStart))
+          .lte('data_relatorio', formatDateISO(prevEnd));
+      }
+
+      adsPrevQuery = adsPrevQuery.limit(5000);
+
       // Q3: Funnel tracking — tenta vw_funnel_tracking_enhanced, fallback para vw_funnel_tracking_by_ad
       let trackingResult = await supabase
         .from('vw_funnel_tracking_enhanced')
@@ -514,8 +572,8 @@ export const useMetricsLab = (
         .select('*', { count: 'exact', head: true })
         .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.');
 
-      const [leadResult, adsResult, unattributedResult] = await Promise.all([
-        leadQuery, adsQuery, unattributedQuery,
+      const [leadResult, adsResult, adsPrevResult, unattributedResult] = await Promise.all([
+        leadQuery, adsQuery, adsPrevQuery, unattributedQuery,
       ]);
 
       const queryErrors = [leadResult.error, adsResult.error, trackingResult.error]
@@ -528,6 +586,7 @@ export const useMetricsLab = (
 
       setRawLeadScore(((leadResult.data ?? []) as unknown) as RawLeadScoreRow[]);
       setRawAds(((adsResult.data ?? []) as unknown) as RawAdRow[]);
+      setRawAdsPrev(((adsPrevResult.data ?? []) as unknown) as RawAdRow[]);
       setRawTracking(((trackingResult.data ?? []) as unknown) as RawFunnelTracking[]);
       setUnattributedCount(unattributedResult.count ?? 0);
     } catch (err) {
@@ -554,19 +613,31 @@ export const useMetricsLab = (
     }
     const accounts = Array.from(accountSet).sort();
 
-    // Lead Score rows — fall back to mock if empty
-    const leadScoreRows: LeadScoreRow[] =
-      rawLeadScore.length > 0
-        ? rawLeadScore.map(mapLeadScoreRow)
-        : MOCK_LEAD_SCORE_ROWS;
+    // Period deltas — compare current vs previous period aggregates
+    let periodDeltas: PeriodDeltas | null = null;
+    if (rawAds.length > 0) {
+      const curr = aggregateAdRows(rawAds);
+      const prev = aggregateAdRows(rawAdsPrev);
 
-    // Criativos ARC — fall back to mock if empty
-    const criativosARC: CriativoARC[] =
-      rawAds.length > 0
-        ? buildCriativosARC(rawAds)
-        : MOCK_CRIATIVOS_ARC;
+      const currCtr = curr.impressions > 0 ? (curr.clicks / curr.impressions) * 100 : 0;
+      const prevCtr = prev.impressions > 0 ? (prev.clicks / prev.impressions) * 100 : 0;
 
-    // Build tracking map — merge exact + inferred per ad_id
+      const currLeadScoreLeads = rawLeadScore.reduce((s, r) => s + (Number(r.leads) || 0), 0);
+      const currLeadScoreSpend = rawLeadScore.reduce((s, r) => s + (Number(r.gasto) || 0), 0);
+      const currCpl = currLeadScoreLeads > 0 ? currLeadScoreSpend / currLeadScoreLeads : 0;
+      const prevCpl = prev.leads > 0 ? prev.spend / prev.leads : 0;
+
+      periodDeltas = {
+        spend_delta: calcDelta(curr.spend, prev.spend),
+        impressions_delta: calcDelta(curr.impressions, prev.impressions),
+        clicks_delta: calcDelta(curr.clicks, prev.clicks),
+        ctr_delta: calcDelta(currCtr, prevCtr),
+        cpl_delta: currCpl > 0 && prevCpl > 0 ? calcDelta(currCpl, prevCpl) : null,
+        leads_delta: calcDelta(curr.leads, prev.leads),
+      };
+    }
+
+    // Build tracking map FIRST — needed by score enrichment and funnelAds
     const trackingMap = new Map<string, MergedFunnelTracking>();
     for (const t of rawTracking) {
       const existing = trackingMap.get(t.ad_id);
@@ -590,20 +661,71 @@ export const useMetricsLab = (
       }
     }
 
+    // Lead Score rows — enrich Component 3 (Conversao Final) with real GHL won data
+    const baseLeadScoreRows: LeadScoreRow[] =
+      rawLeadScore.length > 0
+        ? rawLeadScore.map(mapLeadScoreRow)
+        : MOCK_LEAD_SCORE_ROWS;
+
+    const leadScoreRows: LeadScoreRow[] = baseLeadScoreRows.map(row => {
+      const tracking = trackingMap.get(row.ad_id);
+      if (!tracking || tracking.total_leads === 0) return row;
+
+      const won = tracking.won;
+      const wonValue = tracking.won_value;
+      const totalLeads = tracking.total_leads;
+      const spend = row.gasto;
+
+      // Component 3: GHL won rate vs total_leads (max 25pts, 5% close rate = 25pts)
+      const wonRate = totalLeads > 0 ? (won / totalLeads) * 100 : 0;
+      const comp3_ghl = Math.min(25, wonRate * 5);
+
+      // comp3 from SQL was always 0 (conversion_events empty) — add the delta
+      const enrichedScore = Math.min(100, Math.max(0, row.score + Math.round(comp3_ghl)));
+
+      const enrichedPotencial: LeadScoreRow['potencial'] =
+        enrichedScore >= 70 ? 'alto'
+        : enrichedScore >= 40 ? 'medio'
+        : enrichedScore >= 20 ? 'baixo'
+        : 'desqualificado';
+
+      const roas = spend > 0 && wonValue > 0 ? wonValue / spend : 0;
+      const ghlDrivers = won > 0
+        ? [
+            { label: `${won} fechamentos GHL`, value: won, pct: Math.round(wonRate) },
+            ...(roas > 0 ? [{ label: `ROAS ${roas.toFixed(1)}x`, value: roas, pct: Math.round(roas * 10) }] : []),
+          ]
+        : [];
+
+      return {
+        ...row,
+        score: enrichedScore,
+        potencial: enrichedPotencial,
+        top_drivers: [...ghlDrivers, ...row.top_drivers].slice(0, 3),
+      };
+    });
+
+    // Criativos ARC — fall back to mock if empty
+    const criativosARC: CriativoARC[] =
+      rawAds.length > 0
+        ? buildCriativosARC(rawAds)
+        : MOCK_CRIATIVOS_ARC;
+
     // Funil por Anuncio — fall back to mock if empty
     const funnelAds: FunnelAd[] =
       rawAds.length > 0
         ? buildFunnelAds(rawAds, trackingMap)
         : MOCK_FUNNEL_ADS;
 
-    return { leadScoreRows, criativosARC, funnelAds, accounts };
-  }, [rawLeadScore, rawAds, rawTracking]);
+    return { leadScoreRows, criativosARC, funnelAds, accounts, periodDeltas };
+  }, [rawLeadScore, rawAds, rawAdsPrev, rawTracking]);
 
   return {
     leadScoreRows: computed.leadScoreRows,
     criativosARC: computed.criativosARC,
     funnelAds: computed.funnelAds,
     accounts: computed.accounts,
+    periodDeltas: computed.periodDeltas,
     loading,
     error,
     refetch: fetchData,

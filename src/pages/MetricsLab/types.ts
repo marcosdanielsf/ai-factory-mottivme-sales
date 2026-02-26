@@ -60,6 +60,16 @@ export interface FunnelAd {
   inferred_leads?: number;
 }
 
+// Period comparison deltas
+export interface PeriodDeltas {
+  spend_delta: number | null;
+  impressions_delta: number | null;
+  clicks_delta: number | null;
+  ctr_delta: number | null;
+  cpl_delta: number | null;
+  leads_delta: number | null;
+}
+
 // Full Funnel Tracking (GHL data per ad)
 export interface FunnelTracking {
   ad_id: string;

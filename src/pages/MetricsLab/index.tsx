@@ -1,9 +1,63 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FlaskConical, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
+import { FlaskConical, ChevronDown, AlertCircle, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 import { AdRankingList } from './components/AdRankingList';
 import { FunnelPanel } from './components/FunnelPanel';
 import { useMetricsLab } from '../../hooks/useMetricsLab';
 import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
+import type { PeriodDeltas } from './types';
+
+// ─── Delta Badge ─────────────────────────────────────────────────────────────
+
+interface DeltaBadgeProps {
+  value: number | null;
+  label: string;
+  /** true = higher is better (clicks, leads, impressions); false = lower is better (spend, cpl) */
+  higherIsBetter?: boolean;
+}
+
+const DeltaBadge: React.FC<DeltaBadgeProps> = ({ value, label, higherIsBetter = true }) => {
+  if (value === null) return null;
+  const positive = value >= 0;
+  const good = higherIsBetter ? positive : !positive;
+  const formatted = `${positive ? '+' : ''}${value.toFixed(1)}%`;
+
+  return (
+    <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold tabular-nums ${
+      good
+        ? 'bg-emerald-500/10 text-emerald-400'
+        : 'bg-rose-500/10 text-rose-400'
+    }`}>
+      {positive
+        ? <TrendingUp size={9} className="flex-shrink-0" />
+        : <TrendingDown size={9} className="flex-shrink-0" />}
+      <span>{label} {formatted}</span>
+    </div>
+  );
+};
+
+// ─── Delta Row ───────────────────────────────────────────────────────────────
+
+const PeriodDeltasRow: React.FC<{ deltas: PeriodDeltas }> = ({ deltas }) => {
+  const badges: { value: number | null; label: string; higherIsBetter: boolean }[] = [
+    { value: deltas.spend_delta,       label: 'Gasto',      higherIsBetter: false },
+    { value: deltas.impressions_delta, label: 'Impress.',   higherIsBetter: true  },
+    { value: deltas.clicks_delta,      label: 'Cliques',    higherIsBetter: true  },
+    { value: deltas.ctr_delta,         label: 'CTR',        higherIsBetter: true  },
+    { value: deltas.leads_delta,       label: 'Leads',      higherIsBetter: true  },
+    { value: deltas.cpl_delta,         label: 'CPL',        higherIsBetter: false },
+  ].filter(b => b.value !== null);
+
+  if (badges.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-[10px] text-[var(--text-secondary)] opacity-60">vs periodo anterior</span>
+      {badges.map(b => (
+        <DeltaBadge key={b.label} value={b.value} label={b.label} higherIsBetter={b.higherIsBetter} />
+      ))}
+    </div>
+  );
+};
 
 export const MetricsLab: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -17,7 +71,7 @@ export const MetricsLab: React.FC = () => {
     return { startDate: start, endDate: end };
   });
 
-  const { leadScoreRows, criativosARC, funnelAds, loading, error, accounts, unattributedCount } =
+  const { leadScoreRows, criativosARC, funnelAds, loading, error, accounts, unattributedCount, periodDeltas } =
     useMetricsLab(selectedAccount, dateRange);
 
   // Auto-select first ad when data loads
@@ -68,6 +122,11 @@ export const MetricsLab: React.FC = () => {
                     </span>
                   )}
                 </div>
+                {periodDeltas && !loading && (
+                  <div className="mt-1">
+                    <PeriodDeltasRow deltas={periodDeltas} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -125,6 +184,7 @@ export const MetricsLab: React.FC = () => {
                 rows={leadScoreRows}
                 selectedAdId={selectedAdId}
                 onSelect={setSelectedAdId}
+                funnelAds={funnelAds}
               />
             </div>
 
