@@ -120,7 +120,7 @@ export const ARCHorizontalBars: React.FC<ARCHorizontalBarsProps> = ({ criativo }
   return (
     <div className="space-y-2.5">
       {BAR_CONFIGS.map((bar) => {
-        const value = bar.getValue(criativo);
+        const value = bar.getValue(criativo) ?? 0;
         const pct = Math.min((value / bar.max) * 100, 100);
         const benchmarkPct = bar.benchmark > 0
           ? Math.min((bar.benchmark / bar.max) * 100, 100)

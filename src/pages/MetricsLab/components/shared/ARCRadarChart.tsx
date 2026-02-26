@@ -94,7 +94,7 @@ export const ARCRadarChart: React.FC<ARCRadarChartProps> = ({
             <div className="bg-bg-secondary border border-border-default rounded px-2 py-1.5 shadow-lg text-xs">
               <p className="text-text-primary font-semibold mb-0.5">{subject} Rate</p>
               <p className="text-blue-400">
-                Atual: <span className="font-medium">{raw.toFixed(1)}%</span>
+                Atual: <span className="font-medium">{(raw ?? 0).toFixed(1)}%</span>
               </p>
               <p className="text-amber-400/70">
                 Meta: <span className="font-medium">{bench}%</span>

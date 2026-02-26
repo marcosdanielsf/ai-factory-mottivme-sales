@@ -91,7 +91,7 @@ export const CriativosARCTab: React.FC<CriativosARCTabProps> = ({ criativos, loa
                 <BenchmarkPill label="Conversao" met={criativo.benchmark_conversao} />
                 <div className="ml-auto flex items-center gap-3 text-[10px] text-text-muted">
                   <span>Gasto: <span className="text-text-primary font-medium">{formatCurrency(criativo.gasto)}</span></span>
-                  <span>ROAS: <span className="text-emerald-400 font-medium">{criativo.roas.toFixed(1)}x</span></span>
+                  <span>ROAS: <span className="text-emerald-400 font-medium">{(criativo.roas ?? 0).toFixed(1)}x</span></span>
                 </div>
               </div>
             </div>

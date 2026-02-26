@@ -182,7 +182,7 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
                 ? 'bg-emerald-500/10 text-emerald-300'
                 : 'bg-white/[0.04] text-[var(--text-secondary)]'
             }`}>
-              {step.conversion_rate.toFixed(1)}%
+              {(step.conversion_rate ?? 0).toFixed(1)}%
             </span>
           ) : null}
         </div>
@@ -255,7 +255,7 @@ const ConversionTimeSection: React.FC<{ data: ConversionTimeStats }> = ({ data }
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-[var(--text-secondary)]">Taxa agendamento</span>
               <span className="text-[12px] font-bold text-[var(--text-primary)] tabular-nums">
-                {data.conversion_rate_schedule.toFixed(1)}%
+                {(data.conversion_rate_schedule ?? 0).toFixed(1)}%
               </span>
             </div>
           )}
@@ -263,7 +263,7 @@ const ConversionTimeSection: React.FC<{ data: ConversionTimeStats }> = ({ data }
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-[var(--text-secondary)]">Taxa fechamento</span>
               <span className="text-[12px] font-bold text-[var(--text-primary)] tabular-nums">
-                {data.conversion_rate_won.toFixed(1)}%
+                {(data.conversion_rate_won ?? 0).toFixed(1)}%
               </span>
             </div>
           )}

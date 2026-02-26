@@ -75,7 +75,7 @@ const TooltipRow: React.FC<{
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
     <span style={{ fontSize: 11, color: '#6b7280' }}>{label}</span>
     <span style={{ fontSize: 12, fontWeight: 700, color, tabularNums: true } as React.CSSProperties}>
-      {value.toFixed(decimals)}{suffix}
+      {(value ?? 0).toFixed(decimals)}{suffix}
     </span>
   </div>
 );

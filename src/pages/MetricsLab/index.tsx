@@ -6,6 +6,40 @@ import { useMetricsLab } from '../../hooks/useMetricsLab';
 import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
 import type { PeriodDeltas, AnomalyRow, LeadScoreRow, FunnelAd } from './types';
 
+// ─── Error Boundary ──────────────────────────────────────────────────────────
+
+class MetricsLabErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-8">
+          <AlertCircle size={32} className="text-rose-400" />
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Erro ao renderizar Metrics Lab</h2>
+          <p className="text-sm text-[var(--text-secondary)] max-w-md">
+            {this.state.error?.message ?? 'Erro desconhecido'}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-violet-500/20 text-violet-300 rounded-xl text-sm font-medium hover:bg-violet-500/30 transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Delta Badge ─────────────────────────────────────────────────────────────
 
 interface DeltaBadgeProps {
@@ -102,14 +136,14 @@ const AnomalyBanner: React.FC<{ anomalies: AnomalyRow[] }> = ({ anomalies }) => 
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md tabular-nums ${
                     a.cpl_delta_pct > 0 ? 'bg-rose-500/10 text-rose-300' : 'bg-emerald-500/10 text-emerald-300'
                   }`}>
-                    CPL {a.cpl_delta_pct > 0 ? '+' : ''}{a.cpl_delta_pct.toFixed(0)}%
+                    CPL {a.cpl_delta_pct > 0 ? '+' : ''}{(a.cpl_delta_pct ?? 0).toFixed(0)}%
                   </span>
                 )}
                 {a.ctr_delta_pct !== 0 && (
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md tabular-nums ${
                     a.ctr_delta_pct < 0 ? 'bg-rose-500/10 text-rose-300' : 'bg-emerald-500/10 text-emerald-300'
                   }`}>
-                    CTR {a.ctr_delta_pct > 0 ? '+' : ''}{a.ctr_delta_pct.toFixed(0)}%
+                    CTR {a.ctr_delta_pct > 0 ? '+' : ''}{(a.ctr_delta_pct ?? 0).toFixed(0)}%
                   </span>
                 )}
               </div>
@@ -148,9 +182,9 @@ function buildExportRows(
       score: row.score,
       potencial: row.potencial,
       leads: row.leads,
-      gasto: row.gasto.toFixed(2),
-      cpl: row.cpl.toFixed(2),
-      won_value: wonValue.toFixed(2),
+      gasto: (row.gasto ?? 0).toFixed(2),
+      cpl: (row.cpl ?? 0).toFixed(2),
+      won_value: (wonValue ?? 0).toFixed(2),
       roas: roas > 0 ? roas.toFixed(2) : '—',
     };
   });
@@ -477,4 +511,10 @@ export const MetricsLab: React.FC = () => {
   );
 };
 
-export default MetricsLab;
+const MetricsLabWithBoundary: React.FC = () => (
+  <MetricsLabErrorBoundary>
+    <MetricsLab />
+  </MetricsLabErrorBoundary>
+);
+
+export default MetricsLabWithBoundary;
