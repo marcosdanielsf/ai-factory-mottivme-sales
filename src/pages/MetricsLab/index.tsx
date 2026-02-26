@@ -1,40 +1,57 @@
-import React, { useState } from 'react';
-import { FlaskConical, Target, Triangle, TrendingDown, Workflow, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
-import { LeadScoreTab } from './components/tabs/LeadScoreTab';
-import { CriativosARCTab } from './components/tabs/CriativosARCTab';
-import { FunilPorAnuncioTab } from './components/tabs/FunilPorAnuncioTab';
-import { N8nWorkflowsTab } from './components/tabs/N8nWorkflowsTab';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FlaskConical, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
+import { AdRankingList } from './components/AdRankingList';
+import { FunnelPanel } from './components/FunnelPanel';
 import { useMetricsLab } from '../../hooks/useMetricsLab';
-import type { TabKey } from './types';
-
-const TABS: { id: TabKey; label: string; icon: React.FC<{ className?: string; size?: number }> }[] = [
-  { id: 'lead-score',     label: 'Lead Score',       icon: Target },
-  { id: 'criativos-arc',  label: 'Criativos ARC',    icon: Triangle },
-  { id: 'funil-anuncio',  label: 'Funil por Anuncio', icon: TrendingDown },
-  { id: 'n8n-workflows',  label: 'n8n Workflows',    icon: Workflow },
-];
 
 export const MetricsLab: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('lead-score');
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [selectedAdId, setSelectedAdId] = useState<string>('');
 
   const { leadScoreRows, criativosARC, funnelAds, loading, error, accounts } =
     useMetricsLab(selectedAccount);
 
+  // Auto-select first ad when data loads
+  useEffect(() => {
+    if (leadScoreRows.length > 0 && !selectedAdId) {
+      setSelectedAdId(leadScoreRows[0].ad_id);
+    }
+  }, [leadScoreRows, selectedAdId]);
+
+  // Reset selection when account changes
+  useEffect(() => {
+    setSelectedAdId('');
+  }, [selectedAccount]);
+
+  // Find selected data
+  const selectedScore = useMemo(
+    () => leadScoreRows.find(r => r.ad_id === selectedAdId) ?? null,
+    [leadScoreRows, selectedAdId],
+  );
+
+  const selectedFunnel = useMemo(
+    () => funnelAds.find(f => f.ad_id === selectedAdId) ?? null,
+    [funnelAds, selectedAdId],
+  );
+
+  const selectedARC = useMemo(() => {
+    const arc = criativosARC.find(c => c.ad_id === selectedAdId);
+    return arc ? { hook_rate: arc.hook_rate, hold_rate: arc.hold_rate, body_rate: arc.body_rate } : null;
+  }, [criativosARC, selectedAdId]);
+
   return (
-    <div className="bg-[var(--bg-primary)]">
-      {/* Sticky Header + Tabs */}
+    <div className="bg-[var(--bg-primary)] min-h-screen flex flex-col">
+      {/* Header */}
       <div className="sticky top-0 z-20 bg-[var(--bg-primary)]/95 backdrop-blur border-b border-[var(--border-default)]">
         <div className="px-4 md:px-6 py-3">
           <div className="flex items-center justify-between gap-3">
-            {/* Title */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
                 <FlaskConical size={20} className="text-violet-400" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-[var(--text-primary)]">Metrics Lab</h1>
-                <p className="text-xs text-[var(--text-muted)]">Inspirado em VK Metrics</p>
+                <p className="text-xs text-[var(--text-muted)]">Ranking de anuncios + funil completo</p>
               </div>
             </div>
 
@@ -48,9 +65,7 @@ export const MetricsLab: React.FC = () => {
                 >
                   <option value="">Todas as contas</option>
                   {accounts.map((acc) => (
-                    <option key={acc} value={acc}>
-                      {acc}
-                    </option>
+                    <option key={acc} value={acc}>{acc}</option>
                   ))}
                 </select>
                 <ChevronDown
@@ -69,49 +84,38 @@ export const MetricsLab: React.FC = () => {
             <span>Erro ao carregar dados reais — exibindo dados de exemplo. ({error})</span>
           </div>
         )}
-
-        {/* Tab Bar */}
-        <div className="px-4 md:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                tab === t.id
-                  ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              <t.icon className="w-4 h-4" />
-              {t.label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Loading overlay */}
+      {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-8 text-[var(--text-muted)] text-sm">
+        <div className="flex items-center justify-center gap-2 py-16 text-[var(--text-muted)] text-sm">
           <Loader2 size={16} className="animate-spin" />
           <span>Carregando dados...</span>
         </div>
       )}
 
-      {/* Tab Content */}
+      {/* Two-zone layout */}
       {!loading && (
-        <div className="p-4 md:p-6">
-          {tab === 'lead-score' && (
-            <LeadScoreTab rows={leadScoreRows} loading={false} />
-          )}
-          {tab === 'criativos-arc' && (
-            <CriativosARCTab criativos={criativosARC} loading={false} />
-          )}
-          {tab === 'funil-anuncio' && (
-            <FunilPorAnuncioTab funnelAds={funnelAds} loading={false} />
-          )}
-          {tab === 'n8n-workflows' && (
-            <N8nWorkflowsTab />
-          )}
+        <div className="flex-1 p-4 md:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full" style={{ minHeight: 'calc(100vh - 140px)' }}>
+            {/* Left: Ranking */}
+            <div className="lg:col-span-4 xl:col-span-4">
+              <AdRankingList
+                rows={leadScoreRows}
+                selectedAdId={selectedAdId}
+                onSelect={setSelectedAdId}
+              />
+            </div>
+
+            {/* Right: Funnel */}
+            <div className="lg:col-span-8 xl:col-span-8">
+              <FunnelPanel
+                scoreRow={selectedScore}
+                funnelAd={selectedFunnel}
+                arcData={selectedARC}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
