@@ -9,6 +9,7 @@ import {
 } from '../../types/supervision';
 import { QualityBadge } from './QualityBadge';
 import { useQualitySummary } from '../../hooks/useQualityFlags';
+import { ContactAvatar } from './ContactAvatar';
 
 interface ConversationListProps {
   conversations: SupervisionConversation[];
@@ -103,15 +104,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
-  // Helper: cor do avatar baseada no primeiro caractere do nome
-  const getAvatarColor = (name: string): string => {
-    const colors = [
-      'bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-600',
-      'bg-teal-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-rose-600',
-    ];
-    const charCode = (name || 'A').charCodeAt(0);
-    return colors[charCode % colors.length];
-  };
+  // getAvatarColor removido — agora usa ContactAvatar component
 
   // Busca resumos de qualidade para mostrar badges
   const { getSummary } = useQualitySummary(sessionIds);
@@ -255,9 +248,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         {isChecked && <Check size={10} className="text-white" strokeWidth={3} />}
                       </button>
                     ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${getAvatarColor(displayName)} text-white`}>
-                        {displayName[0]?.toUpperCase() || '?'}
-                      </div>
+                      <ContactAvatar
+                        name={displayName}
+                        photoUrl={conversation.contact_photo_url}
+                        size="md"
+                      />
                     )}
 
                     {/* Name + time row */}

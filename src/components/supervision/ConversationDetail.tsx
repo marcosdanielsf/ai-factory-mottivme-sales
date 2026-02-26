@@ -36,6 +36,7 @@ import {
 } from '../../types/supervision';
 import { MessageBubble } from './MessageBubble';
 import { MessageComposer } from './MessageComposer';
+import { ContactAvatar } from './ContactAvatar';
 import { QualityIndicator } from './QualityBadge';
 import { QualityFlagsList } from './QualityFlagsList';
 import { useQualityFlags, useQualitySummary } from '../../hooks/useQualityFlags';
@@ -72,15 +73,7 @@ interface ConversationDetailProps {
   isMobile?: boolean;
 }
 
-// Helper: cor do avatar baseada no primeiro caractere do nome
-const getAvatarColor = (name: string): string => {
-  const colors = [
-    'bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-600',
-    'bg-teal-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-rose-600',
-  ];
-  const charCode = (name || 'A').charCodeAt(0);
-  return colors[charCode % colors.length];
-};
+// getAvatarColor removido — agora usa ContactAvatar component
 
 // Helper: obtém nome de exibição do contato com fallbacks
 const getContactDisplayName = (conversation: SupervisionConversation): string => {
@@ -255,9 +248,11 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
           </button>
         )}
         
-        <div className={`${isMobile ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-sm'} rounded-full flex items-center justify-center font-semibold text-white shrink-0 ${getAvatarColor(getContactDisplayName(conversation))}`}>
-          {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
-        </div>
+        <ContactAvatar
+          name={getContactDisplayName(conversation)}
+          photoUrl={conversation.contact_photo_url}
+          size={isMobile ? 'sm' : 'md'}
+        />
 
         {/* Name + Client inline */}
         <div className="min-w-0 flex-1">

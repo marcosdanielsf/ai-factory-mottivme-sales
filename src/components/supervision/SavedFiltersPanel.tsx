@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, Plus, Trash2, X, Check } from 'lucide-react';
+import { Bookmark, Plus, Trash2, X, Check, Building2, ChevronDown } from 'lucide-react';
 import { SavedFilter, SupervisionFilters } from '../../types/supervision';
 
 interface SavedFiltersPanelProps {
@@ -23,6 +23,7 @@ export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [showClients, setShowClients] = useState(false);
 
   const handleSave = () => {
     if (!newName.trim()) return;
@@ -43,29 +44,59 @@ export const SavedFiltersPanel: React.FC<SavedFiltersPanelProps> = ({
 
   return (
     <div className="mt-2 pt-2 border-t border-border-default/30 space-y-2">
-      {/* Client quick-access pills */}
-      {defaultClientFilters.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {defaultClientFilters.map((filter) => {
-            const isActive = activeLocationId === filter.filters.locationId;
-            return (
+      {/* Client quick-access — collapsed by default */}
+      {defaultClientFilters.length > 0 && (() => {
+        const activeClient = defaultClientFilters.find(f => f.filters.locationId === activeLocationId);
+        return (
+          <div>
+            <div className="flex items-center gap-1.5">
+              {/* Active client pill — always visible when selected */}
+              {activeClient && !showClients && (
+                <button
+                  onClick={() => handleClientPillClick(activeClient)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-accent-primary text-white transition-all"
+                >
+                  {activeClient.name}
+                  <X size={10} />
+                </button>
+              )}
+              {/* Toggle button */}
               <button
-                key={filter.id}
-                onClick={() => handleClientPillClick(filter)}
-                className={`
-                  px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap
-                  ${isActive
-                    ? 'bg-accent-primary text-white'
-                    : 'bg-bg-hover/80 text-text-secondary hover:bg-bg-hover hover:text-text-primary'
-                  }
-                `}
+                onClick={() => setShowClients(!showClients)}
+                className="flex items-center gap-1 px-2 py-1 text-[11px] text-text-muted hover:text-text-secondary transition-colors rounded-lg hover:bg-bg-hover/50"
               >
-                {filter.name}
+                <Building2 size={11} />
+                <span>Clientes ({defaultClientFilters.length})</span>
+                <ChevronDown size={10} className={`transition-transform ${showClients ? 'rotate-180' : ''}`} />
               </button>
-            );
-          })}
-        </div>
-      )}
+            </div>
+
+            {/* Expanded pills */}
+            {showClients && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                {defaultClientFilters.map((filter) => {
+                  const isActive = activeLocationId === filter.filters.locationId;
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => handleClientPillClick(filter)}
+                      className={`
+                        px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap
+                        ${isActive
+                          ? 'bg-accent-primary text-white'
+                          : 'bg-bg-hover/80 text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+                        }
+                      `}
+                    >
+                      {filter.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* User-saved filters section */}
       {(savedFilters.length > 0 || isCreating) && (

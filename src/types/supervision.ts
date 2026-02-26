@@ -182,6 +182,9 @@ export interface SupervisionConversation {
   lost_reason_notes?: string | null;
   lead_source?: string | null;
   tags?: string[] | null;
+
+  // Foto do contato (GHL photoUrl, Instagram profile pic, etc)
+  contact_photo_url?: string | null;
 }
 
 export interface SupervisionMessage {
