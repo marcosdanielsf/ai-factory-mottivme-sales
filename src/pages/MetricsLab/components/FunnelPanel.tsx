@@ -26,7 +26,7 @@ const ARCPill: React.FC<{ label: string; value: number; benchmark: number; suffi
     }`}>
       {pass ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
       <span className="font-semibold">{label}</span>
-      <span className="opacity-70">{value.toFixed(1)}{suffix}</span>
+      <span className="opacity-70">{(value ?? 0).toFixed(1)}{suffix}</span>
     </div>
   );
 };
@@ -80,7 +80,7 @@ const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
             <div key={m.label}>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11px] text-[var(--text-secondary)]">{m.label}</span>
-                <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{m.value.toFixed(1)}%</span>
+                <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{(m.value ?? 0).toFixed(1)}%</span>
               </div>
               <div className="h-2 bg-white/[0.04] rounded-full overflow-hidden">
                 <div
@@ -325,7 +325,7 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
             { label: 'Gasto', value: formatCurrency(scoreRow.gasto) },
             { label: 'Leads', value: formatNumber(scoreRow.leads) },
             { label: 'CPL', value: scoreRow.cpl > 0 ? formatCurrency(scoreRow.cpl) : '—' },
-            { label: 'Resp%', value: `${scoreRow.resp_pct.toFixed(0)}%` },
+            { label: 'Resp%', value: `${(scoreRow.resp_pct ?? 0).toFixed(0)}%` },
           ];
           const wonValue = (funnelAd as { won_value?: number } | null)?.won_value ?? 0;
           if (funnelAd && wonValue > 0) {

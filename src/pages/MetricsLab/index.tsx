@@ -16,7 +16,7 @@ interface DeltaBadgeProps {
 }
 
 const DeltaBadge: React.FC<DeltaBadgeProps> = ({ value, label, higherIsBetter = true }) => {
-  if (value === null) return null;
+  if (value == null) return null;
   const positive = value >= 0;
   const good = higherIsBetter ? positive : !positive;
   const formatted = `${positive ? '+' : ''}${value.toFixed(1)}%`;

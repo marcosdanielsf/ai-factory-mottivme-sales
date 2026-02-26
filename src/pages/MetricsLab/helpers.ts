@@ -1,8 +1,8 @@
 export const formatCurrency = (value: number): string =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-export const formatPct = (value: number, decimals = 1): string =>
-  `${value.toFixed(decimals)}%`;
+export const formatPct = (value: number | null | undefined, decimals = 1): string =>
+  value != null ? `${value.toFixed(decimals)}%` : '—';
 
 export const formatNumber = (value: number): string =>
   new Intl.NumberFormat('pt-BR').format(value);
