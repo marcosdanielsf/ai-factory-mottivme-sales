@@ -572,7 +572,7 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
       {/* Quality OK indicator — hidden when no problems (saves space) */}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 md:py-4">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 size={28} className="animate-spin text-accent-primary" />
@@ -583,9 +583,110 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
           </div>
         ) : (
           <>
-            {messages.map((message) => (
-              <MessageBubble key={message.message_id} message={message} isMobile={isMobile} />
-            ))}
+            {messages.map((message, index) => {
+              const elements: React.ReactNode[] = [];
+
+              // Date separator logic
+              const currentDate = new Date(message.created_at);
+              const prevMessage = index > 0 ? messages[index - 1] : null;
+              const prevDate = prevMessage ? new Date(prevMessage.created_at) : null;
+
+              const isNewDay =
+                !prevDate || currentDate.toDateString() !== prevDate.toDateString();
+
+              if (isNewDay) {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                let dateLabel: string;
+                if (currentDate.toDateString() === today.toDateString()) {
+                  dateLabel = 'Hoje';
+                } else if (currentDate.toDateString() === yesterday.toDateString()) {
+                  dateLabel = 'Ontem';
+                } else {
+                  dateLabel = currentDate.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year:
+                      currentDate.getFullYear() !== today.getFullYear()
+                        ? 'numeric'
+                        : undefined,
+                  });
+                }
+
+                elements.push(
+                  <div
+                    key={`date-${message.message_id}`}
+                    className="flex items-center gap-3 my-4"
+                  >
+                    <div className="flex-1 h-px bg-border-default/30" />
+                    <span className="text-[11px] text-text-muted font-medium px-2">
+                      {dateLabel}
+                    </span>
+                    <div className="flex-1 h-px bg-border-default/30" />
+                  </div>
+                );
+              }
+
+              // Channel context banner — show when channel changes
+              const prevChannel = prevMessage?.channel;
+              const currentChannel = message.channel;
+              const channelChanged =
+                currentChannel &&
+                currentChannel !== 'unknown' &&
+                currentChannel !== prevChannel;
+
+              if (channelChanged && index > 0) {
+                const channelColors: Record<string, string> = {
+                  instagram: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
+                  ig: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
+                  whatsapp: 'bg-green-500/10 text-green-400 border-green-500/20',
+                  wa: 'bg-green-500/10 text-green-400 border-green-500/20',
+                  email: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                };
+                const channelNames: Record<string, string> = {
+                  instagram: 'Instagram',
+                  ig: 'Instagram',
+                  whatsapp: 'WhatsApp',
+                  wa: 'WhatsApp',
+                  email: 'E-mail',
+                };
+                const colorClass =
+                  channelColors[currentChannel.toLowerCase()] ||
+                  'bg-bg-hover text-text-muted border-border-default/30';
+                const channelName =
+                  channelNames[currentChannel.toLowerCase()] || currentChannel;
+
+                elements.push(
+                  <div
+                    key={`channel-${message.message_id}`}
+                    className="flex justify-center my-3"
+                  >
+                    <div
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border ${colorClass}`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      <span>{channelName}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              elements.push(
+                <MessageBubble
+                  key={message.message_id}
+                  message={message}
+                  isMobile={isMobile}
+                />
+              );
+
+              return (
+                <React.Fragment key={`group-${message.message_id}`}>
+                  {elements}
+                </React.Fragment>
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
