@@ -72,6 +72,16 @@ interface ConversationDetailProps {
   isMobile?: boolean;
 }
 
+// Helper: cor do avatar baseada no primeiro caractere do nome
+const getAvatarColor = (name: string): string => {
+  const colors = [
+    'bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-600',
+    'bg-teal-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-rose-600',
+  ];
+  const charCode = (name || 'A').charCodeAt(0);
+  return colors[charCode % colors.length];
+};
+
 // Helper: obtém nome de exibição do contato com fallbacks
 const getContactDisplayName = (conversation: SupervisionConversation): string => {
   // 1. Nome do contato (prioridade)
@@ -245,7 +255,7 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
           </button>
         )}
         
-        <div className={`${isMobile ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-sm'} rounded-full bg-bg-hover flex items-center justify-center font-semibold text-text-primary shrink-0`}>
+        <div className={`${isMobile ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-sm'} rounded-full flex items-center justify-center font-semibold text-white shrink-0 ${getAvatarColor(getContactDisplayName(conversation))}`}>
           {getContactDisplayName(conversation)[0]?.toUpperCase() || '?'}
         </div>
 
@@ -572,7 +582,7 @@ export const ConversationDetail: React.FC<ConversationDetailProps> = ({
       {/* Quality OK indicator — hidden when no problems (saves space) */}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 md:py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 md:py-4 bg-bg-primary/30">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 size={28} className="animate-spin text-accent-primary" />

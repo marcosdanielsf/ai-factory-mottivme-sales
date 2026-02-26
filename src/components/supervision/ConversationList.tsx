@@ -87,18 +87,30 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return 'Desconhecido';
   };
 
-  // Helper: formata horário considerando UTC
+  // Helper: formata horário no estilo Kommo (absoluto: "Hoje 08:30", "Ontem 14:22", "12/03")
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
 
-    if (minutes < 1) return 'agora';
-    if (minutes < 60) return `${minutes}m`;
-    if (hours < 24) return `${hours}h`;
+    const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) return `Hoje ${time}`;
+    if (isYesterday) return `Ontem ${time}`;
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
+
+  // Helper: cor do avatar baseada no primeiro caractere do nome
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'bg-blue-600', 'bg-purple-600', 'bg-pink-600', 'bg-orange-600',
+      'bg-teal-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-rose-600',
+    ];
+    const charCode = (name || 'A').charCodeAt(0);
+    return colors[charCode % colors.length];
   };
 
   // Busca resumos de qualidade para mostrar badges
@@ -243,7 +255,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         {isChecked && <Check size={10} className="text-white" strokeWidth={3} />}
                       </button>
                     ) : (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-bg-hover text-text-primary">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${getAvatarColor(displayName)} text-white`}>
                         {displayName[0]?.toUpperCase() || '?'}
                       </div>
                     )}
@@ -269,7 +281,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   {/* Row 2: Last message preview */}
                   <p className="text-xs text-text-muted truncate mt-0.5 pl-[42px]">
                     {conversation.last_message_role === 'assistant' && (
-                      <span className="text-accent-primary font-medium">IA: </span>
+                      <span className="text-teal-400 font-medium">Salesbot: </span>
                     )}
                     {(conversation.last_message?.slice(0, 80) || '')}
                     {(conversation.last_message?.length || 0) > 80 && '...'}
