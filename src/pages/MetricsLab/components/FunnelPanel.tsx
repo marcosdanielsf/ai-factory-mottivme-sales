@@ -27,6 +27,82 @@ const ARCPill: React.FC<{ label: string; value: number; benchmark: number; suffi
   );
 };
 
+// ─── Conversion Summary (when no trend data) ───────────────────────────────
+
+const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
+  // Show key conversion rates as visual donut-like rings
+  const metrics: { label: string; value: number; color: string }[] = [];
+
+  const impressions = steps.find(s => s.key === 'impressoes')?.value ?? 0;
+  const clicks = steps.find(s => s.key === 'cliques')?.value ?? 0;
+  const conversas = steps.find(s => s.key === 'conversas')?.value ?? 0;
+  const leads = steps.find(s => s.key === 'ghl_leads')?.value ?? 0;
+  const respondeu = steps.find(s => s.key === 'ghl_em_contato')?.value ?? 0;
+  const agendou = steps.find(s => s.key === 'ghl_agendou')?.value ?? 0;
+  const compareceu = steps.find(s => s.key === 'ghl_compareceu')?.value ?? 0;
+
+  if (impressions > 0 && clicks > 0) {
+    metrics.push({ label: 'CTR', value: (clicks / impressions) * 100, color: '#6366f1' });
+  }
+  if (clicks > 0 && conversas > 0) {
+    metrics.push({ label: 'Click→Conv', value: (conversas / clicks) * 100, color: '#22d3ee' });
+  }
+  if (leads > 0 && respondeu > 0) {
+    metrics.push({ label: 'Resposta', value: (respondeu / leads) * 100, color: '#f59e0b' });
+  }
+  if (respondeu > 0 && agendou > 0) {
+    metrics.push({ label: 'Agendamento', value: (agendou / respondeu) * 100, color: '#10b981' });
+  }
+  if (agendou > 0 && compareceu > 0) {
+    metrics.push({ label: 'Comparecimento', value: (compareceu / agendou) * 100, color: '#8b5cf6' });
+  }
+
+  if (metrics.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-xs">
+        Dados insuficientes para grafico
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-wider mb-3">
+        Taxas de Conversao
+      </div>
+      <div className="space-y-3">
+        {metrics.map(m => {
+          const capped = Math.min(m.value, 100);
+          const circumference = 2 * Math.PI * 28;
+          const offset = circumference - (capped / 100) * circumference;
+
+          return (
+            <div key={m.label} className="flex items-center gap-3">
+              {/* Ring */}
+              <svg width={64} height={64} className="flex-shrink-0 -rotate-90">
+                <circle cx={32} cy={32} r={28} fill="none" stroke="var(--bg-hover)" strokeWidth={5} />
+                <circle
+                  cx={32} cy={32} r={28} fill="none"
+                  stroke={m.color} strokeWidth={5}
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                  className="transition-all duration-700"
+                />
+              </svg>
+              {/* Label + value */}
+              <div>
+                <div className="text-sm font-bold text-[var(--text-primary)]">{m.value.toFixed(1)}%</div>
+                <div className="text-[10px] text-[var(--text-muted)]">{m.label}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── Funnel Step Row ────────────────────────────────────────────────────────
 
 const GHL_KEYS = new Set(['ghl_separator', 'ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
@@ -191,16 +267,17 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
         )}
       </div>
 
-      {/* Charts row */}
+      {/* Charts */}
       {funnelAd && funnelAd.steps.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
           {/* Funnel Visual */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
             <FunnelVisual steps={funnelAd.steps} />
           </div>
-          {/* Trend Chart */}
+          {/* Trend Chart or Conversion Summary */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
             <TrendChart steps={funnelAd.steps} />
+            <ConversionSummary steps={funnelAd.steps} />
           </div>
         </div>
       )}
