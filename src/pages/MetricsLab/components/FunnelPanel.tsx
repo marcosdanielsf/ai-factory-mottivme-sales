@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { CheckCircle2, XCircle, Minus } from 'lucide-react';
 import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
 import type { LeadScoreRow, FunnelAd, FunnelStep } from '../types';
+import { FunnelVisual } from './shared/FunnelVisual';
+import { TrendChart } from './shared/TrendChart';
 
 interface FunnelPanelProps {
   scoreRow: LeadScoreRow | null;
@@ -189,7 +191,21 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
         )}
       </div>
 
-      {/* Funnel */}
+      {/* Charts row */}
+      {funnelAd && funnelAd.steps.length > 0 && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
+          {/* Funnel Visual */}
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
+            <FunnelVisual steps={funnelAd.steps} />
+          </div>
+          {/* Trend Chart */}
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4">
+            <TrendChart steps={funnelAd.steps} />
+          </div>
+        </div>
+      )}
+
+      {/* Detail table */}
       <div className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-xl p-4 overflow-y-auto">
         {/* Column headers */}
         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border-default)]">
