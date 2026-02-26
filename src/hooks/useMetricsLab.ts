@@ -46,6 +46,7 @@ interface RawAdRow {
   custo_por_conversa: number | null;
   conversions: number | null;
   conversion_value: number | null;
+  thumbnail_url: string | null;
 }
 
 // ─── Mapping helpers ─────────────────────────────────────────────────────────
@@ -512,7 +513,7 @@ export const useMetricsLab = (
           'ad_id, ad_name, adset_name, campaign_name, account_name, data_relatorio, ' +
           'impressions, clicks, spend, reach, ctr_link, hook_rate, hold_rate, body_rate, ' +
           'video_views_3s, video_p75, outbound_clicks, conversas_iniciadas, ' +
-          'custo_por_conversa, conversions, conversion_value',
+          'custo_por_conversa, conversions, conversion_value, thumbnail_url',
         )
         .order('data_relatorio', { ascending: true });
 
@@ -711,6 +712,14 @@ export const useMetricsLab = (
       }
     }
 
+    // Build thumbnail map from rawAds (first non-null per ad_id)
+    const thumbnailMap = new Map<string, string>();
+    for (const r of rawAds) {
+      if (r.thumbnail_url && !thumbnailMap.has(r.ad_id)) {
+        thumbnailMap.set(r.ad_id, r.thumbnail_url);
+      }
+    }
+
     // Lead Score rows — enrich Component 3 (Conversao Final) with real GHL won data
     const baseLeadScoreRows: LeadScoreRow[] =
       rawLeadScore.length > 0
@@ -752,6 +761,7 @@ export const useMetricsLab = (
         score: enrichedScore,
         potencial: enrichedPotencial,
         top_drivers: [...ghlDrivers, ...row.top_drivers].slice(0, 3),
+        thumbnail_url: thumbnailMap.get(row.ad_id) ?? null,
       };
     });
 

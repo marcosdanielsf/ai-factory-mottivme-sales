@@ -12,6 +12,7 @@ export interface LeadScoreRow {
   potencial: 'alto' | 'medio' | 'baixo' | 'desqualificado';
   top_drivers: ScoreDriver[];
   top_detractors: ScoreDriver[];
+  thumbnail_url?: string | null;
 }
 
 export interface ScoreDriver {

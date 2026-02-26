@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Target, Film } from 'lucide-react';
 import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
 import type { LeadScoreRow, FunnelAd } from '../types';
 
@@ -96,14 +96,28 @@ export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId
               }}
             >
               <div className="flex items-start gap-3 p-3">
-                {/* Rank badge */}
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                  i === 0 ? 'bg-amber-400/15 text-amber-300'
-                  : i === 1 ? 'bg-slate-300/10 text-slate-300'
-                  : i === 2 ? 'bg-orange-400/15 text-orange-300'
-                  : 'bg-white/[0.04] text-[var(--text-secondary)]'
-                }`}>
-                  {i + 1}
+                {/* Thumbnail + Rank badge overlay */}
+                <div className="relative flex-shrink-0">
+                  {row.thumbnail_url ? (
+                    <img
+                      src={row.thumbnail_url}
+                      alt=""
+                      className="w-11 h-11 rounded-lg object-cover bg-white/[0.04]"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-lg bg-white/[0.04] flex items-center justify-center">
+                      <Film size={16} className="text-[var(--text-secondary)] opacity-40" />
+                    </div>
+                  )}
+                  <div className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ring-1 ring-black/30 ${
+                    i === 0 ? 'bg-amber-400/90 text-black'
+                    : i === 1 ? 'bg-slate-300/80 text-black'
+                    : i === 2 ? 'bg-orange-400/80 text-black'
+                    : 'bg-white/10 text-[var(--text-secondary)]'
+                  }`}>
+                    {i + 1}
+                  </div>
                 </div>
 
                 {/* Content */}
