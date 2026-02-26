@@ -234,19 +234,31 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
         </div>
 
         {/* KPI row */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
+        {(() => {
+          const kpis = [
             { label: 'Gasto', value: formatCurrency(scoreRow.gasto) },
             { label: 'Leads', value: formatNumber(scoreRow.leads) },
             { label: 'CPL', value: scoreRow.cpl > 0 ? formatCurrency(scoreRow.cpl) : '—' },
             { label: 'Resp%', value: `${scoreRow.resp_pct.toFixed(0)}%` },
-          ].map(kpi => (
-            <div key={kpi.label} className="bg-white/[0.03] rounded-xl px-3 py-2.5 text-center">
-              <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-medium mb-0.5">{kpi.label}</div>
-              <div className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{kpi.value}</div>
+          ];
+          const wonValue = (funnelAd as { won_value?: number } | null)?.won_value ?? 0;
+          if (funnelAd && wonValue > 0) {
+            const roas = scoreRow.gasto > 0 ? (wonValue / scoreRow.gasto).toFixed(1) + 'x' : '—';
+            kpis.push({ label: 'ROAS', value: roas });
+            kpis.push({ label: 'Receita', value: formatCurrency(wonValue) });
+          }
+          const gridCols = kpis.length > 4 ? 'grid-cols-4 md:grid-cols-6' : 'grid-cols-4';
+          return (
+            <div className={`grid ${gridCols} gap-3`}>
+              {kpis.map(kpi => (
+                <div key={kpi.label} className="bg-white/[0.03] rounded-xl px-3 py-2.5 text-center">
+                  <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-medium mb-0.5">{kpi.label}</div>
+                  <div className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{kpi.value}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {/* ARC pills */}
         {arcData && (arcData.hook_rate > 0 || arcData.hold_rate > 0 || arcData.body_rate > 0) && (

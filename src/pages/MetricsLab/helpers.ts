@@ -59,5 +59,10 @@ export const getPotencialConfig = (potencial: PotencialLevel): PotencialConfig =
       bgClass: 'bg-red-400/10',
     },
   };
-  return configs[potencial];
+  return configs[potencial] ?? configs.desqualificado;
 };
+
+export const GHL_KEYS = new Set([
+  'ghl_separator', 'ghl_leads', 'ghl_em_contato',
+  'ghl_agendou', 'ghl_compareceu', 'ghl_won',
+]);

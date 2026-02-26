@@ -55,6 +55,7 @@ export interface FunnelAd {
   ad_name: string;
   campaign_name: string;
   steps: FunnelStep[];
+  won_value: number;
 }
 
 // Full Funnel Tracking (GHL data per ad)
@@ -70,10 +71,3 @@ export interface FunnelTracking {
   won_value: number;
 }
 
-export type TabKey = 'lead-score' | 'criativos-arc' | 'funil-anuncio' | 'n8n-workflows';
-
-export interface MetricsLabFilters {
-  campaign_id: string | null;
-  adset_id: string | null;
-  ad_id: string | null;
-}

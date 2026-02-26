@@ -57,7 +57,7 @@ export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0">
         {sorted.map((row, i) => {
           const isSelected = row.ad_id === selectedAdId;
           const potConfig = getPotencialConfig(row.potencial);

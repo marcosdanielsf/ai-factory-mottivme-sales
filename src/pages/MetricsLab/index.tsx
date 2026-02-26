@@ -3,13 +3,22 @@ import { FlaskConical, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
 import { AdRankingList } from './components/AdRankingList';
 import { FunnelPanel } from './components/FunnelPanel';
 import { useMetricsLab } from '../../hooks/useMetricsLab';
+import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
 
 export const MetricsLab: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [selectedAdId, setSelectedAdId] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    return { startDate: start, endDate: end };
+  });
 
-  const { leadScoreRows, criativosARC, funnelAds, loading, error, accounts } =
-    useMetricsLab(selectedAccount);
+  const { leadScoreRows, criativosARC, funnelAds, loading, error, accounts, unattributedCount } =
+    useMetricsLab(selectedAccount, dateRange);
 
   // Auto-select first ad when data loads
   useEffect(() => {
@@ -51,29 +60,39 @@ export const MetricsLab: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-[var(--text-primary)]">Metrics Lab</h1>
-                <p className="text-xs text-[var(--text-secondary)]">Ranking de anuncios + funil completo</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs text-[var(--text-secondary)]">Ranking de anuncios + funil completo</p>
+                  {unattributedCount > 0 && (
+                    <span className="text-[11px] text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded-md font-medium">
+                      {unattributedCount.toLocaleString('pt-BR')} leads sem UTM
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Account filter */}
-            {accounts.length > 0 && (
-              <div className="relative flex-shrink-0">
-                <select
-                  value={selectedAccount ?? ''}
-                  onChange={(e) => setSelectedAccount(e.target.value || null)}
-                  className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl bg-white/[0.05] text-[var(--text-primary)] border-0 focus:outline-none focus:ring-2 focus:ring-violet-500/30 cursor-pointer"
-                >
-                  <option value="">Todas as contas</option>
-                  {accounts.map((acc) => (
-                    <option key={acc} value={acc}>{acc}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none"
-                />
-              </div>
-            )}
+            {/* Filters */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
+              {accounts.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={selectedAccount ?? ''}
+                    onChange={(e) => setSelectedAccount(e.target.value || null)}
+                    className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl bg-white/[0.05] text-[var(--text-primary)] border-0 focus:outline-none focus:ring-2 focus:ring-violet-500/30 cursor-pointer"
+                  >
+                    <option value="">Todas as contas</option>
+                    {accounts.map((acc) => (
+                      <option key={acc} value={acc}>{acc}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* Subtle bottom gradient instead of border */}

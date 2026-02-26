@@ -1,12 +1,10 @@
 import React from 'react';
-import { formatNumber } from '../../helpers';
+import { formatNumber, GHL_KEYS } from '../../helpers';
 import type { FunnelStep } from '../../types';
 
 interface FunnelVisualProps {
   steps: FunnelStep[];
 }
-
-const GHL_KEYS = new Set(['ghl_separator', 'ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
 
 const FB_COLORS = ['#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'];
 const GHL_COLORS = ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e'];
@@ -55,7 +53,7 @@ export const FunnelVisual: React.FC<FunnelVisualProps> = ({ steps }) => {
               <text
                 x={svgWidth - 115}
                 y={y + height / 2 + 1}
-                fill="#9ca3af"
+                fill="var(--color-text-secondary, #9ca3af)"
                 fontSize={11}
                 fontWeight={500}
                 dominantBaseline="middle"
@@ -65,7 +63,7 @@ export const FunnelVisual: React.FC<FunnelVisualProps> = ({ steps }) => {
               <text
                 x={svgWidth - 8}
                 y={y + height / 2 + 1}
-                fill="#f0f2f5"
+                fill="var(--color-text-primary, #f0f2f5)"
                 fontSize={13}
                 fontWeight={700}
                 dominantBaseline="middle"

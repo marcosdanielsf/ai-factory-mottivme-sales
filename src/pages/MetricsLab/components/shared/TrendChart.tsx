@@ -52,12 +52,12 @@ export const TrendChart: React.FC<TrendChartProps> = ({ steps }) => {
             </defs>
             <XAxis
               dataKey="day"
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: 'var(--color-text-secondary, #9ca3af)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: 'var(--color-text-secondary, #9ca3af)' }}
               axisLine={false}
               tickLine={false}
             />
@@ -69,8 +69,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({ steps }) => {
                 fontSize: 12,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               }}
-              labelStyle={{ color: '#9ca3af', marginBottom: 4 }}
-              itemStyle={{ color: '#f0f2f5' }}
+              labelStyle={{ color: 'var(--color-text-secondary, #9ca3af)', marginBottom: 4 }}
+              itemStyle={{ color: 'var(--color-text-primary, #f0f2f5)' }}
             />
             {impressStep && (
               <Area type="monotone" dataKey="impressoes" stroke="#818cf8" fill="url(#gradImpress)" strokeWidth={2} dot={false} />

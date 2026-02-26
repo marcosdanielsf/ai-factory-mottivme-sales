@@ -405,6 +405,7 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
       ad_name: m.ad_name ?? 'Sem nome',
       campaign_name: m.campaign_name ?? 'N/A',
       steps,
+      won_value: tracking?.won_value ?? 0,
     };
   });
 }
@@ -419,12 +420,17 @@ interface UseMetricsLabReturn {
   error: string | null;
   refetch: () => void;
   accounts: string[];
+  unattributedCount: number;
 }
 
-export const useMetricsLab = (accountName?: string | null): UseMetricsLabReturn => {
+export const useMetricsLab = (
+  accountName?: string | null,
+  dateRange?: { startDate: Date | null; endDate: Date | null },
+): UseMetricsLabReturn => {
   const [rawLeadScore, setRawLeadScore] = useState<RawLeadScoreRow[]>([]);
   const [rawAds, setRawAds] = useState<RawAdRow[]>([]);
   const [rawTracking, setRawTracking] = useState<RawFunnelTracking[]>([]);
+  const [unattributedCount, setUnattributedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -450,6 +456,9 @@ export const useMetricsLab = (accountName?: string | null): UseMetricsLabReturn 
         leadQuery = leadQuery.eq('account_name', accountName);
       }
 
+      // Helper para formatar data como YYYY-MM-DD
+      const formatDateISO = (d: Date): string => d.toISOString().split('T')[0];
+
       // Q2: fb_ads_performance with video columns (criativos + funil)
       let adsQuery = supabase
         .from('fb_ads_performance')
@@ -459,33 +468,48 @@ export const useMetricsLab = (accountName?: string | null): UseMetricsLabReturn 
           'video_views_3s, video_p75, outbound_clicks, conversas_iniciadas, ' +
           'custo_por_conversa, conversions, conversion_value',
         )
-        .order('data_relatorio', { ascending: true })
-        .limit(5000);
+        .order('data_relatorio', { ascending: true });
 
       if (accountName) {
         adsQuery = adsQuery.eq('account_name', accountName);
       }
+
+      if (dateRange?.startDate) {
+        adsQuery = adsQuery.gte('data_relatorio', formatDateISO(dateRange.startDate));
+      }
+      if (dateRange?.endDate) {
+        adsQuery = adsQuery.lte('data_relatorio', formatDateISO(dateRange.endDate));
+      }
+
+      adsQuery = adsQuery.limit(5000);
 
       // Q3: Funnel tracking from GHL (vw_funnel_tracking_by_ad)
       const trackingQuery = supabase
         .from('vw_funnel_tracking_by_ad')
         .select('*');
 
-      const [leadResult, adsResult, trackingResult] = await Promise.all([leadQuery, adsQuery, trackingQuery]);
+      // Q4: Count unattributed leads (sem ad_id)
+      const unattributedQuery = supabase
+        .from('n8n_schedule_tracking')
+        .select('*', { count: 'exact', head: true })
+        .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.');
 
-      if (leadResult.error) {
-        console.warn('[MetricsLab] vw_metrics_lab_lead_score error:', leadResult.error.message);
-      }
-      if (adsResult.error) {
-        console.warn('[MetricsLab] fb_ads_performance error:', adsResult.error.message);
-      }
-      if (trackingResult.error) {
-        console.warn('[MetricsLab] vw_funnel_tracking_by_ad error:', trackingResult.error.message);
+      const [leadResult, adsResult, trackingResult, unattributedResult] = await Promise.all([
+        leadQuery, adsQuery, trackingQuery, unattributedQuery,
+      ]);
+
+      const queryErrors = [leadResult.error, adsResult.error, trackingResult.error]
+        .filter(Boolean)
+        .map(e => e!.message);
+      if (queryErrors.length > 0) {
+        console.warn('[MetricsLab] Query errors:', queryErrors);
+        setError(queryErrors.join(' | '));
       }
 
       setRawLeadScore(((leadResult.data ?? []) as unknown) as RawLeadScoreRow[]);
       setRawAds(((adsResult.data ?? []) as unknown) as RawAdRow[]);
       setRawTracking(((trackingResult.data ?? []) as unknown) as RawFunnelTracking[]);
+      setUnattributedCount(unattributedResult.count ?? 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar Metrics Lab';
       setError(message);
@@ -493,7 +517,7 @@ export const useMetricsLab = (accountName?: string | null): UseMetricsLabReturn 
     } finally {
       setLoading(false);
     }
-  }, [accountName]);
+  }, [accountName, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
   useEffect(() => {
     fetchData();
@@ -545,5 +569,6 @@ export const useMetricsLab = (accountName?: string | null): UseMetricsLabReturn 
     loading,
     error,
     refetch: fetchData,
+    unattributedCount,
   };
 };
