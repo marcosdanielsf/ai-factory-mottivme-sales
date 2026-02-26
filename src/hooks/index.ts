@@ -43,6 +43,7 @@ export * from './useContentJourneyLog';
 export * from './useSystemConfig';
 export * from './useSessionLogs';
 export { useAdsPerformance } from './useAdsPerformance';
+export { useMetricsLab } from './useMetricsLab';
 
 // Lead Gen hooks
 export { useLeadLists } from './leadgen/useLeadLists';

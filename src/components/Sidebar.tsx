@@ -61,6 +61,7 @@ import {
   UserCog,
   Copy,
   Smartphone,
+  FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
@@ -166,6 +167,7 @@ const navSections: NavSection[] = [
           { icon: CheckCircle, label: 'Central de Status', to: '/status' },
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: BarChart3, label: 'Ads Performance', to: '/ads-performance' },
+          { icon: FlaskConical, label: 'Metrics Lab', to: '/metrics-lab' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
           { icon: Workflow, label: 'Hub Ops', to: '/workflows' },
