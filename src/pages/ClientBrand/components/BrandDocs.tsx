@@ -18,21 +18,26 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
 
   useEffect(() => {
     if (!selectedDoc?.signedUrl) return;
+    const controller = new AbortController();
 
     setLoadingContent(true);
     setDocContent(null);
 
-    fetch(selectedDoc.signedUrl)
+    fetch(selectedDoc.signedUrl, { signal: controller.signal })
       .then((res) => res.text())
       .then((text) => {
         setDocContent(text);
         setLoadingContent(false);
       })
-      .catch(() => {
-        setDocContent(null);
-        setLoadingContent(false);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setDocContent(null);
+          setLoadingContent(false);
+        }
       });
-  }, [selectedDoc]);
+
+    return () => controller.abort();
+  }, [selectedDoc?.signedUrl]);
 
   if (loading) {
     return (
@@ -57,6 +62,7 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
     const blob = new Blob([docContent], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
   };
 
   const handleDownload = () => {
@@ -95,7 +101,7 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
             srcDoc={docContent}
             className="w-full rounded-lg border-0"
             style={{ minHeight: isFullscreen ? 'calc(100vh - 80px)' : '70vh', height: isFullscreen ? 'calc(100vh - 80px)' : '80vh' }}
-            sandbox="allow-same-origin allow-popups"
+            sandbox="allow-popups"
             title={selectedDoc?.name}
           />
         );
@@ -165,7 +171,7 @@ export const BrandDocs: React.FC<BrandDocsProps> = ({ brandId }) => {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => { setSelectedDoc(null); setDocContent(null); }}
+          onClick={() => { setSelectedDoc(null); setDocContent(null); setIsFullscreen(false); }}
           className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ArrowLeft size={16} />

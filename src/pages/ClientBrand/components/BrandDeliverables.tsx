@@ -26,21 +26,26 @@ export const BrandDeliverables: React.FC<BrandDeliverablesProps> = ({ brandId, s
 
   useEffect(() => {
     if (!selectedDoc?.signedUrl) return;
+    const controller = new AbortController();
 
     setLoadingContent(true);
     setDocContent(null);
 
-    fetch(selectedDoc.signedUrl)
+    fetch(selectedDoc.signedUrl, { signal: controller.signal })
       .then((res) => res.text())
       .then((text) => {
         setDocContent(text);
         setLoadingContent(false);
       })
-      .catch(() => {
-        setDocContent(null);
-        setLoadingContent(false);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setDocContent(null);
+          setLoadingContent(false);
+        }
       });
-  }, [selectedDoc]);
+
+    return () => controller.abort();
+  }, [selectedDoc?.signedUrl]);
 
   if (loading) {
     return (
@@ -112,7 +117,7 @@ export const BrandDeliverables: React.FC<BrandDeliverablesProps> = ({ brandId, s
             <iframe
               srcDoc={docContent}
               className="w-full min-h-[60vh] rounded-lg bg-white"
-              sandbox="allow-same-origin"
+              sandbox="allow-popups"
               title={selectedDoc.name}
             />
           )}

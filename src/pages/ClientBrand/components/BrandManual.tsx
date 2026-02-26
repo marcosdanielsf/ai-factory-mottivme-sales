@@ -19,18 +19,24 @@ export const BrandManual: React.FC<BrandManualProps> = ({ brandId }) => {
     const isHtml = manualAsset.format === 'html';
     if (!isHtml) return;
 
+    const controller = new AbortController();
     setLoadingContent(true);
-    fetch(manualAsset.signedUrl)
+
+    fetch(manualAsset.signedUrl, { signal: controller.signal })
       .then((res) => res.text())
       .then((text) => {
         setHtmlContent(text);
         setLoadingContent(false);
       })
-      .catch(() => {
-        setHtmlContent(null);
-        setLoadingContent(false);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setHtmlContent(null);
+          setLoadingContent(false);
+        }
       });
-  }, [manualAsset]);
+
+    return () => controller.abort();
+  }, [manualAsset?.signedUrl]);
 
   if (loading || loadingContent) {
     return (
@@ -70,7 +76,7 @@ export const BrandManual: React.FC<BrandManualProps> = ({ brandId }) => {
           srcDoc={htmlContent}
           className="w-full h-[80vh]"
           title="Manual de Marca"
-          sandbox="allow-same-origin"
+          sandbox="allow-popups"
         />
       </div>
     );
