@@ -246,18 +246,16 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
     const cpc = sumClicks > 0 ? sumSpend / sumClicks : 0;
     const cpa = sumConversions > 0 ? sumSpend / sumConversions : 0;
 
-    // Build trend arrays (7 days)
+    // Build trend arrays (7 days) — only for steps that show in funnel
     const trendImpressoes = trendRows.map((r) => Number(r.impressions) || 0);
     const trendCliques = trendRows.map((r) => Number(r.clicks) || 0);
-    const trendReach = trendRows.map((r) => Number(r.reach) || 0);
-    const trendCtr = trendRows.map((r) => Number(r.ctr_link) || 0);
     const trendVideo3s = trendRows.map((r) => Number(r.video_views_3s) || 0);
     const trendVideoP75 = trendRows.map((r) => Number(r.video_p75) || 0);
-    const trendOutbound = trendRows.map((r) => Number(r.outbound_clicks) || 0);
     const trendConversas = trendRows.map((r) => Number(r.conversas_iniciadas) || 0);
     const trendConversions = trendRows.map((r) => Number(r.conversions) || 0);
 
-    const steps: FunnelStep[] = [
+    // Build all candidate steps, then filter out zeros
+    const allFbSteps: FunnelStep[] = [
       {
         key: 'impressoes',
         label: 'Impressoes',
@@ -268,58 +266,33 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
         trend: trendImpressoes,
       },
       {
-        key: 'ctr',
-        label: 'CTR (%)',
-        value: Number(avgCtrLink.toFixed(4)),
-        cost_metric: null,
-        cost_label: null,
-        conversion_rate: Number(avgCtrLink.toFixed(4)),
-        trend: trendCtr,
-      },
-      {
         key: 'cliques',
         label: 'Cliques',
         value: sumClicks,
         cost_metric: cpc > 0 ? Number(cpc.toFixed(2)) : null,
         cost_label: cpc > 0 ? 'CPC' : null,
-        conversion_rate: null,
+        conversion_rate: sumImpressions > 0
+          ? Number(((sumClicks / sumImpressions) * 100).toFixed(2))
+          : null,
         trend: trendCliques,
       },
       {
-        key: 'reach',
-        label: 'Alcance',
-        value: sumReach,
-        cost_metric: null,
-        cost_label: null,
-        conversion_rate: null,
-        trend: trendReach,
-      },
-      {
         key: 'video_3s',
-        label: 'Video Views 3s',
+        label: 'Views 3s',
         value: sumVideo3s,
         cost_metric: null,
         cost_label: null,
-        conversion_rate: avgHookRate > 0 ? Number(avgHookRate.toFixed(2)) : null,
+        conversion_rate: avgHookRate > 0 ? Number(avgHookRate.toFixed(1)) : null,
         trend: trendVideo3s,
       },
       {
         key: 'video_p75',
-        label: 'Video 75%',
+        label: 'Assistiu 75%',
         value: sumVideoP75,
         cost_metric: null,
         cost_label: null,
-        conversion_rate: avgHoldRate > 0 ? Number(avgHoldRate.toFixed(2)) : null,
+        conversion_rate: avgHoldRate > 0 ? Number(avgHoldRate.toFixed(1)) : null,
         trend: trendVideoP75,
-      },
-      {
-        key: 'outbound',
-        label: 'Cliques Externos',
-        value: sumOutbound,
-        cost_metric: null,
-        cost_label: null,
-        conversion_rate: avgBodyRate > 0 ? Number(avgBodyRate.toFixed(2)) : null,
-        trend: trendOutbound,
       },
       {
         key: 'conversas',
@@ -329,23 +302,28 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
         cost_label: sumConversas > 0 ? 'CPConv' : null,
         conversion_rate:
           sumClicks > 0
-            ? Number(((sumConversas / sumClicks) * 100).toFixed(2))
+            ? Number(((sumConversas / sumClicks) * 100).toFixed(1))
             : null,
         trend: trendConversas,
       },
       {
         key: 'conversoes',
-        label: 'Conversoes',
+        label: 'Vendas FB',
         value: sumConversions,
         cost_metric: cpa > 0 ? Number(cpa.toFixed(2)) : null,
         cost_label: cpa > 0 ? 'CPA' : null,
         conversion_rate:
           sumConversas > 0
-            ? Number(((sumConversions / sumConversas) * 100).toFixed(2))
+            ? Number(((sumConversions / sumConversas) * 100).toFixed(1))
             : null,
         trend: trendConversions,
       },
     ];
+
+    // Filter: keep Impressoes always, hide zero-value steps
+    const steps: FunnelStep[] = allFbSteps.filter(
+      s => s.key === 'impressoes' || s.value > 0,
+    );
 
     // ─── GHL Tracking Steps (from vw_funnel_tracking_by_ad) ───────────
     const tracking = trackingMap?.get(adId);
@@ -353,6 +331,8 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
       const t = tracking;
       const cpLead = t.total_leads > 0 ? sumSpend / t.total_leads : 0;
       const cpAgendamento = t.agendou > 0 ? sumSpend / t.agendou : 0;
+
+      const compareceu = Math.max(t.agendou - t.no_show, 0);
 
       steps.push(
         {
@@ -366,23 +346,21 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
         },
         {
           key: 'ghl_leads',
-          label: 'Leads GHL',
+          label: 'Leads',
           value: t.total_leads,
           cost_metric: cpLead > 0 ? Number(cpLead.toFixed(2)) : null,
           cost_label: cpLead > 0 ? 'CPL' : null,
-          conversion_rate: sumConversas > 0
-            ? Number(((t.total_leads / sumConversas) * 100).toFixed(2))
-            : null,
+          conversion_rate: null, // cross-source, no meaningful %
           trend: [],
         },
         {
           key: 'ghl_em_contato',
-          label: 'Em Contato',
+          label: 'Respondeu',
           value: t.em_contato,
           cost_metric: null,
           cost_label: null,
           conversion_rate: t.total_leads > 0
-            ? Number(((t.em_contato / t.total_leads) * 100).toFixed(2))
+            ? Number(((t.em_contato / t.total_leads) * 100).toFixed(1))
             : null,
           trend: [],
         },
@@ -393,29 +371,29 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, RawFunnelTra
           cost_metric: cpAgendamento > 0 ? Number(cpAgendamento.toFixed(2)) : null,
           cost_label: cpAgendamento > 0 ? 'CPA' : null,
           conversion_rate: t.em_contato > 0
-            ? Number(((t.agendou / t.em_contato) * 100).toFixed(2))
+            ? Number(((t.agendou / t.em_contato) * 100).toFixed(1))
             : null,
           trend: [],
         },
         {
-          key: 'ghl_no_show',
-          label: 'No-show',
-          value: t.no_show,
+          key: 'ghl_compareceu',
+          label: 'Compareceu',
+          value: compareceu,
           cost_metric: null,
           cost_label: null,
           conversion_rate: t.agendou > 0
-            ? Number(((t.no_show / t.agendou) * 100).toFixed(2))
+            ? Number(((compareceu / t.agendou) * 100).toFixed(1))
             : null,
           trend: [],
         },
         {
           key: 'ghl_won',
-          label: 'Fechou (Won)',
+          label: 'Fechou',
           value: t.won,
           cost_metric: t.won > 0 ? Number((sumSpend / t.won).toFixed(2)) : null,
           cost_label: t.won > 0 ? 'CAC' : null,
-          conversion_rate: t.agendou > 0
-            ? Number(((t.won / t.agendou) * 100).toFixed(2))
+          conversion_rate: compareceu > 0
+            ? Number(((t.won / compareceu) * 100).toFixed(1))
             : null,
           trend: [],
         },
