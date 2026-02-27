@@ -219,6 +219,7 @@ export const useAgendamentosDashboard = (
   const [rawLeads, setRawLeads] = useState<any[]>([]);
   const [rawAppointments, setRawAppointments] = useState<any[]>([]);
   const [wonContactIds, setWonContactIds] = useState<Set<string>>(new Set());
+  const [wonCount, setWonCount] = useState(0);
   const [exactLeadsCount, setExactLeadsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -292,9 +293,11 @@ export const useAgendamentosDashboard = (
       if (countResult.error) console.warn('[AgendamentosDashboard] Count error:', countResult.error.message);
       if (wonResult.error) console.warn('[AgendamentosDashboard] Won opps error:', wonResult.error.message);
 
+      const wonData = wonResult.data || [];
       setRawLeads(leadsResult.data || []);
       setRawAppointments(apptsResult.data || []);
-      setWonContactIds(new Set((wonResult.data || []).map((o: any) => o.contact_id)));
+      setWonContactIds(new Set(wonData.map((o: any) => o.contact_id)));
+      setWonCount(wonData.length);
       setExactLeadsCount(countResult.count ?? leadsResult.data?.length ?? 0);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar dados');
@@ -445,12 +448,16 @@ export const useAgendamentosDashboard = (
 
     const totalLeads = exactLeadsCount || rawLeads.length;
 
+    // Use the higher of: leads matched as won via cross-reference, or direct won count from ghl_opportunities.
+    // This handles the case where n8n_schedule_tracking.unique_id ≠ ghl_opportunities.contact_id.
+    const totalFecharam = Math.max(fFecharam, wonCount);
+
     const funnel: FunnelMetrics = {
       totalLeads,
       totalResponderam: fResponderam,
       totalAgendaram: fAgendaram,
       totalCompareceram: fCompareceram,
-      totalFecharam: fFecharam,
+      totalFecharam,
     };
 
     // -----------------------------------------------------------------------
@@ -617,7 +624,7 @@ export const useAgendamentosDashboard = (
       workPermit: workPermitArr, segmentationTotals,
       porDiaCriacao, porOrigem, responsaveis,
     };
-  }, [rawLeads, rawAppointments, wonContactIds, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
+  }, [rawLeads, rawAppointments, wonContactIds, wonCount, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
   return {
     ...computed,
