@@ -793,7 +793,6 @@ export const useMetricsLab = (
 
   interface RawScheduleRow {
     unique_id: string;
-    contact_id: string | null;
     first_name: string | null;
     last_name: string | null;
     phone: string | null;
@@ -807,9 +806,10 @@ export const useMetricsLab = (
     if (!isSupabaseConfigured()) return [];
 
     // Step 1: buscar leads da tabela de tracking
+    // Nota: unique_id = GHL contact_id (nao existe coluna contact_id separada)
     const { data, error: qErr } = await supabase
       .from('n8n_schedule_tracking')
-      .select('unique_id, contact_id, first_name, last_name, phone, email, etapa_funil, created_at, responded')
+      .select('unique_id, first_name, last_name, phone, email, etapa_funil, created_at, responded')
       .eq('ad_id', adId)
       .order('created_at', { ascending: false })
       .limit(500);
@@ -850,7 +850,7 @@ export const useMetricsLab = (
       const opp = oppMap.get(r.unique_id);
       return {
         unique_id: r.unique_id,
-        contact_id: r.contact_id ?? r.unique_id,
+        contact_id: r.unique_id,
         first_name: r.first_name ?? null,
         last_name: r.last_name ?? null,
         phone: r.phone ?? null,
