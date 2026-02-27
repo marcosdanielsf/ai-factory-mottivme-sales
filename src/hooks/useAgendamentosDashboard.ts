@@ -218,6 +218,7 @@ export const useAgendamentosDashboard = (
 ): UseAgendamentosDashboardReturn => {
   const [rawLeads, setRawLeads] = useState<any[]>([]);
   const [rawAppointments, setRawAppointments] = useState<any[]>([]);
+  const [wonContactIds, setWonContactIds] = useState<Set<string>>(new Set());
   const [exactLeadsCount, setExactLeadsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -274,16 +275,26 @@ export const useAgendamentosDashboard = (
       if (locationId) countQuery = countQuery.eq('location_id', locationId);
       if (responsavel) countQuery = countQuery.eq('location_name', responsavel);
 
-      const [leadsResult, apptsResult, countResult] = await Promise.all([
-        leadsQuery, apptsQuery, countQuery,
+      // Q4: Won opportunities from ghl_opportunities
+      let wonQuery = supabase
+        .from('ghl_opportunities')
+        .select('contact_id')
+        .eq('status', 'won');
+
+      if (locationId) wonQuery = wonQuery.eq('location_id', locationId);
+
+      const [leadsResult, apptsResult, countResult, wonResult] = await Promise.all([
+        leadsQuery, apptsQuery, countQuery, wonQuery,
       ]);
 
       if (leadsResult.error) throw new Error(leadsResult.error.message);
       if (apptsResult.error) console.warn('[AgendamentosDashboard] Appointments error:', apptsResult.error.message);
       if (countResult.error) console.warn('[AgendamentosDashboard] Count error:', countResult.error.message);
+      if (wonResult.error) console.warn('[AgendamentosDashboard] Won opps error:', wonResult.error.message);
 
       setRawLeads(leadsResult.data || []);
       setRawAppointments(apptsResult.data || []);
+      setWonContactIds(new Set((wonResult.data || []).map((o: any) => o.contact_id)));
       setExactLeadsCount(countResult.count ?? leadsResult.data?.length ?? 0);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar dados');
@@ -372,7 +383,7 @@ export const useAgendamentosDashboard = (
       // Segmentation
       const estado = normalizeState(lead.state);
       const wp = normalizeWorkPermit(lead.work_permit);
-      const isConvertido = etapaVal === 'fechou' || etapaVal === 'won';
+      const isConvertido = etapaVal === 'fechou' || etapaVal === 'won' || (lead.unique_id && wonContactIds.has(lead.unique_id));
       const isPerdido = etapaVal === 'perdido' || etapaVal === 'lost';
 
       if (isConvertido) sConvertidos++;
@@ -399,7 +410,7 @@ export const useAgendamentosDashboard = (
       // Unified funnel definitions
       const agendou = ['agendou', 'agendado', 'no-show', 'no_show'].some(s => etapaVal.includes(s)) || hasAppointment;
       const compareceu = apptData?.confirmedPresence === true || (agendou && appointmentPassed && !isNoShow);
-      const fechou = ['fechou', 'won', 'fechado'].some(s => etapaVal.includes(s)) || apptData?.converted === true;
+      const fechou = ['fechou', 'won', 'fechado'].some(s => etapaVal.includes(s)) || apptData?.converted === true || (lead.unique_id && wonContactIds.has(lead.unique_id));
       const responded = lead.responded === true || lead.responded === 'true' || agendou;
 
       if (responded) fResponderam++;
@@ -606,7 +617,7 @@ export const useAgendamentosDashboard = (
       workPermit: workPermitArr, segmentationTotals,
       porDiaCriacao, porOrigem, responsaveis,
     };
-  }, [rawLeads, rawAppointments, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
+  }, [rawLeads, rawAppointments, wonContactIds, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
   return {
     ...computed,
