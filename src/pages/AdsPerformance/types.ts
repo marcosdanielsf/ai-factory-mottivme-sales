@@ -19,6 +19,8 @@ export interface FbAdPerformance {
   custo_por_conversa: number | null;
   reach: number | null;
   frequency: number | null;
+  post_reactions: number | null;
+  form_submissions: number | null;
   actions: Array<{ action_type: string; value: string }> | null;
   status: string | null;
   created_at: string;
@@ -48,8 +50,13 @@ export interface AdsSummaryByDate {
   total_impressions: number;
   total_clicks: number;
   total_conversas: number;
+  total_reach: number;
+  total_reactions: number;
+  total_form_submissions: number;
   avg_cpc: number | null;
   avg_cpm: number | null;
+  avg_ctr: number | null;
+  avg_frequency: number | null;
   ads_count: number;
   location_id: string | null;
 }
@@ -59,10 +66,25 @@ export interface AdsOverview {
   totalImpressions: number;
   totalClicks: number;
   totalConversas: number;
+  totalReach: number;
+  totalReactions: number;
+  totalFormSubmissions: number;
   avgCpc: number;
   avgCpm: number;
   custoPorConversa: number;
+  custoPorCadastro: number;
   ctr: number;
+}
+
+export interface AdsPeriodDeltas {
+  spend: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  conversas: number | null;
+  reactions: number | null;
+  formSubmissions: number | null;
+  custoPorConversa: number | null;
+  custoPorCadastro: number | null;
 }
 
 export interface CampanhaMetrics {
@@ -72,9 +94,48 @@ export interface CampanhaMetrics {
   totalImpressions: number;
   totalClicks: number;
   totalConversas: number;
+  totalReach: number;
+  totalReactions: number;
+  totalFormSubmissions: number;
   avgCpc: number;
   avgCpm: number;
   custoPorConversa: number;
+  custoPorCadastro: number;
   ctr: number;
   ads: FbAdPerformance[];
+}
+
+export interface AdsetMetrics {
+  adset_name: string;
+  adset_id: string | null;
+  totalSpend: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalConversas: number;
+  totalReach: number;
+  totalReactions: number;
+  totalFormSubmissions: number;
+  avgCpc: number;
+  avgCpm: number;
+  custoPorConversa: number;
+  custoPorCadastro: number;
+  ctr: number;
+}
+
+export interface AdAggregate {
+  ad_id: string;
+  ad_name: string;
+  campaign_name: string;
+  totalSpend: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalConversas: number;
+  totalReach: number;
+  totalReactions: number;
+  totalFormSubmissions: number;
+  avgCpc: number;
+  avgCpm: number;
+  custoPorConversa: number;
+  custoPorCadastro: number;
+  ctr: number;
 }
