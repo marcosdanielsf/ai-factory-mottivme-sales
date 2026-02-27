@@ -448,15 +448,19 @@ export const useAgendamentosDashboard = (
 
     const totalLeads = exactLeadsCount || rawLeads.length;
 
-    // Use the higher of: leads matched as won via cross-reference, or direct won count from ghl_opportunities.
-    // This handles the case where n8n_schedule_tracking.unique_id ≠ ghl_opportunities.contact_id.
+    // Use wonCount as floor for funnel stages.
+    // n8n_schedule_tracking.unique_id ≠ ghl_opportunities.contact_id, so cross-reference misses won deals.
+    // Logically: if someone closed (won), they must have also attended, scheduled, and responded.
     const totalFecharam = Math.max(fFecharam, wonCount);
+    const totalCompareceram = Math.max(fCompareceram, totalFecharam);
+    const totalAgendaram = Math.max(fAgendaram, totalCompareceram);
+    const totalResponderam = Math.max(fResponderam, totalAgendaram);
 
     const funnel: FunnelMetrics = {
       totalLeads,
-      totalResponderam: fResponderam,
-      totalAgendaram: fAgendaram,
-      totalCompareceram: fCompareceram,
+      totalResponderam,
+      totalAgendaram,
+      totalCompareceram,
       totalFecharam,
     };
 
