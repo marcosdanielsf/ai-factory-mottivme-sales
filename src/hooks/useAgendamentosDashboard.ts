@@ -320,6 +320,51 @@ export const useAgendamentosDashboard = (
     const now = new Date();
 
     // -----------------------------------------------------------------------
+    // STEP 0: Deduplicate leads — prefer ghl_sync records (correct unique_id)
+    // over n8n bot records (field=etapa/classificacao_origem) which have internal IDs.
+    // When both exist for the same contact, keep ghl_sync for cross-reference
+    // and inherit etapa_funil/responded from the n8n record.
+    // -----------------------------------------------------------------------
+    const hasGhlSync = rawLeads.some(l => l.field === 'ghl_sync');
+    let leads: any[];
+
+    if (hasGhlSync) {
+      // Build a map of n8n records by normalized first_name for etapa enrichment
+      const n8nEtapaByName = new Map<string, any>();
+      for (const l of rawLeads) {
+        if (l.field === 'ghl_sync') continue;
+        const name = (l.first_name || '').toLowerCase().trim();
+        if (!name) continue;
+        // Keep the most recent n8n record per name
+        const existing = n8nEtapaByName.get(name);
+        if (!existing || (l.created_at && l.created_at > existing.created_at)) {
+          n8nEtapaByName.set(name, l);
+        }
+      }
+
+      // Use only ghl_sync records as the lead base, enriched with n8n funnel data
+      leads = rawLeads
+        .filter(l => l.field === 'ghl_sync')
+        .map(l => {
+          const name = (l.first_name || '').toLowerCase().trim();
+          const n8nRecord = n8nEtapaByName.get(name);
+          if (n8nRecord) {
+            // Inherit etapa_funil and responded from n8n if ghl_sync doesn't have them
+            return {
+              ...l,
+              etapa_funil: l.etapa_funil || n8nRecord.etapa_funil,
+              responded: l.responded ?? n8nRecord.responded,
+              status: l.status || n8nRecord.status,
+            };
+          }
+          return l;
+        });
+    } else {
+      // No ghl_sync records — use raw leads as-is (backwards compatible)
+      leads = rawLeads;
+    }
+
+    // -----------------------------------------------------------------------
     // STEP 1: Dedup appointments by appointmentId (single pass)
     // -----------------------------------------------------------------------
     const apptDedup = new Map<string, any>();
@@ -395,7 +440,7 @@ export const useAgendamentosDashboard = (
     let sComEstado = 0, sComWorkPermit = 0, sConvertidos = 0, sPerdidos = 0;
     const leadsPorDiaMap: Record<string, number> = {};
 
-    for (const lead of rawLeads) {
+    for (const lead of leads) {
       const utmContent = normalizeUtmContent(lead.utm_content);
       const sessionSource = normalizeSessionSource(lead.session_source);
       const adId = lead.ad_id && lead.ad_id !== 'NULL' ? lead.ad_id : null;
@@ -464,7 +509,9 @@ export const useAgendamentosDashboard = (
       }
     }
 
-    const totalLeads = exactLeadsCount || rawLeads.length;
+    // Use deduped leads count. When ghl_sync is present, exactLeadsCount includes
+    // duplicates from n8n records — use leads.length which is already deduped.
+    const totalLeads = hasGhlSync ? leads.length : (exactLeadsCount || rawLeads.length);
 
     // Direct counts from appointments_log and ghl_opportunities as floors.
     // n8n_schedule_tracking.unique_id ≠ GHL contact_id — cross-reference only matches ~8% of records.
@@ -614,7 +661,7 @@ export const useAgendamentosDashboard = (
       .sort((a, b) => b.totalLeads - a.totalLeads);
 
     const segmentationTotals: SegmentationTotals = {
-      totalLeads: rawLeads.length,
+      totalLeads: leads.length,
       comEstado: sComEstado,
       comWorkPermit: sComWorkPermit,
       convertidos: sConvertidos,
@@ -645,12 +692,13 @@ export const useAgendamentosDashboard = (
       funnel, agenda, criativos, origens, estados,
       workPermit: workPermitArr, segmentationTotals,
       porDiaCriacao, porOrigem, responsaveis,
+      dedupedLeads: leads,
     };
   }, [rawLeads, rawAppointments, wonContactIds, wonCount, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
 
   return {
     ...computed,
-    leads: rawLeads as CriativoLead[],
+    leads: computed.dedupedLeads as CriativoLead[],
     loading,
     error,
     refetch: fetchData,
