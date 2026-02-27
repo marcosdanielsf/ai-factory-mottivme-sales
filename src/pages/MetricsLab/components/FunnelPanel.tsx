@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, XCircle, Minus, Clock } from 'lucide-react';
 import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
-import type { LeadScoreRow, FunnelAd, FunnelStep, HeatmapRow, ConversionTimeStats } from '../types';
+import type { LeadScoreRow, FunnelAd, FunnelStep, FunnelLead, HeatmapRow, ConversionTimeStats } from '../types';
 import { FunnelVisual } from './shared/FunnelVisual';
 import { TrendChart } from './shared/TrendChart';
 import { HeatmapChart, type HeatmapMetric } from './shared/HeatmapChart';
+import { FunnelLeadsDrawer } from './FunnelLeadsDrawer';
 
 interface FunnelPanelProps {
   scoreRow: LeadScoreRow | null;
@@ -12,6 +13,8 @@ interface FunnelPanelProps {
   arcData?: { hook_rate: number; hold_rate: number; body_rate: number } | null;
   heatmapData?: HeatmapRow[];
   conversionTime?: ConversionTimeStats | null;
+  fetchFunnelLeads?: (adId: string) => Promise<FunnelLead[]>;
+  locationId?: string | null;
 }
 
 // ─── ARC Pills ──────────────────────────────────────────────────────────────
@@ -101,11 +104,17 @@ const ConversionSummary: React.FC<{ steps: FunnelStep[] }> = ({ steps }) => {
 const GHL_KEYS = new Set(['ghl_separator', 'ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
 const GHL_GOOD_THRESHOLD = 25;
 
-const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; ghlMaxValue: number }> = ({
-  step, isFirst, maxValue, ghlMaxValue,
+const CLICKABLE_GHL_KEYS = new Set(['ghl_leads', 'ghl_em_contato', 'ghl_agendou', 'ghl_compareceu', 'ghl_won']);
+
+const StepRow: React.FC<{
+  step: FunnelStep; isFirst: boolean; maxValue: number; ghlMaxValue: number;
+  onClick?: () => void;
+}> = ({
+  step, isFirst, maxValue, ghlMaxValue, onClick,
 }) => {
   const isGhl = GHL_KEYS.has(step.key);
   const isSeparator = step.key === 'ghl_separator';
+  const isClickable = CLICKABLE_GHL_KEYS.has(step.key) && step.value > 0 && !!onClick;
 
   if (isSeparator) {
     return (
@@ -134,7 +143,15 @@ const StepRow: React.FC<{ step: FunnelStep; isFirst: boolean; maxValue: number; 
           <div className={`w-px h-2 ${isGhl ? 'bg-amber-500/15' : 'bg-white/[0.06]'}`} />
         </div>
       )}
-      <div className="flex items-center gap-3 py-1.5">
+      <div
+        className={`flex items-center gap-3 py-1.5 rounded-lg px-1 -mx-1 ${
+          isClickable ? 'cursor-pointer hover:bg-white/[0.04] transition-colors' : ''
+        }`}
+        onClick={isClickable ? onClick : undefined}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : undefined}
+        onKeyDown={isClickable ? (e) => { if (e.key === 'Enter') onClick?.(); } : undefined}
+      >
         {/* Label */}
         <div className="w-24 flex-shrink-0 text-right">
           <span className={`text-[12px] ${isGhl ? 'text-amber-300 font-medium' : 'text-[var(--text-secondary)]'}`}>
@@ -275,8 +292,35 @@ const ConversionTimeSection: React.FC<{ data: ConversionTimeStats }> = ({ data }
 
 // ─── Main Panel ─────────────────────────────────────────────────────────────
 
-export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, arcData, heatmapData = [], conversionTime }) => {
+export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, arcData, heatmapData = [], conversionTime, fetchFunnelLeads, locationId }) => {
   const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('leads');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerStepKey, setDrawerStepKey] = useState('');
+  const [drawerLeads, setDrawerLeads] = useState<FunnelLead[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const fetchVersionRef = useRef(0);
+
+  const handleStepClick = useCallback(async (stepKey: string) => {
+    if (!funnelAd || !fetchFunnelLeads) return;
+    const version = ++fetchVersionRef.current;
+    setDrawerStepKey(stepKey);
+    setDrawerOpen(true);
+    setDrawerLoading(true);
+    setDrawerLeads([]);
+    try {
+      const leads = await fetchFunnelLeads(funnelAd.ad_id);
+      if (fetchVersionRef.current !== version) return;
+      setDrawerLeads(leads);
+    } catch (err) {
+      if (fetchVersionRef.current !== version) return;
+      console.warn('[FunnelPanel] Erro ao buscar leads:', err);
+    } finally {
+      if (fetchVersionRef.current === version) {
+        setDrawerLoading(false);
+      }
+    }
+  }, [funnelAd, fetchFunnelLeads]);
+
   const maxValue = funnelAd ? (funnelAd.steps[0]?.value ?? 1) : 1;
   const ghlMaxValue = useMemo(() => {
     if (!funnelAd) return 1;
@@ -397,7 +441,14 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
         {/* Steps */}
         {funnelAd ? (
           funnelAd.steps.map((step, i) => (
-            <StepRow key={step.key} step={step} isFirst={i === 0} maxValue={maxValue} ghlMaxValue={ghlMaxValue} />
+            <StepRow
+              key={step.key}
+              step={step}
+              isFirst={i === 0}
+              maxValue={maxValue}
+              ghlMaxValue={ghlMaxValue}
+              onClick={fetchFunnelLeads ? () => handleStepClick(step.key) : undefined}
+            />
           ))
         ) : (
           <div className="text-center text-[var(--text-secondary)] text-sm py-8">
@@ -458,6 +509,17 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
           </div>
         </div>
       )}
+
+      {/* Drawer de leads do step */}
+      <FunnelLeadsDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        stepKey={drawerStepKey}
+        adName={scoreRow?.ad_name ?? ''}
+        leads={drawerLeads}
+        loading={drawerLoading}
+        locationId={locationId ?? null}
+      />
     </div>
   );
 };

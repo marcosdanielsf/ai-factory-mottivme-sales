@@ -3,6 +3,7 @@ import { FlaskConical, ChevronDown, AlertCircle, Loader2, TrendingUp, TrendingDo
 import { AdRankingList } from './components/AdRankingList';
 import { FunnelPanel } from './components/FunnelPanel';
 import { useMetricsLab } from '../../hooks/useMetricsLab';
+import { useAccount } from '../../contexts/AccountContext';
 import { DateRangePicker, DateRange } from '../../components/DateRangePicker';
 import type { PeriodDeltas, AnomalyRow, LeadScoreRow, FunnelAd } from './types';
 
@@ -297,6 +298,8 @@ function exportPDF(leadScoreRows: LeadScoreRow[], funnelAds: FunnelAd[]): void {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const MetricsLab: React.FC = () => {
+  const { selectedAccount: currentAccount } = useAccount();
+  const currentLocationId = currentAccount?.location_id ?? null;
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [selectedAdId, setSelectedAdId] = useState<string>('');
   const [exportOpen, setExportOpen] = useState(false);
@@ -322,6 +325,7 @@ export const MetricsLab: React.FC = () => {
     periodDeltas,
     conversionTimeMap,
     anomalies,
+    fetchFunnelLeads,
   } = useMetricsLab(selectedAccount, dateRange);
 
   // Auto-select first ad when data loads
@@ -502,6 +506,8 @@ export const MetricsLab: React.FC = () => {
                 arcData={selectedARC}
                 heatmapData={heatmapData}
                 conversionTime={selectedConversionTime}
+                fetchFunnelLeads={fetchFunnelLeads}
+                locationId={currentLocationId}
               />
             </div>
           </div>

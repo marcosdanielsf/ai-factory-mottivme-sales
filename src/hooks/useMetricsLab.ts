@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { MOCK_LEAD_SCORE_ROWS, MOCK_CRIATIVOS_ARC, MOCK_FUNNEL_ADS } from '../pages/MetricsLab/mockData';
-import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking, PeriodDeltas, HeatmapRow, ConversionTimeStats, AnomalyRow } from '../pages/MetricsLab/types';
+import type { LeadScoreRow, CriativoARC, FunnelAd, FunnelStep, FunnelTracking, PeriodDeltas, HeatmapRow, ConversionTimeStats, AnomalyRow, FunnelLead } from '../pages/MetricsLab/types';
 
 // ─── Raw DB shapes ──────────────────────────────────────────────────────────
 
@@ -464,6 +464,7 @@ interface UseMetricsLabReturn {
   periodDeltas: PeriodDeltas | null;
   conversionTimeMap: Map<string, ConversionTimeStats> | null;
   anomalies: AnomalyRow[];
+  fetchFunnelLeads: (adId: string) => Promise<FunnelLead[]>;
 }
 
 export const useMetricsLab = (
@@ -786,6 +787,83 @@ export const useMetricsLab = (
     return { leadScoreRows, criativosARC, funnelAds, accounts, periodDeltas, conversionTimeMap };
   }, [rawLeadScore, rawAds, rawAdsPrev, rawTracking, rawConversionTime]);
 
+  // ─── Drill-down: busca leads individuais de um anuncio ──────────────────────
+  // Query em 2 etapas: (1) n8n_schedule_tracking, (2) enriquecer com ghl_opportunities
+  // Nao usa embedded select porque nao existe FK formal entre as tabelas.
+
+  interface RawScheduleRow {
+    unique_id: string;
+    contact_id: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+    email: string | null;
+    etapa_funil: string | null;
+    created_at: string;
+    responded: boolean | null;
+  }
+
+  const fetchFunnelLeads = useCallback(async (adId: string): Promise<FunnelLead[]> => {
+    if (!isSupabaseConfigured()) return [];
+
+    // Step 1: buscar leads da tabela de tracking
+    const { data, error: qErr } = await supabase
+      .from('n8n_schedule_tracking')
+      .select('unique_id, contact_id, first_name, last_name, phone, email, etapa_funil, created_at, responded')
+      .eq('ad_id', adId)
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (qErr || !data || data.length === 0) {
+      if (qErr) console.warn('[MetricsLab] fetchFunnelLeads error:', qErr.message);
+      return [];
+    }
+
+    const rows = data as unknown as RawScheduleRow[];
+
+    // Step 2: enriquecer com oportunidades GHL (query separada, sem FK)
+    const contactIds = rows.map(r => r.unique_id).filter(Boolean);
+    let oppMap = new Map<string, { status: string; monetary_value: number | null }>();
+
+    if (contactIds.length > 0) {
+      try {
+        const { data: oppData } = await supabase
+          .from('ghl_opportunities')
+          .select('contact_id, status, monetary_value')
+          .in('contact_id', contactIds);
+
+        if (oppData) {
+          for (const o of oppData as { contact_id: string; status: string; monetary_value: number | null }[]) {
+            // Guardar apenas a primeira oportunidade por contato (ou a won se existir)
+            const existing = oppMap.get(o.contact_id);
+            if (!existing || o.status === 'won') {
+              oppMap.set(o.contact_id, { status: o.status, monetary_value: o.monetary_value });
+            }
+          }
+        }
+      } catch {
+        console.warn('[MetricsLab] ghl_opportunities query falhou — continuando sem dados de oportunidade');
+      }
+    }
+
+    return rows.map((r) => {
+      const opp = oppMap.get(r.unique_id);
+      return {
+        unique_id: r.unique_id,
+        contact_id: r.contact_id ?? r.unique_id,
+        first_name: r.first_name ?? null,
+        last_name: r.last_name ?? null,
+        phone: r.phone ?? null,
+        email: r.email ?? null,
+        etapa_funil: r.etapa_funil ?? 'Novo',
+        created_at: r.created_at,
+        responded: r.responded ?? null,
+        opp_status: opp?.status ?? null,
+        monetary_value: opp?.monetary_value ? Number(opp.monetary_value) : null,
+      };
+    });
+  }, []);
+
   return {
     leadScoreRows: computed.leadScoreRows,
     criativosARC: computed.criativosARC,
@@ -799,5 +877,6 @@ export const useMetricsLab = (
     error,
     refetch: fetchData,
     unattributedCount,
+    fetchFunnelLeads,
   };
 };

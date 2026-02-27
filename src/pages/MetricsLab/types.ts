@@ -107,6 +107,21 @@ export interface AnomalyRow {
   is_anomaly: boolean;
 }
 
+// Drill-down: leads individuais de um step do funil
+export interface FunnelLead {
+  unique_id: string;
+  contact_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  email: string | null;
+  etapa_funil: string;
+  created_at: string;
+  responded: boolean | null;
+  opp_status: string | null;
+  monetary_value: number | null;
+}
+
 // Full Funnel Tracking (GHL data per ad)
 export interface FunnelTracking {
   ad_id: string;
