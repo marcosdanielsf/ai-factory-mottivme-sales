@@ -816,8 +816,11 @@ export const useMetricsLab = (
         : MOCK_LEAD_SCORE_ROWS;
 
     const leadScoreRows: LeadScoreRow[] = baseLeadScoreRows.map(row => {
+      const thumb = thumbnailMap.get(row.ad_id);
       const tracking = trackingMap.get(row.ad_id);
-      if (!tracking || tracking.total_leads === 0) return row;
+      if (!tracking || tracking.total_leads === 0) {
+        return thumb ? { ...row, thumbnail_url: thumb } : row;
+      }
 
       const won = tracking.won;
       const wonValue = tracking.won_value;
