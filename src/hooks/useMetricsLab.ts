@@ -559,26 +559,45 @@ export const useMetricsLab = (
 
       adsPrevQuery = adsPrevQuery.limit(5000);
 
-      // Q3: Funnel tracking — tenta vw_funnel_tracking_enhanced, fallback para vw_funnel_tracking_by_ad
-      let trackingResult = await supabase
-        .from('vw_funnel_tracking_enhanced')
-        .select('*');
+      // Q3: Funnel tracking — query direta em n8n_schedule_tracking com filtro de data
+      // As views pre-agregadas (vw_funnel_tracking_enhanced) nao aceitam filtro de data,
+      // causando discrepancia entre o funil FB (filtrado) e GHL (tudo acumulado).
+      // Agora consultamos os leads brutos e agregamos no frontend.
+      let trackingQuery = supabase
+        .from('n8n_schedule_tracking')
+        .select('ad_id, etapa_funil, unique_id, utm_campaign')
+        .not('ad_id', 'is', null)
+        .neq('ad_id', 'NULL')
+        .neq('ad_id', 'null')
+        .neq('ad_id', 'undefined')
+        .neq('ad_id', '')
+        .limit(5000);
 
-      if (
-        trackingResult.error &&
-        trackingResult.error.message.includes('vw_funnel_tracking_enhanced')
-      ) {
-        console.warn('[MetricsLab] vw_funnel_tracking_enhanced nao existe, usando fallback');
-        trackingResult = await supabase
-          .from('vw_funnel_tracking_by_ad')
-          .select('*');
+      if (dateRange?.startDate) {
+        trackingQuery = trackingQuery.gte('created_at', dateRange.startDate.toISOString());
+      }
+      if (dateRange?.endDate) {
+        const endOfDay = new Date(dateRange.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        trackingQuery = trackingQuery.lte('created_at', endOfDay.toISOString());
       }
 
-      // Q4: Count unattributed leads (sem ad_id)
-      const unattributedQuery = supabase
+      const trackingResult = await trackingQuery;
+
+      // Q4: Count unattributed leads (sem ad_id) — tambem filtrado por data
+      let unattributedQuery = supabase
         .from('n8n_schedule_tracking')
         .select('*', { count: 'exact', head: true })
         .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.');
+
+      if (dateRange?.startDate) {
+        unattributedQuery = unattributedQuery.gte('created_at', dateRange.startDate.toISOString());
+      }
+      if (dateRange?.endDate) {
+        const endOfDay = new Date(dateRange.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        unattributedQuery = unattributedQuery.lte('created_at', endOfDay.toISOString());
+      }
 
       // Q5: Heatmap de horarios — fallback gracioso se view nao existir
       const heatmapQuery = supabase
@@ -601,8 +620,77 @@ export const useMetricsLab = (
       setRawLeadScore(((leadResult.data ?? []) as unknown) as RawLeadScoreRow[]);
       setRawAds(((adsResult.data ?? []) as unknown) as RawAdRow[]);
       setRawAdsPrev(((adsPrevResult.data ?? []) as unknown) as RawAdRow[]);
-      setRawTracking(((trackingResult.data ?? []) as unknown) as RawFunnelTracking[]);
       setUnattributedCount(unattributedResult.count ?? 0);
+
+      // Agregar leads brutos em RawFunnelTracking por ad_id (substitui a view pre-agregada)
+      const rawTrackingRows = (trackingResult.data ?? []) as { ad_id: string; etapa_funil: string | null; unique_id: string }[];
+      const trackingAgg = new Map<string, { total: number; novo: number; em_contato: number; agendou: number; no_show: number; perdido: number; contactIds: string[] }>();
+      for (const r of rawTrackingRows) {
+        if (!r.ad_id || r.ad_id.trim().length <= 5) continue;
+        const agg = trackingAgg.get(r.ad_id) ?? { total: 0, novo: 0, em_contato: 0, agendou: 0, no_show: 0, perdido: 0, contactIds: [] };
+        agg.total++;
+        const etapa = (r.etapa_funil ?? 'Novo').trim();
+        if (etapa === 'Novo') agg.novo++;
+        else if (etapa === 'Em Contato') agg.em_contato++;
+        else if (etapa === 'Agendou') agg.agendou++;
+        else if (etapa === 'No-show') agg.no_show++;
+        else if (etapa === 'Perdido') agg.perdido++;
+        if (r.unique_id) agg.contactIds.push(r.unique_id);
+        trackingAgg.set(r.ad_id, agg);
+      }
+
+      // Buscar won/won_value das oportunidades GHL para os contact_ids do periodo
+      const allContactIds = rawTrackingRows.map(r => r.unique_id).filter(Boolean);
+      const wonMap = new Map<string, { status: string; monetary_value: number }>();
+      if (allContactIds.length > 0) {
+        try {
+          // Supabase .in() aceita ate ~2000 itens; dividir em batches se necessario
+          const batchSize = 500;
+          for (let i = 0; i < allContactIds.length; i += batchSize) {
+            const batch = allContactIds.slice(i, i + batchSize);
+            const { data: oppData } = await supabase
+              .from('ghl_opportunities')
+              .select('contact_id, status, monetary_value')
+              .in('contact_id', batch);
+            if (oppData) {
+              for (const o of oppData as { contact_id: string; status: string; monetary_value: number | null }[]) {
+                const existing = wonMap.get(o.contact_id);
+                if (!existing || o.status === 'won') {
+                  wonMap.set(o.contact_id, { status: o.status, monetary_value: o.monetary_value ?? 0 });
+                }
+              }
+            }
+          }
+        } catch {
+          console.warn('[MetricsLab] ghl_opportunities query falhou');
+        }
+      }
+
+      // Montar RawFunnelTracking[] agregado
+      const aggregatedTracking: RawFunnelTracking[] = Array.from(trackingAgg.entries()).map(([adId, agg]) => {
+        let won = 0;
+        let wonValue = 0;
+        for (const cid of agg.contactIds) {
+          const opp = wonMap.get(cid);
+          if (opp?.status === 'won') {
+            won++;
+            wonValue += opp.monetary_value;
+          }
+        }
+        return {
+          ad_id: adId,
+          attribution_level: 'exact' as const,
+          total_leads: agg.total,
+          novo: agg.novo,
+          em_contato: agg.em_contato,
+          agendou: agg.agendou,
+          no_show: agg.no_show,
+          perdido: agg.perdido,
+          won,
+          won_value: wonValue,
+        };
+      });
+      setRawTracking(aggregatedTracking);
       // Heatmap: fallback gracioso se view nao existir (retorna [] sem lancar erro)
       if (!heatmapResult.error) {
         setHeatmapData(((heatmapResult.data ?? []) as unknown) as HeatmapRow[]);
