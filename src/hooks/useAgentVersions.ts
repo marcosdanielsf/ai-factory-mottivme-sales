@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { AgentVersion } from '../types';
+import { AgentVersion, AgentVersionHistoryEntry } from '../types';
 
 export const useAgentVersions = (agentId?: string) => {
   const [versions, setVersions] = useState<AgentVersion[]>([]);
@@ -17,7 +17,7 @@ export const useAgentVersions = (agentId?: string) => {
     try {
       setLoading(true);
 
-      // Buscar versoes — campos leves pra sidebar, campos pesados so quando selecionado
+      // Buscar versoes ativas da tabela principal
       let query = supabase
         .from('agent_versions')
         .select(`
@@ -39,8 +39,6 @@ export const useAgentVersions = (agentId?: string) => {
         `)
         .order('created_at', { ascending: false });
 
-      // Tentar buscar por client_id OU por id (para casos onde client_id é null)
-      // Usamos or() para cobrir ambos os casos
       query = query.or(`client_id.eq.${agentId},id.eq.${agentId}`);
 
       const { data: versionsData, error: versionsError } = await query;
@@ -56,9 +54,25 @@ export const useAgentVersions = (agentId?: string) => {
     }
   }, [agentId]);
 
+  // Buscar historico de versoes (ativa + archived) via view
+  const fetchHistory = useCallback(async (sourceVersionId: string): Promise<AgentVersionHistoryEntry[]> => {
+    const { data, error: historyError } = await supabase
+      .from('agent_version_history')
+      .select('*')
+      .eq('source_version_id', sourceVersionId)
+      .order('version_timestamp', { ascending: false });
+
+    if (historyError) {
+      console.error('Error fetching version history:', historyError);
+      return [];
+    }
+
+    return (data || []) as AgentVersionHistoryEntry[];
+  }, []);
+
   useEffect(() => {
     fetchVersions();
   }, [fetchVersions]);
 
-  return { versions, loading, error, refetch: fetchVersions };
+  return { versions, loading, error, refetch: fetchVersions, fetchHistory };
 };

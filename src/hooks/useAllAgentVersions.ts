@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase';
 
 // ============================================================================
 // HOOK: useAllAgentVersions
-// Busca TODAS as versões de agentes (não só a última)
-// Permite ativar/desativar versões via is_active
+// Busca versoes ativas de agentes agrupadas por location.
+// toggleActive REMOVIDO (v1.1) — upgrades via upgrade_agent_version() RPC.
 // ============================================================================
 
 export interface AgentVersionItem {
@@ -31,15 +31,13 @@ interface AllAgentVersionsState {
   versions: AgentVersionItem[];
   loading: boolean;
   error: string | null;
-  updating: string | null;
 }
 
 export const useAllAgentVersions = () => {
   const [state, setState] = useState<AllAgentVersionsState>({
     versions: [],
     loading: true,
-    error: null,
-    updating: null
+    error: null
   });
   const fetchedRef = useRef(false);
 
@@ -73,8 +71,7 @@ export const useAllAgentVersions = () => {
       setState({
         versions,
         loading: false,
-        error: null,
-        updating: null
+        error: null
       });
 
     } catch (error: any) {
@@ -84,36 +81,6 @@ export const useAllAgentVersions = () => {
         loading: false,
         error: error.message || 'Erro ao carregar versões'
       }));
-    }
-  }, []);
-
-  // Toggle is_active
-  const toggleActive = useCallback(async (versionId: string, newValue: boolean) => {
-    setState(prev => ({ ...prev, updating: versionId }));
-
-    try {
-      const { error } = await supabase
-        .from('agent_versions')
-        .update({ is_active: newValue, updated_at: new Date().toISOString() })
-        .eq('id', versionId);
-
-      if (error) throw error;
-
-      // Atualizar estado local
-      setState(prev => ({
-        ...prev,
-        versions: prev.versions.map(v =>
-          v.id === versionId ? { ...v, isActive: newValue } : v
-        ),
-        updating: null
-      }));
-
-      return { success: true };
-
-    } catch (error: any) {
-      console.error('Erro ao atualizar is_active:', error);
-      setState(prev => ({ ...prev, updating: null }));
-      return { success: false, error: error.message };
     }
   }, []);
 
@@ -142,7 +109,6 @@ export const useAllAgentVersions = () => {
   return {
     ...state,
     versionsByLocation,
-    toggleActive,
     refetch: fetchVersions
   };
 };

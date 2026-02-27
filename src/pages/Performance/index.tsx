@@ -147,8 +147,6 @@ export const Performance: React.FC = () => {
   const {
     versionsByLocation,
     loading: versionsLoading,
-    updating: versionUpdating,
-    toggleActive,
     refetch: refetchVersions
   } = useAllAgentVersions();
 
@@ -188,15 +186,6 @@ export const Performance: React.FC = () => {
       showToast('Erro ao atualizar', 'error');
     } finally {
       setIsRefreshing(false);
-    }
-  };
-
-  const handleToggleVersion = async (versionId: string, currentValue: boolean) => {
-    const result = await toggleActive(versionId, !currentValue);
-    if (result.success) {
-      showToast(`Versão ${!currentValue ? 'ativada' : 'desativada'}`, 'success');
-    } else {
-      showToast(`Erro: ${result.error}`, 'error');
     }
   };
 

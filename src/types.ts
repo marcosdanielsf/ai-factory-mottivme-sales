@@ -97,6 +97,41 @@ export interface AgentVersion {
   last_test_at?: string;
   validation_score?: number;
   last_test_score?: number;
+
+}
+
+// Entrada da view agent_version_history (UNION de ativo + archived)
+export interface AgentVersionHistoryEntry {
+  source_version_id: string;
+  archive_id: string | null;
+  history_type: 'current' | 'archived';
+  version_label: string;
+  version_timestamp: string;
+  archive_reason: 'upgrade' | 'rollback' | 'manual' | 'cleanup' | null;
+  archived_by: string | null;
+  agent_name: string;
+  location_id: string;
+  client_id: string;
+  service_type: string | null;
+  is_active: boolean;
+  status: string;
+  deployment_notes: string | null;
+  diff_summary: string | null;
+  created_by_source: string | null;
+  system_prompt: string;
+  prompts_by_mode: Record<string, string> | null;
+  tools_config: Record<string, any> | null;
+  personality_config: Record<string, any> | null;
+  business_config: Record<string, any> | null;
+  qualification_config: Record<string, any> | null;
+  compliance_rules: Record<string, any> | null;
+  hyperpersonalization: Record<string, any> | null;
+  followup_scripts: Record<string, any> | null;
+  evaluation_score: number | null;
+  avg_score_overall: number | null;
+  framework_approved: boolean | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AgentConversation {
