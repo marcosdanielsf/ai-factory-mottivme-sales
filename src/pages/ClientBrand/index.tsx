@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Image, Layout, Share2, BookOpen, FileText, Palette, Loader2, ArrowLeft, ExternalLink, Megaphone, Target, Globe, Workflow } from 'lucide-react';
+import { Crown, Image, Layout, Share2, BookOpen, FileText, Palette, Loader2, ArrowLeft, ExternalLink, Megaphone, Target, Globe, Workflow, Building2 } from 'lucide-react';
 import { useAccount } from '../../contexts/AccountContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBrandConfig } from '../../hooks/useBrandConfig';
@@ -12,6 +12,7 @@ import { BrandDocs } from './components/BrandDocs';
 import { BrandColors } from './components/BrandColors';
 import { BrandDeliverables } from './components/BrandDeliverables';
 import { BrandSites } from './components/BrandSites';
+import { BrandKnowledgeBase } from './components/BrandKnowledgeBase';
 import { DownloadAllButton } from './components/DownloadAllButton';
 import { supabase } from '../../lib/supabase';
 import type { BrandConfig } from '../../types/brand';
@@ -24,6 +25,7 @@ const TAB_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   manual: { label: 'Manual', icon: BookOpen },
   docs: { label: 'Documentos', icon: FileText },
   colors: { label: 'Paleta', icon: Palette },
+  'meu-negocio': { label: 'Meu Negocio', icon: Building2 },
   marketing: { label: 'Marketing', icon: Megaphone },
   vendas: { label: 'Vendas', icon: Target },
   sites: { label: 'Sites', icon: Globe },
@@ -223,7 +225,13 @@ const ClientBrand: React.FC = () => {
 
   if (!activeBrand) return null;
 
-  const availableTabs = ['overview', ...activeBrand.sections.filter((s) => TAB_CONFIG[s])];
+  const sectionTabs = activeBrand.sections.filter((s) => TAB_CONFIG[s]);
+  // "meu-negocio" always available (reads from client_knowledge_base, not brand_assets)
+  if (!sectionTabs.includes('meu-negocio')) {
+    const colorsIdx = sectionTabs.indexOf('colors');
+    sectionTabs.splice(colorsIdx >= 0 ? colorsIdx + 1 : sectionTabs.length, 0, 'meu-negocio');
+  }
+  const availableTabs = ['overview', ...sectionTabs];
 
   const renderTab = () => {
     switch (activeTab) {
@@ -269,6 +277,8 @@ const ClientBrand: React.FC = () => {
         return <BrandDocs brandId={activeBrand.id} />;
       case 'colors':
         return <BrandColors colors={activeBrand.colors} primaryColor={activeBrand.primary_color} />;
+      case 'meu-negocio':
+        return <BrandKnowledgeBase locationId={activeBrand.location_id || ''} />;
       case 'marketing':
       case 'vendas':
       case 'workflows':
