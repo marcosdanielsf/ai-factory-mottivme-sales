@@ -399,8 +399,17 @@ export const FunnelPanel: React.FC<FunnelPanelProps> = ({ scoreRow, funnelAd, ar
           </div>
         )}
 
-        {/* Badge de confianca — atribuicao por campanha */}
-        {funnelAd && funnelAd.inferred_leads && funnelAd.inferred_leads > 0 ? (
+        {/* Badge de confianca — atribuicao inferida */}
+        {funnelAd && funnelAd.attribution_level === 'unattributed_inferred' ? (
+          <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/[0.05]">
+            <span className="text-[11px] text-orange-300/80 bg-orange-500/10 px-2 py-0.5 rounded-md font-medium">
+              Paid (nao rastreado)
+            </span>
+            <span className="text-[10px] text-[var(--text-secondary)]">
+              leads via agente IA sem UTM — atribuicao inferida
+            </span>
+          </div>
+        ) : funnelAd && funnelAd.inferred_leads && funnelAd.inferred_leads > 0 ? (
           <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/[0.05]">
             <span className="text-[11px] text-amber-300/80 bg-amber-500/10 px-2 py-0.5 rounded-md font-medium">
               ~{funnelAd.inferred_leads} leads atribuidos por campanha

@@ -406,16 +406,19 @@ function buildFunnelAds(rows: RawAdRow[], trackingMap?: Map<string, MergedFunnel
       );
     }
 
+    const rawLevel = tracking?.attribution_level ?? 'exact';
+    const attributionLevel: FunnelAd['attribution_level'] =
+      rawLevel === 'unattributed_inferred' ? 'unattributed_inferred'
+      : (tracking?.inferred_leads && tracking.inferred_leads > 0) ? 'campaign_inferred'
+      : 'exact';
+
     return {
       ad_id: adId,
       ad_name: m.ad_name ?? 'Sem nome',
       campaign_name: m.campaign_name ?? 'N/A',
       steps,
       won_value: tracking?.won_value ?? 0,
-      attribution_level:
-        tracking?.inferred_leads && tracking.inferred_leads > 0
-          ? 'campaign_inferred'
-          : 'exact',
+      attribution_level: attributionLevel,
       inferred_leads: tracking?.inferred_leads ?? 0,
     };
   });
@@ -582,7 +585,29 @@ export const useMetricsLab = (
         trackingQuery = trackingQuery.lte('created_at', endOfDay.toISOString());
       }
 
-      const trackingResult = await trackingQuery;
+      // Q3b: Leads sem ad_id mas com agente_ia SDR/Instagram — "Paid (nao rastreado)"
+      // Esses leads provavelmente vieram de trafego pago mas perderam UTM no trajeto.
+      let unattributedInferredQuery = supabase
+        .from('n8n_schedule_tracking')
+        .select('etapa_funil, unique_id')
+        .or('ad_id.is.null,ad_id.eq.NULL,ad_id.eq.null,ad_id.eq.undefined,ad_id.eq.')
+        .in('agente_ia', ['sdrcarreira', 'sdr_inbound', 'social_seller_instagram'])
+        .eq('source', 'instagram')
+        .limit(2000);
+
+      if (dateRange?.startDate) {
+        unattributedInferredQuery = unattributedInferredQuery.gte('created_at', dateRange.startDate.toISOString());
+      }
+      if (dateRange?.endDate) {
+        const endOfDay = new Date(dateRange.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        unattributedInferredQuery = unattributedInferredQuery.lte('created_at', endOfDay.toISOString());
+      }
+
+      const [trackingResult, unattributedInferredResult] = await Promise.all([
+        trackingQuery,
+        unattributedInferredQuery,
+      ]);
 
       // Q4: Count unattributed leads (sem ad_id) — tambem filtrado por data
       let unattributedQuery = supabase
@@ -624,7 +649,7 @@ export const useMetricsLab = (
 
       // Agregar leads brutos em RawFunnelTracking por ad_id (substitui a view pre-agregada)
       const rawTrackingRows = (trackingResult.data ?? []) as { ad_id: string; etapa_funil: string | null; unique_id: string }[];
-      const trackingAgg = new Map<string, { total: number; novo: number; em_contato: number; agendou: number; no_show: number; perdido: number; contactIds: string[] }>();
+      const trackingAgg = new Map<string, { total: number; novo: number; em_contato: number; agendou: number; no_show: number; perdido: number; contactIds: string[]; isUnattributedInferred?: boolean }>();
       for (const r of rawTrackingRows) {
         if (!r.ad_id || r.ad_id.trim().length <= 5) continue;
         const agg = trackingAgg.get(r.ad_id) ?? { total: 0, novo: 0, em_contato: 0, agendou: 0, no_show: 0, perdido: 0, contactIds: [] };
@@ -639,8 +664,32 @@ export const useMetricsLab = (
         trackingAgg.set(r.ad_id, agg);
       }
 
+      // Agregar leads unattributed_inferred sob pseudo-id fixo
+      const UNATTRIBUTED_INFERRED_ID = '__unattributed_inferred__';
+      const unattributedInferredRows = (unattributedInferredResult.data ?? []) as { etapa_funil: string | null; unique_id: string }[];
+      if (unattributedInferredRows.length > 0) {
+        const agg = trackingAgg.get(UNATTRIBUTED_INFERRED_ID) ?? {
+          total: 0, novo: 0, em_contato: 0, agendou: 0, no_show: 0, perdido: 0, contactIds: [], isUnattributedInferred: true,
+        };
+        for (const r of unattributedInferredRows) {
+          agg.total++;
+          const etapa = (r.etapa_funil ?? 'Novo').trim();
+          if (etapa === 'Novo') agg.novo++;
+          else if (etapa === 'Em Contato') agg.em_contato++;
+          else if (etapa === 'Agendou') agg.agendou++;
+          else if (etapa === 'No-show') agg.no_show++;
+          else if (etapa === 'Perdido') agg.perdido++;
+          if (r.unique_id) agg.contactIds.push(r.unique_id);
+        }
+        trackingAgg.set(UNATTRIBUTED_INFERRED_ID, agg);
+      }
+
       // Buscar won/won_value das oportunidades GHL para os contact_ids do periodo
-      const allContactIds = rawTrackingRows.map(r => r.unique_id).filter(Boolean);
+      // Inclui tanto leads com ad_id quanto unattributed_inferred
+      const allContactIds = [
+        ...rawTrackingRows.map(r => r.unique_id),
+        ...unattributedInferredRows.map(r => r.unique_id),
+      ].filter(Boolean);
       const wonMap = new Map<string, { status: string; monetary_value: number }>();
       if (allContactIds.length > 0) {
         try {
@@ -677,9 +726,11 @@ export const useMetricsLab = (
             wonValue += opp.monetary_value;
           }
         }
+        const attributionLevel: 'exact' | 'campaign_inferred' | 'unattributed_inferred' =
+          agg.isUnattributedInferred ? 'unattributed_inferred' : 'exact';
         return {
           ad_id: adId,
-          attribution_level: 'exact' as const,
+          attribution_level: attributionLevel,
           total_leads: agg.total,
           novo: agg.novo,
           em_contato: agg.em_contato,
@@ -864,10 +915,91 @@ export const useMetricsLab = (
         : MOCK_CRIATIVOS_ARC;
 
     // Funil por Anuncio — fall back to mock if empty
-    const funnelAds: FunnelAd[] =
+    const UNATTRIBUTED_INFERRED_ID = '__unattributed_inferred__';
+    const baseFunnelAds: FunnelAd[] =
       rawAds.length > 0
         ? buildFunnelAds(rawAds, trackingMap)
         : MOCK_FUNNEL_ADS;
+
+    // Injetar entrada de leads "Paid (nao rastreado)" se existirem leads unattributed_inferred
+    const unattributedTracking = trackingMap.get(UNATTRIBUTED_INFERRED_ID);
+    const funnelAds: FunnelAd[] = baseFunnelAds;
+    if (unattributedTracking && unattributedTracking.total_leads > 0) {
+      const t = unattributedTracking;
+      const unattributedFunnelAd: FunnelAd = {
+        ad_id: UNATTRIBUTED_INFERRED_ID,
+        ad_name: 'Paid (nao rastreado)',
+        campaign_name: 'Instagram — sem UTM de anuncio',
+        won_value: t.won_value,
+        attribution_level: 'unattributed_inferred',
+        inferred_leads: t.total_leads,
+        steps: [
+          {
+            key: 'ghl_separator',
+            label: '── GHL ──',
+            value: 0,
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: null,
+            trend: [],
+          },
+          {
+            key: 'ghl_leads',
+            label: 'Leads',
+            value: t.total_leads,
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: null,
+            trend: [],
+          },
+          {
+            key: 'ghl_em_contato',
+            label: 'Respondeu',
+            value: t.em_contato,
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: t.total_leads > 0
+              ? Number(((t.em_contato / t.total_leads) * 100).toFixed(1))
+              : null,
+            trend: [],
+          },
+          {
+            key: 'ghl_agendou',
+            label: 'Agendou',
+            value: t.agendou,
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: t.em_contato > 0
+              ? Number(((t.agendou / t.em_contato) * 100).toFixed(1))
+              : null,
+            trend: [],
+          },
+          {
+            key: 'ghl_compareceu',
+            label: 'Compareceu',
+            value: Math.max(t.agendou - t.no_show, 0),
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: t.agendou > 0
+              ? Number(((Math.max(t.agendou - t.no_show, 0) / t.agendou) * 100).toFixed(1))
+              : null,
+            trend: [],
+          },
+          {
+            key: 'ghl_won',
+            label: 'Fechou',
+            value: t.won,
+            cost_metric: null,
+            cost_label: null,
+            conversion_rate: Math.max(t.agendou - t.no_show, 0) > 0
+              ? Number(((t.won / Math.max(t.agendou - t.no_show, 0)) * 100).toFixed(1))
+              : null,
+            trend: [],
+          },
+        ],
+      };
+      funnelAds.push(unattributedFunnelAd);
+    }
 
     // Conversion time map keyed by ad_id
     const conversionTimeMap: Map<string, ConversionTimeStats> | null =
