@@ -337,7 +337,7 @@ export const useAgendamentosDashboard = (
     });
 
     // -----------------------------------------------------------------------
-    // STEP 2: Build contactApptMap (contactId → most recent appointment)
+    // STEP 2: Build contactApptMap + direct appointment counts (independent of lead cross-reference)
     // -----------------------------------------------------------------------
     const contactApptMap = new Map<string, {
       appointmentDate: string;
@@ -346,6 +346,11 @@ export const useAgendamentosDashboard = (
       converted: boolean;
     }>();
 
+    // Direct counts from appointments_log (not dependent on schedule_tracking cross-reference)
+    const uniqueApptContacts = new Set<string>();
+    let directCompleted = 0;
+    let directConverted = 0;
+
     for (const appt of dedupedAppts) {
       const contactId = appt.raw_payload?.contact_id || appt.raw_payload?.lead_id;
       if (!contactId) continue;
@@ -353,6 +358,17 @@ export const useAgendamentosDashboard = (
       const statusAppt = (appt.raw_payload?.['Status Appointment'] || '').toLowerCase();
       const manualStatus = (appt.manual_status || '').toLowerCase();
       const calStatus = (appt.raw_payload?.calendar?.appointmentStatus || appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
+
+      // Track unique contacts with appointments (= agendaram)
+      uniqueApptContacts.add(contactId);
+
+      // Track showed/completed directly from appointment status
+      if (manualStatus === 'completed' || manualStatus === 'converted' || statusAppt === 'confirmation-presence') {
+        directCompleted++;
+      }
+      if (manualStatus === 'converted') {
+        directConverted++;
+      }
 
       const existing = contactApptMap.get(contactId);
       if (!existing || (apptDate && apptDate > existing.appointmentDate)) {
@@ -364,6 +380,8 @@ export const useAgendamentosDashboard = (
         });
       }
     }
+
+    const directAgendaram = uniqueApptContacts.size;
 
     // -----------------------------------------------------------------------
     // STEP 3: Process leads → funnel + criativos + origens + segmentation
@@ -448,12 +466,12 @@ export const useAgendamentosDashboard = (
 
     const totalLeads = exactLeadsCount || rawLeads.length;
 
-    // Use wonCount as floor for funnel stages.
-    // n8n_schedule_tracking.unique_id ≠ ghl_opportunities.contact_id, so cross-reference misses won deals.
-    // Logically: if someone closed (won), they must have also attended, scheduled, and responded.
+    // Direct counts from appointments_log and ghl_opportunities as floors.
+    // n8n_schedule_tracking.unique_id ≠ GHL contact_id — cross-reference only matches ~8% of records.
+    // Use direct counts to ensure funnel reflects real appointment and won data.
     const totalFecharam = Math.max(fFecharam, wonCount);
-    const totalCompareceram = Math.max(fCompareceram, totalFecharam);
-    const totalAgendaram = Math.max(fAgendaram, totalCompareceram);
+    const totalCompareceram = Math.max(fCompareceram, directCompleted, totalFecharam);
+    const totalAgendaram = Math.max(fAgendaram, directAgendaram, totalCompareceram);
     const totalResponderam = Math.max(fResponderam, totalAgendaram);
 
     const funnel: FunnelMetrics = {
