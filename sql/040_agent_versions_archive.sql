@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.agent_versions_archive (
     -- --------------------------------------------------------
     -- Metadados do arquivo (colunas exclusivas desta tabela)
     -- --------------------------------------------------------
-    archive_id        UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    archive_id        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     source_version_id UUID        NOT NULL,   -- FK logica para agent_versions.id
     archived_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     archive_reason    TEXT        NOT NULL DEFAULT 'upgrade'
@@ -243,7 +243,7 @@ BEGIN
     END IF;
 
     v_old_version := v_current.version;
-    v_archive_id  := uuid_generate_v4();
+    v_archive_id  := gen_random_uuid();
 
     -- 3. Snapshot do estado atual em agent_versions_archive
     INSERT INTO agent_versions_archive (
@@ -473,7 +473,7 @@ BEGIN
     END IF;
 
     -- 3. Arquiva o estado atual (pre-rollback) para possivel re-rollback
-    v_pre_archive := uuid_generate_v4();
+    v_pre_archive := gen_random_uuid();
 
     INSERT INTO agent_versions_archive (
         archive_id,
@@ -829,7 +829,7 @@ INSERT INTO public.agent_versions_archive (
     deployed_at, deprecated_at, created_at, updated_at
 )
 SELECT
-    uuid_generate_v4(),  -- archive_id
+    gen_random_uuid(),  -- archive_id
     id,                  -- source_version_id = proprio id (nao ha row ativa para referenciar)
     COALESCE(deprecated_at, updated_at, created_at, NOW()),  -- archived_at
     CASE
