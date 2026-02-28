@@ -16,6 +16,7 @@ export interface CrmInsightLead {
   area_atuacao: string | null;
   nivel_renda: string | null;
   capacidade_investimento: string | null;
+  location_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +51,7 @@ export const useCrmInsights = (): UseCrmInsightsReturn => {
       const { data, error: queryError } = await supabase
         .from('crm_leads_insights')
         .select(
-          'id, lead_id, full_name, fase_jornada, nivel_engajamento, total_mensagens, ultima_analise, resumo_perfil, pontos_dor_principais, estado, cidade, area_atuacao, nivel_renda, capacidade_investimento, created_at, updated_at'
+          'id, lead_id, full_name, fase_jornada, nivel_engajamento, total_mensagens, ultima_analise, resumo_perfil, pontos_dor_principais, estado, cidade, area_atuacao, nivel_renda, capacidade_investimento, location_id, created_at, updated_at'
         )
         .order('total_mensagens', { ascending: false })
         .limit(500);

@@ -59,8 +59,11 @@ function daysAgo(dateStr: string | null): number | null {
   }
 }
 
-function buildGhlUrl(leadId: string): string | null {
+function buildGhlUrl(leadId: string, locationId: string | null): string | null {
   if (!leadId || /^\d+$/.test(leadId)) return null;
+  if (locationId) {
+    return `https://app.socialfy.me/v2/location/${locationId}/contacts/detail/${leadId}`;
+  }
   return `https://app.socialfy.me/contacts/${leadId}`;
 }
 
@@ -129,7 +132,7 @@ interface SpotlightCardProps {
 }
 
 const SpotlightCard: React.FC<SpotlightCardProps> = ({ lead, rank, maxMsgs }) => {
-  const ghlUrl = buildGhlUrl(lead.lead_id);
+  const ghlUrl = buildGhlUrl(lead.lead_id, lead.location_id);
   const name = getDisplayName(lead);
   const initials = getInitials(name);
   const location = [lead.cidade, lead.estado].filter(Boolean).join(', ') || null;
@@ -233,7 +236,7 @@ interface TableRowProps {
 }
 
 const TableRow: React.FC<TableRowProps> = ({ lead, rank, maxMsgs, isExpanded, onToggle }) => {
-  const ghlUrl = buildGhlUrl(lead.lead_id);
+  const ghlUrl = buildGhlUrl(lead.lead_id, lead.location_id);
   const name = getDisplayName(lead);
   const location = [lead.cidade, lead.estado].filter(Boolean).join(', ') || '--';
   const days = daysAgo(lead.ultima_analise);
@@ -303,7 +306,7 @@ const TableRow: React.FC<TableRowProps> = ({ lead, rank, maxMsgs, isExpanded, on
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-orange-400/80 bg-orange-500/[0.06] border border-orange-500/15 hover:bg-orange-500/15 hover:border-orange-500/30 transition-all duration-200"
               >
                 <ExternalLink size={10} />
-                GHL
+                Socialfy
               </a>
             )}
             <button
