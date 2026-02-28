@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAgents, useAgentVersions } from '../../hooks';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
-import { Sparkles, Code, Shield, Brain, Target, Briefcase, FileText, UserCheck } from 'lucide-react';
+import { Sparkles, Code, Shield, Brain, Target, Briefcase, FileText, UserCheck, ShieldAlert } from 'lucide-react';
 import { AgentVersion, Agent } from '../../types';
 import { PromptEngineerChat } from '../../components/PromptEngineerChat';
 import { EditorHeader } from './components/EditorHeader';
@@ -22,7 +22,6 @@ export const PromptEditor: React.FC = () => {
   const [agentSearchTerm, setAgentSearchTerm] = useState('');
   const agentSearchInputRef = useRef<HTMLInputElement>(null);
   const agentMenuRef = useRef<HTMLDivElement>(null);
-  const [isSandboxLoading, setIsSandboxLoading] = useState(false);
   const [showAdjustmentsChat, setShowAdjustmentsChat] = useState(false);
   const [showSandboxPanel, setShowSandboxPanel] = useState(false);
   const [showPromptGenerator, setShowPromptGenerator] = useState(false);
@@ -71,6 +70,7 @@ export const PromptEditor: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<string>('');
   const [config, setConfig] = useState('{}');
   const [handoffConfig, setHandoffConfig] = useState<HandoffConfigData>({ enabled: false, trigger_keywords: [], default_attendant_id: null });
+  const [safetyConfig, setSafetyConfig] = useState<{ max_tool_calls_per_turn: number }>({ max_tool_calls_per_turn: 5 });
 
   const handleRefresh = async () => {
     showToast('Atualizando dados do editor...', 'info');
@@ -91,6 +91,7 @@ export const PromptEditor: React.FC = () => {
         setCode(latest.system_prompt);
         setConfig(JSON.stringify(latest.hyperpersonalization || {}, null, 2));
         setHandoffConfig(parseHandoffConfig((latest as any).handoff_config));
+        setSafetyConfig((latest as any).safety_config || { max_tool_calls_per_turn: 5 });
 
         const modes = Object.keys(latest.prompts_by_mode || {});
         if (modes.length > 0) {
@@ -102,6 +103,7 @@ export const PromptEditor: React.FC = () => {
       setCode('');
       setConfig('{}');
       setHandoffConfig({ enabled: false, trigger_keywords: [], default_attendant_id: null });
+      setSafetyConfig({ max_tool_calls_per_turn: 5 });
     }
   }, [versions, activeVersionId]);
 
@@ -117,6 +119,7 @@ export const PromptEditor: React.FC = () => {
     }
     setConfig(JSON.stringify(version.hyperpersonalization || {}, null, 2));
     setHandoffConfig(parseHandoffConfig((version as any).handoff_config));
+    setSafetyConfig((version as any).safety_config || { max_tool_calls_per_turn: 5 });
     setIsDirty(false);
   };
 
@@ -338,6 +341,9 @@ export const PromptEditor: React.FC = () => {
         updateData.handoff_config = handoffConfig;
       }
 
+      // Always persist safety_config alongside other changes
+      updateData.safety_config = safetyConfig;
+
       const { error } = await supabase
         .from('agent_versions')
         .update(updateData)
@@ -437,14 +443,6 @@ export const PromptEditor: React.FC = () => {
     }
   };
 
-  const handleSandbox = () => {
-    if (!selectedAgent) return;
-    setIsSandboxLoading(true);
-    setTimeout(() => {
-      setIsSandboxLoading(false);
-      alert(`Ambiente de Sandbox inicializado para o agente: ${selectedAgent.name}. Você pode testar as alterações em tempo real agora.`);
-    }, 1500);
-  };
 
   // C4: usar Record<string, unknown> em vez de any no handleApplyAdjustment
   const handleApplyAdjustment = async (zone: string, newContent: unknown, fieldPath?: string) => {
@@ -645,15 +643,16 @@ export const PromptEditor: React.FC = () => {
         isDirty={isDirty}
         isSaving={isSaving}
         isPublishing={isPublishing}
-        isSandboxLoading={isSandboxLoading}
+        isSandboxLoading={false}
         showAdjustmentsChat={showAdjustmentsChat}
         showSandboxPanel={showSandboxPanel}
         onSave={handleSave}
         onPublish={handlePublish}
-        onSandbox={handleSandbox}
+        onSandbox={() => { setShowSandboxPanel(prev => !prev); setShowAdjustmentsChat(false); }}
         onRefresh={handleRefresh}
         onToggleChat={() => setShowAdjustmentsChat(prev => !prev)}
         onToggleSandbox={() => { setShowSandboxPanel(prev => !prev); setShowAdjustmentsChat(false); }}
+        onGenerateWithAI={() => setShowPromptGenerator(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -719,6 +718,23 @@ export const PromptEditor: React.FC = () => {
                   </button>
                 )}
               </div>
+              {activeTab === 'tools' && (
+                <div className="flex items-center gap-4 px-4 py-3 bg-zinc-900/50 border-b border-[#2d2d2d] pl-14 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert size={14} className="text-amber-400" />
+                    <span className="text-xs text-zinc-300 font-medium">Tool Call Limit</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={20}
+                    value={safetyConfig.max_tool_calls_per_turn}
+                    onChange={e => { setSafetyConfig({ max_tool_calls_per_turn: parseInt(e.target.value) }); setIsDirty(true); }}
+                    className="w-32 accent-amber-500"
+                  />
+                  <span className="text-xs text-zinc-400 tabular-nums w-16">{safetyConfig.max_tool_calls_per_turn} / turno</span>
+                </div>
+              )}
               <textarea
                  value={config}
                  onChange={handleConfigChange}
@@ -775,6 +791,22 @@ export const PromptEditor: React.FC = () => {
           </div>
         )}
       </div>
+
+      {showPromptGenerator && (
+        <PromptGenerator
+          onGenerated={(prompt) => {
+            setCode(prompt);
+            setIsDirty(true);
+            showToast('Prompt gerado e aplicado!', 'success');
+          }}
+          onClose={() => setShowPromptGenerator(false)}
+          existingContext={{
+            agentName: selectedAgent?.name,
+            businessConfig: activeVersion?.business_config as Record<string, any>,
+            complianceRules: activeVersion?.compliance_rules as Record<string, any>,
+          }}
+        />
+      )}
     </div>
   );
 };

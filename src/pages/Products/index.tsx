@@ -30,6 +30,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useProducts, type Product } from '../../hooks/useProducts';
 import { useAccount } from '../../contexts/AccountContext';
+import { CsvImportModal } from '../../components/products/CsvImportModal';
 
 // ============================================
 // HELPERS
@@ -468,6 +469,7 @@ export default function Products() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sortedIds, setSortedIds] = useState<string[]>([]);
+  const [showCsvImport, setShowCsvImport] = useState(false);
 
   useEffect(() => {
     setSortedIds(products.map(p => p.id));
@@ -594,6 +596,13 @@ export default function Products() {
             <RefreshCw size={16} />
           </button>
           <button
+            onClick={() => setShowCsvImport(true)}
+            className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 text-sm font-medium rounded-lg transition-colors border border-zinc-700"
+          >
+            <Upload size={16} />
+            Importar CSV
+          </button>
+          <button
             onClick={openNew}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
           >
@@ -685,6 +694,15 @@ export default function Products() {
           onClose={() => setShowModal(false)}
           onSave={handleSave}
           saving={saving}
+        />
+      )}
+
+      {/* CSV Import */}
+      {showCsvImport && locationId && (
+        <CsvImportModal
+          locationId={locationId}
+          onClose={() => setShowCsvImport(false)}
+          onImported={() => { refetch(); fetchCategories().then(setCategories); }}
         />
       )}
     </div>

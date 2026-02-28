@@ -151,6 +151,13 @@ const CloneDashboard = lazy(() => import('./pages/CloneDashboard'));
 // WhatsApp Manager (instancias, QR, conexao)
 const WhatsAppManager = lazy(() => import('./pages/WhatsAppManager'));
 
+// Imobiliária
+const Imobiliaria = lazy(() => import('./pages/Imobiliaria/index').then(m => ({ default: m.Imobiliaria })));
+const ImobCatalogo = lazy(() => import('./pages/Imobiliaria/Catalogo').then(m => ({ default: m.Catalogo })));
+const ImobLeads = lazy(() => import('./pages/Imobiliaria/Leads').then(m => ({ default: m.ImobLeads })));
+const ImobVisitas = lazy(() => import('./pages/Imobiliaria/Visitas').then(m => ({ default: m.Visitas })));
+const ImobIndicacoes = lazy(() => import('./pages/Imobiliaria/Indicacoes').then(m => ({ default: m.Indicacoes })));
+
 // GHL Direct Pages
 const GHLPipeline = lazy(() => import('./pages/ghl/GHLPipeline'));
 const GHLAgenda = lazy(() => import('./pages/ghl/GHLAgenda'));
@@ -163,6 +170,9 @@ const ApolloScraper = lazy(() => import('./pages/LeadGen/ApolloScraper'));
 const GMapsScraper = lazy(() => import('./pages/LeadGen/GMapsScraper'));
 const LeadsListPeople = lazy(() => import('./pages/LeadGen/LeadsListPeople'));
 const LeadsListCompany = lazy(() => import('./pages/LeadGen/LeadsListCompany'));
+
+// Agent Builder (visual flow editor)
+const AgentBuilder = lazy(() => import('./pages/AgentBuilder'));
 
 const App = () => {
   return (
@@ -824,6 +834,17 @@ const App = () => {
                 </ProtectedRoute>
               } />
 
+              {/* Agent Builder */}
+              <Route path="/agent-builder/:agentId" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AgentBuilder />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
               {/* Lead Gen Portal */}
               <Route path="/leadgen/linkedin-posts" element={
                 <ProtectedRoute>
@@ -904,6 +925,53 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <GHLLeads />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Imobiliária */}
+              <Route path="/imobiliaria" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Imobiliaria />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/imobiliaria/catalogo" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ImobCatalogo />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/imobiliaria/leads" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ImobLeads />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/imobiliaria/visitas" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ImobVisitas />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/imobiliaria/indicacoes" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ImobIndicacoes />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>

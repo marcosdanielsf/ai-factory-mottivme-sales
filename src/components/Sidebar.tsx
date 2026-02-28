@@ -238,6 +238,20 @@ const navSections: NavSection[] = [
     ]
   },
   {
+    title: 'IMOBILIÁRIA',
+    items: [
+      {
+        icon: Building2, label: 'Imobiliária', to: '/imobiliaria', subItems: [
+          { icon: LayoutDashboard, label: 'Painel', to: '/imobiliaria' },
+          { icon: Building2, label: 'Catálogo', to: '/imobiliaria/catalogo' },
+          { icon: Users, label: 'Leads', to: '/imobiliaria/leads' },
+          { icon: Calendar, label: 'Visitas', to: '/imobiliaria/visitas' },
+          { icon: Package, label: 'Indicações', to: '/imobiliaria/indicacoes' },
+        ]
+      },
+    ]
+  },
+  {
     title: 'SISTEMA',
     permission: 'canViewAllClients',
     items: [
