@@ -65,8 +65,9 @@ export const useCrmInsights = (): UseCrmInsightsReturn => {
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '');
 
-      const filtered = (data || []).filter(
-        (row: any) =>
+      const rows = (data ?? []) as CrmInsightLead[];
+      const filtered = rows.filter(
+        row =>
           normalize(row.fase_jornada) === 'decisao' &&
           normalize(row.nivel_engajamento) === 'alto'
       );
