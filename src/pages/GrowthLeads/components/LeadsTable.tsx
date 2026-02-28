@@ -19,8 +19,8 @@ interface LeadsTableProps {
   onToggleSort: (field: SortableField) => void;
 }
 
-const thClass = 'px-3 py-2 text-left text-xs font-medium text-text-muted whitespace-nowrap cursor-pointer hover:text-text-primary transition-colors select-none';
-const tdClass = 'px-3 py-2 text-sm text-text-secondary whitespace-nowrap';
+const thClass = 'px-2 py-1.5 text-left text-[11px] font-medium text-text-muted whitespace-nowrap cursor-pointer hover:text-text-primary transition-colors select-none';
+const tdClass = 'px-2 py-1 text-xs text-text-secondary whitespace-nowrap';
 
 const SortIcon: React.FC<{ field: string; sortField: string; sortAsc: boolean }> = ({ field, sortField, sortAsc }) => {
   if (field !== sortField) return null;
@@ -128,7 +128,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px]">
+        <table className="w-full min-w-[960px]">
           <thead className="bg-bg-tertiary/50">
             <tr>
               <th className={thClass} onClick={() => onToggleSort('name')}>Nome <SortIcon field="name" sortField={sortField} sortAsc={sortAsc} /></th>
@@ -147,7 +147,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i}>
                   {Array.from({ length: 9 }).map((_, j) => (
-                    <td key={j} className={tdClass}><div className="h-4 bg-bg-tertiary rounded animate-pulse w-20" /></td>
+                    <td key={j} className={tdClass}><div className="h-3 bg-bg-tertiary rounded animate-pulse w-16" /></td>
                   ))}
                 </tr>
               ))
@@ -159,19 +159,19 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               leads.map(lead => (
                 <React.Fragment key={lead.id}>
                   <tr className="hover:bg-bg-hover transition-colors border-b border-border-default/50">
-                    <td className={`${tdClass} font-medium text-text-primary max-w-[200px] truncate`}>{lead.name}</td>
+                    <td className={`${tdClass} font-medium text-text-primary max-w-[180px] truncate`}>{lead.name}</td>
                     <td className={tdClass}>
                       <span title={getCountryLabel(lead.country)}>{getCountryFlag(lead.country)} {lead.country}</span>
                     </td>
-                    <td className={`${tdClass} max-w-[120px] truncate`}>{lead.region ?? '-'}</td>
-                    <td className={`${tdClass} max-w-[150px] truncate`}>{lead.company ?? '-'}</td>
-                    <td className={`${tdClass} max-w-[180px] truncate`}>{lead.title ?? '-'}</td>
+                    <td className={`${tdClass} max-w-[100px] truncate`}>{lead.region ? <span className="text-text-secondary">{lead.region}</span> : <span className="text-text-muted/40">—</span>}</td>
+                    <td className={`${tdClass} max-w-[130px] truncate`}>{lead.company ? <span className="text-text-secondary">{lead.company}</span> : <span className="text-text-muted/40">—</span>}</td>
+                    <td className={`${tdClass} max-w-[160px] truncate`}>{lead.title ? <span className="text-text-secondary">{lead.title}</span> : <span className="text-text-muted/40">—</span>}</td>
                     <td className={tdClass}>
                       {lead.source_channel ? (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400">
                           {lead.source_channel}
                         </span>
-                      ) : '-'}
+                      ) : <span className="text-text-muted/40">—</span>}
                     </td>
                     <td className={tdClass}>
                       <div className="flex flex-wrap gap-1">
