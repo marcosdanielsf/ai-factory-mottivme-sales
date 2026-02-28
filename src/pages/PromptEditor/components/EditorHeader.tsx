@@ -18,7 +18,9 @@ import {
   Search,
   ChevronDown,
   X,
-  Box
+  Box,
+  Wand2,
+  UserCheck,
 } from 'lucide-react';
 
 interface EditorHeaderProps {
@@ -45,11 +47,14 @@ interface EditorHeaderProps {
   isPublishing: boolean;
   isSandboxLoading: boolean;
   showAdjustmentsChat: boolean;
+  showSandboxPanel?: boolean;
   onSave: () => void;
   onPublish: () => void;
   onSandbox: () => void;
   onRefresh: () => void;
   onToggleChat: () => void;
+  onToggleSandbox?: () => void;
+  onGenerateWithAI?: () => void;
 }
 
 export function EditorHeader({
@@ -76,11 +81,14 @@ export function EditorHeader({
   isPublishing,
   isSandboxLoading,
   showAdjustmentsChat,
+  showSandboxPanel = false,
   onSave,
   onPublish,
   onSandbox,
   onRefresh,
-  onToggleChat
+  onToggleChat,
+  onToggleSandbox,
+  onGenerateWithAI,
 }: EditorHeaderProps) {
   return (
     <header className="h-12 border-b border-border-default flex items-center justify-between px-4 bg-bg-secondary shrink-0">
@@ -251,6 +259,16 @@ export function EditorHeader({
           >
             <Briefcase size={14} />
           </button>
+
+          <div className="w-px h-4 bg-border-default mx-0.5 self-center"></div>
+
+          <button
+            onClick={() => onTabChange('handoff')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${activeTab === 'handoff' ? 'bg-cyan-500/20 text-cyan-400' : 'text-text-muted hover:text-text-secondary'}`}
+            title="Handoff Config"
+          >
+            <UserCheck size={14} />
+          </button>
         </div>
 
         {activeTab === 'modes' && (
@@ -276,6 +294,30 @@ export function EditorHeader({
 
       {/* Direita: Ações */}
       <div className="flex items-center gap-1.5 shrink-0">
+        {onGenerateWithAI && activeTab === 'prompt' && (
+          <button
+            onClick={onGenerateWithAI}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-violet-400 hover:bg-violet-500/10 rounded transition-colors"
+            title="Gerar prompt com IA"
+          >
+            <Wand2 size={14} />
+            <span className="hidden sm:inline text-xs">Gerar com IA</span>
+          </button>
+        )}
+        {onToggleSandbox && (
+          <button
+            onClick={onToggleSandbox}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors ${
+              showSandboxPanel
+                ? 'bg-teal-600 text-white'
+                : 'text-text-secondary hover:bg-bg-hover'
+            }`}
+            title="Testar agente no Sandbox"
+          >
+            <Play size={14} />
+            <span className="hidden sm:inline text-xs">Testar</span>
+          </button>
+        )}
          <button
           onClick={onToggleChat}
           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors ${

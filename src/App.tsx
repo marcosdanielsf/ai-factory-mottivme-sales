@@ -77,6 +77,9 @@ const AdsPerformance = lazy(() => import('./pages/AdsPerformance').then(m => ({ 
 // Metrics Lab
 const MetricsLab = lazy(() => import('./pages/MetricsLab').then(m => ({ default: m.MetricsLab })));
 
+// CRM Insights
+const CrmInsights = lazy(() => import('./pages/CrmInsights').then(m => ({ default: m.CrmInsights })));
+
 
 // AIOS Dashboard pages (lazy loaded)
 const AiosAgentsPage = lazy(() => import('./pages/AiosAgents').then(m => ({ default: m.AiosAgents })));
@@ -100,6 +103,9 @@ const ContentPipeline = lazy(() => import('./pages/ContentPipeline').then(m => (
 
 // Agent Tools Registry
 const AgentTools = lazy(() => import('./pages/AgentTools').then(m => ({ default: m.AgentTools })));
+
+// Catálogo de Produtos
+const Products = lazy(() => import('./pages/Products'));
 
 // Agent Audit
 const AgentAuditPage = lazy(() => import('./pages/AgentAudit').then(m => ({ default: m.AgentAudit })));
@@ -129,6 +135,9 @@ const Workflows = lazy(() => import('./pages/Workflows'));
 
 // Auditoria n8n
 const N8nAudit = lazy(() => import('./pages/N8nAudit').then(m => ({ default: m.N8nAudit })));
+
+// Attendants (cadastro de atendentes humanos para handoff)
+const AttendantsPage = lazy(() => import('./pages/Attendants').then(m => ({ default: m.Attendants })));
 
 // Squad AI (Pipeline de agentes com execucoes n8n)
 const SquadAI = lazy(() => import('./pages/SquadAI'));
@@ -267,6 +276,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <MetricsLab />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/crm-insights" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <CrmInsights />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>
@@ -570,6 +588,15 @@ const App = () => {
                   </ConditionalLayout>
                 </ProtectedRoute>
               } />
+              <Route path="/atendentes" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AttendantsPage />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
               <Route path="/configuracoes" element={
                 <ProtectedRoute>
                   <Layout>
@@ -761,6 +788,17 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <AgentTools />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Catálogo de Produtos */}
+              <Route path="/produtos" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Products />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>

@@ -2,15 +2,20 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAgents, useAgentVersions } from '../../hooks';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
-import { Sparkles, Code, Shield, Brain, Target, Briefcase, FileText } from 'lucide-react';
+import { Sparkles, Code, Shield, Brain, Target, Briefcase, FileText, UserCheck } from 'lucide-react';
 import { AgentVersion, Agent } from '../../types';
 import { PromptEngineerChat } from '../../components/PromptEngineerChat';
 import { EditorHeader } from './components/EditorHeader';
 import { VersionSidebar } from './components/VersionSidebar';
 import { VersionDetails } from './components/VersionDetails';
+import { SandboxChat } from '../../components/sandbox/SandboxChat';
+import { HandoffConfig, parseHandoffConfig, type HandoffConfigData } from '../../components/handoff/HandoffConfig';
+import { PromptGenerator } from '../../components/PromptGenerator';
+import { useAccount } from '../../contexts/AccountContext';
 
 export const PromptEditor: React.FC = () => {
   const { showToast } = useToast();
+  const { selectedAccount } = useAccount();
   const { agents, loading: agentsLoading, refetch: refetchAgents } = useAgents();
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
@@ -19,6 +24,8 @@ export const PromptEditor: React.FC = () => {
   const agentMenuRef = useRef<HTMLDivElement>(null);
   const [isSandboxLoading, setIsSandboxLoading] = useState(false);
   const [showAdjustmentsChat, setShowAdjustmentsChat] = useState(false);
+  const [showSandboxPanel, setShowSandboxPanel] = useState(false);
+  const [showPromptGenerator, setShowPromptGenerator] = useState(false);
 
   // Filtered agents based on search
   const filteredAgents = useMemo(() => {
@@ -60,9 +67,10 @@ export const PromptEditor: React.FC = () => {
   const [code, setCode] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business' | 'handoff'>('prompt');
   const [selectedMode, setSelectedMode] = useState<string>('');
   const [config, setConfig] = useState('{}');
+  const [handoffConfig, setHandoffConfig] = useState<HandoffConfigData>({ enabled: false, trigger_keywords: [], default_attendant_id: null });
 
   const handleRefresh = async () => {
     showToast('Atualizando dados do editor...', 'info');
@@ -82,6 +90,7 @@ export const PromptEditor: React.FC = () => {
         setActiveVersionId(latest.id);
         setCode(latest.system_prompt);
         setConfig(JSON.stringify(latest.hyperpersonalization || {}, null, 2));
+        setHandoffConfig(parseHandoffConfig((latest as any).handoff_config));
 
         const modes = Object.keys(latest.prompts_by_mode || {});
         if (modes.length > 0) {
@@ -92,6 +101,7 @@ export const PromptEditor: React.FC = () => {
       setActiveVersionId('');
       setCode('');
       setConfig('{}');
+      setHandoffConfig({ enabled: false, trigger_keywords: [], default_attendant_id: null });
     }
   }, [versions, activeVersionId]);
 
@@ -106,10 +116,11 @@ export const PromptEditor: React.FC = () => {
       setCode(version.prompts_by_mode?.[selectedMode] || '');
     }
     setConfig(JSON.stringify(version.hyperpersonalization || {}, null, 2));
+    setHandoffConfig(parseHandoffConfig((version as any).handoff_config));
     setIsDirty(false);
   };
 
-  const handleTabChange = (tab: 'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business') => {
+  const handleTabChange = (tab: 'prompt' | 'config' | 'modes' | 'tools' | 'compliance' | 'personality' | 'qualification' | 'business' | 'handoff') => {
     setActiveTab(tab);
     if (!activeVersion) return;
 
@@ -323,6 +334,8 @@ export const PromptEditor: React.FC = () => {
         updateData.qualification_config = parsedConfig;
       } else if (activeTab === 'business') {
         updateData.business_config = parsedConfig;
+      } else if (activeTab === 'handoff') {
+        updateData.handoff_config = handoffConfig;
       }
 
       const { error } = await supabase
@@ -634,11 +647,13 @@ export const PromptEditor: React.FC = () => {
         isPublishing={isPublishing}
         isSandboxLoading={isSandboxLoading}
         showAdjustmentsChat={showAdjustmentsChat}
+        showSandboxPanel={showSandboxPanel}
         onSave={handleSave}
         onPublish={handlePublish}
         onSandbox={handleSandbox}
         onRefresh={handleRefresh}
         onToggleChat={() => setShowAdjustmentsChat(prev => !prev)}
+        onToggleSandbox={() => { setShowSandboxPanel(prev => !prev); setShowAdjustmentsChat(false); }}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -667,6 +682,20 @@ export const PromptEditor: React.FC = () => {
               className="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm p-4 pl-12 resize-none focus:outline-none leading-6"
               style={{ tabSize: 2 }}
             />
+          ) : activeTab === 'handoff' ? (
+            <div className="flex-1 overflow-y-auto p-6 pl-14 bg-bg-primary">
+              <div className="max-w-xl">
+                <div className="flex items-center gap-2 mb-5">
+                  <UserCheck size={16} className="text-cyan-400" />
+                  <span className="text-sm font-semibold text-text-primary">Configuracao de Handoff</span>
+                </div>
+                <HandoffConfig
+                  value={handoffConfig}
+                  onChange={(data) => { setHandoffConfig(data); setIsDirty(true); }}
+                  locationId={activeVersion?.location_id ?? selectedAccount?.location_id ?? null}
+                />
+              </div>
+            </div>
           ) : (
             <div className="flex-1 flex flex-col relative">
               {/* Header bar com nome da config ativa — fora do textarea */}
@@ -703,35 +732,48 @@ export const PromptEditor: React.FC = () => {
         </div>
 
         {/* Configuration Sidebar (Right) - Shows Chat or Details */}
-        <div className={`${showAdjustmentsChat ? 'w-96' : 'w-72'} border-l border-border-default bg-bg-secondary flex flex-col overflow-hidden transition-all`}>
-          {showAdjustmentsChat ? (
-            /* Engenheiro de Prompts */
-            <PromptEngineerChat
-              agentId={selectedAgentId}
-              agentName={selectedAgent?.name || 'Agente'}
-              currentPrompt={code}
-              currentConfigs={{
-                hyperpersonalization: activeVersion?.hyperpersonalization,
-                compliance_rules: activeVersion?.compliance_rules,
-                personality_config: activeVersion?.personality_config,
-                business_config: activeVersion?.business_config,
-                tools_config: activeVersion?.tools_config,
-                prompts_by_mode: activeVersion?.prompts_by_mode,
-              }}
-              onApplyChanges={handleApplyAdjustment}
-              onClose={() => setShowAdjustmentsChat(false)}
+        {!showSandboxPanel && (
+          <div className={`${showAdjustmentsChat ? 'w-96' : 'w-72'} border-l border-border-default bg-bg-secondary flex flex-col overflow-hidden transition-all`}>
+            {showAdjustmentsChat ? (
+              /* Engenheiro de Prompts */
+              <PromptEngineerChat
+                agentId={selectedAgentId}
+                agentName={selectedAgent?.name || 'Agente'}
+                currentPrompt={code}
+                currentConfigs={{
+                  hyperpersonalization: activeVersion?.hyperpersonalization,
+                  compliance_rules: activeVersion?.compliance_rules,
+                  personality_config: activeVersion?.personality_config,
+                  business_config: activeVersion?.business_config,
+                  tools_config: activeVersion?.tools_config,
+                  prompts_by_mode: activeVersion?.prompts_by_mode,
+                }}
+                onApplyChanges={handleApplyAdjustment}
+                onClose={() => setShowAdjustmentsChat(false)}
+              />
+            ) : (
+              /* Detalhes da Versao */
+              <VersionDetails
+                activeVersion={activeVersion}
+                isTogglingActive={isTogglingActive}
+                onToggleActive={handleToggleActive}
+                onToggleField={handleToggleField}
+                onShowChat={() => setShowAdjustmentsChat(true)}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Sandbox Panel (Right) */}
+        {showSandboxPanel && activeVersion && (
+          <div className="w-[480px] border-l border-border-default flex flex-col overflow-hidden shrink-0">
+            <SandboxChat
+              agentVersionId={activeVersion.id}
+              locationId={activeVersion.location_id || ''}
+              isPanel
             />
-          ) : (
-            /* Detalhes da Versao */
-            <VersionDetails
-              activeVersion={activeVersion}
-              isTogglingActive={isTogglingActive}
-              onToggleActive={handleToggleActive}
-              onToggleField={handleToggleField}
-              onShowChat={() => setShowAdjustmentsChat(true)}
-            />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

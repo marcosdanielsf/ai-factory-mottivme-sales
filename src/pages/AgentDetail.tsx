@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle2, AlertCircle, Edit, Play, Clock, TrendingUp, Power, PowerOff, ChevronDown, ChevronUp, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, BookOpen } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle2, AlertCircle, Edit, Play, Clock, TrendingUp, Power, PowerOff, ChevronDown, ChevronUp, Settings, Code, Shield, Brain, Target, Briefcase, Sparkles, BookOpen, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AgentPerformanceRadar, ScoreAreaChart } from '../components/charts';
+import { useIsAdmin } from '../hooks/useIsAdmin';
+import { SandboxChat } from '../components/sandbox/SandboxChat';
 
 interface AgentVersion {
   id: string;
@@ -53,6 +55,8 @@ interface TestResult {
 export const AgentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
+  const [activeTab, setActiveTab] = useState<'overview' | 'sandbox'>('overview');
   const [agent, setAgent] = useState<AgentVersion | null>(null);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,6 +257,47 @@ export const AgentDetail = () => {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
+      {/* Tab navigation */}
+      {isAdmin && (
+        <div className="flex gap-1 border-b border-border-default pb-0">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'overview'
+                ? 'border-accent-primary text-accent-primary'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <FileText size={15} />
+            Visão Geral
+          </button>
+          <button
+            onClick={() => setActiveTab('sandbox')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'sandbox'
+                ? 'border-accent-primary text-accent-primary'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <MessageSquare size={15} />
+            Sandbox
+          </button>
+        </div>
+      )}
+
+      {/* Sandbox tab content */}
+      {activeTab === 'sandbox' && isAdmin && (
+        <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
+          <SandboxChat
+            agentVersionId={agent.id}
+            locationId={agent.location_id || ''}
+          />
+        </div>
+      )}
+
+      {/* Overview tab content */}
+      {(activeTab === 'overview' || !isAdmin) && (
+      <>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-2">
@@ -606,6 +651,8 @@ export const AgentDetail = () => {
             Ver Relatório Completo (HTML)
           </a>
         </div>
+      )}
+      </>
       )}
     </div>
   );

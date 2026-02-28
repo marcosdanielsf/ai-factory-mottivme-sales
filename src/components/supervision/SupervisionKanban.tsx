@@ -9,6 +9,7 @@ import {
   MessageSquare,
   GripVertical,
   Layers,
+  UserCheck,
 } from 'lucide-react';
 import {
   SupervisionConversation,
@@ -29,6 +30,7 @@ interface SupervisionKanbanProps {
 const KANBAN_COLUMNS: { status: SupervisionStatus; icon: React.ReactNode }[] = [
   { status: 'ai_active', icon: <Bot size={14} className="text-green-400" /> },
   { status: 'ai_paused', icon: <PauseCircle size={14} className="text-yellow-400" /> },
+  { status: 'handoff', icon: <UserCheck size={14} className="text-cyan-400" /> },
   { status: 'scheduled', icon: <Calendar size={14} className="text-purple-400" /> },
   { status: 'converted', icon: <CheckCircle size={14} className="text-emerald-400" /> },
   { status: 'lost', icon: <XCircle size={14} className="text-red-400" /> },

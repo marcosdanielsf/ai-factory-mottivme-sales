@@ -62,6 +62,8 @@ import {
   Copy,
   Smartphone,
   FlaskConical,
+  Flame,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions, Permissions } from '../hooks/usePermissions';
@@ -130,6 +132,7 @@ const navSections: NavSection[] = [
     items: [
       { icon: BarChart3, label: 'Sales Ops', to: '/sales-ops', permission: 'canAccessDashboard' },
       { icon: Eye, label: 'Supervisão IA', to: '/supervision', permission: 'canAccessSupervision' },
+      { icon: Users, label: 'Atendentes', to: '/atendentes', permission: 'canAccessSupervision' },
       {
         icon: PhoneCall, label: 'Cold Calls', to: '/cold-calls', permission: 'canAccessCalls', subItems: [
           { icon: LayoutDashboard, label: 'Dashboard', to: '/cold-calls' },
@@ -168,6 +171,7 @@ const navSections: NavSection[] = [
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: BarChart3, label: 'Ads Performance', to: '/ads-performance' },
           { icon: FlaskConical, label: 'Metrics Lab', to: '/metrics-lab' },
+          { icon: Flame, label: 'CRM Insights', to: '/crm-insights' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
           { icon: Workflow, label: 'Hub Ops', to: '/workflows' },
@@ -204,6 +208,7 @@ const navSections: NavSection[] = [
       },
       { icon: Palette, label: 'Brand Assets', to: '/brand', permission: 'canAccessBrand' },
       { icon: Layers, label: 'Agent Tools', to: '/agent-tools', permission: 'canAccessPromptEditor' },
+      { icon: Package, label: 'Catálogo', to: '/produtos', permission: 'canAccessPromptEditor' },
       { icon: ClipboardCheck, label: 'Auditoria', to: '/agent-audit', permission: 'canAccessPromptEditor' },
       { icon: Bot, label: 'Squad AI', to: '/squad-ai', permission: 'canAccessPromptEditor' },
     ]

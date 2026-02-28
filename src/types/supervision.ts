@@ -134,6 +134,7 @@ export const severityConfig: Record<
 export type SupervisionStatus =
   | 'ai_active'
   | 'ai_paused'
+  | 'handoff'
   | 'manual_takeover'
   | 'scheduled'
   | 'converted'
@@ -282,6 +283,11 @@ export const supervisionStatusConfig: Record<
     label: 'IA Pausada',
     color: 'text-yellow-400',
     bgColor: 'bg-yellow-400/10',
+  },
+  handoff: {
+    label: 'Em Handoff',
+    color: 'text-cyan-400',
+    bgColor: 'bg-cyan-400/10',
   },
   manual_takeover: {
     label: 'Manual',

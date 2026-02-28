@@ -23,6 +23,11 @@ const LOCATIONS = [
   { name: 'Dra. Gabriella', location_id: 'xliub5H5pQ4QcDeKHc6F', pit: 'pit-19779a74-2143-4f1e-be77-2985452ec76b' },
   { name: 'Fernanda Lappe', location_id: 'EKHxHl3KLPN0iRc69GNU', pit: 'pit-ec27c8b8-d8c6-4c12-abd4-8c8de6482f41' },
   { name: 'Milton Abreu', location_id: 'mHuN6v75KQc3lwmBd6mV', pit: 'pit-048a8eba-fa6e-42ce-8bd4-3564a7dde62d' },
+  { name: 'Flavia Leal', location_id: '8GedMLMaF26jIkHq50XG', pit: 'pit-12c3bcfd-8745-4fb7-a232-64b370998c9a' },
+  { name: 'Heloise Silvestre', location_id: 'uSwkCg4V1rfpvk4tG6zP', pit: 'pit-585083ce-b329-426b-bfe3-b77a00efc96a' },
+  { name: 'Luiz Augusto', location_id: 'sNwLyynZWP6jEtBy1ubf', pit: 'pit-f520ac8a-0846-4822-ad3b-0047451618d1' },
+  { name: 'Thauan Santos', location_id: 'Rre0WqSlmAPmIrURgiMf', pit: 'pit-449e1aee-aff9-49a9-9859-82b1f8ee6988' },
+  { name: 'Dra. Carolina Simonatto', location_id: 'mfOxMOpk3DoQXRB47MgS', pit: 'pit-e933857c-2295-4004-b9fe-7b57798e6f02' },
 ];
 
 const filterNames = process.argv.slice(2);
