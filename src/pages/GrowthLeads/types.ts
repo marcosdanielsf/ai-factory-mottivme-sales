@@ -3,13 +3,13 @@ export interface GrowthLead {
   name: string;
   phone: string | null;
   email: string | null;
-  website: string | null;
+  linkedin_url: string | null;
   whatsapp: string | null;
-  instagram: string | null;
+  instagram_username: string | null;
   city: string | null;
   state: string | null;
   country: string;
-  specialty: string | null;
+  title: string | null;
   source_channel: string | null;
   created_at: string;
   custom_fields: Record<string, unknown> | null;
@@ -19,7 +19,7 @@ export interface GrowthLeadsKPIs {
   total: number;
   withEmail: number;
   withWhatsapp: number;
-  withWebsite: number;
+  withLinkedin: number;
   enrichmentRate: number;
   noContact: number;
 }
@@ -30,7 +30,7 @@ export interface CountryBreakdown {
   with_email: number;
   with_whatsapp: number;
   with_instagram: number;
-  with_website: number;
+  with_linkedin: number;
   enriched: number;
 }
 

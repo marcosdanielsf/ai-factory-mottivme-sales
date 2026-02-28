@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Mail, MessageCircle, Globe, TrendingUp, AlertCircle } from 'lucide-react';
+import { Users, Mail, MessageCircle, Linkedin, TrendingUp, AlertCircle } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { formatNumber, formatPct } from '../helpers';
 import type { GrowthLeadsKPIs } from '../types';
@@ -41,10 +41,10 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading }) => {
         subtext={kpis.total > 0 ? formatPct((kpis.withWhatsapp / kpis.total) * 100) : '0%'}
       />
       <MetricCard
-        title="Com Website"
-        value={formatNumber(kpis.withWebsite)}
-        icon={Globe}
-        subtext={kpis.total > 0 ? formatPct((kpis.withWebsite / kpis.total) * 100) : '0%'}
+        title="Com LinkedIn"
+        value={formatNumber(kpis.withLinkedin)}
+        icon={Linkedin}
+        subtext={kpis.total > 0 ? formatPct((kpis.withLinkedin / kpis.total) * 100) : '0%'}
       />
       <MetricCard
         title="Taxa Enrichment"
@@ -56,7 +56,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading }) => {
         title="Sem Contato"
         value={formatNumber(kpis.noContact)}
         icon={AlertCircle}
-        subtext="Sem email/WA/IG/site"
+        subtext="Sem email/WA/IG/LI"
       />
     </div>
   );

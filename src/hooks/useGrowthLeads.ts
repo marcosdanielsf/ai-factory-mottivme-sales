@@ -10,7 +10,7 @@ const sanitizeSearch = (value: string): string =>
   value.replace(/[%_().,\\]/g, '').trim();
 
 export const useGrowthLeads = () => {
-  const [kpis, setKpis] = useState<GrowthLeadsKPIs>({ total: 0, withEmail: 0, withWhatsapp: 0, withWebsite: 0, enrichmentRate: 0, noContact: 0 });
+  const [kpis, setKpis] = useState<GrowthLeadsKPIs>({ total: 0, withEmail: 0, withWhatsapp: 0, withLinkedin: 0, enrichmentRate: 0, noContact: 0 });
   const [countryBreakdown, setCountryBreakdown] = useState<CountryBreakdown[]>([]);
   const [specialties, setSpecialties] = useState<SpecialtyBreakdown[]>([]);
   const [leads, setLeads] = useState<GrowthLead[]>([]);
@@ -63,19 +63,19 @@ export const useGrowthLeads = () => {
         return q;
       };
 
-      const [rTotal, rEmail, rWhatsapp, rWebsite, rEnriched, rNoContact] = await Promise.all([
+      const [rTotal, rEmail, rWhatsapp, rLinkedin, rEnriched, rNoContact] = await Promise.all([
         baseQuery(),
         baseQuery().not('email', 'is', null),
         baseQuery().not('whatsapp', 'is', null),
-        baseQuery().not('website', 'is', null),
-        baseQuery().or('email.not.is.null,whatsapp.not.is.null,instagram.not.is.null'),
-        baseQuery().is('email', null).is('whatsapp', null).is('instagram', null).is('website', null),
+        baseQuery().not('linkedin_url', 'is', null),
+        baseQuery().or('email.not.is.null,whatsapp.not.is.null,instagram_username.not.is.null'),
+        baseQuery().is('email', null).is('whatsapp', null).is('instagram_username', null).is('linkedin_url', null),
       ]);
 
       const total = rTotal.count ?? 0;
       const withEmail = rEmail.count ?? 0;
       const withWhatsapp = rWhatsapp.count ?? 0;
-      const withWebsite = rWebsite.count ?? 0;
+      const withLinkedin = rLinkedin.count ?? 0;
       const enriched = rEnriched.count ?? 0;
       const noContact = rNoContact.count ?? 0;
 
@@ -83,7 +83,7 @@ export const useGrowthLeads = () => {
         total,
         withEmail,
         withWhatsapp,
-        withWebsite,
+        withLinkedin,
         enrichmentRate: total > 0 ? (enriched / total) * 100 : 0,
         noContact,
       });
@@ -119,7 +119,7 @@ export const useGrowthLeads = () => {
 
       let query = supabase
         .from('growth_leads')
-        .select('id,name,phone,email,website,whatsapp,instagram,city,state,country,specialty,source_channel,created_at,custom_fields', { count: 'exact' });
+        .select('id,name,phone,email,linkedin_url,whatsapp,instagram_username,city,state,country,title,source_channel,created_at,custom_fields', { count: 'exact' });
 
       // Country filter
       if (filters.countries.length > 0) {
@@ -129,19 +129,19 @@ export const useGrowthLeads = () => {
       // Search (sanitized to prevent PostgREST filter injection)
       const safe = sanitizeSearch(debouncedSearch);
       if (safe) {
-        query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,specialty.ilike.%${safe}%`);
+        query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,title.ilike.%${safe}%`);
       }
 
       // Enrichment filter
       if (filters.enrichmentStatus === 'enriched') {
-        query = query.or('email.not.is.null,whatsapp.not.is.null,instagram.not.is.null');
+        query = query.or('email.not.is.null,whatsapp.not.is.null,instagram_username.not.is.null');
       } else if (filters.enrichmentStatus === 'no_contact') {
-        query = query.is('email', null).is('whatsapp', null).is('instagram', null).is('website', null);
+        query = query.is('email', null).is('whatsapp', null).is('instagram_username', null).is('linkedin_url', null);
       }
 
-      // Specialty filter
+      // Specialty filter (uses 'title' column)
       if (filters.specialty) {
-        query = query.eq('specialty', filters.specialty);
+        query = query.eq('title', filters.specialty);
       }
 
       // Sort + pagination

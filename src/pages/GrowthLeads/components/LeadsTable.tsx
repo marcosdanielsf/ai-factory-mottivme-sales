@@ -35,10 +35,10 @@ const ContactBadge: React.FC<{ value: string | null; label: string; color: strin
   );
 };
 
-const safeWebsiteHref = (website: string): string => {
+const safeLinkHref = (url: string): string => {
   try {
-    const url = new URL(website.startsWith('http') ? website : `https://${website}`);
-    return ['https:', 'http:'].includes(url.protocol) ? url.href : '#';
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return ['https:', 'http:'].includes(parsed.protocol) ? parsed.href : '#';
   } catch { return '#'; }
 };
 
@@ -60,20 +60,20 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     try {
       let query = supabase
         .from('growth_leads')
-        .select('name,phone,email,website,whatsapp,instagram,city,state,country,specialty')
+        .select('name,phone,email,linkedin_url,whatsapp,instagram_username,city,state,country,title')
         .limit(5000);
 
       if (filters.countries.length > 0) query = query.in('country', filters.countries);
       if (searchTerm) {
         const safe = searchTerm.replace(/[%_().,\\]/g, '').trim();
-        if (safe) query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,specialty.ilike.%${safe}%`);
+        if (safe) query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,title.ilike.%${safe}%`);
       }
       if (filters.enrichmentStatus === 'enriched') {
-        query = query.or('email.not.is.null,whatsapp.not.is.null,instagram.not.is.null');
+        query = query.or('email.not.is.null,whatsapp.not.is.null,instagram_username.not.is.null');
       } else if (filters.enrichmentStatus === 'no_contact') {
-        query = query.is('email', null).is('whatsapp', null).is('instagram', null).is('website', null);
+        query = query.is('email', null).is('whatsapp', null).is('instagram_username', null).is('linkedin_url', null);
       }
-      if (filters.specialty) query = query.eq('specialty', filters.specialty);
+      if (filters.specialty) query = query.eq('title', filters.specialty);
 
       const { data } = await query;
       if (!data || data.length === 0) return;
@@ -98,7 +98,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     } finally {
       setExporting(false);
     }
-  }, [filters, exporting]);
+  }, [filters, searchTerm, exporting]);
 
   return (
     <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
@@ -125,7 +125,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
               <th className={thClass} onClick={() => onToggleSort('name')}>Nome <SortIcon field="name" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('country')}>País <SortIcon field="country" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('city')}>Cidade <SortIcon field="city" sortField={sortField} sortAsc={sortAsc} /></th>
-              <th className={thClass} onClick={() => onToggleSort('specialty')}>Especialidade <SortIcon field="specialty" sortField={sortField} sortAsc={sortAsc} /></th>
+              <th className={thClass} onClick={() => onToggleSort('title')}>Especialidade <SortIcon field="title" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass}>Contatos</th>
               <th className={thClass} onClick={() => onToggleSort('created_at')}>Data <SortIcon field="created_at" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className="px-3 py-2 w-8" />
@@ -153,20 +153,20 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                       <span title={getCountryLabel(lead.country)}>{getCountryFlag(lead.country)} {lead.country}</span>
                     </td>
                     <td className={`${tdClass} max-w-[150px] truncate`}>{lead.city ?? '-'}</td>
-                    <td className={`${tdClass} max-w-[180px] truncate`}>{lead.specialty ?? '-'}</td>
+                    <td className={`${tdClass} max-w-[180px] truncate`}>{lead.title ?? '-'}</td>
                     <td className={tdClass}>
                       <div className="flex flex-wrap gap-1">
                         <ContactBadge value={lead.email} label="Email" color="bg-blue-500/10 text-blue-400" />
                         <ContactBadge value={lead.whatsapp} label="WA" color="bg-green-500/10 text-green-400" />
-                        <ContactBadge value={lead.instagram} label="IG" color="bg-pink-500/10 text-pink-400" />
-                        {lead.website && (
+                        <ContactBadge value={lead.instagram_username} label="IG" color="bg-pink-500/10 text-pink-400" />
+                        {lead.linkedin_url && (
                           <a
-                            href={safeWebsiteHref(lead.website)}
+                            href={safeLinkHref(lead.linkedin_url)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 transition-colors"
                           >
-                            Site <ExternalLink size={8} />
+                            LI <ExternalLink size={8} />
                           </a>
                         )}
                       </div>
