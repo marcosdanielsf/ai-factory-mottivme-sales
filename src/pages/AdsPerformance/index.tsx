@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, RefreshCw } from 'lucide-react';
+import { BarChart3, ChevronDown, RefreshCw } from 'lucide-react';
 import { DateRangePicker } from '../../components/DateRangePicker';
 import type { DateRange } from '../../components/DateRangePicker';
 import { useAdsPerformance } from '../../hooks/useAdsPerformance';
-import { useAccount } from '../../contexts/AccountContext';
 import { OverviewTab } from './components/tabs/OverviewTab';
 import { AdsTables } from './components/AdsTables';
 
 export const AdsPerformance: React.FC = () => {
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
@@ -17,20 +17,18 @@ export const AdsPerformance: React.FC = () => {
     return { startDate: start, endDate: end };
   });
 
-  const { selectedAccount } = useAccount();
-  const locationId = useMemo(() => selectedAccount?.location_id ?? null, [selectedAccount]);
-
   const {
     overview,
     periodDeltas,
     campanhas,
     adsets,
     anuncios,
+    accounts,
     porDia,
     loading,
     error,
     refetch,
-  } = useAdsPerformance(dateRange, locationId);
+  } = useAdsPerformance(selectedAccount, dateRange);
 
   const dateRangeLabel = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) return '';
@@ -55,6 +53,24 @@ export const AdsPerformance: React.FC = () => {
 
             <div className="flex items-center gap-2 flex-wrap">
               <DateRangePicker value={dateRange} onChange={setDateRange} />
+              {accounts.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={selectedAccount ?? ''}
+                    onChange={(e) => setSelectedAccount(e.target.value || null)}
+                    className="appearance-none pl-3 pr-8 py-2 text-sm rounded-xl bg-white/[0.05] text-text-primary border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
+                  >
+                    <option value="">Todas as contas</option>
+                    {accounts.map((acc) => (
+                      <option key={acc} value={acc}>{acc}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                  />
+                </div>
+              )}
               <button
                 onClick={() => refetch()}
                 disabled={loading}

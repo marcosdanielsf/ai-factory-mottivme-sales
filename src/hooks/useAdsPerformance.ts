@@ -22,6 +22,7 @@ interface UseAdsPerformanceReturn {
   criativos: FbAdPerformance[];
   porDia: AdsSummaryByDate[];
   adsWithLeads: AdsWithLeads[];
+  accounts: string[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -67,12 +68,11 @@ function getDefaultEndDate(): Date {
 }
 
 export const useAdsPerformance = (
+  accountName?: string | null,
   dateRange?: DateRange | null,
-  locationId?: string | null,
 ): UseAdsPerformanceReturn => {
   const [rawAds, setRawAds] = useState<FbAdPerformance[]>([]);
   const [rawAdsWithLeads, setRawAdsWithLeads] = useState<AdsWithLeads[]>([]);
-  const [rawSummary, setRawSummary] = useState<AdsSummaryByDate[]>([]);
   const [prevAds, setPrevAds] = useState<FbAdPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,28 +109,15 @@ export const useAdsPerformance = (
         .order('data_relatorio', { ascending: false })
         .limit(10000);
 
-      if (locationId) adsQuery = adsQuery.eq('location_id', locationId);
+      if (accountName) adsQuery = adsQuery.eq('account_name', accountName);
 
-      // Q2: vw_ads_with_leads (join com leads)
-      let leadsQuery = supabase
+      // Q2: vw_ads_with_leads (join com leads) — sem filtro por account_name (view nao tem)
+      const leadsQuery = supabase
         .from('vw_ads_with_leads')
         .select('*')
         .gte('data_relatorio', startStr)
         .lte('data_relatorio', endStr)
         .limit(10000);
-
-      if (locationId) leadsQuery = leadsQuery.eq('location_id', locationId);
-
-      // Q3: vw_ads_summary_by_date (agregado diario)
-      let summaryQuery = supabase
-        .from('vw_ads_summary_by_date')
-        .select('*')
-        .gte('data_relatorio', startStr)
-        .lte('data_relatorio', endStr)
-        .order('data_relatorio', { ascending: true })
-        .limit(1000);
-
-      if (locationId) summaryQuery = summaryQuery.eq('location_id', locationId);
 
       // Q4: fb_ads_performance previous period (para deltas)
       let prevQuery = supabase
@@ -140,23 +127,20 @@ export const useAdsPerformance = (
         .lte('data_relatorio', prevEndStr)
         .limit(10000);
 
-      if (locationId) prevQuery = prevQuery.eq('location_id', locationId);
+      if (accountName) prevQuery = prevQuery.eq('account_name', accountName);
 
-      const [adsResult, leadsResult, summaryResult, prevResult] = await Promise.all([
+      const [adsResult, leadsResult, prevResult] = await Promise.all([
         adsQuery,
         leadsQuery,
-        summaryQuery,
         prevQuery,
       ]);
 
       if (adsResult.error) throw new Error(adsResult.error.message);
       if (leadsResult.error) console.warn('[AdsPerformance] vw_ads_with_leads error:', leadsResult.error.message);
-      if (summaryResult.error) console.warn('[AdsPerformance] vw_ads_summary_by_date error:', summaryResult.error.message);
       if (prevResult.error) console.warn('[AdsPerformance] prev period error:', prevResult.error.message);
 
       setRawAds((adsResult.data || []) as FbAdPerformance[]);
       setRawAdsWithLeads((leadsResult.data || []) as AdsWithLeads[]);
-      setRawSummary((summaryResult.data || []) as AdsSummaryByDate[]);
       setPrevAds((prevResult.data || []) as FbAdPerformance[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar dados de ads';
@@ -165,7 +149,7 @@ export const useAdsPerformance = (
     } finally {
       setLoading(false);
     }
-  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId]);
+  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), accountName]);
 
   useEffect(() => {
     fetchData();
@@ -391,7 +375,65 @@ export const useAdsPerformance = (
       }))
       .sort((a, b) => b.totalSpend - a.totalSpend);
 
-    return { overview, periodDeltas, campanhas, adsets, anuncios };
+    // --- Accounts (lista unica para dropdown) ---
+    const accountSet = new Set<string>();
+    for (const ad of rawAds) {
+      if (ad.account_name) accountSet.add(ad.account_name);
+    }
+    const accounts = Array.from(accountSet).sort();
+
+    // --- porDia (agregado diario computado do rawAds, respeita filtro account) ---
+    const dayMap = new Map<string, {
+      spend: number; impressions: number; clicks: number; conversas: number;
+      reach: number; reactions: number; formSubmissions: number; adIds: Set<string>;
+    }>();
+
+    for (const ad of rawAds) {
+      const key = ad.data_relatorio;
+      const existing = dayMap.get(key);
+      if (existing) {
+        existing.spend += ad.spend || 0;
+        existing.impressions += ad.impressions || 0;
+        existing.clicks += ad.clicks || 0;
+        existing.conversas += ad.conversas_iniciadas || 0;
+        existing.reach += ad.reach || 0;
+        existing.reactions += ad.post_reactions || 0;
+        existing.formSubmissions += ad.form_submissions || 0;
+        existing.adIds.add(ad.ad_id);
+      } else {
+        dayMap.set(key, {
+          spend: ad.spend || 0,
+          impressions: ad.impressions || 0,
+          clicks: ad.clicks || 0,
+          conversas: ad.conversas_iniciadas || 0,
+          reach: ad.reach || 0,
+          reactions: ad.post_reactions || 0,
+          formSubmissions: ad.form_submissions || 0,
+          adIds: new Set([ad.ad_id]),
+        });
+      }
+    }
+
+    const porDia: AdsSummaryByDate[] = Array.from(dayMap.entries())
+      .map(([data_relatorio, d]) => ({
+        data_relatorio,
+        total_spend: d.spend,
+        total_impressions: d.impressions,
+        total_clicks: d.clicks,
+        total_conversas: d.conversas,
+        total_reach: d.reach,
+        total_reactions: d.reactions,
+        total_form_submissions: d.formSubmissions,
+        avg_cpc: d.clicks > 0 ? d.spend / d.clicks : null,
+        avg_cpm: d.impressions > 0 ? (d.spend / d.impressions) * 1000 : null,
+        avg_ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : null,
+        avg_frequency: d.reach > 0 ? d.impressions / d.reach : null,
+        ads_count: d.adIds.size,
+        location_id: null,
+      }))
+      .sort((a, b) => a.data_relatorio.localeCompare(b.data_relatorio));
+
+    return { overview, periodDeltas, campanhas, adsets, anuncios, accounts, porDia };
   }, [rawAds, prevAds]);
 
   return {
@@ -400,8 +442,9 @@ export const useAdsPerformance = (
     campanhas: computed.campanhas || [],
     adsets: computed.adsets || [],
     anuncios: computed.anuncios || [],
+    accounts: computed.accounts || [],
     criativos: rawAds,
-    porDia: rawSummary,
+    porDia: computed.porDia || [],
     adsWithLeads: rawAdsWithLeads,
     loading,
     error,
