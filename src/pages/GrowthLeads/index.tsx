@@ -4,6 +4,7 @@ import { useGrowthLeads } from '@/hooks/useGrowthLeads';
 import { KPICards } from './components/KPICards';
 import { FiltersBar } from './components/FiltersBar';
 import { CountryChart } from './components/CountryChart';
+import { SpecialtiesChart } from './components/SpecialtiesChart';
 import { LeadsTable } from './components/LeadsTable';
 
 export const GrowthLeads: React.FC = () => {
@@ -12,6 +13,7 @@ export const GrowthLeads: React.FC = () => {
     totalRows, page, totalPages,
     loading, loadingTable, error,
     filters, sortField, sortAsc,
+    availableRegions,
     setPage, toggleSort, updateFilters, updateSearch, refetch,
   } = useGrowthLeads();
 
@@ -55,12 +57,16 @@ export const GrowthLeads: React.FC = () => {
         <FiltersBar
           filters={filters}
           specialties={specialties}
+          regions={availableRegions}
           onUpdateFilters={updateFilters}
           onUpdateSearch={updateSearch}
         />
 
-        {/* Chart */}
-        <CountryChart data={countryBreakdown} loading={loading} />
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CountryChart data={countryBreakdown} loading={loading} />
+          <SpecialtiesChart data={specialties} loading={loading} />
+        </div>
 
         {/* Table */}
         <LeadsTable

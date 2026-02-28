@@ -5,12 +5,15 @@ import type { GrowthLead, GrowthLeadsKPIs, CountryBreakdown, SpecialtyBreakdown,
 const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 400;
 
+export type SortableField = 'created_at' | 'name' | 'country' | 'region' | 'company' | 'title' | 'source_channel';
+
 // Sanitiza input para uso em filtros PostgREST (previne injection via metacaracteres)
-const sanitizeSearch = (value: string): string =>
+export const sanitizeSearch = (value: string): string =>
   value.replace(/[%_().,\\]/g, '').trim();
 
 export const useGrowthLeads = () => {
-  const [kpis, setKpis] = useState<GrowthLeadsKPIs>({ total: 0, withEmail: 0, withWhatsapp: 0, withLinkedin: 0, enrichmentRate: 0, noContact: 0 });
+  const [kpis, setKpis] = useState<GrowthLeadsKPIs>({ total: 0, withEmail: 0, withWhatsapp: 0, withLinkedin: 0, withInstagram: 0, enrichmentRate: 0, noContact: 0 });
+  const [availableRegions, setAvailableRegions] = useState<string[]>([]);
   const [countryBreakdown, setCountryBreakdown] = useState<CountryBreakdown[]>([]);
   const [specialties, setSpecialties] = useState<SpecialtyBreakdown[]>([]);
   const [leads, setLeads] = useState<GrowthLead[]>([]);
@@ -19,14 +22,16 @@ export const useGrowthLeads = () => {
   const [loading, setLoading] = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<string>('created_at');
+  const [sortField, setSortField] = useState<SortableField>('created_at');
   const [sortAsc, setSortAsc] = useState(false);
 
   const [filters, setFilters] = useState<GrowthLeadsFilters>({
     countries: [],
+    regions: [],
     search: '',
     enrichmentStatus: 'all',
     specialty: '',
+    dateRange: { startDate: null, endDate: null },
   });
 
   // Debounced search
@@ -49,25 +54,33 @@ export const useGrowthLeads = () => {
     }, DEBOUNCE_MS);
   }, []);
 
-  // Fetch KPIs + charts (runs on mount and country filter change)
+  // Stable date strings for useCallback deps (avoid re-fetch on Date ref change)
+  const dateFrom = filters.dateRange.startDate?.toISOString() ?? '';
+  const dateTo = filters.dateRange.endDate?.toISOString() ?? '';
+
+  // Fetch KPIs + charts (runs on mount and filter changes)
   const fetchKPIsAndCharts = useCallback(async () => {
     if (!isSupabaseConfigured()) { setError('Supabase não configurado'); setLoading(false); return; }
     try {
       setLoading(true);
       setError(null);
 
-      // KPIs: 6 parallel head-only queries (select 'id' to minimize planner work)
+      // KPIs: 7 parallel head-only queries (select 'id' to minimize planner work)
       const baseQuery = () => {
         let q = supabase.from('growth_leads').select('id', { count: 'exact', head: true });
         if (filters.countries.length > 0) q = q.in('country', filters.countries);
+        if (filters.regions.length > 0) q = q.in('region', filters.regions);
+        if (dateFrom) q = q.gte('created_at', dateFrom);
+        if (dateTo) q = q.lte('created_at', dateTo);
         return q;
       };
 
-      const [rTotal, rEmail, rWhatsapp, rLinkedin, rEnriched, rNoContact] = await Promise.all([
+      const [rTotal, rEmail, rWhatsapp, rLinkedin, rInstagram, rEnriched, rNoContact] = await Promise.all([
         baseQuery(),
         baseQuery().not('email', 'is', null),
         baseQuery().not('whatsapp', 'is', null),
         baseQuery().not('linkedin_url', 'is', null),
+        baseQuery().not('instagram_username', 'is', null),
         baseQuery().or('email.not.is.null,whatsapp.not.is.null,instagram_username.not.is.null'),
         baseQuery().is('email', null).is('whatsapp', null).is('instagram_username', null).is('linkedin_url', null),
       ]);
@@ -76,6 +89,7 @@ export const useGrowthLeads = () => {
       const withEmail = rEmail.count ?? 0;
       const withWhatsapp = rWhatsapp.count ?? 0;
       const withLinkedin = rLinkedin.count ?? 0;
+      const withInstagram = rInstagram.count ?? 0;
       const enriched = rEnriched.count ?? 0;
       const noContact = rNoContact.count ?? 0;
 
@@ -84,6 +98,7 @@ export const useGrowthLeads = () => {
         withEmail,
         withWhatsapp,
         withLinkedin,
+        withInstagram,
         enrichmentRate: total > 0 ? (enriched / total) * 100 : 0,
         noContact,
       });
@@ -109,7 +124,17 @@ export const useGrowthLeads = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters.countries]);
+  }, [filters.countries, filters.regions, dateFrom, dateTo]);
+
+  // Fetch available regions (once on mount — static data)
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    supabase.rpc('growth_leads_regions').then(({ data, error: err }) => {
+      if (!err && data) {
+        setAvailableRegions((data as { region: string }[]).map(r => r.region));
+      }
+    });
+  }, []);
 
   // Fetch table (runs on page/search/filter/sort changes)
   const fetchTable = useCallback(async () => {
@@ -125,6 +150,15 @@ export const useGrowthLeads = () => {
       if (filters.countries.length > 0) {
         query = query.in('country', filters.countries);
       }
+
+      // Region filter
+      if (filters.regions.length > 0) {
+        query = query.in('region', filters.regions);
+      }
+
+      // Date range filter
+      if (dateFrom) query = query.gte('created_at', dateFrom);
+      if (dateTo) query = query.lte('created_at', dateTo);
 
       // Search (sanitized to prevent PostgREST filter injection)
       const safe = sanitizeSearch(debouncedSearch);
@@ -159,22 +193,20 @@ export const useGrowthLeads = () => {
     } finally {
       setLoadingTable(false);
     }
-  }, [filters.countries, filters.enrichmentStatus, filters.specialty, debouncedSearch, page, sortField, sortAsc]);
+  }, [filters.countries, filters.regions, filters.enrichmentStatus, filters.specialty, debouncedSearch, dateFrom, dateTo, page, sortField, sortAsc]);
 
   useEffect(() => { fetchKPIsAndCharts(); }, [fetchKPIsAndCharts]);
   useEffect(() => { fetchTable(); }, [fetchTable]);
 
-  const toggleSort = useCallback((field: string) => {
-    setSortField(prev => {
-      if (prev === field) {
-        setSortAsc(a => !a);
-        return field;
-      }
+  const toggleSort = useCallback((field: SortableField) => {
+    if (field === sortField) {
+      setSortAsc(a => !a);
+    } else {
+      setSortField(field);
       setSortAsc(false);
-      return field;
-    });
+    }
     setPage(0);
-  }, []);
+  }, [sortField]);
 
   const updateFilters = useCallback((partial: Partial<GrowthLeadsFilters>) => {
     setFilters(prev => ({ ...prev, ...partial }));
@@ -202,6 +234,7 @@ export const useGrowthLeads = () => {
     filters,
     sortField,
     sortAsc,
+    availableRegions,
     setPage,
     toggleSort,
     updateFilters,

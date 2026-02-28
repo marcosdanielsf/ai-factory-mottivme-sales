@@ -1,16 +1,19 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { DateRangePicker } from '@/components/DateRangePicker';
+import type { DateRange } from '@/components/DateRangePicker';
 import { COUNTRY_CONFIG, getCountryFlag } from '../helpers';
 import type { GrowthLeadsFilters, SpecialtyBreakdown } from '../types';
 
 interface FiltersBarProps {
   filters: GrowthLeadsFilters;
   specialties: SpecialtyBreakdown[];
+  regions: string[];
   onUpdateFilters: (partial: Partial<GrowthLeadsFilters>) => void;
   onUpdateSearch: (value: string) => void;
 }
 
-export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, onUpdateFilters, onUpdateSearch }) => {
+export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, regions, onUpdateFilters, onUpdateSearch }) => {
   const toggleCountry = (code: string) => {
     const next = filters.countries.includes(code)
       ? filters.countries.filter(c => c !== code)
@@ -18,11 +21,24 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, on
     onUpdateFilters({ countries: next });
   };
 
+  const toggleRegion = (region: string) => {
+    const next = filters.regions.includes(region)
+      ? filters.regions.filter(r => r !== region)
+      : [...filters.regions, region];
+    onUpdateFilters({ regions: next });
+  };
+
+  const handleDateRangeChange = (range: DateRange) => {
+    onUpdateFilters({ dateRange: range });
+  };
+
   const activeCount = [
     filters.countries.length > 0,
+    filters.regions.length > 0,
     filters.enrichmentStatus !== 'all',
     !!filters.specialty,
     !!filters.search,
+    !!filters.dateRange.startDate,
   ].filter(Boolean).length;
 
   return (
@@ -39,6 +55,12 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, on
             className="w-full pl-8 pr-3 py-1.5 bg-bg-tertiary border border-border-default rounded-md text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50"
           />
         </div>
+
+        {/* Date range */}
+        <DateRangePicker
+          value={filters.dateRange}
+          onChange={handleDateRangeChange}
+        />
 
         {/* Enrichment status */}
         <select
@@ -69,7 +91,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, on
         {activeCount > 0 && (
           <button
             onClick={() => {
-              onUpdateFilters({ countries: [], enrichmentStatus: 'all', specialty: '' });
+              onUpdateFilters({ countries: [], regions: [], enrichmentStatus: 'all', specialty: '', dateRange: { startDate: null, endDate: null } });
               onUpdateSearch('');
             }}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-accent-error hover:bg-accent-error/10 rounded-md transition-colors"
@@ -101,6 +123,30 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, on
           );
         })}
       </div>
+
+      {/* Region chips */}
+      {regions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-text-muted mr-1">Região:</span>
+          {regions.map(region => {
+            const isActive = filters.regions.includes(region);
+            return (
+              <button
+                key={region}
+                onClick={() => toggleRegion(region)}
+                className={`
+                  px-2 py-1 rounded-md text-xs transition-colors
+                  ${isActive
+                    ? 'bg-accent-primary/10 border border-accent-primary/40 text-accent-primary'
+                    : 'bg-bg-tertiary border border-border-default/50 text-text-secondary hover:border-border-default hover:text-text-primary'}
+                `}
+              >
+                {region}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

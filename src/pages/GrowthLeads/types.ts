@@ -20,6 +20,7 @@ export interface GrowthLeadsKPIs {
   withEmail: number;
   withWhatsapp: number;
   withLinkedin: number;
+  withInstagram: number;
   enrichmentRate: number;
   noContact: number;
 }
@@ -41,9 +42,13 @@ export interface SpecialtyBreakdown {
   with_whatsapp: number;
 }
 
+import type { DateRange } from '@/components/DateRangePicker';
+
 export interface GrowthLeadsFilters {
   countries: string[];
+  regions: string[];
   search: string;
   enrichmentStatus: 'all' | 'enriched' | 'no_contact';
   specialty: string;
+  dateRange: DateRange;
 }

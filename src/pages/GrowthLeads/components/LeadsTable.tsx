@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink, Download } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { sanitizeSearch, type SortableField } from '@/hooks/useGrowthLeads';
 import { getCountryFlag, getCountryLabel, formatNumber } from '../helpers';
 import type { GrowthLead, GrowthLeadsFilters } from '../types';
 
@@ -10,12 +11,12 @@ interface LeadsTableProps {
   page: number;
   totalPages: number;
   totalRows: number;
-  sortField: string;
+  sortField: SortableField;
   sortAsc: boolean;
   filters: GrowthLeadsFilters;
   searchTerm: string;
   onPageChange: (page: number) => void;
-  onToggleSort: (field: string) => void;
+  onToggleSort: (field: SortableField) => void;
 }
 
 const thClass = 'px-3 py-2 text-left text-xs font-medium text-text-muted whitespace-nowrap cursor-pointer hover:text-text-primary transition-colors select-none';
@@ -54,18 +55,24 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  const EXPORT_HEADERS = ['name','phone','email','whatsapp','instagram_username','linkedin_url','company','region','country','title','source_channel','created_at'] as const;
+
   const handleExport = useCallback(async () => {
     if (!isSupabaseConfigured() || exporting) return;
     setExporting(true);
     try {
       let query = supabase
         .from('growth_leads')
-        .select('name,phone,email,linkedin_url,whatsapp,instagram_username,company,region,country,title')
+        .select(EXPORT_HEADERS.join(','))
+        .order('created_at', { ascending: false })
         .limit(5000);
 
       if (filters.countries.length > 0) query = query.in('country', filters.countries);
+      if (filters.regions.length > 0) query = query.in('region', filters.regions);
+      if (filters.dateRange.startDate) query = query.gte('created_at', filters.dateRange.startDate.toISOString());
+      if (filters.dateRange.endDate) query = query.lte('created_at', filters.dateRange.endDate.toISOString());
       if (searchTerm) {
-        const safe = searchTerm.replace(/[%_().,\\]/g, '').trim();
+        const safe = sanitizeSearch(searchTerm);
         if (safe) query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,company.ilike.%${safe}%,title.ilike.%${safe}%`);
       }
       if (filters.enrichmentStatus === 'enriched') {
@@ -75,13 +82,13 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       }
       if (filters.specialty) query = query.eq('title', filters.specialty);
 
-      const { data } = await query;
+      const { data, error: qErr } = await query;
+      if (qErr) throw new Error(qErr.message);
       if (!data || data.length === 0) return;
 
-      const headers = Object.keys(data[0]);
       const csv = [
-        headers.join(','),
-        ...data.map(row => headers.map(h => {
+        EXPORT_HEADERS.join(','),
+        ...data.map(row => EXPORT_HEADERS.map(h => {
           const val = (row as Record<string, unknown>)[h];
           const str = val == null ? '' : String(val);
           return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
@@ -95,6 +102,8 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
       a.download = `growth_leads_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch {
+      // Export error silently handled — user sees button reset
     } finally {
       setExporting(false);
     }
@@ -119,13 +128,15 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full min-w-[1100px]">
           <thead className="bg-bg-tertiary/50">
             <tr>
               <th className={thClass} onClick={() => onToggleSort('name')}>Nome <SortIcon field="name" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('country')}>País <SortIcon field="country" sortField={sortField} sortAsc={sortAsc} /></th>
+              <th className={thClass} onClick={() => onToggleSort('region')}>Região <SortIcon field="region" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('company')}>Empresa <SortIcon field="company" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('title')}>Especialidade <SortIcon field="title" sortField={sortField} sortAsc={sortAsc} /></th>
+              <th className={thClass} onClick={() => onToggleSort('source_channel')}>Fonte <SortIcon field="source_channel" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass}>Contatos</th>
               <th className={thClass} onClick={() => onToggleSort('created_at')}>Data <SortIcon field="created_at" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className="px-3 py-2 w-8" />
@@ -135,14 +146,14 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <td key={j} className={tdClass}><div className="h-4 bg-bg-tertiary rounded animate-pulse w-20" /></td>
                   ))}
                 </tr>
               ))
             ) : leads.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-text-muted text-sm">Sem leads para os filtros selecionados</td>
+                <td colSpan={9} className="px-3 py-8 text-center text-text-muted text-sm">Sem leads para os filtros selecionados</td>
               </tr>
             ) : (
               leads.map(lead => (
@@ -152,8 +163,16 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                     <td className={tdClass}>
                       <span title={getCountryLabel(lead.country)}>{getCountryFlag(lead.country)} {lead.country}</span>
                     </td>
+                    <td className={`${tdClass} max-w-[120px] truncate`}>{lead.region ?? '-'}</td>
                     <td className={`${tdClass} max-w-[150px] truncate`}>{lead.company ?? '-'}</td>
                     <td className={`${tdClass} max-w-[180px] truncate`}>{lead.title ?? '-'}</td>
+                    <td className={tdClass}>
+                      {lead.source_channel ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400">
+                          {lead.source_channel}
+                        </span>
+                      ) : '-'}
+                    </td>
                     <td className={tdClass}>
                       <div className="flex flex-wrap gap-1">
                         <ContactBadge value={lead.email} label="Email" color="bg-blue-500/10 text-blue-400" />
@@ -185,7 +204,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                   </tr>
                   {expandedRow === lead.id && lead.custom_fields && (
                     <tr className="bg-bg-tertiary/30">
-                      <td colSpan={7} className="px-4 py-3">
+                      <td colSpan={9} className="px-4 py-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                           {Object.entries(lead.custom_fields).map(([key, val]) => (
                             <div key={key}>
