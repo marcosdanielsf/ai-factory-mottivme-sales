@@ -182,7 +182,16 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <div className="flex flex-wrap gap-1">
               <ContactBadge value={lead.email} label="Email" color="bg-blue-500/10 text-blue-400" />
               <ContactBadge value={lead.whatsapp} label="WA" color="bg-green-500/10 text-green-400" />
-              <ContactBadge value={lead.instagram_username} label="IG" color="bg-pink-500/10 text-pink-400" />
+              {lead.instagram_username && (
+                <a
+                  href={`https://instagram.com/${lead.instagram_username.replace(/^@/, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors"
+                >
+                  IG <ExternalLink size={8} />
+                </a>
+              )}
               {lead.linkedin_url && (
                 <a
                   href={safeLinkHref(lead.linkedin_url)}
