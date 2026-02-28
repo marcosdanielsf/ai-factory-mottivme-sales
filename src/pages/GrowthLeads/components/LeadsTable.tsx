@@ -60,13 +60,13 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     try {
       let query = supabase
         .from('growth_leads')
-        .select('name,phone,email,linkedin_url,whatsapp,instagram_username,city,state,country,title')
+        .select('name,phone,email,linkedin_url,whatsapp,instagram_username,company,region,country,title')
         .limit(5000);
 
       if (filters.countries.length > 0) query = query.in('country', filters.countries);
       if (searchTerm) {
         const safe = searchTerm.replace(/[%_().,\\]/g, '').trim();
-        if (safe) query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,title.ilike.%${safe}%`);
+        if (safe) query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,company.ilike.%${safe}%,title.ilike.%${safe}%`);
       }
       if (filters.enrichmentStatus === 'enriched') {
         query = query.or('email.not.is.null,whatsapp.not.is.null,instagram_username.not.is.null');
@@ -124,7 +124,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
             <tr>
               <th className={thClass} onClick={() => onToggleSort('name')}>Nome <SortIcon field="name" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('country')}>País <SortIcon field="country" sortField={sortField} sortAsc={sortAsc} /></th>
-              <th className={thClass} onClick={() => onToggleSort('city')}>Cidade <SortIcon field="city" sortField={sortField} sortAsc={sortAsc} /></th>
+              <th className={thClass} onClick={() => onToggleSort('company')}>Empresa <SortIcon field="company" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass} onClick={() => onToggleSort('title')}>Especialidade <SortIcon field="title" sortField={sortField} sortAsc={sortAsc} /></th>
               <th className={thClass}>Contatos</th>
               <th className={thClass} onClick={() => onToggleSort('created_at')}>Data <SortIcon field="created_at" sortField={sortField} sortAsc={sortAsc} /></th>
@@ -152,7 +152,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                     <td className={tdClass}>
                       <span title={getCountryLabel(lead.country)}>{getCountryFlag(lead.country)} {lead.country}</span>
                     </td>
-                    <td className={`${tdClass} max-w-[150px] truncate`}>{lead.city ?? '-'}</td>
+                    <td className={`${tdClass} max-w-[150px] truncate`}>{lead.company ?? '-'}</td>
                     <td className={`${tdClass} max-w-[180px] truncate`}>{lead.title ?? '-'}</td>
                     <td className={tdClass}>
                       <div className="flex flex-wrap gap-1">

@@ -6,8 +6,8 @@ export interface GrowthLead {
   linkedin_url: string | null;
   whatsapp: string | null;
   instagram_username: string | null;
-  city: string | null;
-  state: string | null;
+  company: string | null;
+  region: string | null;
   country: string;
   title: string | null;
   source_channel: string | null;

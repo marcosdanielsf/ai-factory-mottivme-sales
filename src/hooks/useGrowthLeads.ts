@@ -119,7 +119,7 @@ export const useGrowthLeads = () => {
 
       let query = supabase
         .from('growth_leads')
-        .select('id,name,phone,email,linkedin_url,whatsapp,instagram_username,city,state,country,title,source_channel,created_at,custom_fields', { count: 'exact' });
+        .select('id,name,phone,email,linkedin_url,whatsapp,instagram_username,company,region,country,title,source_channel,created_at,custom_fields', { count: 'exact' });
 
       // Country filter
       if (filters.countries.length > 0) {
@@ -129,7 +129,7 @@ export const useGrowthLeads = () => {
       // Search (sanitized to prevent PostgREST filter injection)
       const safe = sanitizeSearch(debouncedSearch);
       if (safe) {
-        query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%,title.ilike.%${safe}%`);
+        query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,company.ilike.%${safe}%,title.ilike.%${safe}%`);
       }
 
       // Enrichment filter

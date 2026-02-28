@@ -33,7 +33,7 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({ filters, specialties, on
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
-            placeholder="Buscar nome, email, cidade..."
+            placeholder="Buscar nome, email, empresa..."
             value={filters.search}
             onChange={e => onUpdateSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 bg-bg-tertiary border border-border-default rounded-md text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50"
