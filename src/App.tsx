@@ -77,6 +77,9 @@ const AdsPerformance = lazy(() => import('./pages/AdsPerformance').then(m => ({ 
 // Metrics Lab
 const MetricsLab = lazy(() => import('./pages/MetricsLab').then(m => ({ default: m.MetricsLab })));
 
+// Growth Leads Dashboard
+const GrowthLeads = lazy(() => import('./pages/GrowthLeads').then(m => ({ default: m.GrowthLeads })));
+
 // AIOS Dashboard pages (lazy loaded)
 const AiosAgentsPage = lazy(() => import('./pages/AiosAgents').then(m => ({ default: m.AiosAgents })));
 const AiosAgentDetailPage = lazy(() => import('./pages/AiosAgents/AgentDetail').then(m => ({ default: m.AiosAgentDetail })));
@@ -262,6 +265,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <MetricsLab />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/growth-leads" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GrowthLeads />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>

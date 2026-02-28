@@ -168,6 +168,7 @@ const navSections: NavSection[] = [
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: BarChart3, label: 'Ads Performance', to: '/ads-performance' },
           { icon: FlaskConical, label: 'Metrics Lab', to: '/metrics-lab' },
+          { icon: Database, label: 'Growth Leads', to: '/growth-leads' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
           { icon: Workflow, label: 'Hub Ops', to: '/workflows' },
