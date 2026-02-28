@@ -23,9 +23,12 @@ interface EvolutionData {
   versionAfter: string
 }
 
+export type DataSource = 'improver' | 'reflection'
+
 interface AgentEvolutionChartProps {
   locationId?: string
   limit?: number
+  onDataSourceChange?: (source: DataSource) => void
 }
 
 const SCORE_COLORS = {
@@ -35,16 +38,24 @@ const SCORE_COLORS = {
   media: '#8b5cf6'
 }
 
-const SCORE_LABELS = {
+const SCORE_LABELS_IMPROVER = {
   pnl: 'PNL',
   neurovendas: 'Neurovendas',
   pessoas: 'Pessoas',
   media: 'Media'
 }
 
-function CustomTooltip({ active, payload }: any) {
+const SCORE_LABELS_REFLECTION = {
+  pnl: 'Completude',
+  neurovendas: 'Profundidade',
+  pessoas: 'Tom',
+  media: 'Media'
+}
+
+function CustomTooltip({ active, payload, labels }: any) {
   if (!active || !payload || !payload.length) return null
 
+  const scoreLabels = labels || SCORE_LABELS_IMPROVER
   const data = payload[0].payload
 
   return (
@@ -62,7 +73,7 @@ function CustomTooltip({ active, payload }: any) {
                 style={{ backgroundColor: entry.color }}
               />
               <span className="text-text-muted text-sm">
-                {SCORE_LABELS[entry.dataKey as keyof typeof SCORE_LABELS]}
+                {scoreLabels[entry.dataKey as keyof typeof SCORE_LABELS_IMPROVER]}
               </span>
             </div>
             <span className="text-text-primary font-bold tabular-nums">
@@ -126,10 +137,11 @@ function ScoreIndicator({ label, value, color, icon, trend }: ScoreIndicatorProp
   )
 }
 
-export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionChartProps) {
+export function AgentEvolutionChart({ locationId, limit = 30, onDataSourceChange }: AgentEvolutionChartProps) {
   const [data, setData] = useState<EvolutionData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dataSource, setDataSource] = useState<DataSource>('improver')
   const [visibleLines, setVisibleLines] = useState({
     pnl: true,
     neurovendas: true,
@@ -143,10 +155,11 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
       setLoading(true)
       setError(null)
 
+      // 1. Tentar agent_improvement_logs (fonte primaria — Improver)
       let query = supabase
         .from('agent_improvement_logs')
-        .select('execution_date, score_pnl, score_neurovendas, score_pessoas, score_media, version_before, version_after')
-        .order('execution_date', { ascending: true })
+        .select('created_at, score_pnl, score_neurovendas, score_pessoas, score_media, version_before, version_after')
+        .order('created_at', { ascending: true })
         .limit(limit)
 
       if (locationId) {
@@ -155,38 +168,76 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
 
       const { data: logs, error: fetchError } = await query
 
-      if (fetchError) {
-        // Tabela pode nao existir — graceful fallback
-        console.warn('[AgentEvolutionChart] Tabela indisponivel:', fetchError.message)
-        setData([])
-        setError(null)
+      if (!fetchError && logs && logs.length > 0) {
+        const formattedData: EvolutionData[] = logs.map((log) => ({
+          date: log.created_at,
+          displayDate: new Date(log.created_at).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          pnl: log.score_pnl || 0,
+          neurovendas: log.score_neurovendas || 0,
+          pessoas: log.score_pessoas || 0,
+          media: log.score_media || 0,
+          versionBefore: log.version_before || 'N/A',
+          versionAfter: log.version_after || 'N/A'
+        }))
+
+        setData(formattedData)
+        setDataSource('improver')
+        onDataSourceChange?.('improver')
         return
       }
 
-      const formattedData: EvolutionData[] = (logs || []).map((log) => ({
-        date: log.execution_date,
-        displayDate: new Date(log.execution_date).toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        pnl: log.score_pnl || 0,
-        neurovendas: log.score_neurovendas || 0,
-        pessoas: log.score_pessoas || 0,
-        media: log.score_media || 0,
-        versionBefore: log.version_before || 'N/A',
-        versionAfter: log.version_after || 'N/A'
-      }))
+      // 2. Fallback: reflection_logs (quando Improver nao tem dados)
+      if (fetchError) {
+        console.warn('[AgentEvolutionChart] agent_improvement_logs indisponivel:', fetchError.message)
+      }
 
-      setData(formattedData)
+      const { data: rlLogs, error: rlError } = await supabase
+        .from('reflection_logs')
+        .select('created_at, overall_score, score_completeness, score_depth, score_tone, agent_versions(version)')
+        .order('created_at', { ascending: true })
+        .limit(limit)
+
+      if (!rlError && rlLogs && rlLogs.length > 0) {
+        const formattedData: EvolutionData[] = rlLogs.map((log: any) => {
+          const agentInfo = log.agent_versions || {}
+          return {
+            date: log.created_at,
+            displayDate: new Date(log.created_at).toLocaleDateString('pt-BR', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            pnl: (log.score_completeness || 0) * 10,
+            neurovendas: (log.score_depth || 0) * 10,
+            pessoas: (log.score_tone || 0) * 10,
+            media: (log.overall_score || 0) * 10,
+            versionBefore: agentInfo.version || 'N/A',
+            versionAfter: agentInfo.version || 'N/A'
+          }
+        })
+
+        setData(formattedData)
+        setDataSource('reflection')
+        onDataSourceChange?.('reflection')
+        return
+      }
+
+      // Nenhuma fonte teve dados
+      setData([])
+      setError(null)
     } catch (err) {
       console.error('Erro ao buscar dados de evolucao:', err)
       setError('Falha ao carregar dados de evolucao do agente')
     } finally {
       setLoading(false)
     }
-  }, [locationId, limit])
+  }, [locationId, limit, onDataSourceChange])
 
   useEffect(() => {
     if (!locationId) {
@@ -199,6 +250,8 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
   const toggleLine = (key: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({ ...prev, [key]: !prev[key] }))
   }
+
+  const SCORE_LABELS = dataSource === 'reflection' ? SCORE_LABELS_REFLECTION : SCORE_LABELS_IMPROVER
 
   const latestData = data[data.length - 1]
   const previousData = data[data.length - 2]
@@ -261,9 +314,12 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
               <TrendingUp className="w-6 h-6 text-accent-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-text-primary">Evolucao do Agente SDR</h2>
+              <h2 className="text-xl font-bold text-text-primary">
+                {dataSource === 'reflection' ? 'Evolucao via Reflection Loop' : 'Evolucao do Agente SDR'}
+              </h2>
               <p className="text-text-muted text-sm mt-0.5">
                 Performance ao longo de {data.length} execucoes
+                {dataSource === 'reflection' && <span className="ml-2 text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">Reflection</span>}
               </p>
             </div>
           </div>
@@ -281,28 +337,28 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
       {latestData && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-6 border-b border-border-default">
           <ScoreIndicator
-            label="PNL"
+            label={SCORE_LABELS.pnl}
             value={latestData.pnl}
             color={SCORE_COLORS.pnl}
             icon={<Brain className="w-4 h-4" style={{ color: SCORE_COLORS.pnl }} />}
             trend={previousData ? calculateTrend(latestData.pnl, previousData.pnl) : undefined}
           />
           <ScoreIndicator
-            label="Neurovendas"
+            label={SCORE_LABELS.neurovendas}
             value={latestData.neurovendas}
             color={SCORE_COLORS.neurovendas}
             icon={<Zap className="w-4 h-4" style={{ color: SCORE_COLORS.neurovendas }} />}
             trend={previousData ? calculateTrend(latestData.neurovendas, previousData.neurovendas) : undefined}
           />
           <ScoreIndicator
-            label="Pessoas"
+            label={SCORE_LABELS.pessoas}
             value={latestData.pessoas}
             color={SCORE_COLORS.pessoas}
             icon={<Users className="w-4 h-4" style={{ color: SCORE_COLORS.pessoas }} />}
             trend={previousData ? calculateTrend(latestData.pessoas, previousData.pessoas) : undefined}
           />
           <ScoreIndicator
-            label="Media Geral"
+            label={SCORE_LABELS.media}
             value={latestData.media}
             color={SCORE_COLORS.media}
             icon={<BarChart3 className="w-4 h-4" style={{ color: SCORE_COLORS.media }} />}
@@ -359,7 +415,7 @@ export function AgentEvolutionChart({ locationId, limit = 30 }: AgentEvolutionCh
               ticks={[0, 25, 50, 75, 100]}
             />
 
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip labels={SCORE_LABELS} />} />
 
             <ReferenceLine y={80} stroke="#10b981" strokeDasharray="5 5" strokeOpacity={0.3} />
             <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="5 5" strokeOpacity={0.3} />

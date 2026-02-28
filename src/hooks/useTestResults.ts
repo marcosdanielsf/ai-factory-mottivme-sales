@@ -427,7 +427,65 @@ export const useTestResults = (dateRange?: DateRange) => {
         allResults.push(...mappedFromTR);
       }
 
-      // 4. Se não encontrou nada, tentar tabela legacy
+      // 4. Buscar reflection_logs como fonte adicional de qualidade
+      try {
+        let rlQuery = supabase
+          .from('reflection_logs')
+          .select('id, agent_version_id, overall_score, score_completeness, score_depth, score_tone, conversations_analyzed, strengths, weaknesses, action_taken, action_reason, created_at, execution_time_ms, agent_versions(agent_name, version, location_id)')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (dateRange?.startDate) {
+          rlQuery = rlQuery.gte('created_at', dateRange.startDate.toISOString());
+        }
+        if (dateRange?.endDate) {
+          rlQuery = rlQuery.lte('created_at', dateRange.endDate.toISOString());
+        }
+
+        const { data: rlData, error: rlError } = await rlQuery;
+
+        if (!rlError && rlData && rlData.length > 0) {
+          const rlMapped = rlData.map((rl: any) => {
+            const agentInfo = rl.agent_versions || {};
+            const score = rl.overall_score || 0;
+            const passed = score >= 7 ? 1 : 0;
+            const failed = score < 7 ? 1 : 0;
+
+            return {
+              id: `rl-${rl.id}`,
+              agent_version_id: agentInfo.version || 'reflection',
+              status: 'completed' as const,
+              score_overall: score,
+              score_dimensions: {
+                tone: rl.score_tone || Math.min(10, score * 0.95),
+                engagement: Math.min(10, score * 1.05),
+                compliance: Math.min(10, score),
+                accuracy: rl.score_completeness || Math.min(10, score * 0.9),
+                empathy: rl.score_depth || Math.min(10, score * 0.85),
+                efficiency: Math.min(10, score * 0.9),
+              },
+              passed_tests: passed,
+              failed_tests: failed,
+              total_tests: rl.conversations_analyzed || 1,
+              created_at: rl.created_at,
+              run_at: rl.created_at,
+              agent_name: agentInfo.agent_name || 'Agente',
+              agent_version: agentInfo.version,
+              location_id: agentInfo.location_id,
+              strengths: rl.strengths || [],
+              weaknesses: rl.weaknesses || [],
+              execution_time_ms: rl.execution_time_ms,
+              summary: `Reflection: ${score.toFixed(1)}/10 | Acao: ${rl.action_taken || 'N/A'} | ${rl.conversations_analyzed || 0} conversas`,
+            } as AgentTestRun;
+          });
+
+          allResults.push(...rlMapped);
+        }
+      } catch (e) {
+        console.info('[useTestResults] reflection_logs query failed, continuing without it');
+      }
+
+      // 5. Se não encontrou nada, tentar tabela legacy
       if (allResults.length === 0) {
         const { data: oldData, error: oldError } = await supabase
           .from('agenttest_runs')
@@ -445,7 +503,7 @@ export const useTestResults = (dateRange?: DateRange) => {
         }
       }
 
-      // 5. Se ainda não tem nada, usar mock
+      // 6. Se ainda não tem nada, usar mock
       if (allResults.length === 0) {
         console.warn('Nenhum resultado de teste encontrado. Usando mock data.');
         setResults(getMockResults());

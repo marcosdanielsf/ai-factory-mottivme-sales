@@ -1,179 +1,59 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Lightbulb, CheckCircle2, Clock, TrendingUp, Settings, History, MessageSquare } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useState } from 'react';
+import { RefreshCw, Lightbulb, CheckCircle2, Clock, TrendingUp, Settings, History } from 'lucide-react';
 import { ReflectionSettings } from '../components/ReflectionSettings';
 import { ReflectionLogs } from '../components/ReflectionLogs';
 import { ExperienceSuggestions } from '../components/ExperienceSuggestions';
-
-interface ReflectionStats {
-  total_improvements: number;
-  applied_improvements: number;
-  pending_suggestions: number;
-  avg_score_improvement: number;
-}
-
-// Default config for reflection settings
-const DEFAULT_CONFIG = {
-  reflection_interval_hours: 24,
-  min_conversations_before_reflection: 50,
-  update_threshold: 7.0,
-  weakness_repeat_threshold: 3,
-  significant_drop_threshold: 1.5,
-  auto_apply_minor_fixes: false,
-  require_approval_for_major_changes: true,
-  pause_on_low_score: true,
-  low_score_threshold: 5.0,
-  notify_on_update: true,
-  notify_on_weakness_pattern: true,
-  notify_on_score_drop: true,
-  notification_channels: ['email', 'slack'],
-  max_changes_per_cycle: 3,
-  cooldown_after_change_hours: 4,
-};
+import { useReflectionLoop } from '../hooks/useReflectionLoop';
 
 type TabType = 'suggestions' | 'logs' | 'settings';
 
 export const ReflectionLoop = () => {
   const [activeTab, setActiveTab] = useState<TabType>('suggestions');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [stats, setStats] = useState<ReflectionStats>({
-    total_improvements: 0,
-    applied_improvements: 0,
-    pending_suggestions: 0,
-    avg_score_improvement: 0,
-  });
-  const [loading, setLoading] = useState(false);
+  const {
+    logs,
+    suggestions,
+    config,
+    stats,
+    loading,
+    refetch: fetchData,
+    acceptSuggestion,
+    rejectSuggestion,
+    applySuggestion,
+    saveConfig,
+  } = useReflectionLoop();
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Buscar reflection_logs do Supabase
-      const { data: logsData, error: logsError } = await supabase
-        .from('reflection_logs')
-        .select('*, agent_versions(agent_name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (!logsError && logsData && logsData.length > 0) {
-        // Transformar dados para formato esperado pelo componente
-        const transformedLogs = logsData.map((log: any, index: number) => {
-          const scoreBreakdown = log.score_breakdown || {};
-          const reflectionCompleta = scoreBreakdown.reflection_completa?.reflection || {};
-          const analiseGeral = reflectionCompleta.analise_geral || {};
-
-          // Score pode estar em score_geral ou overall_score
-          const scoreGeral = reflectionCompleta.score_geral || log.overall_score || 0;
-
-          return {
-            id: log.id,
-            agent_id: log.agent_version_id,
-            agent_name: log.agent_versions?.agent_name || 'Agente',
-            cycle_number: logsData.length - index,
-            decision: log.action_taken === 'escalate' ? 'UPDATE' : 'MAINTAIN',
-            reasoning: log.action_reason || reflectionCompleta.status || 'Analise realizada',
-            score_before: scoreGeral,
-            score_after: scoreGeral,
-            changes_made: reflectionCompleta.proximos_passos?.slice(0, 3) || [],
-            weaknesses_detected: analiseGeral.pontos_fracos?.slice(0, 3) || log.weaknesses || [],
-            strengths_detected: analiseGeral.pontos_fortes?.slice(0, 3) || log.strengths || [],
-            conversations_analyzed: log.conversations_analyzed || 0,
-            created_at: log.created_at,
-            duration_ms: log.execution_time_ms || 10000,
-          };
-        });
-
-        setLogs(transformedLogs);
-
-        // Extrair sugestoes dos logs (recomendacoes_priorizadas)
-        const extractedSuggestions: any[] = [];
-        logsData.forEach((log: any) => {
-          const scoreBreakdown = log.score_breakdown || {};
-          const reflectionCompleta = scoreBreakdown.reflection_completa?.reflection || {};
-          const recomendacoes = reflectionCompleta.recomendacoes_priorizadas || [];
-
-          recomendacoes.forEach((rec: any, idx: number) => {
-            // Mapear prioridade para tipo
-            const prioridade = rec.prioridade?.toLowerCase() || '';
-            const type = prioridade.includes('cr') ? 'compliance' :
-                        prioridade.includes('alta') ? 'engagement' :
-                        prioridade.includes('m') ? 'tone' : 'conversion';
-
-            extractedSuggestions.push({
-              id: `${log.id}-${idx}`,
-              type,
-              title: rec.titulo || 'Melhoria Sugerida',
-              description: rec.problema || rec.solucao,
-              impact_score: prioridade.includes('cr') ? 9.5 :
-                           prioridade.includes('alta') ? 8.0 :
-                           prioridade.includes('m') ? 6.5 : 5.0,
-              source: 'llm_evaluation' as const,
-              evidence: [rec.impacto || ''],
-              suggested_change: rec.solucao,
-              example: rec.exemplo_pratico,
-              status: 'pending' as const,
-              created_at: log.created_at,
-              conversation_count: log.conversations_analyzed || 0,
-            });
-          });
-        });
-
-        setSuggestions(extractedSuggestions.slice(0, 15));
-
-        // Calcular estatisticas
-        const totalImprovements = extractedSuggestions.length;
-        const appliedImprovements = logsData.filter((l: any) => l.action_taken === 'escalate').length;
-        const avgScore = logsData.reduce((acc: number, l: any) => {
-          const score = l.score_breakdown?.reflection_completa?.reflection?.score_geral || l.overall_score || 0;
-          return acc + score;
-        }, 0) / Math.max(logsData.length, 1);
-
-        setStats({
-          total_improvements: totalImprovements,
-          applied_improvements: appliedImprovements,
-          pending_suggestions: extractedSuggestions.filter(s => s.status === 'pending').length,
-          avg_score_improvement: avgScore > 0 ? avgScore : 0,
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching reflection data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Handlers for suggestions
   const handleAcceptSuggestion = async (id: string) => {
-    setSuggestions(prev => prev.map(s =>
-      s.id === id ? { ...s, status: 'accepted' as const } : s
-    ));
+    try {
+      await acceptSuggestion(id);
+    } catch (err) {
+      console.error('Erro ao aceitar sugestao:', err);
+    }
   };
 
   const handleRejectSuggestion = async (id: string, reason?: string) => {
-    setSuggestions(prev => prev.map(s =>
-      s.id === id ? { ...s, status: 'rejected' as const } : s
-    ));
+    try {
+      await rejectSuggestion(id, reason);
+    } catch (err) {
+      console.error('Erro ao rejeitar sugestao:', err);
+    }
   };
 
   const handleApplySuggestion = async (id: string) => {
-    setSuggestions(prev => prev.map(s =>
-      s.id === id ? { ...s, status: 'applied' as const } : s
-    ));
+    try {
+      await applySuggestion(id);
+    } catch (err) {
+      console.error('Erro ao aplicar sugestao:', err);
+    }
   };
 
-  // Handler for settings
   const handleSaveConfig = async (newConfig: typeof config) => {
-    setConfig(newConfig);
-    // TODO: Save to Supabase
+    try {
+      await saveConfig(newConfig);
+    } catch (err) {
+      console.error('Erro ao salvar config:', err);
+    }
   };
 
-  // Handler for export logs
   const handleExportLogs = () => {
     const csv = logs.map(log =>
       `${log.created_at},${log.agent_name},${log.decision},${log.score_before},${log.score_after || ''},${log.conversations_analyzed}`

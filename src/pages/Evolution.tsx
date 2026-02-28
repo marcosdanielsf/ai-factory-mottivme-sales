@@ -1,7 +1,29 @@
-import { AgentEvolutionChart } from '../components/charts/AgentEvolutionChart'
+import { useState, useCallback } from 'react'
+import { AgentEvolutionChart, type DataSource } from '../components/charts/AgentEvolutionChart'
 import { TrendingUp, Brain, Zap, Users, Sparkles } from 'lucide-react'
 
+const INFO_CARDS = {
+  improver: [
+    { icon: Brain, bgClass: 'bg-blue-500/10', iconClass: 'text-blue-500', title: 'Score PNL', description: 'Mede a capacidade do agente de aplicar tecnicas de Programacao Neurolinguistica: Yes Set, Pressuposicoes, VAC e Rapport natural.' },
+    { icon: Zap, bgClass: 'bg-emerald-500/10', iconClass: 'text-emerald-500', title: 'Score Neurovendas', description: 'Avalia o uso de gatilhos mentais e tecnicas de persuasao: 3 Cerebros, Escassez, Autoridade e Prova Social.' },
+    { icon: Users, bgClass: 'bg-orange-500/10', iconClass: 'text-orange-500', title: 'Score Pessoas', description: 'Analisa habilidades interpessoais do agente: Empatia, Fluidez, Uso do nome e Fechamento efetivo.' },
+  ],
+  reflection: [
+    { icon: Brain, bgClass: 'bg-blue-500/10', iconClass: 'text-blue-500', title: 'Score Completude', description: 'Avalia se o agente cobre todos os pontos necessarios da conversa: qualificacao, objecoes e proximo passo.' },
+    { icon: Zap, bgClass: 'bg-emerald-500/10', iconClass: 'text-emerald-500', title: 'Score Profundidade', description: 'Mede a profundidade da analise: perguntas abertas, exploracao de dor e entendimento do contexto.' },
+    { icon: Users, bgClass: 'bg-orange-500/10', iconClass: 'text-orange-500', title: 'Score Tom', description: 'Analisa tom e linguagem do agente: naturalidade, adaptacao ao perfil do lead e cordialidade.' },
+  ],
+}
+
 export function Evolution() {
+  const [dataSource, setDataSource] = useState<DataSource>('improver')
+
+  const handleDataSourceChange = useCallback((source: DataSource) => {
+    setDataSource(source)
+  }, [])
+
+  const cards = INFO_CARDS[dataSource]
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -15,56 +37,33 @@ export function Evolution() {
           </h1>
         </div>
         <p className="text-text-muted mt-2 max-w-xl">
-          Acompanhe a evolucao dos scores do agente SDR ao longo do tempo.
-          O Improver analisa conversas semanalmente e sugere melhorias.
+          {dataSource === 'reflection'
+            ? 'Evolucao baseada no Reflection Loop. Scores derivados da analise automatica de conversas.'
+            : 'Acompanhe a evolucao dos scores do agente SDR ao longo do tempo. O Improver analisa conversas semanalmente e sugere melhorias.'}
         </p>
       </div>
 
       {/* Evolution Chart */}
       <div className="mb-8">
-        <AgentEvolutionChart limit={50} />
+        <AgentEvolutionChart limit={50} onDataSourceChange={handleDataSourceChange} />
       </div>
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-6 hover:border-border-hover transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Brain className="w-5 h-5 text-blue-500" />
+        {cards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div key={card.title} className="bg-bg-secondary border border-border-default rounded-xl p-6 hover:border-border-hover transition-colors">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-2 ${card.bgClass} rounded-lg`}>
+                  <Icon className={`w-5 h-5 ${card.iconClass}`} />
+                </div>
+                <h3 className="text-text-primary font-semibold">{card.title}</h3>
+              </div>
+              <p className="text-text-muted text-sm">{card.description}</p>
             </div>
-            <h3 className="text-text-primary font-semibold">Score PNL</h3>
-          </div>
-          <p className="text-text-muted text-sm">
-            Mede a capacidade do agente de aplicar tecnicas de Programacao Neurolinguistica:
-            Yes Set, Pressuposicoes, VAC e Rapport natural.
-          </p>
-        </div>
-
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-6 hover:border-border-hover transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Zap className="w-5 h-5 text-emerald-500" />
-            </div>
-            <h3 className="text-text-primary font-semibold">Score Neurovendas</h3>
-          </div>
-          <p className="text-text-muted text-sm">
-            Avalia o uso de gatilhos mentais e tecnicas de persuasao:
-            3 Cerebros, Escassez, Autoridade e Prova Social.
-          </p>
-        </div>
-
-        <div className="bg-bg-secondary border border-border-default rounded-xl p-6 hover:border-border-hover transition-colors">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-orange-500/10 rounded-lg">
-              <Users className="w-5 h-5 text-orange-500" />
-            </div>
-            <h3 className="text-text-primary font-semibold">Score Pessoas</h3>
-          </div>
-          <p className="text-text-muted text-sm">
-            Analisa habilidades interpessoais do agente:
-            Empatia, Fluidez, Uso do nome e Fechamento efetivo.
-          </p>
-        </div>
+          )
+        })}
       </div>
 
       {/* How it works */}
