@@ -1,0 +1,223 @@
+{
+  "name": "Meta Custom Audiences Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "aa110000-1111-2222-3333-444455556666",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bc.location_id, bc.brand_name, bc.meta_dataset_id, bc.meta_access_token, bc.meta_ad_account_id, bc.theme_overrides FROM brand_configs bc WHERE bc.meta_ad_account_id IS NOT NULL AND bc.meta_access_token IS NOT NULL AND bc.meta_dataset_id IS NOT NULL",
+        "options": {}
+      },
+      "id": "bb220000-2222-3333-4444-555566667777",
+      "name": "Fetch Locations With Dataset",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT ON (t.phone) t.location_id, t.phone, t.email, t.lead_name, t.etapa_funil, t.created_at FROM n8n_schedule_tracking t WHERE t.location_id = '{{ $('Fetch Locations With Dataset').first().json.location_id }}' AND t.etapa_funil IN ('Agendou', 'Compareceu', 'Fechou') AND t.phone IS NOT NULL ORDER BY t.phone, t.created_at DESC",
+        "options": {}
+      },
+      "id": "cc330000-3333-4444-5555-666677778888",
+      "name": "Fetch Qualified Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst locationConfig = $('Fetch Locations With Dataset').first().json;\nconst leads = $('Fetch Qualified Leads').all();\n\nfunction sha256(value) {\n  if (value == null || value === '' || value === 'NULL') return null;\n  const normalized = String(value).trim().toLowerCase();\n  return crypto.createHash('sha256').update(normalized).digest('hex');\n}\n\nfunction normalizePhone(phone) {\n  if (phone == null) return null;\n  // Remove everything except digits\n  const digits = String(phone).replace(/\\D/g, '');\n  return digits;\n}\n\nfunction splitName(fullName) {\n  if (fullName == null) return { fn: null, ln: null };\n  const parts = String(fullName).trim().split(/\\s+/);\n  const fn = parts[0] || null;\n  const ln = parts.length > 1 ? parts.slice(1).join(' ') : null;\n  return { fn, ln };\n}\n\nconst userData = [];\nfor (const lead of leads) {\n  const { lead_name, email, phone } = lead.json;\n  const { fn, ln } = splitName(lead_name);\n  const normalizedPhone = normalizePhone(phone);\n\n  const entry = {};\n  const hashedEmail = sha256(email);\n  const hashedPhone = sha256(normalizedPhone);\n  const hashedFn = sha256(fn);\n  const hashedLn = sha256(ln);\n\n  if (hashedEmail) entry.EMAIL = hashedEmail;\n  if (hashedPhone) entry.PHONE = hashedPhone;\n  if (hashedFn) entry.FN = hashedFn;\n  if (hashedLn) entry.LN = hashedLn;\n\n  if (Object.keys(entry).length > 0) {\n    userData.push(entry);\n  }\n}\n\nreturn [{\n  json: {\n    location_id: locationConfig.location_id,\n    brand_name: locationConfig.brand_name,\n    meta_ad_account_id: locationConfig.meta_ad_account_id,\n    meta_access_token: locationConfig.meta_access_token,\n    user_data: userData,\n    lead_count: userData.length,\n    audience_name: 'Leads Qualificados - ' + (locationConfig.brand_name || locationConfig.location_id)\n  }\n}];"
+      },
+      "id": "dd440000-4444-5555-6666-777788889999",
+      "name": "Hash Lead Data SHA256",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/act_{{ $('Hash Lead Data SHA256').first().json.meta_ad_account_id }}/customaudiences",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": {{ JSON.stringify($('Hash Lead Data SHA256').first().json.audience_name) }},\n  \"subtype\": \"CUSTOM\",\n  \"description\": \"Leads qualificados sincronizados automaticamente pelo MOTTIVME\",\n  \"customer_file_source\": \"USER_PROVIDED_ONLY\",\n  \"access_token\": {{ JSON.stringify($('Hash Lead Data SHA256').first().json.meta_access_token) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "ee550000-5555-6666-7777-888899990000",
+      "name": "Create Meta Custom Audience",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Create Meta Custom Audience').first().json.id }}/users",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"payload\": {\n    \"schema\": [\"EMAIL\", \"PHONE\", \"FN\", \"LN\"],\n    \"data\": {{ JSON.stringify($('Hash Lead Data SHA256').first().json.user_data.map(u => [u.EMAIL || null, u.PHONE || null, u.FN || null, u.LN || null])) }}\n  },\n  \"access_token\": {{ JSON.stringify($('Hash Lead Data SHA256').first().json.meta_access_token) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "ff660000-6666-7777-8888-999900001111",
+      "name": "Add Users To Audience",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO meta_custom_audiences (location_id, audience_id, audience_name, lead_count, synced_at, status, response_payload) VALUES ('{{ $('Hash Lead Data SHA256').first().json.location_id }}', '{{ $('Create Meta Custom Audience').first().json.id }}', '{{ $('Hash Lead Data SHA256').first().json.audience_name }}', {{ $('Hash Lead Data SHA256').first().json.lead_count }}, NOW(), 'synced', '{{ JSON.stringify($('Add Users To Audience').first().json) }}'::TEXT) ON CONFLICT (location_id, audience_id) DO UPDATE SET lead_count = EXCLUDED.lead_count, synced_at = NOW(), status = 'synced', response_payload = EXCLUDED.response_payload",
+        "options": {}
+      },
+      "id": "gg770000-7777-8888-9999-000011112222",
+      "name": "Upsert Audience Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Locations With Dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Locations With Dataset": {
+      "main": [
+        [
+          {
+            "node": "Fetch Qualified Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Qualified Leads": {
+      "main": [
+        [
+          {
+            "node": "Hash Lead Data SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Lead Data SHA256": {
+      "main": [
+        [
+          {
+            "node": "Create Meta Custom Audience",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Meta Custom Audience": {
+      "main": [
+        [
+          {
+            "node": "Add Users To Audience",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Users To Audience": {
+      "main": [
+        [
+          {
+            "node": "Upsert Audience Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

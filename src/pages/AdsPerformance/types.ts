@@ -74,6 +74,8 @@ export interface AdsOverview {
   custoPorConversa: number;
   custoPorCadastro: number;
   ctr: number;
+  leadsQualificados: number;
+  custoPorLeadQualificado: number;
 }
 
 export interface AdsPeriodDeltas {
@@ -138,4 +140,39 @@ export interface AdAggregate {
   custoPorConversa: number;
   custoPorCadastro: number;
   ctr: number;
+}
+
+export interface FunnelData {
+  ad_id: string | null;
+  attribution_level: string;
+  attribution_key: string | null;
+  ad_name: string | null;
+  campaign_name: string | null;
+  total_spend: number;
+  total_impressions: number;
+  total_clicks: number;
+  total_conversas: number;
+  total_leads: number;
+  novo: number;
+  em_contato: number;
+  agendou: number;
+  no_show: number;
+  perdido: number;
+  won: number;
+  won_value: number;
+  cpl: number | null;
+}
+
+export interface AdsAnomaly {
+  ad_id: string;
+  ad_name: string | null;
+  cpl_7d: number | null;
+  cpl_30d: number | null;
+  cpl_delta_pct: number | null;
+  ctr_7d: number | null;
+  ctr_30d: number | null;
+  ctr_delta_pct: number | null;
+  spend_7d: number;
+  spend_30d: number;
+  is_anomaly: boolean;
 }

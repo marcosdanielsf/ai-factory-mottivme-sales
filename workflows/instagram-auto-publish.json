@@ -1,0 +1,220 @@
+{
+  "name": "Instagram Auto Publish",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ig-publish",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh110000-1111-2222-3333-aabbccddeeff",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ig-publish-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst imageUrl = body.image_url || body.imageUrl || null;\nconst caption = body.caption || null;\nconst locationId = body.location_id || null;\nconst igUserId = body.ig_user_id || null;\nconst accessToken = body.access_token || null;\nconst scheduleTime = body.schedule_time || null;\n\nconst errors = [];\n\nif (imageUrl == null || imageUrl === '') {\n  errors.push('image_url is required');\n}\n\nif (caption == null || caption === '') {\n  errors.push('caption is required');\n}\n\nif (igUserId == null || igUserId === '') {\n  errors.push('ig_user_id is required');\n}\n\nif (accessToken == null || accessToken === '') {\n  errors.push('access_token is required');\n}\n\nif (errors.length > 0) {\n  throw new Error('Validation failed: ' + errors.join(', '));\n}\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    caption: caption,\n    location_id: locationId,\n    ig_user_id: igUserId,\n    access_token: accessToken,\n    schedule_time: scheduleTime,\n    validated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "vl220000-2222-3333-4444-bbccddeegg00",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Validate Payload').first().json.ig_user_id }}/media",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"image_url\": {{ JSON.stringify($('Validate Payload').first().json.image_url) }},\n  \"caption\": {{ JSON.stringify($('Validate Payload').first().json.caption) }},\n  \"access_token\": {{ JSON.stringify($('Validate Payload').first().json.access_token) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "cr330000-3333-4444-5555-ccddeeff0011",
+      "name": "Create Media Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "wt440000-4444-5555-6666-ddeeff001122",
+      "name": "Wait 10s Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [900, 300],
+      "webhookId": "wait-ig-processing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Validate Payload').first().json.ig_user_id }}/media_publish",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"creation_id\": {{ JSON.stringify($('Create Media Container').first().json.id) }},\n  \"access_token\": {{ JSON.stringify($('Validate Payload').first().json.access_token) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "pb550000-5555-6666-7777-eeff00112233",
+      "name": "Publish Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ig_publish_log (location_id, ig_user_id, container_id, post_id, image_url, caption, status, published_at, response_payload) VALUES ('{{ $('Validate Payload').first().json.location_id }}', '{{ $('Validate Payload').first().json.ig_user_id }}', '{{ $('Create Media Container').first().json.id }}', '{{ $('Publish Media').first().json.id }}', '{{ $('Validate Payload').first().json.image_url }}', '{{ $('Validate Payload').first().json.caption }}'::TEXT, CASE WHEN '{{ $('Publish Media').first().json.id }}' <> '' THEN 'published' ELSE 'error' END, NOW(), '{{ JSON.stringify($('Publish Media').first().json) }}'::TEXT)",
+        "options": {}
+      },
+      "id": "lg660000-6666-7777-8888-ff0011223344",
+      "name": "Log Publish Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"post_id\": {{ JSON.stringify($('Publish Media').first().json.id) }},\n  \"container_id\": {{ JSON.stringify($('Create Media Container').first().json.id) }},\n  \"published_at\": {{ JSON.stringify(new Date().toISOString()) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "rp770000-7777-8888-9999-001122334455",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": {{ JSON.stringify($input.first().json.message || 'Validation or publish failed') }}\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "re880000-8888-9999-0000-112233445566",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Media Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Media Container": {
+      "main": [
+        [
+          {
+            "node": "Wait 10s Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s Processing": {
+      "main": [
+        [
+          {
+            "node": "Publish Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish Media": {
+      "main": [
+        [
+          {
+            "node": "Log Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Publish Result": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, ComposedChart, CartesianGrid,
 } from 'recharts';
-import { DollarSign, Eye, MousePointer, MessageCircle, Heart, FileText, Target, Megaphone, RefreshCw } from 'lucide-react';
+import { DollarSign, Eye, MousePointer, MessageCircle, Heart, FileText, Target, Megaphone, RefreshCw, UserCheck } from 'lucide-react';
 import { MetricCard } from '../../../../components/MetricCard';
 import { formatCurrency, formatNumber, formatDayLabel, formatPct, formatDelta, deltaDirection, calcConnectRate } from '../../helpers';
 import type { AdsOverview, AdsSummaryByDate, AdsPeriodDeltas } from '../../types';
@@ -42,7 +42,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, peri
 
   return (
     <div className="space-y-4">
-      {/* Bloco 1 — KPI Strip (8 cards, 2 rows de 4) */}
+      {/* Bloco 1 — KPI Strip (9 cards, 2 rows) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard
           title="Valor Usado"
@@ -107,6 +107,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ overview, porDia, peri
           trend={formatDelta(periodDeltas.custoPorConversa)}
           trendDirection={deltaDirection(periodDeltas.custoPorConversa, true)}
           subtext="Menor = melhor"
+        />
+        <MetricCard
+          title="Leads Qualificados"
+          value={formatNumber(overview.leadsQualificados)}
+          icon={UserCheck}
+          subtext={overview.leadsQualificados > 0 ? `CPL: ${formatCurrency(overview.custoPorLeadQualificado)}` : 'Agendou + Fechou'}
         />
       </div>
 

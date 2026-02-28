@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, ChevronDown, RefreshCw } from 'lucide-react';
+import { BarChart3, ChevronDown, Filter, RefreshCw } from 'lucide-react';
 import { DateRangePicker } from '../../components/DateRangePicker';
 import type { DateRange } from '../../components/DateRangePicker';
 import { useAdsPerformance } from '../../hooks/useAdsPerformance';
 import { OverviewTab } from './components/tabs/OverviewTab';
 import { AdsTables } from './components/AdsTables';
+import { FunnelTab } from './components/tabs/FunnelTab';
 
 export const AdsPerformance: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -25,6 +26,8 @@ export const AdsPerformance: React.FC = () => {
     anuncios,
     accounts,
     porDia,
+    funnelData,
+    anomalies,
     loading,
     error,
     refetch,
@@ -110,6 +113,9 @@ export const AdsPerformance: React.FC = () => {
           anuncios={anuncios}
           loading={loading}
         />
+
+        {/* Funil de Conversao */}
+        <FunnelTab funnelData={funnelData} anomalies={anomalies} loading={loading} />
       </div>
     </div>
   );

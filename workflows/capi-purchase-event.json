@@ -1,0 +1,233 @@
+{
+  "name": "CAPI Purchase Event",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capi-purchase",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cp110000-1111-2222-aaaa-001122334455",
+      "name": "Webhook CAPI Purchase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "capi-purchase-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bc.location_id, bc.brand_name, bc.meta_dataset_id, bc.meta_access_token, bc.meta_ad_account_id FROM brand_configs bc WHERE bc.location_id = '{{ $('Webhook CAPI Purchase').first().json.body.location_id || $('Webhook CAPI Purchase').first().json.location_id }}' AND bc.meta_dataset_id IS NOT NULL AND bc.meta_access_token IS NOT NULL LIMIT 1",
+        "options": {}
+      },
+      "id": "fc220000-2222-3333-bbbb-112233445566",
+      "name": "Fetch Brand Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-capi-001",
+              "leftValue": "={{ $('Fetch Brand Config').first().json.meta_dataset_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if330000-3333-4444-cccc-223344556677",
+      "name": "Has Dataset Config",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst webhookBody = $('Webhook CAPI Purchase').first().json.body || $('Webhook CAPI Purchase').first().json;\nconst config = $('Fetch Brand Config').first().json;\n\nfunction sha256(value) {\n  if (value == null || value === '' || value === 'NULL') return null;\n  const normalized = String(value).trim().toLowerCase();\n  return crypto.createHash('sha256').update(normalized).digest('hex');\n}\n\nfunction normalizePhone(phone) {\n  if (phone == null) return null;\n  const digits = String(phone).replace(/\\D/g, '');\n  // Add country code if missing (Brazil)\n  if (digits.length <= 11 && !digits.startsWith('55')) {\n    return '55' + digits;\n  }\n  return digits;\n}\n\nconst email = webhookBody.email || null;\nconst phone = webhookBody.phone || null;\nconst firstName = webhookBody.first_name || webhookBody.fn || null;\nconst lastName = webhookBody.last_name || webhookBody.ln || null;\nconst city = webhookBody.city || null;\nconst state = webhookBody.state || null;\nconst zipCode = webhookBody.zip_code || null;\nconst country = webhookBody.country || 'br';\n\nconst monetaryValue = webhookBody.monetary_value || webhookBody.value || 0;\nconst currency = webhookBody.currency || 'BRL';\nconst opportunityId = webhookBody.opportunity_id || webhookBody.contact_id || null;\nconst contactId = webhookBody.contact_id || null;\nconst eventSourceUrl = webhookBody.event_source_url || null;\nconst clientIpAddress = webhookBody.client_ip_address || null;\nconst clientUserAgent = webhookBody.client_user_agent || null;\nconst fbp = webhookBody.fbp || null;\nconst fbc = webhookBody.fbc || null;\n\nconst userData = {};\nif (sha256(email)) userData.em = [sha256(email)];\nif (sha256(normalizePhone(phone))) userData.ph = [sha256(normalizePhone(phone))];\nif (sha256(firstName)) userData.fn = [sha256(firstName)];\nif (sha256(lastName)) userData.ln = [sha256(lastName)];\nif (sha256(city)) userData.ct = [sha256(city)];\nif (sha256(state)) userData.st = [sha256(state)];\nif (sha256(zipCode)) userData.zp = [sha256(zipCode)];\nif (sha256(country)) userData.country = [sha256(country)];\nif (clientIpAddress) userData.client_ip_address = clientIpAddress;\nif (clientUserAgent) userData.client_user_agent = clientUserAgent;\nif (fbp) userData.fbp = fbp;\nif (fbc) userData.fbc = fbc;\n\nconst eventId = 'purchase_' + (opportunityId || Date.now()) + '_' + Date.now();\n\nconst purchaseEvent = {\n  event_name: 'Purchase',\n  event_time: Math.floor(Date.now() / 1000),\n  event_id: eventId,\n  event_source_url: eventSourceUrl,\n  action_source: 'crm',\n  user_data: userData,\n  custom_data: {\n    value: Number(monetaryValue),\n    currency: currency,\n    order_id: opportunityId\n  }\n};\n\nreturn [{\n  json: {\n    dataset_id: config.meta_dataset_id,\n    access_token: config.meta_access_token,\n    location_id: config.location_id,\n    brand_name: config.brand_name,\n    event_id: eventId,\n    event_payload: {\n      data: [purchaseEvent]\n    },\n    opportunity_id: opportunityId,\n    contact_id: contactId,\n    monetary_value: monetaryValue,\n    currency: currency\n  }\n}];"
+      },
+      "id": "bd440000-4444-5555-dddd-334455667788",
+      "name": "Build Purchase Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Build Purchase Event').first().json.dataset_id }}/events",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": {{ JSON.stringify($('Build Purchase Event').first().json.event_payload.data) }},\n  \"access_token\": {{ JSON.stringify($('Build Purchase Event').first().json.access_token) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "se550000-5555-6666-eeee-445566778899",
+      "name": "Send CAPI Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO capi_events_log (location_id, event_name, event_id, opportunity_id, contact_id, dataset_id, monetary_value, currency, response_code, response_body, sent_at) VALUES ('{{ $('Build Purchase Event').first().json.location_id }}', 'Purchase', '{{ $('Build Purchase Event').first().json.event_id }}', '{{ $('Build Purchase Event').first().json.opportunity_id }}', '{{ $('Build Purchase Event').first().json.contact_id }}', '{{ $('Build Purchase Event').first().json.dataset_id }}', {{ $('Build Purchase Event').first().json.monetary_value }}, '{{ $('Build Purchase Event').first().json.currency }}', '{{ $('Send CAPI Event').first().json.events_received || 0 }}', '{{ JSON.stringify($('Send CAPI Event').first().json) }}'::TEXT, NOW())",
+        "options": {}
+      },
+      "id": "lg660000-6666-7777-ffff-556677889900",
+      "name": "Log CAPI Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 220],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"event_id\": {{ JSON.stringify($('Build Purchase Event').first().json.event_id) }},\n  \"events_received\": {{ $('Send CAPI Event').first().json.events_received || 0 }},\n  \"fbtrace_id\": {{ JSON.stringify($('Send CAPI Event').first().json.fbtrace_id || null) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "rs770000-7777-8888-aaab-667788990011",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"No Meta dataset config found for this location\",\n  \"location_id\": {{ JSON.stringify($('Webhook CAPI Purchase').first().json.body.location_id || $('Webhook CAPI Purchase').first().json.location_id || null) }}\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "re880000-8888-9999-bbbc-778899001122",
+      "name": "Respond No Config",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook CAPI Purchase": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brand Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brand Config": {
+      "main": [
+        [
+          {
+            "node": "Has Dataset Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Dataset Config": {
+      "main": [
+        [
+          {
+            "node": "Build Purchase Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Purchase Event": {
+      "main": [
+        [
+          {
+            "node": "Send CAPI Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send CAPI Event": {
+      "main": [
+        [
+          {
+            "node": "Log CAPI Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log CAPI Event": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

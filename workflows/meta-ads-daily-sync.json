@@ -1,0 +1,217 @@
+{
+  "name": "Meta Ads Daily Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 1
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT location_id, facebook_ad_account_ids, meta_capi_access_token\nFROM brand_configs\nWHERE facebook_ad_account_ids IS NOT NULL\nAND array_length(facebook_ad_account_ids, 1) > 0",
+        "options": {}
+      },
+      "id": "node-fetch-active-accounts",
+      "name": "Fetch Active Accounts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-split-accounts",
+      "name": "Split Accounts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const accounts = $json.facebook_ad_account_ids || [];\nconst locationId = $json.location_id;\nconst token = $json.meta_capi_access_token;\n\n// Date range: yesterday\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst dateStr = yesterday.toISOString().split('T')[0];\n\nconst results = [];\nfor (const accountId of accounts) {\n  results.push({\n    accountId: accountId.startsWith('act_') ? accountId : `act_${accountId}`,\n    locationId,\n    token,\n    dateStr,\n    sinceDate: dateStr,\n    untilDate: dateStr\n  });\n}\nreturn results;"
+      },
+      "id": "node-prepare-api-call",
+      "name": "Prepare API Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.accountId }}/insights",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $json.token }}"
+            },
+            {
+              "name": "fields",
+              "value": "campaign_name,campaign_id,adset_name,adset_id,ad_name,ad_id,spend,impressions,clicks,cpc,cpm,reach,frequency,actions"
+            },
+            {
+              "name": "time_range",
+              "value": "={\"since\":\"{{ $json.sinceDate }}\",\"until\":\"{{ $json.untilDate }}\"}"
+            },
+            {
+              "name": "level",
+              "value": "ad"
+            },
+            {
+              "name": "limit",
+              "value": "500"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-get-insights",
+      "name": "GET Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.data || [];\nconst locationId = $('Prepare API Call').first().json.locationId;\nconst dateStr = $('Prepare API Call').first().json.dateStr;\n\nreturn data.map(row => {\n  const actions = row.actions || [];\n  const getAction = (type) => {\n    const found = actions.find(a => a.action_type === type);\n    return found ? parseInt(found.value, 10) : 0;\n  };\n\n  return {\n    json: {\n      ad_id: row.ad_id,\n      ad_name: row.ad_name || 'N/A',\n      adset_id: row.adset_id,\n      adset_name: row.adset_name,\n      campaign_id: row.campaign_id,\n      campaign_name: row.campaign_name,\n      account_name: row.account_name || $('Prepare API Call').first().json.accountId,\n      impressions: parseInt(row.impressions || '0', 10),\n      clicks: parseInt(row.clicks || '0', 10),\n      spend: parseFloat(row.spend || '0'),\n      cpc: parseFloat(row.cpc || '0'),\n      cpm: parseFloat(row.cpm || '0'),\n      reach: parseInt(row.reach || '0', 10),\n      frequency: parseFloat(row.frequency || '0'),\n      conversas_iniciadas: getAction('onsite_conversion.messaging_conversation_started_7d'),\n      form_submissions: getAction('leadgen_submitted'),\n      post_reactions: getAction('post_reaction'),\n      data_relatorio: dateStr,\n      location_id: locationId\n    }\n  };\n});"
+      },
+      "id": "node-map-action-types",
+      "name": "Map Action Types",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fb_ads_performance (\n  ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name,\n  account_name, impressions, clicks, spend, cpc, cpm,\n  conversas_iniciadas, data_relatorio, location_id, updated_at\n) VALUES (\n  '{{ $json.ad_id }}', '{{ $json.ad_name }}', '{{ $json.adset_id }}',\n  '{{ $json.adset_name }}', '{{ $json.campaign_id }}', '{{ $json.campaign_name }}',\n  '{{ $json.account_name }}', {{ $json.impressions }}, {{ $json.clicks }},\n  {{ $json.spend }}, {{ $json.cpc }}, {{ $json.cpm }},\n  {{ $json.conversas_iniciadas }}, '{{ $json.data_relatorio }}',\n  '{{ $json.location_id }}', NOW()\n)\nON CONFLICT (ad_id, data_relatorio)\nDO UPDATE SET\n  ad_name = EXCLUDED.ad_name,\n  adset_id = EXCLUDED.adset_id,\n  adset_name = EXCLUDED.adset_name,\n  campaign_id = EXCLUDED.campaign_id,\n  campaign_name = EXCLUDED.campaign_name,\n  account_name = EXCLUDED.account_name,\n  impressions = EXCLUDED.impressions,\n  clicks = EXCLUDED.clicks,\n  spend = EXCLUDED.spend,\n  cpc = EXCLUDED.cpc,\n  cpm = EXCLUDED.cpm,\n  conversas_iniciadas = EXCLUDED.conversas_iniciadas,\n  location_id = EXCLUDED.location_id,\n  updated_at = NOW()",
+        "options": {}
+      },
+      "id": "node-upsert-fb-ads",
+      "name": "Upsert fb_ads_performance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Accounts": {
+      "main": [
+        [
+          {
+            "node": "Split Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Accounts": {
+      "main": [
+        [
+          {
+            "node": "Prepare API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare API Call": {
+      "main": [
+        [
+          {
+            "node": "GET Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Insights": {
+      "main": [
+        [
+          {
+            "node": "Map Action Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Action Types": {
+      "main": [
+        [
+          {
+            "node": "Upsert fb_ads_performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert fb_ads_performance": {
+      "main": [
+        [
+          {
+            "node": "Split Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {}
+}

@@ -11,6 +11,8 @@ import type {
   CampanhaMetrics,
   AdsetMetrics,
   AdAggregate,
+  FunnelData,
+  AdsAnomaly,
 } from '../pages/AdsPerformance/types';
 
 interface UseAdsPerformanceReturn {
@@ -23,6 +25,8 @@ interface UseAdsPerformanceReturn {
   porDia: AdsSummaryByDate[];
   adsWithLeads: AdsWithLeads[];
   accounts: string[];
+  funnelData: FunnelData[];
+  anomalies: AdsAnomaly[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -41,6 +45,8 @@ const EMPTY_OVERVIEW: AdsOverview = {
   custoPorConversa: 0,
   custoPorCadastro: 0,
   ctr: 0,
+  leadsQualificados: 0,
+  custoPorLeadQualificado: 0,
 };
 
 const EMPTY_DELTAS: AdsPeriodDeltas = {
@@ -74,6 +80,8 @@ export const useAdsPerformance = (
   const [rawAds, setRawAds] = useState<FbAdPerformance[]>([]);
   const [rawAdsWithLeads, setRawAdsWithLeads] = useState<AdsWithLeads[]>([]);
   const [prevAds, setPrevAds] = useState<FbAdPerformance[]>([]);
+  const [rawFunnel, setRawFunnel] = useState<FunnelData[]>([]);
+  const [rawAnomalies, setRawAnomalies] = useState<AdsAnomaly[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,19 +137,39 @@ export const useAdsPerformance = (
 
       if (accountName) prevQuery = prevQuery.eq('account_name', accountName);
 
-      const [adsResult, leadsResult, prevResult] = await Promise.all([
+      // Q4: vw_funnel_tracking_enhanced (funil completo)
+      // View nao tem coluna data — sem filtro temporal (dados agregados)
+      const funnelQuery = supabase
+        .from('vw_funnel_tracking_enhanced')
+        .select('*')
+        .limit(500);
+
+      // Q5: vw_ads_anomaly_detection (anomalias — 7d vs 30d, sem filtro externo)
+      const anomalyQuery = supabase
+        .from('vw_ads_anomaly_detection')
+        .select('*')
+        .eq('is_anomaly', true)
+        .limit(100);
+
+      const [adsResult, leadsResult, prevResult, funnelResult, anomalyResult] = await Promise.all([
         adsQuery,
         leadsQuery,
         prevQuery,
+        funnelQuery,
+        anomalyQuery,
       ]);
 
       if (adsResult.error) throw new Error(adsResult.error.message);
       if (leadsResult.error) console.warn('[AdsPerformance] vw_ads_with_leads error:', leadsResult.error.message);
       if (prevResult.error) console.warn('[AdsPerformance] prev period error:', prevResult.error.message);
+      if (funnelResult.error) console.warn('[AdsPerformance] vw_funnel_tracking_enhanced error:', funnelResult.error.message);
+      if (anomalyResult.error) console.warn('[AdsPerformance] vw_ads_anomaly_detection error:', anomalyResult.error.message);
 
       setRawAds((adsResult.data || []) as FbAdPerformance[]);
       setRawAdsWithLeads((leadsResult.data || []) as AdsWithLeads[]);
       setPrevAds((prevResult.data || []) as FbAdPerformance[]);
+      setRawFunnel((funnelResult.data || []) as FunnelData[]);
+      setRawAnomalies((anomalyResult.data || []) as AdsAnomaly[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar dados de ads';
       setError(message);
@@ -170,6 +198,12 @@ export const useAdsPerformance = (
       totalFormSubmissions += ad.form_submissions || 0;
     }
 
+    // Leads qualificados: agendou + won (do funnel)
+    let leadsQualificados = 0;
+    for (const f of rawFunnel) {
+      leadsQualificados += (f.agendou || 0) + (f.won || 0);
+    }
+
     const overview: AdsOverview = {
       totalSpend,
       totalImpressions,
@@ -183,6 +217,8 @@ export const useAdsPerformance = (
       custoPorConversa: totalConversas > 0 ? totalSpend / totalConversas : 0,
       custoPorCadastro: totalFormSubmissions > 0 ? totalSpend / totalFormSubmissions : 0,
       ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+      leadsQualificados,
+      custoPorLeadQualificado: leadsQualificados > 0 && totalSpend > 0 ? totalSpend / leadsQualificados : 0,
     };
 
     // --- Previous period totals ---
@@ -434,7 +470,7 @@ export const useAdsPerformance = (
       .sort((a, b) => a.data_relatorio.localeCompare(b.data_relatorio));
 
     return { overview, periodDeltas, campanhas, adsets, anuncios, accounts, porDia };
-  }, [rawAds, prevAds]);
+  }, [rawAds, prevAds, rawFunnel]);
 
   return {
     overview: computed.overview || EMPTY_OVERVIEW,
@@ -446,6 +482,8 @@ export const useAdsPerformance = (
     criativos: rawAds,
     porDia: computed.porDia || [],
     adsWithLeads: rawAdsWithLeads,
+    funnelData: rawFunnel,
+    anomalies: rawAnomalies,
     loading,
     error,
     refetch: fetchData,
