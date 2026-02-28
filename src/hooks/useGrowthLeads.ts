@@ -103,11 +103,25 @@ export const useGrowthLeads = () => {
         noContact,
       });
 
-      // Charts: RPCs
+      // Charts: RPCs (with region/date filters for consistency with KPIs)
       const countryParam = filters.countries.length === 1 ? filters.countries[0] : null;
+      const rpcRegions = filters.regions.length > 0 ? filters.regions : null;
+      const rpcDateFrom = dateFrom || null;
+      const rpcDateTo = dateTo || null;
+
       const [rCountry, rSpecialty] = await Promise.all([
-        supabase.rpc('growth_leads_country_breakdown'),
-        supabase.rpc('growth_leads_top_specialties', { p_limit: 15, p_country: countryParam }),
+        supabase.rpc('growth_leads_country_breakdown', {
+          p_regions: rpcRegions,
+          p_date_from: rpcDateFrom,
+          p_date_to: rpcDateTo,
+        }),
+        supabase.rpc('growth_leads_top_specialties', {
+          p_limit: 15,
+          p_country: countryParam,
+          p_regions: rpcRegions,
+          p_date_from: rpcDateFrom,
+          p_date_to: rpcDateTo,
+        }),
       ]);
 
       if (rCountry.error) throw new Error(rCountry.error.message);
