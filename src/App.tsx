@@ -74,6 +74,9 @@ const SocialSellingDashboard = lazy(() => import('./pages/SocialSellingDashboard
 // Ads Performance Dashboard
 const AdsPerformance = lazy(() => import('./pages/AdsPerformance').then(m => ({ default: m.AdsPerformance })));
 
+// GHL Operations Dashboard
+const GHLOps = lazy(() => import('./pages/GHLOps'));
+
 // Metrics Lab
 const MetricsLab = lazy(() => import('./pages/MetricsLab').then(m => ({ default: m.MetricsLab })));
 
@@ -277,6 +280,15 @@ const App = () => {
                   <ConditionalLayout>
                     <Suspense fallback={<LoadingFallback />}>
                       <AdsPerformance />
+                    </Suspense>
+                  </ConditionalLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/ghl-ops" element={
+                <ProtectedRoute>
+                  <ConditionalLayout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <GHLOps />
                     </Suspense>
                   </ConditionalLayout>
                 </ProtectedRoute>

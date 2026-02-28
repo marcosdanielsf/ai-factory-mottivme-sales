@@ -60,3 +60,5 @@ export { useSandboxChat } from './useSandboxChat';
 export { useSplitMessages } from './useSplitMessages';
 export { useProducts } from './useProducts';
 export type { Product } from './useProducts';
+export { useGHLOps } from './useGHLOps';
+export type { GHLLocation, GHLOpsStats, UseGHLOpsReturn } from './useGHLOps';
