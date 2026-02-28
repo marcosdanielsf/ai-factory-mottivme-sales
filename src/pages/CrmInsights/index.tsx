@@ -61,7 +61,7 @@ function daysAgo(dateStr: string | null): number | null {
 
 function buildGhlUrl(leadId: string): string | null {
   if (!leadId || /^\d+$/.test(leadId)) return null;
-  return `https://app.gohighlevel.com/contacts/${leadId}`;
+  return `https://app.socialfy.me/contacts/${leadId}`;
 }
 
 function getDisplayName(lead: CrmInsightLead): string {
