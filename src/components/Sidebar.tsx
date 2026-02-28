@@ -168,7 +168,6 @@ const navSections: NavSection[] = [
           { icon: Megaphone, label: 'Social Selling', to: '/social-selling' },
           { icon: BarChart3, label: 'Ads Performance', to: '/ads-performance' },
           { icon: FlaskConical, label: 'Metrics Lab', to: '/metrics-lab' },
-          { icon: Database, label: 'Growth Leads', to: '/growth-leads' },
           { icon: Calculator, label: 'Planejamento', to: '/planejamento' },
           { icon: FolderKanban, label: 'Projetos', to: '/projetos' },
           { icon: Workflow, label: 'Hub Ops', to: '/workflows' },
@@ -205,6 +204,7 @@ const navSections: NavSection[] = [
       },
       { icon: Palette, label: 'Brand Assets', to: '/brand', permission: 'canAccessBrand' },
       { icon: Layers, label: 'Agent Tools', to: '/agent-tools', permission: 'canAccessPromptEditor' },
+      { icon: ClipboardCheck, label: 'Auditoria', to: '/agent-audit', permission: 'canAccessPromptEditor' },
       { icon: Bot, label: 'Squad AI', to: '/squad-ai', permission: 'canAccessPromptEditor' },
     ]
   },

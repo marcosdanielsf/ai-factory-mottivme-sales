@@ -53,7 +53,7 @@ const ColdCallNewCall = lazy(() => import('./pages/ColdCallNewCall'));
 
 // Prospector pages (lazy loaded)
 const ProspectorDashboard = lazy(() => import('./pages/ProspectorDashboard'));
-const ProspectorQueue = lazy(() => import('./pages/ProspectorQueue'));
+const ProspectorQueue = lazy(() => import('./pages/GrowthLeads').then(m => ({ default: m.GrowthLeads })));
 const ProspectorTemplates = lazy(() => import('./pages/ProspectorTemplates'));
 const ProspectorAnalytics = lazy(() => import('./pages/ProspectorAnalytics'));
 const ProspectorCampaignDetail = lazy(() => import('./pages/ProspectorCampaignDetail'));
@@ -77,8 +77,6 @@ const AdsPerformance = lazy(() => import('./pages/AdsPerformance').then(m => ({ 
 // Metrics Lab
 const MetricsLab = lazy(() => import('./pages/MetricsLab').then(m => ({ default: m.MetricsLab })));
 
-// Growth Leads Dashboard
-const GrowthLeads = lazy(() => import('./pages/GrowthLeads').then(m => ({ default: m.GrowthLeads })));
 
 // AIOS Dashboard pages (lazy loaded)
 const AiosAgentsPage = lazy(() => import('./pages/AiosAgents').then(m => ({ default: m.AiosAgents })));
@@ -102,6 +100,10 @@ const ContentPipeline = lazy(() => import('./pages/ContentPipeline').then(m => (
 
 // Agent Tools Registry
 const AgentTools = lazy(() => import('./pages/AgentTools').then(m => ({ default: m.AgentTools })));
+
+// Agent Audit
+const AgentAuditPage = lazy(() => import('./pages/AgentAudit').then(m => ({ default: m.AgentAudit })));
+const AgentAuditDetailPage = lazy(() => import('./pages/AgentAudit/AgentAuditDetail').then(m => ({ default: m.AgentAuditDetail })));
 
 // Client Brand
 const ClientBrand = lazy(() => import('./pages/ClientBrand'));
@@ -269,15 +271,7 @@ const App = () => {
                   </ConditionalLayout>
                 </ProtectedRoute>
               } />
-              <Route path="/growth-leads" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <Suspense fallback={<LoadingFallback />}>
-                      <GrowthLeads />
-                    </Suspense>
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
+              {/* Growth Leads agora vive em /prospector/queue */}
               <Route path="/planejamento" element={
                 <ProtectedRoute>
                   <ConditionalLayout>
@@ -767,6 +761,26 @@ const App = () => {
                   <Layout>
                     <Suspense fallback={<LoadingFallback />}>
                       <AgentTools />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Agent Audit */}
+              <Route path="/agent-audit" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AgentAuditPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/agent-audit/:agentVersionId" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <AgentAuditDetailPage />
                     </Suspense>
                   </Layout>
                 </ProtectedRoute>
