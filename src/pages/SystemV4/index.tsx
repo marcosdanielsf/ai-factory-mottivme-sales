@@ -3,7 +3,7 @@ import {
   Cpu, Bot, Webhook, GitBranch, Database, Shield, BarChart3,
   ChevronDown, ChevronRight, FileText, Zap, Eye, Clock,
   Lock, AlertTriangle, CheckCircle2, Settings2, Layers, Loader2,
-  Activity, Timer, Wrench
+  Activity, Timer, Wrench, Target
 } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useSystemConfig } from '../../hooks/useSystemConfig';
@@ -407,8 +407,14 @@ const StatsPanel: React.FC = () => {
 // ============================================
 // SESSIONS PANEL
 // ============================================
+const ScoreBadge = ({ score }: { score: number | null }) => {
+  if (score === null) return <span className="text-zinc-600">—</span>;
+  const color = score >= 70 ? 'text-green-400 bg-green-400/10' : score >= 40 ? 'text-amber-400 bg-amber-400/10' : 'text-red-400 bg-red-400/10';
+  return <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${color}`}>{score}</span>;
+};
+
 const SessionsPanel: React.FC = () => {
-  const { sessions, loading, error, totalToday, totalMinutesToday, avgDuration, fetchMore, hasMore } = useSessionLogs();
+  const { sessions, loading, error, totalToday, totalMinutesToday, avgDuration, avgEffectiveness, fetchMore, hasMore } = useSessionLogs();
 
   const formatDate = (iso: string | null) => {
     if (!iso) return '—';
@@ -433,23 +439,41 @@ const SessionsPanel: React.FC = () => {
       .join(', ');
   };
 
+  const formatProject = (project: string | null) => {
+    if (!project) return null;
+    const segments = project.replace(/\/$/, '').split('/');
+    const last = segments[segments.length - 1] || '';
+    return last.length > 20 ? last.slice(0, 20) + '…' : last;
+  };
+
+  const effectivenessColor = avgEffectiveness === null
+    ? 'text-zinc-400'
+    : avgEffectiveness >= 70
+      ? 'text-green-400'
+      : avgEffectiveness >= 40
+        ? 'text-amber-400'
+        : 'text-red-400';
+
+  const effectivenessValue = avgEffectiveness === null ? '—' : `${avgEffectiveness}`;
+
   const stats = [
     { label: 'Sessoes Hoje', value: totalToday, icon: Activity, color: 'text-green-400' },
     { label: 'Tempo Hoje', value: `${Math.round(totalMinutesToday)}min`, icon: Timer, color: 'text-blue-400' },
     { label: 'Media Duracao', value: `${avgDuration}min`, icon: Clock, color: 'text-amber-400' },
+    { label: 'Effectiveness', value: effectivenessValue, icon: Target, color: effectivenessColor, isEffectiveness: true },
     { label: 'Total Sessoes', value: sessions.length, icon: Wrench, color: 'text-purple-400' },
   ];
 
   return (
     <div className="space-y-6">
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="bg-bg-secondary border border-border-default rounded-xl p-4 text-center">
               <Icon size={20} className={`mx-auto mb-2 ${stat.color}`} />
-              <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
               <p className="text-xs text-text-muted mt-0.5">{stat.label}</p>
             </div>
           );
@@ -485,51 +509,63 @@ const SessionsPanel: React.FC = () => {
                 <thead>
                   <tr className="border-b border-border-default text-text-muted">
                     <th className="text-left px-5 py-2 font-medium">Inicio</th>
-                    <th className="text-left px-3 py-2 font-medium">Duracao</th>
+                    <th className="text-left px-3 py-2 font-medium">Dur.</th>
+                    <th className="text-left px-3 py-2 font-medium">Score</th>
                     <th className="text-left px-3 py-2 font-medium">Tools</th>
                     <th className="text-left px-3 py-2 font-medium">Top Tools</th>
-                    <th className="text-left px-3 py-2 font-medium">Agentes</th>
-                    <th className="text-left px-3 py-2 font-medium">Prompt</th>
+                    <th className="text-left px-3 py-2 font-medium">Projeto</th>
+                    <th className="text-left px-3 py-2 font-medium">Resumo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-default">
-                  {sessions.map((s) => (
-                    <tr key={s.session_id} className="hover:bg-bg-tertiary/50 transition-colors">
-                      <td className="px-5 py-3 text-text-primary whitespace-nowrap">{formatDate(s.started_at)}</td>
-                      <td className="px-3 py-3 text-text-secondary whitespace-nowrap">{formatDuration(s.duration_min)}</td>
-                      <td className="px-3 py-3 text-text-secondary">{s.tool_count}</td>
-                      <td className="px-3 py-3 text-text-muted font-mono">{topTools(s.tool_counts)}</td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {s.agents_used?.map((a) => (
-                            <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-accent-primary/10 text-accent-primary">{a}</span>
-                          )) || <span className="text-text-muted">—</span>}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-text-muted max-w-[200px] truncate">{s.first_prompt || '—'}</td>
-                    </tr>
-                  ))}
+                  {sessions.map((s) => {
+                    const projectLabel = formatProject(s.project);
+                    const resumo = s.summary || s.first_prompt;
+                    return (
+                      <tr key={s.session_id} className="hover:bg-bg-tertiary/50 transition-colors">
+                        <td className="px-5 py-3 text-text-primary whitespace-nowrap">{formatDate(s.started_at)}</td>
+                        <td className="px-3 py-3 text-text-secondary whitespace-nowrap">{formatDuration(s.duration_min)}</td>
+                        <td className="px-3 py-3"><ScoreBadge score={s.effectiveness_score} /></td>
+                        <td className="px-3 py-3 text-text-secondary">{s.tool_count}</td>
+                        <td className="px-3 py-3 text-text-muted font-mono max-w-[160px] truncate">{topTools(s.tool_counts)}</td>
+                        <td className="px-3 py-3">
+                          {projectLabel
+                            ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted truncate max-w-[120px] inline-block">{projectLabel}</span>
+                            : <span className="text-zinc-600">—</span>
+                          }
+                        </td>
+                        <td className="px-3 py-3 text-text-muted max-w-[200px] truncate">{resumo || '—'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-border-default">
-              {sessions.map((s) => (
-                <div key={s.session_id} className="px-5 py-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-text-primary">{formatDate(s.started_at)}</span>
-                    <span className="text-xs text-text-secondary">{formatDuration(s.duration_min)}</span>
+              {sessions.map((s) => {
+                const projectLabel = formatProject(s.project);
+                const resumo = s.summary || s.first_prompt;
+                return (
+                  <div key={s.session_id} className="px-5 py-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-text-primary">{formatDate(s.started_at)}</span>
+                      <div className="flex items-center gap-2">
+                        <ScoreBadge score={s.effectiveness_score} />
+                        <span className="text-xs text-text-secondary">{formatDuration(s.duration_min)}</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-text-muted truncate">{resumo || '—'}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                      <span>{s.tool_count} tools</span>
+                      {projectLabel && (
+                        <span className="px-1.5 py-0.5 rounded bg-bg-tertiary truncate max-w-[120px]">{projectLabel}</span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[10px] text-text-muted truncate">{s.first_prompt || '—'}</p>
-                  <div className="flex items-center gap-2 text-[10px] text-text-muted">
-                    <span>{s.tool_count} tools</span>
-                    {s.agents_used && s.agents_used.length > 0 && (
-                      <span>| {s.agents_used.join(', ')}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Load More */}

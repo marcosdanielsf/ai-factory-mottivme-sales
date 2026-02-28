@@ -11,6 +11,12 @@ export interface SessionSummary {
   agents_used: string[] | null;
   files_modified: string[] | null;
   first_prompt: string | null;
+  models_used: string[] | null;
+  project: string | null;
+  summary: string | null;
+  effectiveness_score: number | null;
+  error_count: number;
+  violation_count: number;
 }
 
 interface UseSessionLogsResult {
@@ -20,6 +26,7 @@ interface UseSessionLogsResult {
   totalToday: number;
   totalMinutesToday: number;
   avgDuration: number;
+  avgEffectiveness: number | null;
   fetchMore: () => void;
   hasMore: boolean;
 }
@@ -95,6 +102,11 @@ export function useSessionLogs(): UseSessionLogsResult {
     ? Math.round(sessionsWithDuration.reduce((sum, s) => sum + (s.duration_min || 0), 0) / sessionsWithDuration.length * 10) / 10
     : 0;
 
+  const sessionsWithScore = sessions.filter((s) => s.effectiveness_score !== null && s.effectiveness_score !== undefined);
+  const avgEffectiveness = sessionsWithScore.length > 0
+    ? Math.round(sessionsWithScore.reduce((sum, s) => sum + (s.effectiveness_score || 0), 0) / sessionsWithScore.length)
+    : null;
+
   return {
     sessions,
     loading,
@@ -102,6 +114,7 @@ export function useSessionLogs(): UseSessionLogsResult {
     totalToday,
     totalMinutesToday,
     avgDuration,
+    avgEffectiveness,
     fetchMore,
     hasMore,
   };
