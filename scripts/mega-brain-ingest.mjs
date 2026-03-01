@@ -19,21 +19,12 @@ import { createReadStream } from 'node:fs';
 
 // ─── Configuração ──────────────────────────────────────────────────────────────
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
-  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY');
-  process.exit(1);
-}
-
 const CHUNK_SIZE = 2000;  // chars (~500 tokens)
 const CHUNK_OVERLAP = 100;
 const EMBED_BATCH_SIZE = 100;
 const EMBED_MODEL = 'text-embedding-3-small';
 
-// ─── Args parsing ──────────────────────────────────────────────────────────────
+// ─── Args parsing (antes de env check para --help funcionar) ─────────────────
 
 const { values: args } = parseArgs({
   options: {
@@ -77,6 +68,17 @@ Tipos auto-detectados por extensão:
   process.exit(0);
 }
 
+// ─── Env check (apos help para --help funcionar sem env vars) ────────────────
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
+  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY');
+  process.exit(1);
+}
+
 if (!args.title) {
   console.error('ERRO: --title e obrigatorio');
   process.exit(1);
@@ -87,8 +89,10 @@ const inputIsFile = !!args.file;
 
 // ─── Detecção de tipo ─────────────────────────────────────────────────────────
 
+const TYPE_ALIASES = { text: 'note', video: 'call_recording' };
+
 async function detectType(input, isFile) {
-  if (args.type) return args.type;
+  if (args.type) return TYPE_ALIASES[args.type] || args.type;
 
   if (!isFile) {
     // URL
@@ -111,12 +115,12 @@ async function detectType(input, isFile) {
     '.xlsx': 'spreadsheet',
     '.ods':  'spreadsheet',
     '.csv':  'spreadsheet',
-    '.txt':  'text',
-    '.md':   'text',
-    '.json': 'text',
+    '.txt':  'note',
+    '.md':   'note',
+    '.json': 'note',
   };
 
-  return extMap[ext] || 'text';
+  return extMap[ext] || 'note';
 }
 
 // ─── Extração de texto por tipo ───────────────────────────────────────────────
@@ -126,6 +130,8 @@ async function extractText(input, type, isFile) {
 
   switch (type) {
     case 'text':
+    case 'note':
+    case 'transcript':
       return extractTextFile(input, isFile);
 
     case 'pdf':
@@ -136,6 +142,7 @@ async function extractText(input, type, isFile) {
 
     case 'audio':
     case 'video':
+    case 'call_recording':
       return transcribeAudio(input, isFile);
 
     case 'youtube':
