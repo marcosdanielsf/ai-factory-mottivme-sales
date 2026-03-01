@@ -308,12 +308,31 @@ export async function decomposeGoal(
   try {
     parsed = JSON.parse(responseText);
   } catch {
-    // Gemini pode retornar com markdown wrapper
+    // Gemini pode retornar com markdown wrapper ou JSON malformado
     const cleaned = responseText
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
+      // Trailing commas antes de } ou ]
+      .replace(/,\s*([\]}])/g, "$1")
+      // Single quotes → double quotes (apenas em chaves, nao em valores)
+      .replace(/'/g, '"')
       .trim();
-    parsed = JSON.parse(cleaned);
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e2) {
+      // Truncamento: tentar fechar JSON incompleto
+      let truncated = cleaned;
+      // Contar chaves/colchetes abertos
+      const opens = (truncated.match(/[{[]/g) || []).length;
+      const closes = (truncated.match(/[}\]]/g) || []).length;
+      const diff = opens - closes;
+      if (diff > 0) {
+        // Remover ultimo valor incompleto e fechar
+        truncated = truncated.replace(/,?\s*"[^"]*"?\s*:?\s*[^,}\]]*$/, "");
+        for (let i = 0; i < diff; i++) truncated += "}";
+      }
+      parsed = JSON.parse(truncated);
+    }
   }
 
   return validateDecomposeResult(parsed);
