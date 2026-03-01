@@ -65,6 +65,7 @@ import {
   Flame,
   Package,
   Server,
+  Upload,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -369,6 +370,26 @@ const navSections: NavSection[] = [
           { icon: Users, label: "Leads", to: "/imobiliaria/leads" },
           { icon: Calendar, label: "Visitas", to: "/imobiliaria/visitas" },
           { icon: Package, label: "Indicações", to: "/imobiliaria/indicacoes" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "MEGA BRAIN",
+    permission: "canAccessPromptEditor",
+    items: [
+      {
+        icon: Brain,
+        label: "Mega Brain",
+        to: "/brain",
+        permission: "canAccessPromptEditor",
+        subItems: [
+          { icon: Upload, label: "Ingestão", to: "/brain/ingest" },
+          { icon: Users, label: "Entidades", to: "/brain/entities" },
+          { icon: Cpu, label: "DNA", to: "/brain/dna" },
+          { icon: Swords, label: "Conclave", to: "/brain/conclave" },
+          { icon: Sparkles, label: "Skills", to: "/brain/skills" },
+          { icon: Activity, label: "Saúde", to: "/brain/health" },
         ],
       },
     ],

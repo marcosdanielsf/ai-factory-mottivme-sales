@@ -248,6 +248,29 @@ const JarvisProjectDetail = lazy(
 );
 const JarvisConfig = lazy(() => import("./pages/JarvisConfig"));
 
+// Mega Brain pages
+const BrainHub = lazy(() =>
+  import("./pages/Brain").then((m) => ({ default: m.BrainHub })),
+);
+const BrainIngest = lazy(() =>
+  import("./pages/Brain/Ingest").then((m) => ({ default: m.BrainIngest })),
+);
+const BrainEntities = lazy(() =>
+  import("./pages/Brain/Entities").then((m) => ({ default: m.BrainEntities })),
+);
+const BrainDNA = lazy(() =>
+  import("./pages/Brain/DNA").then((m) => ({ default: m.BrainDNA })),
+);
+const BrainConclave = lazy(() =>
+  import("./pages/Brain/Conclave").then((m) => ({ default: m.BrainConclave })),
+);
+const BrainSkills = lazy(() =>
+  import("./pages/Brain/Skills").then((m) => ({ default: m.BrainSkills })),
+);
+const BrainHealth = lazy(() =>
+  import("./pages/Brain/Health").then((m) => ({ default: m.BrainHealth })),
+);
+
 // Projetos (Kanban + Project Board)
 const Projetos = lazy(() => import("./pages/Projetos"));
 
@@ -1542,6 +1565,104 @@ const App = () => {
                         <Layout>
                           <Suspense fallback={<LoadingFallback />}>
                             <WhatsAppManager />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Mega Brain */}
+                  <Route
+                    path="/brain"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainHub />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/ingest"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainIngest />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/entities"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainEntities />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/entities/:id"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainEntities />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/dna"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainDNA />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/conclave"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainConclave />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/skills"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainSkills />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/brain/health"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BrainHealth />
                           </Suspense>
                         </Layout>
                       </ProtectedRoute>

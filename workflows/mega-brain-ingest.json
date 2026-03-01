@@ -1,0 +1,816 @@
+{
+  "name": "Mega Brain - Ingestão de Conteúdo",
+  "nodes": [
+    {
+      "id": "webhook-ingest",
+      "name": "Webhook Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mega-brain-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "set-normalize",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [250, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "url",
+              "name": "url",
+              "value": "={{ $json.body.url }}",
+              "type": "string"
+            },
+            {
+              "id": "title",
+              "name": "title",
+              "value": "={{ $json.body.title || 'Sem título' }}",
+              "type": "string"
+            },
+            {
+              "id": "source_type",
+              "name": "source_type",
+              "value": "={{ $json.body.source_type || 'text' }}",
+              "type": "string"
+            },
+            {
+              "id": "author",
+              "name": "author",
+              "value": "={{ $json.body.author || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "ingested_at",
+              "name": "ingested_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "switch-source-type",
+      "name": "Switch Tipo Fonte",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [500, 300],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "youtube",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source_type }}",
+                    "rightValue": "youtube",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "pdf",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source_type }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "audio",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source_type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "text_webpage",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source_type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-youtube-cmd",
+      "name": "YouTube: Gerar Comando yt-dlp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 0],
+      "parameters": {
+        "jsCode": "const url = $input.first().json.url;\nconst title = $input.first().json.title;\nconst source_type = $input.first().json.source_type;\nconst author = $input.first().json.author;\nconst ingested_at = $input.first().json.ingested_at;\n\n// Extrair video ID do YouTube\nconst videoIdMatch = url.match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/embed\\/)([a-zA-Z0-9_-]{11})/);\nconst videoId = videoIdMatch ? videoIdMatch[1] : null;\n\n// URL de download do audio via yt-dlp (formato para STT)\nconst audioDownloadUrl = videoId \n  ? `https://www.youtube.com/watch?v=${videoId}`\n  : url;\n\nreturn [{\n  json: {\n    url,\n    title,\n    source_type,\n    author,\n    ingested_at,\n    video_id: videoId,\n    audio_download_url: audioDownloadUrl,\n    deepgram_url: 'https://api.deepgram.com/v1/listen',\n    deepgram_params: 'model=nova-2&language=pt-BR&punctuate=true&paragraphs=true'\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-deepgram-youtube",
+      "name": "Deepgram STT - YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&punctuate=true&paragraphs=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"url\": \"{{ $json.audio_download_url }}\" }",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "deepgram-api-key",
+          "name": "Deepgram API Key"
+        }
+      }
+    },
+    {
+      "id": "code-extract-transcript-youtube",
+      "name": "Extrair Transcrição YouTube",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 0],
+      "parameters": {
+        "jsCode": "const deepgramResponse = $input.first().json;\nconst prevData = $('YouTube: Gerar Comando yt-dlp').first().json;\n\nlet text = '';\ntry {\n  const channels = deepgramResponse.results?.channels || [];\n  for (const channel of channels) {\n    for (const alt of (channel.alternatives || [])) {\n      text += (alt.transcript || '') + '\\n\\n';\n    }\n  }\n} catch (e) {\n  text = '';\n}\n\nreturn [{\n  json: {\n    ...prevData,\n    text: text.trim(),\n    extraction_method: 'deepgram_stt'\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-download-pdf",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "responseFormat": "file",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "code-parse-pdf",
+      "name": "Parse PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 200],
+      "parameters": {
+        "jsCode": "// PDF parse: extrair texto do buffer binário\n// Em produção, usar serviço como pdf-parse ou Tika\nconst prevData = $('Switch Tipo Fonte').first().json;\nconst binaryData = $input.first().binary;\n\n// Tentar extrair texto via string do buffer\nlet text = '';\ntry {\n  if (binaryData && binaryData.data) {\n    const buffer = Buffer.from(binaryData.data.data, binaryData.data.encoding || 'base64');\n    // Extração básica: buscar strings legíveis do PDF\n    const raw = buffer.toString('latin1');\n    const matches = raw.match(/[\\x20-\\x7E\\xC0-\\xFF]{4,}/g) || [];\n    text = matches\n      .filter(s => s.length > 10 && !/[\\x00-\\x08\\x0E-\\x1F]/.test(s))\n      .join(' ')\n      .replace(/\\s+/g, ' ')\n      .trim();\n  }\n} catch (e) {\n  text = 'Erro ao extrair texto do PDF: ' + e.message;\n}\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text,\n    extraction_method: 'pdf_parse'\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-download-audio",
+      "name": "Download Áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 400],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "responseFormat": "file",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "http-deepgram-audio",
+      "name": "Deepgram STT - Áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&punctuate=true&paragraphs=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "audio/mpeg"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "deepgram-api-key",
+          "name": "Deepgram API Key"
+        }
+      }
+    },
+    {
+      "id": "code-extract-transcript-audio",
+      "name": "Extrair Transcrição Áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400],
+      "parameters": {
+        "jsCode": "const deepgramResponse = $input.first().json;\nconst prevData = $('Switch Tipo Fonte').first().json;\n\nlet text = '';\ntry {\n  const channels = deepgramResponse.results?.channels || [];\n  for (const channel of channels) {\n    for (const alt of (channel.alternatives || [])) {\n      text += (alt.transcript || '') + '\\n\\n';\n    }\n  }\n} catch (e) {\n  text = '';\n}\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text: text.trim(),\n    extraction_method: 'deepgram_stt'\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-download-text",
+      "name": "Download Texto/Webpage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 600],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "code-extract-text-webpage",
+      "name": "Extrair Texto Webpage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 600],
+      "parameters": {
+        "jsCode": "const rawHtml = $input.first().json.data || $input.first().json.body || '';\nconst prevData = $('Switch Tipo Fonte').first().json;\n\n// Remover tags HTML e extrair texto limpo\nlet text = rawHtml\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&#39;/g, \"'\")\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text,\n    extraction_method: 'html_strip'\n  }\n}];"
+      }
+    },
+    {
+      "id": "code-chunker",
+      "name": "Chunker Semântico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300],
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst text = inputData.text || '';\nconst chunkSize = 2000;\nconst overlap = 100;\nconst chunks = [];\n\nif (!text || text.length === 0) {\n  return [{ json: { ...inputData, content: '', chunk_index: 0, chunk_overlap_prev: null, chunk_overlap_next: null, token_count: 0 } }];\n}\n\n// Split por parágrafos primeiro\nconst paragraphs = text.split(/\\n\\n+/);\nlet currentChunk = '';\nlet chunkIndex = 0;\n\nfor (const para of paragraphs) {\n  if ((currentChunk + para).length > chunkSize && currentChunk.length > 0) {\n    const prevOverlap = chunks.length > 0 ? chunks[chunks.length-1].content.slice(-overlap) : null;\n    chunks.push({\n      ...inputData,\n      content: currentChunk.trim(),\n      chunk_index: chunkIndex++,\n      chunk_overlap_prev: prevOverlap,\n      chunk_overlap_next: para.slice(0, overlap),\n      token_count: Math.ceil(currentChunk.length / 4)\n    });\n    currentChunk = currentChunk.slice(-overlap) + para + '\\n\\n';\n  } else {\n    currentChunk += para + '\\n\\n';\n  }\n}\n\nif (currentChunk.trim()) {\n  chunks.push({\n    ...inputData,\n    content: currentChunk.trim(),\n    chunk_index: chunkIndex,\n    chunk_overlap_prev: chunks.length > 0 ? chunks[chunks.length-1].content.slice(-overlap) : null,\n    chunk_overlap_next: null,\n    token_count: Math.ceil(currentChunk.length / 4)\n  });\n}\n\nreturn chunks.map(c => ({ json: c }));"
+      }
+    },
+    {
+      "id": "split-in-batches",
+      "name": "SplitInBatches 100",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1750, 300],
+      "parameters": {
+        "batchSize": 100,
+        "options": {}
+      }
+    },
+    {
+      "id": "http-openai-embeddings",
+      "name": "OpenAI Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'text-embedding-3-small', input: $input.all().map(item => item.json.content) }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-api-key",
+          "name": "OpenAI API Key"
+        }
+      }
+    },
+    {
+      "id": "code-prepare-chunks",
+      "name": "Preparar Chunks com Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 300],
+      "parameters": {
+        "jsCode": "const embeddingResponse = $input.first().json;\nconst batchItems = $('SplitInBatches 100').all();\n\nconst embeddings = embeddingResponse.data || [];\n\nconst result = batchItems.map((item, index) => {\n  const embeddingData = embeddings[index];\n  return {\n    json: {\n      url: item.json.url,\n      title: item.json.title,\n      source_type: item.json.source_type,\n      author: item.json.author,\n      ingested_at: item.json.ingested_at,\n      content: item.json.content,\n      chunk_index: item.json.chunk_index,\n      chunk_overlap_prev: item.json.chunk_overlap_prev,\n      chunk_overlap_next: item.json.chunk_overlap_next,\n      token_count: item.json.token_count,\n      extraction_method: item.json.extraction_method,\n      embedding: embeddingData ? embeddingData.embedding : null\n    }\n  };\n});\n\nreturn result;"
+      }
+    },
+    {
+      "id": "http-supabase-insert-chunks",
+      "name": "Supabase Insert Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_chunks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($input.all().map(item => ({\n  source_url: item.json.url,\n  source_title: item.json.title,\n  source_type: item.json.source_type,\n  author: item.json.author,\n  ingested_at: item.json.ingested_at,\n  content: item.json.content,\n  chunk_index: item.json.chunk_index,\n  chunk_overlap_prev: item.json.chunk_overlap_prev,\n  chunk_overlap_next: item.json.chunk_overlap_next,\n  token_count: item.json.token_count,\n  extraction_method: item.json.extraction_method,\n  embedding: item.json.embedding\n}))) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-api-key",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "id": "http-update-source-status",
+      "name": "Update Source Status - Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2750, 300],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_sources?url=eq.{{ encodeURIComponent($('Normalizar Dados').first().json.url) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"status\": \"completed\", \"processed_at\": \"{{ new Date().toISOString() }}\" }",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-api-key",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "id": "respond-success",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3000, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Conteúdo ingerido com sucesso\", \"source_type\": \"{{ $('Normalizar Dados').first().json.source_type }}\", \"url\": \"{{ $('Normalizar Dados').first().json.url }}\" }",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 600],
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconst url = $('Normalizar Dados').first()?.json?.url || 'unknown';\n\nconsole.error('Mega Brain Ingest Error:', JSON.stringify(error));\n\nreturn [{\n  json: {\n    success: false,\n    error: error.message || 'Erro desconhecido',\n    url,\n    failed_at: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-update-source-failed",
+      "name": "Update Source Status - Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1750, 600],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_sources?url=eq.{{ encodeURIComponent($json.url) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"status\": \"failed\", \"processing_error\": \"{{ $json.error }}\", \"failed_at\": \"{{ $json.failed_at }}\" }",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-api-key",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "id": "respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 600],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $('Error Handler').first().json.error }}\" }",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Ingest": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [
+          {
+            "node": "Switch Tipo Fonte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Tipo Fonte": {
+      "main": [
+        [
+          {
+            "node": "YouTube: Gerar Comando yt-dlp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Texto/Webpage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Texto/Webpage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: Gerar Comando yt-dlp": {
+      "main": [
+        [
+          {
+            "node": "Deepgram STT - YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deepgram STT - YouTube": {
+      "main": [
+        [
+          {
+            "node": "Extrair Transcrição YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Transcrição YouTube": {
+      "main": [
+        [
+          {
+            "node": "Chunker Semântico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Parse PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse PDF": {
+      "main": [
+        [
+          {
+            "node": "Chunker Semântico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Áudio": {
+      "main": [
+        [
+          {
+            "node": "Deepgram STT - Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deepgram STT - Áudio": {
+      "main": [
+        [
+          {
+            "node": "Extrair Transcrição Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Transcrição Áudio": {
+      "main": [
+        [
+          {
+            "node": "Chunker Semântico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Texto/Webpage": {
+      "main": [
+        [
+          {
+            "node": "Extrair Texto Webpage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Texto Webpage": {
+      "main": [
+        [
+          {
+            "node": "Chunker Semântico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunker Semântico": {
+      "main": [
+        [
+          {
+            "node": "SplitInBatches 100",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SplitInBatches 100": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Preparar Chunks com Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Chunks com Embedding": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert Chunks": {
+      "main": [
+        [
+          {
+            "node": "Update Source Status - Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Source Status - Completed": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Update Source Status - Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Source Status - Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "America/Sao_Paulo"
+  }
+}
