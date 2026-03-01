@@ -329,7 +329,7 @@ export function Metas() {
     );
   }
 
-  if (loading && !decomposition) {
+  if (loading && !decomposition && !showDecomposer) {
     return (
       <div className="flex items-center justify-center h-64 gap-2 text-zinc-500 text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />
