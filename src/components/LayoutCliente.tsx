@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useLocation, NavLink } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import {
   Calendar,
   CheckCircle2,
@@ -11,25 +11,57 @@ import {
   ChevronRight,
   Megaphone,
   Calculator,
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useIsAdmin } from '../hooks/useIsAdmin';
-import { useIsMobile } from '../hooks/useMediaQuery';
-import { useAccount } from '../contexts/AccountContext';
-import { usePermissions, type Permissions } from '../hooks/usePermissions';
-import { useBrandConfig } from '../hooks/useBrandConfig';
-import { useTheme } from '../contexts/ThemeContext';
-import AISupportWidget from './AISupportWidget';
+  Target,
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { useIsAdmin } from "../hooks/useIsAdmin";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { useAccount } from "../contexts/AccountContext";
+import { usePermissions, type Permissions } from "../hooks/usePermissions";
+import { useBrandConfig } from "../hooks/useBrandConfig";
+import { useTheme } from "../contexts/ThemeContext";
+import AISupportWidget from "./AISupportWidget";
 
 interface LayoutClienteProps {
   children: React.ReactNode;
 }
 
-const ALL_CLIENT_NAV_ITEMS: { path: string; label: string; icon: React.FC<any>; permission: keyof Permissions }[] = [
-  { path: '/agendamentos', label: 'Agendamentos', icon: Calendar, permission: 'canAccessAgendamentos' },
-  { path: '/status', label: 'Central de Status', icon: CheckCircle2, permission: 'canAccessStatusCenter' },
-  { path: '/social-selling', label: 'Social Selling', icon: Megaphone, permission: 'canAccessSocialSelling' },
-  { path: '/planejamento', label: 'Planejamento', icon: Calculator, permission: 'canAccessPlanejamento' },
+const ALL_CLIENT_NAV_ITEMS: {
+  path: string;
+  label: string;
+  icon: React.FC<any>;
+  permission: keyof Permissions;
+}[] = [
+  {
+    path: "/agendamentos",
+    label: "Agendamentos",
+    icon: Calendar,
+    permission: "canAccessAgendamentos",
+  },
+  {
+    path: "/status",
+    label: "Central de Status",
+    icon: CheckCircle2,
+    permission: "canAccessStatusCenter",
+  },
+  {
+    path: "/social-selling",
+    label: "Social Selling",
+    icon: Megaphone,
+    permission: "canAccessSocialSelling",
+  },
+  {
+    path: "/planejamento",
+    label: "Planejamento",
+    icon: Calculator,
+    permission: "canAccessPlanejamento",
+  },
+  {
+    path: "/metas",
+    label: "Metas",
+    icon: Target,
+    permission: "canAccessPlanejamento",
+  },
 ];
 
 export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
@@ -51,19 +83,30 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
   const { brandName, logoUrl } = useTheme();
 
   const navItems = useMemo(() => {
-    const base = ALL_CLIENT_NAV_ITEMS.filter(item => hasPermission(item.permission));
+    const base = ALL_CLIENT_NAV_ITEMS.filter((item) =>
+      hasPermission(item.permission),
+    );
     // Add "Meu Brand" if brand config exists for this location
     if (brandConfig) {
-      base.push({ path: '/brand', label: 'Meu Brand', icon: Palette, permission: 'canAccessBrand' as const });
+      base.push({
+        path: "/brand",
+        label: "Meu Brand",
+        icon: Palette,
+        permission: "canAccessBrand" as const,
+      });
     }
     return base;
   }, [hasPermission, brandConfig]);
 
   // Redirecionar rotas invalidas para primeira pagina disponivel
   useEffect(() => {
-    const validPaths = navItems.map(item => item.path);
-    if (location.pathname === '/' || location.pathname === '/sales-ops' || !validPaths.includes(location.pathname)) {
-      const defaultPath = validPaths[0] || '/agendamentos';
+    const validPaths = navItems.map((item) => item.path);
+    if (
+      location.pathname === "/" ||
+      location.pathname === "/sales-ops" ||
+      !validPaths.includes(location.pathname)
+    ) {
+      const defaultPath = validPaths[0] || "/agendamentos";
       navigate(defaultPath, { replace: true });
     }
   }, [location.pathname, navigate, navItems]);
@@ -77,12 +120,12 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    navigate("/login");
   };
 
   const getInitials = (email: string) => {
-    if (!email) return '??';
-    const parts = email.split('@')[0].split('.');
+    if (!email) return "??";
+    const parts = email.split("@")[0].split(".");
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
@@ -100,21 +143,30 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        ${isMobile
-          ? `fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
-          : 'relative'
+      <aside
+        className={`
+        ${
+          isMobile
+            ? `fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`
+            : "relative"
         }
         w-64 bg-bg-secondary border-r border-border-default flex flex-col
-      `}>
+      `}
+      >
         {/* Logo */}
         <div className="h-14 flex items-center justify-between px-4 border-b border-border-default">
           <div className="flex items-center gap-2">
             {logoUrl ? (
-              <img src={logoUrl} alt={brandName} className="w-8 h-8 rounded-lg object-contain" />
+              <img
+                src={logoUrl}
+                alt={brandName}
+                className="w-8 h-8 rounded-lg object-contain"
+              />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">{brandName[0] ?? 'M'}</span>
+                <span className="text-white font-bold text-sm">
+                  {brandName[0] ?? "M"}
+                </span>
               </div>
             )}
             <span className="font-bold text-lg">{brandName}</span>
@@ -140,9 +192,10 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
               to={item.path}
               className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                ${isActive
-                  ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                ${
+                  isActive
+                    ? "bg-accent-primary/10 text-accent-primary border border-accent-primary/20"
+                    : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
                 }
               `}
             >
@@ -160,20 +213,27 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
               </p>
               {selectedAccount && (
                 <div className="mx-3 mb-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <p className="text-[10px] text-blue-400 uppercase tracking-wider">Visualizando</p>
-                  <p className="text-sm font-medium text-text-primary truncate">{selectedAccount.location_name}</p>
+                  <p className="text-[10px] text-blue-400 uppercase tracking-wider">
+                    Visualizando
+                  </p>
+                  <p className="text-sm font-medium text-text-primary truncate">
+                    {selectedAccount.location_name}
+                  </p>
                 </div>
               )}
               <button
                 onClick={() => {
                   backToAdmin();
-                  navigate('/');
+                  navigate("/");
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all bg-gradient-to-r from-purple-500/10 to-accent-primary/10 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 group"
               >
                 <Shield size={18} />
                 <span className="flex-1 text-left">Voltar para Admin</span>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <ChevronRight
+                  size={16}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
               </button>
             </>
           )}
@@ -183,14 +243,18 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
         <div className="p-3 border-t border-border-default">
           <div className="flex items-center gap-3 p-2">
             <div className="w-9 h-9 rounded-full bg-accent-primary/20 border border-accent-primary/30 flex items-center justify-center text-accent-primary text-xs font-bold">
-              {getInitials(user?.email || '')}
+              {getInitials(user?.email || "")}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-text-primary truncate">
-                {user?.email?.split('@')[0] || 'Usuário'}
+                {user?.email?.split("@")[0] || "Usuário"}
               </p>
               <p className="text-[10px] text-text-muted truncate">
-                {isAdmin ? 'Administrador' : role === 'employee' ? 'Funcionario' : 'Cliente'}
+                {isAdmin
+                  ? "Administrador"
+                  : role === "employee"
+                    ? "Funcionario"
+                    : "Cliente"}
               </p>
             </div>
             <button
@@ -221,9 +285,8 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
               <span className="text-text-muted">{brandName}</span>
               <span className="text-text-muted/50 mx-2">/</span>
               <span className="text-text-primary font-medium">
-                {navItems.find(item =>
-                  item.path === location.pathname
-                )?.label || 'Agendamentos'}
+                {navItems.find((item) => item.path === location.pathname)
+                  ?.label || "Agendamentos"}
               </span>
             </div>
           </div>
@@ -233,7 +296,7 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
             <button
               onClick={() => {
                 backToAdmin();
-                navigate('/');
+                navigate("/");
               }}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 transition-all"
             >
@@ -251,9 +314,10 @@ export const LayoutCliente: React.FC<LayoutClienteProps> = ({ children }) => {
 
       {/* AI Support Widget */}
       <AISupportWidget
-        currentPage={navItems.find(item =>
-          item.path === location.pathname
-        )?.label || 'Agendamentos'}
+        currentPage={
+          navItems.find((item) => item.path === location.pathname)?.label ||
+          "Agendamentos"
+        }
       />
     </div>
   );
