@@ -11,9 +11,14 @@ import { parseArgs } from 'node:util';
 
 // ─── Configuração ──────────────────────────────────────────────────────────────
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bfumywvwubvernvhjehk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdW15d3Z3dWJ2ZXJudmhqZWhrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQwMzc5OSwiZXhwIjoyMDY2OTc5Nzk5fQ.fdTsdGlSqemXzrXEU4ov1SUpeDn_3bSjOingqkSAWQE';
-const OPENAI_KEY = process.env.OPENAI_API_KEY || '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';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
+  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_KEY, OPENAI_API_KEY');
+  process.exit(1);
+}
 
 const MIN_MENTION_COUNT = 5;
 const MAX_CONTEXT_CHARS = 6000;
