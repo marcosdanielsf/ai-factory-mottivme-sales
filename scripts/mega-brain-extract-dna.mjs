@@ -118,10 +118,12 @@ async function extractDnaLayer(personName, layerKey, layerPrompt, context) {
 Baseado EXCLUSIVAMENTE no seguinte contexto sobre ${personName}:
 ${context}
 
-Retorne APENAS um JSON array válido, sem texto extra:
-[{"title": "Nome do item", "description": "Descrição detalhada", "evidence": ["trecho 1", "trecho 2"], "confidence": 0.8}]
+Retorne um JSON object com a chave "items" contendo um array de objetos. Cada objeto DEVE ter: "title" (string curta), "description" (string detalhada), "evidence" (array de trechos do texto), "confidence" (float 0.0 a 1.0).
 
-Se não houver evidências suficientes para esta camada, retorne: []`;
+Formato OBRIGATORIO:
+{"items": [{"title": "Nome do item", "description": "Descrição detalhada com contexto", "evidence": ["trecho relevante do texto original"], "confidence": 0.8}]}
+
+Se não houver evidências suficientes: {"items": []}`;
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -149,11 +151,20 @@ Se não houver evidências suficientes para esta camada, retorne: []`;
   try {
     // Pode retornar {items: [...]} ou [...] diretamente
     const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
-    // Tentar extrair qualquer array do objeto
-    const firstArray = Object.values(parsed).find(v => Array.isArray(v));
-    return firstArray || [];
+    let rawItems;
+    if (Array.isArray(parsed)) rawItems = parsed;
+    else if (parsed.items && Array.isArray(parsed.items)) rawItems = parsed.items;
+    else {
+      const firstArray = Object.values(parsed).find(v => Array.isArray(v));
+      rawItems = firstArray || [];
+    }
+    // Normalizar: se string, converter em objeto estruturado
+    return rawItems.map(item => {
+      if (typeof item === 'string') {
+        return { title: item.slice(0, 80), description: item, evidence: [], confidence: 0.5 };
+      }
+      return item;
+    });
   } catch {
     return [];
   }

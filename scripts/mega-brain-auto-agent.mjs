@@ -137,7 +137,11 @@ function formatDnaItems(items) {
   return items
     .slice(0, 5)
     .map((item, i) => {
-      let text = `${i + 1}. **${item.title}**: ${item.description}`;
+      // Suporta ambos: string simples OU objeto {title, description, evidence}
+      if (typeof item === 'string') {
+        return `${i + 1}. ${item}`;
+      }
+      let text = `${i + 1}. **${item.title || 'Item'}**: ${item.description || item.title || ''}`;
       if (item.evidence && item.evidence.length > 0) {
         text += `\n   _Evidência: "${item.evidence[0]}"_`;
       }
