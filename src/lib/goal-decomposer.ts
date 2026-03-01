@@ -188,8 +188,8 @@ function buildUserPrompt(input: DecomposeInput): string {
 // Gemini API Call
 // =============================================================
 
-const MAX_RETRIES = 3;
-const RETRY_DELAYS = [1000, 2000, 4000];
+const MAX_RETRIES = 4;
+const RETRY_DELAYS = [2000, 5000, 10000, 20000];
 
 async function callGemini(
   systemPrompt: string,
@@ -226,17 +226,22 @@ async function callGemini(
       if (!text) throw new Error("Gemini retornou resposta vazia");
       return text;
     } catch (error: unknown) {
-      const isRetryable =
-        error instanceof Error &&
-        (error.message.includes("429") ||
-          error.message.includes("503") ||
-          error.message.includes("RESOURCE_EXHAUSTED"));
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const isRateLimit =
+        errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+      const isRetryable = isRateLimit || errMsg.includes("503");
 
       if (isRetryable && attempt < MAX_RETRIES - 1) {
         await new Promise((resolve) =>
           setTimeout(resolve, RETRY_DELAYS[attempt]),
         );
         continue;
+      }
+
+      if (isRateLimit) {
+        throw new Error(
+          "API Gemini com limite de requisicoes excedido (429). Aguarde 1 minuto e tente novamente.",
+        );
       }
       throw error;
     }
