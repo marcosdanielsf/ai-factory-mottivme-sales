@@ -236,18 +236,19 @@ async function processEntity(entityId, index, total) {
     const rows = await sbPost('auto_agents', {
       entity_id: entityId,
       agent_name: agentName,
-      version,
+      agent_type: 'expert_clone',
       system_prompt: systemPrompt,
+      dna_layers_used: Object.keys(dna),
       is_active: false,
-      source_entity_name: entity.canonical_name,
-      dna_layers_count: layerCount,
-      mention_count: entity.mention_count,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      creation_trigger: 'mega-brain-auto-agent',
+      mention_threshold: entity.mention_count || 1,
       metadata: {
         generated_by: 'mega-brain-auto-agent',
         requires_approval: true,
-        dna_layers: Object.keys(dna),
+        version,
+        source_entity_name: entity.canonical_name,
+        dna_layers_count: layerCount,
+        mention_count: entity.mention_count,
       },
     });
 

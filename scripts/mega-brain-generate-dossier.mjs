@@ -230,7 +230,6 @@ async function processEntity(entityId, index, total) {
   await sbPatch(`knowledge_entities?id=eq.${entityId}`, {
     dossier_text: dossierText,
     dossier_updated_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   });
 
   console.log(`[dossier] Salvo: ${dossierText.length} chars`);

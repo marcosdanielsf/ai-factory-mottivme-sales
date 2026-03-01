@@ -164,12 +164,14 @@ Se não houver evidências suficientes para esta camada, retorne: []`;
 async function upsertDnaLayer(entityId, layer, items) {
   // Tentar UPSERT via POST com ON CONFLICT
   try {
+    const avgConfidence = items.length > 0
+      ? items.reduce((sum, i) => sum + (i.confidence || 0.5), 0) / items.length
+      : 0;
     await sbPost('expert_dna', {
       entity_id: entityId,
       layer,
       content: items,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      confidence: Math.round(avgConfidence * 100) / 100,
     }, 'return=minimal');
   } catch (err) {
     // Se já existe (unique constraint), fazer PATCH
@@ -273,9 +275,7 @@ async function main() {
   // Marcar entidade como tendo DNA extraído
   try {
     await sbPatch(`knowledge_entities?id=eq.${entityId}`, {
-      dna_extracted: true,
-      dna_extracted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      last_seen_at: new Date().toISOString(),
     });
   } catch {
     // Campo pode não existir — ignorar
