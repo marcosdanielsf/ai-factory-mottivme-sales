@@ -229,7 +229,7 @@ async function main() {
     await mkdir(SKILLS_AUTO_DIR, { recursive: true });
     console.log(`\nDiretório: ${SKILLS_AUTO_DIR}`);
   } catch (err) {
-    if (!err.code === 'EEXIST') throw err;
+    if (err.code !== 'EEXIST') throw err;
   }
 
   const { skillName, content } = generateSkillMarkdown(entity, dnaFrameworks, mentionSources);

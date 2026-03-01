@@ -30,7 +30,7 @@ interface ConclaveSession {
   question: string;
   synthesis: string | null;
   individual_responses: Record<string, string> | null;
-  status: "deliberating" | "synthesizing" | "completed" | "failed";
+  status: "deliberating" | "completed" | "cancelled";
   total_cost: number | null;
   created_at: string;
 }
@@ -52,13 +52,8 @@ const STATUS_CONFIG: Record<
     color: "text-blue-400",
     icon: Loader2,
   },
-  synthesizing: {
-    label: "Sintetizando",
-    color: "text-amber-400",
-    icon: Sparkles,
-  },
   completed: { label: "Concluído", color: "text-green-400", icon: CheckCircle },
-  failed: { label: "Falhou", color: "text-red-400", icon: XCircle },
+  cancelled: { label: "Cancelado", color: "text-red-400", icon: XCircle },
 };
 
 // ============================================
@@ -68,7 +63,7 @@ const STATUS_CONFIG: Record<
 function StatusBadge({ status }: { status: ConclaveSession["status"] }) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
-  const isSpinning = status === "deliberating" || status === "synthesizing";
+  const isSpinning = status === "deliberating";
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs font-medium ${config.color}`}

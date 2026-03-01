@@ -277,7 +277,7 @@ export function BrainSkills() {
       .from("auto_agents")
       .update({
         is_active: true,
-        approved_by: "admin",
+        approved_by: "factory-admin",
         approved_at: new Date().toISOString(),
       })
       .eq("id", id);
@@ -288,7 +288,7 @@ export function BrainSkills() {
             ? {
                 ...a,
                 is_active: true,
-                approved_by: "admin",
+                approved_by: "factory-admin",
                 approved_at: new Date().toISOString(),
               }
             : a,

@@ -373,7 +373,7 @@ export function BrainDNA() {
       .from("auto_agents")
       .update({
         is_active: true,
-        approved_by: "admin",
+        approved_by: "factory-admin",
         approved_at: new Date().toISOString(),
       })
       .eq("id", agentId);
