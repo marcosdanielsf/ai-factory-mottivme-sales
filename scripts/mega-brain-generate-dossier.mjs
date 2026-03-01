@@ -166,7 +166,7 @@ async function getEntityIds() {
 
 async function getEntityWithMentions(entityId) {
   const [entity] = await sbGet(
-    `knowledge_entities?id=eq.${entityId}&select=id,name,entity_type,mention_count`
+    `knowledge_entities?id=eq.${entityId}&select=id,canonical_name,entity_type,mention_count`
   );
   if (!entity) throw new Error(`Entidade ${entityId} não encontrada`);
 
@@ -209,21 +209,21 @@ async function processEntity(entityId, index, total) {
   const { entity, mentions, sources } = await getEntityWithMentions(entityId);
 
   if (mentions.length === 0) {
-    console.log(`\n[${index}/${total}] ${entity.name} — sem menções, pulando`);
+    console.log(`\n[${index}/${total}] ${entity.canonical_name} — sem menções, pulando`);
     return false;
   }
 
-  console.log(`\n[${index}/${total}] ${entity.name} (${entity.entity_type}) — ${mentions.length} menções`);
+  console.log(`\n[${index}/${total}] ${entity.canonical_name} (${entity.entity_type}) — ${mentions.length} menções`);
 
   const dossierText = await generateDossier(
-    entity.name,
+    entity.canonical_name,
     entity.entity_type,
     mentions,
     sources
   );
 
   if (!dossierText) {
-    console.warn(`[dossier] Dossiê vazio para ${entity.name}`);
+    console.warn(`[dossier] Dossiê vazio para ${entity.canonical_name}`);
     return false;
   }
 

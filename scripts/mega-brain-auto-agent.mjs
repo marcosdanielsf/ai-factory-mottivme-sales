@@ -113,18 +113,18 @@ async function getEntityIds() {
 
 async function getEntityFullData(entityId) {
   const [entity] = await sbGet(
-    `knowledge_entities?id=eq.${entityId}&select=id,name,entity_type,mention_count,dossier_text`
+    `knowledge_entities?id=eq.${entityId}&select=id,canonical_name,entity_type,mention_count,dossier_text`
   );
   if (!entity) throw new Error(`Entidade ${entityId} não encontrada`);
 
   // Buscar DNA (todas as camadas)
   const dnaLayers = await sbGet(
-    `expert_dna?entity_id=eq.${entityId}&select=layer,items&order=layer.asc`
+    `expert_dna?entity_id=eq.${entityId}&select=layer,content&order=layer.asc`
   );
 
   const dna = {};
   for (const layer of dnaLayers) {
-    dna[layer.layer] = layer.items || [];
+    dna[layer.layer] = layer.content || [];
   }
 
   return { entity, dna };
@@ -147,7 +147,7 @@ function formatDnaItems(items) {
 }
 
 function generateCriticsPrompt(entity, dna) {
-  const name = entity.name;
+  const name = entity.canonical_name;
   const dossier = entity.dossier_text || 'Informações baseadas em análise de menções coletadas.';
 
   const philosophy = formatDnaItems(dna.philosophy);
@@ -219,7 +219,7 @@ async function processEntity(entityId, index, total) {
 
   const layerCount = Object.keys(dna).length;
 
-  console.log(`\n[${index}/${total}] ${entity.name}`);
+  console.log(`\n[${index}/${total}] ${entity.canonical_name}`);
   console.log(`  Menções: ${entity.mention_count} | Camadas DNA: ${layerCount}/6`);
 
   if (layerCount === 0) {
@@ -228,7 +228,7 @@ async function processEntity(entityId, index, total) {
   }
 
   const systemPrompt = generateCriticsPrompt(entity, dna);
-  const agentName = `${entity.name} Clone Auto`;
+  const agentName = `${entity.canonical_name} Clone Auto`;
   const version = 'vAuto.1.0';
 
   // INSERT auto_agents
@@ -239,7 +239,7 @@ async function processEntity(entityId, index, total) {
       version,
       system_prompt: systemPrompt,
       is_active: false,
-      source_entity_name: entity.name,
+      source_entity_name: entity.canonical_name,
       dna_layers_count: layerCount,
       mention_count: entity.mention_count,
       created_at: new Date().toISOString(),

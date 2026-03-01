@@ -188,17 +188,17 @@ async function upsertDnaLayer(entityId, layer, items) {
 
 async function getEntityContext(entityId) {
   const [entity] = await sbGet(
-    `knowledge_entities?id=eq.${entityId}&select=id,name,entity_type,mention_count,dossier_text`
+    `knowledge_entities?id=eq.${entityId}&select=id,canonical_name,entity_type,mention_count,dossier_text`
   );
 
   if (!entity) throw new Error(`Entidade ${entityId} não encontrada`);
 
   if (entity.entity_type !== 'person') {
-    throw new Error(`Entidade ${entity.name} não é uma pessoa (tipo: ${entity.entity_type}). DNA só é extraído de pessoas.`);
+    throw new Error(`Entidade ${entity.canonical_name} não é uma pessoa (tipo: ${entity.entity_type}). DNA só é extraído de pessoas.`);
   }
 
   if ((entity.mention_count || 0) < MIN_MENTION_COUNT) {
-    throw new Error(`Entidade ${entity.name} tem apenas ${entity.mention_count} menções (mínimo: ${MIN_MENTION_COUNT})`);
+    throw new Error(`Entidade ${entity.canonical_name} tem apenas ${entity.mention_count} menções (mínimo: ${MIN_MENTION_COUNT})`);
   }
 
   // Usar dossiê se disponível, senão buscar chunks
@@ -235,7 +235,7 @@ async function main() {
 
   const { entity, context } = await getEntityContext(entityId);
 
-  console.log(`\nEntidade: ${entity.name} (${entity.entity_type})`);
+  console.log(`\nEntidade: ${entity.canonical_name} (${entity.entity_type})`);
   console.log(`Menções:  ${entity.mention_count}`);
   console.log(`Contexto: ${context.length} chars`);
   console.log(`\nExtraindo 6 camadas DNA...`);
@@ -249,9 +249,9 @@ async function main() {
 
     try {
       const items = await extractDnaLayer(
-        entity.name,
+        entity.canonical_name,
         layerKey,
-        promptFn(entity.name),
+        promptFn(entity.canonical_name),
         context
       );
 
@@ -284,7 +284,7 @@ async function main() {
   console.log('\n' + '='.repeat(60));
   console.log('DNA EXTRAÍDO');
   console.log('='.repeat(60));
-  console.log(`Entidade: ${entity.name}`);
+  console.log(`Entidade: ${entity.canonical_name}`);
   for (const [layer, count] of Object.entries(results)) {
     console.log(`  ${layer.padEnd(16)}: ${count} itens`);
   }

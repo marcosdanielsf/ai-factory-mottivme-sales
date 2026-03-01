@@ -90,7 +90,7 @@ function toKebabCase(str) {
 
 async function getFrameworkData(entityId) {
   const [entity] = await sbGet(
-    `knowledge_entities?id=eq.${entityId}&select=id,name,entity_type,mention_count,metadata,dossier_text`
+    `knowledge_entities?id=eq.${entityId}&select=id,canonical_name,entity_type,mention_count,metadata,dossier_text`
   );
 
   if (!entity) throw new Error(`Entidade ${entityId} não encontrada`);
@@ -100,11 +100,11 @@ async function getFrameworkData(entityId) {
 
   // 1. Tentar buscar DNA direto da entidade
   const dnaRows = await sbGet(
-    `expert_dna?entity_id=eq.${entityId}&layer=eq.frameworks&select=items`
+    `expert_dna?entity_id=eq.${entityId}&layer=eq.frameworks&select=content`
   );
 
-  if (dnaRows.length > 0 && dnaRows[0].items) {
-    dnaFrameworks = dnaRows[0].items;
+  if (dnaRows.length > 0 && dnaRows[0].content) {
+    dnaFrameworks = dnaRows[0].content;
   }
 
   // 2. Usar metadata da entidade como fallback (preenchido no detect-frameworks)
@@ -112,8 +112,8 @@ async function getFrameworkData(entityId) {
     const meta = entity.metadata;
     if (meta.steps || meta.when_to_use) {
       dnaFrameworks = [{
-        title: entity.name,
-        description: entity.dossier_text || `Framework: ${entity.name}`,
+        title: entity.canonical_name,
+        description: entity.dossier_text || `Framework: ${entity.canonical_name}`,
         steps: meta.steps || [],
         when_to_use: meta.when_to_use || '',
         example: meta.example || '',
@@ -139,14 +139,14 @@ async function getFrameworkData(entityId) {
 // ─── Geração da skill ─────────────────────────────────────────────────────────
 
 function generateSkillMarkdown(entity, dnaFrameworks, mentionSources) {
-  const skillName = toKebabCase(entity.name);
+  const skillName = toKebabCase(entity.canonical_name);
   const sourcePerson = entity.metadata?.source_person || 'Desconhecido';
   const sourceContext = mentionSources.slice(0, 3).join(', ') || 'Knowledge Base';
 
   // Usar o primeiro framework do DNA (o mais relevante) ou criar estrutura genérica
   const mainFramework = dnaFrameworks[0] || {
-    title: entity.name,
-    description: entity.dossier_text || `Metodologia: ${entity.name}`,
+    title: entity.canonical_name,
+    description: entity.dossier_text || `Metodologia: ${entity.canonical_name}`,
     steps: [],
     when_to_use: 'Consulte o knowledge base para detalhes de aplicação.',
     example: '',
@@ -170,13 +170,13 @@ function generateSkillMarkdown(entity, dnaFrameworks, mentionSources) {
   const frontmatter = `---
 skill: ${skillName}
 version: 1.0.0
-description: ${entity.name} — framework extraído automaticamente do Mega Brain
+description: ${entity.canonical_name} — framework extraído automaticamente do Mega Brain
 auto_generated: true
 source_entity: ${entity.id}
 approved: false
 ---`;
 
-  const body = `# ${entity.name}
+  const body = `# ${entity.canonical_name}
 
 ## Quando Usar
 ${mainFramework.when_to_use || 'Quando precisar aplicar este framework estruturado.'}
@@ -208,7 +208,7 @@ async function main() {
 
   const { entity, dnaFrameworks, mentionSources } = await getFrameworkData(entityId);
 
-  console.log(`\nEntidade: ${entity.name} (${entity.entity_type})`);
+  console.log(`\nEntidade: ${entity.canonical_name} (${entity.entity_type})`);
   console.log(`Frameworks no DNA: ${dnaFrameworks.length}`);
   console.log(`Fontes: ${mentionSources.length}`);
 

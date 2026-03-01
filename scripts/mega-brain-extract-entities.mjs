@@ -115,10 +115,12 @@ async function sbRpc(fn, body) {
 // ─── Gemini Flash ──────────────────────────────────────────────────────────────
 
 async function extractEntitiesFromChunk(chunkText) {
-  const prompt = `Extraia TODAS as entidades mencionadas neste texto. Inclua: pessoas, empresas, tópicos, frameworks, livros, ferramentas, metodologias, conceitos.
+  const prompt = `Extraia TODAS as entidades mencionadas neste texto. Inclua: pessoas, empresas, tópicos, frameworks, livros, ferramentas e lugares.
 
 Retorne APENAS um JSON array válido, sem texto extra, no formato:
-[{"name": "Nome da Entidade", "type": "person|company|topic|framework|book|tool|concept", "context_snippet": "trecho relevante do texto"}]
+[{"name": "Nome da Entidade", "type": "person|company|topic|framework|book|tool|place", "context_snippet": "trecho relevante do texto"}]
+
+TIPOS VÁLIDOS APENAS: person, company, topic, framework, book, tool, place
 
 Se não houver entidades relevantes, retorne: []
 
@@ -145,7 +147,11 @@ ${chunkText}`;
 
   try {
     const parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Validar tipos — remover entidades com tipos inválidos
+    const validTypes = ['person', 'company', 'topic', 'framework', 'book', 'tool', 'place'];
+    return parsed.filter(e => validTypes.includes(e.type?.toLowerCase()));
   } catch {
     return [];
   }
@@ -176,7 +182,7 @@ async function upsertEntity(entity) {
     const aliases = existingEntity.aliases || [];
     const nameLower = entity.name.toLowerCase();
     const alreadyAlias = aliases.some(a => a.toLowerCase() === nameLower);
-    const isMainName = existingEntity.name.toLowerCase() === nameLower;
+    const isMainName = existingEntity.canonical_name.toLowerCase() === nameLower;
 
     if (!alreadyAlias && !isMainName) {
       aliases.push(entity.name);
@@ -186,10 +192,11 @@ async function upsertEntity(entity) {
       await sbPatch(`knowledge_entities?id=eq.${existingEntity.id}`, {
         aliases,
         mention_count: (existingEntity.mention_count || 0) + 1,
-        updated_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
       });
-    } catch {
-      // mention_count ou aliases podem não existir — ignorar
+    } catch (err) {
+      // Campo pode não existir — ignorar
+      console.warn(`[update] Aviso ao atualizar entidade ${existingEntity.id}: ${err.message}`);
     }
 
     return existingEntity.id;
@@ -198,19 +205,22 @@ async function upsertEntity(entity) {
   // Nova entidade
   try {
     const rows = await sbPost('knowledge_entities', {
-      name: entity.name,
+      canonical_name: entity.name,
       entity_type: entity.type,
       aliases: [],
       mention_count: 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     });
     return Array.isArray(rows) ? rows[0]?.id : rows?.id;
   } catch (err) {
-    // Pode ter constraint de nome duplicado — tentar buscar diretamente
+    // Pode ter constraint de nome duplicado — tentar buscar diretamente via fuzzy
     try {
-      const existing = await sbGet(`knowledge_entities?name=eq.${encodeURIComponent(entity.name)}&limit=1`);
-      if (existing.length > 0) return existing[0].id;
+      const results = await sbRpc('find_entity_fuzzy', {
+        search_name: entity.name,
+        similarity_threshold: 0.95,
+      });
+      if (Array.isArray(results) && results.length > 0) {
+        return results[0].id;
+      }
     } catch {}
     throw err;
   }
@@ -222,11 +232,12 @@ async function insertEntityMention(chunkId, entityId, contextSnippet, sourceId) 
       chunk_id: chunkId,
       entity_id: entityId,
       source_id: sourceId,
+      mention_text: contextSnippet?.slice(0, 100) || '',
       context_snippet: contextSnippet?.slice(0, 500) || null,
-      created_at: new Date().toISOString(),
+      confidence: 1.0,
     }, 'return=minimal');
   } catch (err) {
-    // Pode ter constraint unique — ignorar duplicatas
+    // Pode ter constraint unique (entity_id, chunk_id) — ignorar duplicatas
     if (!err.message.includes('duplicate') && !err.message.includes('unique')) {
       throw err;
     }
@@ -240,9 +251,10 @@ async function getSourceIds() {
     return [args['source-id']];
   }
 
-  // Buscar sources sem entidades extraídas (entities_extracted=false ou null)
+  // Buscar sources completados (coluna entities_extracted não existe ainda no schema)
+  // Processaremos todos os sources com processing_status=completed e chunks
   const sources = await sbGet(
-    'knowledge_sources?select=id&or=(entities_extracted.is.null,entities_extracted.eq.false)&status=eq.completed&order=created_at.asc'
+    'knowledge_sources?select=id&processing_status=eq.completed&order=created_at.asc'
   );
   return sources.map(s => s.id);
 }
@@ -307,15 +319,8 @@ async function processSource(sourceId) {
     }
   }
 
-  // Marcar source como processada
-  try {
-    await sbPatch(`knowledge_sources?id=eq.${sourceId}`, {
-      entities_extracted: true,
-      entities_extracted_at: new Date().toISOString(),
-    });
-  } catch {
-    // Campo pode não existir — ignorar
-  }
+  // Nota: source já está marcado como completed — entidades foram extraídas
+  // Campo entities_extracted não existe no schema atual, será adicionado em futura migration
 
   console.log(`\n[source] Concluído: ${totalEntities} entidades, ${totalMentions} menções`);
   return { chunks: chunks.length, entities: totalEntities, mentions: totalMentions };

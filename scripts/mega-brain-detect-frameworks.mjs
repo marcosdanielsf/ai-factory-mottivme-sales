@@ -174,11 +174,11 @@ async function upsertFrameworkEntity(framework) {
       const match = results.find(r => r.entity_type === 'framework') || results[0];
       existingId = match.id;
 
-      // Atualizar mention_count
+      // Atualizar mention_count e last_seen_at
       try {
         await sbPatch(`knowledge_entities?id=eq.${existingId}`, {
           mention_count: (match.mention_count || 0) + 1,
-          updated_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
         });
       } catch {
         // Ignorar
@@ -195,7 +195,7 @@ async function upsertFrameworkEntity(framework) {
   // Criar nova entidade de framework
   try {
     const rows = await sbPost('knowledge_entities', {
-      name: framework.name,
+      canonical_name: framework.name,
       entity_type: 'framework',
       aliases: [],
       mention_count: 1,
@@ -205,15 +205,13 @@ async function upsertFrameworkEntity(framework) {
         example: framework.example || null,
         source_person: framework.source_person || null,
       },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     });
     return Array.isArray(rows) ? rows[0]?.id : rows?.id;
   } catch (err) {
     if (err.message.includes('duplicate') || err.message.includes('unique')) {
       try {
         const existing = await sbGet(
-          `knowledge_entities?name=eq.${encodeURIComponent(framework.name)}&limit=1`
+          `knowledge_entities?canonical_name=eq.${encodeURIComponent(framework.name)}&limit=1`
         );
         if (existing.length > 0) return existing[0].id;
       } catch {}
@@ -231,7 +229,7 @@ async function getSourceIds() {
 
   const n = parseInt(args.recent, 10) || 10;
   const sources = await sbGet(
-    `knowledge_sources?select=id&status=eq.completed&order=created_at.desc&limit=${n}`
+    `knowledge_sources?select=id&processing_status=eq.completed&order=created_at.desc&limit=${n}`
   );
   return sources.map(s => s.id);
 }
@@ -275,8 +273,9 @@ async function processSource(sourceId, index, total) {
                   chunk_id: chunk.id,
                   entity_id: entityId,
                   source_id: sourceId,
+                  mention_text: fw.name,
                   context_snippet: fw.source_context?.slice(0, 500) || null,
-                  created_at: new Date().toISOString(),
+                  confidence: 0.9,
                 }, 'return=minimal');
               } catch {
                 // Ignorar duplicatas de menção
