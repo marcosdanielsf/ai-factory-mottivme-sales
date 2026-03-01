@@ -263,7 +263,7 @@ export function useGoalDecomposition(locationId: string | null) {
               business_model: input.business_model,
               monthly_distribution: result.monthly_distribution,
               ai_config: {
-                model: "gemini-2.0-flash",
+                model: "gemini-2.5-flash-lite",
                 temperature: 0.7,
                 timestamp: new Date().toISOString(),
                 benchmarks_used:

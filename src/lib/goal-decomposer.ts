@@ -204,7 +204,7 @@ async function callGemini(
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash-lite",
         contents: [
           { role: "user", parts: [{ text: systemPrompt }] },
           {
