@@ -258,6 +258,11 @@ const BrainIngest = lazy(() =>
 const BrainEntities = lazy(() =>
   import("./pages/Brain/Entities").then((m) => ({ default: m.BrainEntities })),
 );
+const BrainEntityDetail = lazy(() =>
+  import("./pages/Brain/Entities").then((m) => ({
+    default: m.BrainEntityDetail,
+  })),
+);
 const BrainDNA = lazy(() =>
   import("./pages/Brain/DNA").then((m) => ({ default: m.BrainDNA })),
 );
@@ -1614,7 +1619,7 @@ const App = () => {
                       <ProtectedRoute>
                         <Layout>
                           <Suspense fallback={<LoadingFallback />}>
-                            <BrainEntities />
+                            <BrainEntityDetail />
                           </Suspense>
                         </Layout>
                       </ProtectedRoute>
