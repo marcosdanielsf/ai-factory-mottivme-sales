@@ -1,9 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, X, Loader2, Volume2, Send, MessageSquare, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Mic,
+  MicOff,
+  X,
+  Loader2,
+  Volume2,
+  Send,
+  MessageSquare,
+  Sparkles,
+} from "lucide-react";
 
 // Audio Utility Functions
 function encode(bytes: Uint8Array) {
-  let binary = '';
+  let binary = "";
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
@@ -42,7 +51,7 @@ async function decodeAudioData(
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -56,13 +65,16 @@ interface AISupportWidgetProps {
 }
 
 const SUGGESTED_TOPICS = [
-  'Como editar prompts?',
-  'O que é Reflection Loop?',
-  'Como classificar leads?',
-  'Explicar os scores'
+  "Como editar prompts?",
+  "O que é Reflection Loop?",
+  "Como classificar leads?",
+  "Explicar os scores",
 ];
 
-const AISupportWidget: React.FC<AISupportWidgetProps> = ({ currentPage, agentContext }) => {
+const AISupportWidget: React.FC<AISupportWidgetProps> = ({
+  currentPage,
+  agentContext,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -71,7 +83,7 @@ const AISupportWidget: React.FC<AISupportWidgetProps> = ({ currentPage, agentCon
   const [error, setError] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -90,7 +102,7 @@ const AISupportWidget: React.FC<AISupportWidgetProps> = ({ currentPage, agentCon
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Focus input when opened
@@ -119,24 +131,30 @@ Regras:
 
     const contextInfo = currentPage
       ? `\n\nO usuário está na página: ${currentPage}`
-      : '';
+      : "";
 
     const agentInfo = agentContext
       ? `\nAgente selecionado: ${agentContext.agentName}`
-      : '';
+      : "";
 
     return baseInstruction + contextInfo + agentInfo;
   };
 
   const cleanup = () => {
-    sessionPromiseRef.current?.then(s => {
-      try { s.close(); } catch (e) {}
+    sessionPromiseRef.current?.then((s) => {
+      try {
+        s.close();
+      } catch (e) {}
     });
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     scriptProcessorRef.current?.disconnect();
     audioContextInRef.current?.close();
     audioContextOutRef.current?.close();
-    sourcesRef.current.forEach(s => { try { s.stop(); } catch (e) {} });
+    sourcesRef.current.forEach((s) => {
+      try {
+        s.stop();
+      } catch (e) {}
+    });
     sourcesRef.current.clear();
 
     streamRef.current = null;
@@ -155,29 +173,33 @@ Regras:
     setIsConnecting(true);
 
     try {
-      const { GoogleGenAI, Modality } = await import('@google/genai');
+      const { GoogleGenAI, Modality } = await import("@google/genai");
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
       if (!apiKey) {
-        setError('API Key não configurada');
+        setError("API Key não configurada");
         setIsConnecting(false);
         return;
       }
 
       const ai = new GoogleGenAI({ apiKey });
 
-      audioContextInRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextOutRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      audioContextInRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )({ sampleRate: 16000 });
+      audioContextOutRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )({ sampleRate: 24000 });
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: "gemini-2.5-flash-native-audio-preview-09-2025",
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
           },
           systemInstruction: getSystemInstruction(),
         },
@@ -187,12 +209,16 @@ Regras:
             setIsConnected(true);
             setIsVoiceMode(true);
 
-            const source = audioContextInRef.current!.createMediaStreamSource(streamRef.current!);
-            const scriptProcessor = audioContextInRef.current!.createScriptProcessor(4096, 1, 1);
+            const source = audioContextInRef.current!.createMediaStreamSource(
+              streamRef.current!,
+            );
+            const scriptProcessor =
+              audioContextInRef.current!.createScriptProcessor(4096, 1, 1);
             scriptProcessorRef.current = scriptProcessor;
 
             scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-              const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+              const inputData =
+                audioProcessingEvent.inputBuffer.getChannelData(0);
               const l = inputData.length;
               const int16 = new Int16Array(l);
               for (let i = 0; i < l; i++) {
@@ -200,7 +226,7 @@ Regras:
               }
               const pcmBlob = {
                 data: encode(new Uint8Array(int16.buffer)),
-                mimeType: 'audio/pcm;rate=16000',
+                mimeType: "audio/pcm;rate=16000",
               };
 
               sessionPromiseRef.current?.then((session) => {
@@ -212,20 +238,29 @@ Regras:
             scriptProcessor.connect(audioContextInRef.current!.destination);
           },
           onmessage: async (message: any) => {
-            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            const base64Audio =
+              message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (base64Audio && audioContextOutRef.current) {
               setIsSpeaking(true);
               const ctx = audioContextOutRef.current;
 
               try {
-                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
-                const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+                nextStartTimeRef.current = Math.max(
+                  nextStartTimeRef.current,
+                  ctx.currentTime,
+                );
+                const audioBuffer = await decodeAudioData(
+                  decode(base64Audio),
+                  ctx,
+                  24000,
+                  1,
+                );
                 const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.playbackRate.value = PLAYBACK_RATE;
                 source.connect(ctx.destination);
 
-                source.addEventListener('ended', () => {
+                source.addEventListener("ended", () => {
                   sourcesRef.current.delete(source);
                   if (sourcesRef.current.size === 0) {
                     setIsSpeaking(false);
@@ -233,36 +268,40 @@ Regras:
                 });
 
                 source.start(nextStartTimeRef.current);
-                nextStartTimeRef.current += audioBuffer.duration / PLAYBACK_RATE;
+                nextStartTimeRef.current +=
+                  audioBuffer.duration / PLAYBACK_RATE;
                 sourcesRef.current.add(source);
               } catch (e) {
-                console.error('Audio decode error:', e);
+                console.error("Audio decode error:", e);
               }
             }
 
             if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => { try { s.stop(); } catch (e) {} });
+              sourcesRef.current.forEach((s) => {
+                try {
+                  s.stop();
+                } catch (e) {}
+              });
               sourcesRef.current.clear();
               nextStartTimeRef.current = 0;
               setIsSpeaking(false);
             }
           },
           onerror: (e: any) => {
-            console.error('Voice error:', e);
-            setError('Erro na conexão de voz');
+            console.error("Voice error:", e);
+            setError("Erro na conexão de voz");
             cleanup();
           },
           onclose: () => {
             cleanup();
-          }
-        }
+          },
+        },
       });
 
       sessionPromiseRef.current = sessionPromise;
-
     } catch (err: any) {
-      console.error('Failed to start voice:', err);
-      setError(err.message || 'Erro ao iniciar voz');
+      console.error("Failed to start voice:", err);
+      setError(err.message || "Erro ao iniciar voz");
       setIsConnecting(false);
     }
   };
@@ -277,60 +316,63 @@ Regras:
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: inputText.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInputText("");
     setIsTyping(true);
 
     try {
-      const { GoogleGenAI } = await import('@google/genai');
+      const { GoogleGenAI } = await import("@google/genai");
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
       if (!apiKey) {
-        setError('API Key não configurada');
+        setError("API Key não configurada");
         setIsTyping(false);
         return;
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const model = ai.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
       const result = await model.generateContent({
         contents: [
-          { role: 'user', parts: [{ text: getSystemInstruction() }] },
-          { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar a equipe.' }] },
-          ...messages.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
+          { role: "user", parts: [{ text: getSystemInstruction() }] },
+          {
+            role: "model",
+            parts: [{ text: "Entendido! Estou pronto para ajudar a equipe." }],
+          },
+          ...messages.map((m) => ({
+            role: m.role === "user" ? "user" : "model",
+            parts: [{ text: m.content }],
           })),
-          { role: 'user', parts: [{ text: userMessage.content }] }
-        ]
+          { role: "user", parts: [{ text: userMessage.content }] },
+        ],
       });
 
       const responseText = result.response.text();
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
+        role: "assistant",
         content: responseText,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
-      console.error('Text chat error:', err);
-      setError('Erro ao enviar mensagem');
+      console.error("Text chat error:", err);
+      setError("Erro ao enviar mensagem");
     } finally {
       setIsTyping(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendText();
     }
@@ -354,7 +396,7 @@ Regras:
         onClick={() => setIsOpen(!isOpen)}
         className={`
           fixed bottom-6 right-6 z-[100] rounded-full p-4 shadow-2xl transition-all duration-300 hover:scale-110
-          ${isOpen ? 'bg-accent-primary text-white' : 'bg-bg-secondary border border-border-default text-accent-primary hover:border-accent-primary'}
+          ${isOpen ? "bg-accent-primary text-white" : "bg-bg-secondary border border-border-default text-accent-primary hover:border-accent-primary"}
         `}
       >
         {isOpen ? <X size={24} /> : <Sparkles size={24} />}
@@ -362,8 +404,10 @@ Regras:
 
       {/* Chat Modal */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-[99] w-[380px] bg-bg-secondary border border-border-default rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300" style={{ maxHeight: '70vh' }}>
-
+        <div
+          className="fixed bottom-24 right-6 z-[99] w-[380px] bg-bg-secondary border border-border-default rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
+          style={{ maxHeight: "70vh" }}
+        >
           {/* Header */}
           <div className="bg-bg-tertiary p-4 border-b border-border-default">
             <div className="flex items-center justify-between">
@@ -372,15 +416,21 @@ Regras:
                   <MessageSquare className="text-accent-primary" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-text-primary text-sm">AI Support</h3>
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider">MOTTIVME Sales</p>
+                  <h3 className="font-medium text-text-primary text-sm">
+                    AI Support
+                  </h3>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider">
+                    MOTTIVME Sales
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {isVoiceMode && (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/20 rounded-full">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] text-green-400 font-medium">Voz ativa</span>
+                    <span className="text-[10px] text-green-400 font-medium">
+                      Voz ativa
+                    </span>
                   </div>
                 )}
               </div>
@@ -388,7 +438,8 @@ Regras:
 
             {currentPage && (
               <div className="mt-2 text-[10px] text-text-muted">
-                Página: <span className="text-accent-primary">{currentPage}</span>
+                Página:{" "}
+                <span className="text-accent-primary">{currentPage}</span>
               </div>
             )}
           </div>
@@ -397,7 +448,9 @@ Regras:
           <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px] max-h-[300px] bg-bg-primary">
             {messages.length === 0 && !isVoiceMode && (
               <div className="text-center py-6">
-                <p className="text-text-muted text-sm mb-4">Como posso ajudar?</p>
+                <p className="text-text-muted text-sm mb-4">
+                  Como posso ajudar?
+                </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {SUGGESTED_TOPICS.map((topic) => (
                     <button
@@ -415,13 +468,13 @@ Regras:
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-accent-primary text-white'
-                      : 'bg-bg-secondary border border-border-default text-text-primary'
+                    msg.role === "user"
+                      ? "bg-accent-primary text-white"
+                      : "bg-bg-secondary border border-border-default text-text-primary"
                   }`}
                 >
                   {msg.content}
@@ -433,9 +486,18 @@ Regras:
               <div className="flex justify-start">
                 <div className="bg-bg-secondary border border-border-default rounded-lg px-4 py-2">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div
+                      className="w-2 h-2 bg-text-muted rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-text-muted rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-text-muted rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
                   </div>
                 </div>
               </div>
@@ -445,9 +507,15 @@ Regras:
             {isVoiceMode && (
               <div className="flex flex-col items-center py-6">
                 <div className="relative w-20 h-20 flex items-center justify-center mb-3">
-                  <div className={`absolute inset-0 bg-accent-primary/20 rounded-full transition-all duration-300 ${isSpeaking ? 'animate-ping scale-150 opacity-40' : 'scale-100 opacity-0'}`} />
-                  <div className={`absolute inset-0 bg-accent-primary/30 rounded-full transition-all duration-200 ${isSpeaking ? 'scale-125' : 'scale-100'}`} />
-                  <div className={`relative z-10 bg-accent-primary rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${isSpeaking ? 'w-16 h-16' : 'w-14 h-14'}`}>
+                  <div
+                    className={`absolute inset-0 bg-accent-primary/20 rounded-full transition-all duration-300 ${isSpeaking ? "animate-ping scale-150 opacity-40" : "scale-100 opacity-0"}`}
+                  />
+                  <div
+                    className={`absolute inset-0 bg-accent-primary/30 rounded-full transition-all duration-200 ${isSpeaking ? "scale-125" : "scale-100"}`}
+                  />
+                  <div
+                    className={`relative z-10 bg-accent-primary rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${isSpeaking ? "w-16 h-16" : "w-14 h-14"}`}
+                  >
                     {isSpeaking ? (
                       <Volume2 className="text-white w-7 h-7" />
                     ) : (
@@ -456,7 +524,7 @@ Regras:
                   </div>
                 </div>
                 <p className="text-text-muted text-xs uppercase tracking-wider">
-                  {isSpeaking ? 'Falando...' : 'Ouvindo...'}
+                  {isSpeaking ? "Falando..." : "Ouvindo..."}
                 </p>
               </div>
             )}
@@ -479,10 +547,10 @@ Regras:
                 disabled={isConnecting}
                 className={`p-2.5 rounded-lg transition-colors ${
                   isVoiceMode
-                    ? 'bg-accent-primary text-white'
-                    : 'bg-bg-tertiary text-text-muted hover:text-accent-primary hover:bg-bg-tertiary/80'
-                } ${isConnecting ? 'opacity-50' : ''}`}
-                title={isVoiceMode ? 'Desativar voz' : 'Ativar voz'}
+                    ? "bg-accent-primary text-white"
+                    : "bg-bg-tertiary text-text-muted hover:text-accent-primary hover:bg-bg-tertiary/80"
+                } ${isConnecting ? "opacity-50" : ""}`}
+                title={isVoiceMode ? "Desativar voz" : "Ativar voz"}
               >
                 {isConnecting ? (
                   <Loader2 className="animate-spin" size={18} />
@@ -501,7 +569,9 @@ Regras:
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={isVoiceMode ? 'Modo voz ativo...' : 'Digite sua dúvida...'}
+                  placeholder={
+                    isVoiceMode ? "Modo voz ativo..." : "Digite sua dúvida..."
+                  }
                   disabled={isVoiceMode}
                   className="flex-1 bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none disabled:opacity-50"
                 />
