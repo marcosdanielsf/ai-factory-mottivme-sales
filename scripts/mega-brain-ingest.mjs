@@ -71,11 +71,11 @@ Tipos auto-detectados por extensão:
 // ─── Env check (apos help para --help funcionar sem env vars) ────────────────
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
-  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY');
+  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_KEY (ou SUPABASE_SERVICE_KEY), OPENAI_API_KEY');
   process.exit(1);
 }
 
@@ -89,18 +89,21 @@ const inputIsFile = !!args.file;
 
 // ─── Detecção de tipo ─────────────────────────────────────────────────────────
 
-const TYPE_ALIASES = { text: 'note', video: 'call_recording' };
+const TYPE_ALIASES = { text: 'note' };
 
 async function detectType(input, isFile) {
-  if (args.type) return TYPE_ALIASES[args.type] || args.type;
-
+  // Para URLs, detectar tipo pela URL ANTES de aplicar aliases
   if (!isFile) {
-    // URL
     const lower = input.toLowerCase();
     if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
     if (lower.includes('docs.google.com')) return 'gdrive_doc';
+    // Se --type foi passado, usar alias; senao, webpage
+    if (args.type) return TYPE_ALIASES[args.type] || args.type;
     return 'webpage';
   }
+
+  // Arquivo local — se --type foi passado, usar alias
+  if (args.type) return TYPE_ALIASES[args.type] || args.type;
 
   // Arquivo local — usar extensão
   const ext = extname(input).toLowerCase();
