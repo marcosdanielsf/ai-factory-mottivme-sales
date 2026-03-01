@@ -294,10 +294,11 @@ async function extractYouTube(url) {
 
   try {
     console.log('[youtube] Baixando audio via yt-dlp...');
-    execSync(
-      `yt-dlp -x --audio-format mp3 --audio-quality 5 -o "${tempAudio}" "${url}"`,
-      { stdio: 'pipe', timeout: 300_000 }
-    );
+    const { execFileSync } = await import('node:child_process');
+    execFileSync('yt-dlp', ['-x', '--audio-format', 'mp3', '--audio-quality', '5', '-o', tempAudio, url], {
+      stdio: 'pipe',
+      timeout: 300_000,
+    });
 
     // Verificar se arquivo foi criado (yt-dlp pode adicionar extensão)
     let audioFile = tempAudio;

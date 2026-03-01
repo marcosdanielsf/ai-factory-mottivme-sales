@@ -61,21 +61,21 @@ interface ExpertProfile {
 // ============================================
 
 const DNA_LAYERS = [
-  "worldview",
+  "philosophy",
+  "mental_models",
+  "heuristics",
   "frameworks",
-  "vocabulary",
-  "patterns",
-  "contrarian",
-  "stories",
+  "methodologies",
+  "dilemmas",
 ];
 
 const LAYER_LABELS: Record<string, string> = {
-  worldview: "Visão de Mundo",
+  philosophy: "Filosofia",
+  mental_models: "Modelos Mentais",
+  heuristics: "Heurísticas",
   frameworks: "Frameworks",
-  vocabulary: "Vocabulário",
-  patterns: "Padrões",
-  contrarian: "Visão Contrária",
-  stories: "Histórias",
+  methodologies: "Metodologias",
+  dilemmas: "Dilemas",
 };
 
 const AGENT_TYPE_COLORS: Record<string, string> = {

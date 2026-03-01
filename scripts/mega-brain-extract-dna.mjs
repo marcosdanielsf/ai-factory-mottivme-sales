@@ -167,7 +167,7 @@ async function upsertDnaLayer(entityId, layer, items) {
     await sbPost('expert_dna', {
       entity_id: entityId,
       layer,
-      items,
+      content: items,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }, 'return=minimal');
@@ -175,7 +175,7 @@ async function upsertDnaLayer(entityId, layer, items) {
     // Se já existe (unique constraint), fazer PATCH
     if (err.message.includes('duplicate') || err.message.includes('unique') || err.message.includes('23505')) {
       await sbPatch(`expert_dna?entity_id=eq.${entityId}&layer=eq.${layer}`, {
-        items,
+        content: items,
         updated_at: new Date().toISOString(),
       });
     } else {

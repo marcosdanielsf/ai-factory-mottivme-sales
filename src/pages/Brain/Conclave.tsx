@@ -318,12 +318,20 @@ export function BrainConclave() {
     setError(null);
     setSubmitting(true);
 
+    const councilConfig = {
+      agents: Array.from(selectedAgents).map((agentId) => ({
+        agent_id: agentId,
+        role: agents.find((a) => a.id === agentId)?.agent_name || "expert",
+        weight: 1,
+      })),
+    };
+
     const { error: insertErr } = await supabase
       .from("conclave_sessions")
       .insert({
         question: question.trim(),
         context: context.trim() || null,
-        agent_ids: Array.from(selectedAgents),
+        council_config: councilConfig,
         status: "deliberating",
       });
 
