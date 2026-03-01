@@ -24,8 +24,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAccount } from "../../contexts/AccountContext";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
+import { useLocations } from "../../hooks/useLocations";
 import { useGoalDecomposition } from "../../hooks/useGoalDecomposition";
 import { DecompositionTree } from "../../components/GoalDecomposer/DecompositionTree";
+import { LocationSelector } from "../Planejamento/components/LocationSelector";
 
 // =============================================================
 // Constants
@@ -219,8 +222,24 @@ function KRProgressBar({
 // =============================================================
 
 export function Metas() {
-  const { selectedAccount } = useAccount();
-  const locationId = selectedAccount?.location_id || null;
+  const { selectedAccount, isViewingSubconta } = useAccount();
+  const isAdmin = useIsAdmin();
+  const { locations, loading: locationsLoading } = useLocations();
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(
+    null,
+  );
+
+  const locationId = selectedLocationId || selectedAccount?.location_id || null;
+  const locationName = useMemo(() => {
+    if (selectedLocationId) {
+      return (
+        locations.find((l) => l.location_id === selectedLocationId)
+          ?.location_name || selectedLocationId
+      );
+    }
+    if (selectedAccount?.location_id) return selectedAccount.location_name;
+    return null;
+  }, [selectedLocationId, selectedAccount, locations]);
 
   const {
     decomposition,
@@ -273,11 +292,39 @@ export function Metas() {
     });
   };
 
-  // Empty state
+  // Empty state — no account selected
   if (!locationId) {
     return (
-      <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
-        Selecione uma conta para ver as metas.
+      <div className="space-y-4 pb-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+            <Target className="w-5 h-5 text-amber-400" />
+            Metas & OKRs
+          </h1>
+          {isAdmin && !isViewingSubconta && (
+            <LocationSelector
+              locations={locations}
+              selectedLocationId={selectedLocationId}
+              onChange={setSelectedLocationId}
+              isLoading={locationsLoading}
+            />
+          )}
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center">
+            <Target className="w-8 h-8 text-zinc-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-medium text-zinc-200">
+              Selecione uma conta
+            </h3>
+            <p className="text-sm text-zinc-500 mt-1 max-w-md">
+              {isAdmin && !isViewingSubconta
+                ? "Use o seletor acima ou clique em uma subconta no menu lateral para ver as metas."
+                : "Selecione uma conta para ver as metas."}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -298,14 +345,29 @@ export function Metas() {
         <h1 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
           <Target className="w-5 h-5 text-amber-400" />
           Metas & OKRs
+          {locationName && (
+            <span className="text-sm font-normal text-zinc-500">
+              — {locationName}
+            </span>
+          )}
         </h1>
-        <button
-          onClick={() => setShowDecomposer(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium rounded-lg text-xs transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          {decomposition ? "Redecompor Meta" : "Decompor Meta com IA"}
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && !isViewingSubconta && (
+            <LocationSelector
+              locations={locations}
+              selectedLocationId={selectedLocationId}
+              onChange={setSelectedLocationId}
+              isLoading={locationsLoading}
+            />
+          )}
+          <button
+            onClick={() => setShowDecomposer(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium rounded-lg text-xs transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {decomposition ? "Redecompor Meta" : "Decompor Meta com IA"}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
@@ -574,7 +636,7 @@ export function Metas() {
         onDecompose={decompose}
         onConfirm={confirmDecomposition}
         locationId={locationId || ""}
-        locationName={selectedAccount?.name}
+        locationName={locationName || selectedAccount?.location_name}
         initialTarget={decomposition?.annual_target}
         initialBusinessModel={decomposition?.business_model as any}
         loading={loading}
