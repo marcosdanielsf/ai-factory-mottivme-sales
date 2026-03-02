@@ -236,6 +236,11 @@ const Metas = lazy(() =>
   import("./pages/Metas").then((m) => ({ default: m.Metas })),
 );
 
+// Kanban Prospect AI
+const KanbanProspect = lazy(() =>
+  import("./pages/KanbanProspect").then((m) => ({ default: m.KanbanProspect })),
+);
+
 // Planejamento Publico (link unico para clientes)
 const PlanejamentoPublico = lazy(() => import("./pages/PlanejamentoPublico"));
 
@@ -540,6 +545,18 @@ const App = () => {
                         <ConditionalLayout>
                           <Suspense fallback={<LoadingFallback />}>
                             <Metas />
+                          </Suspense>
+                        </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/kanban-prospect"
+                    element={
+                      <ProtectedRoute>
+                        <ConditionalLayout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <KanbanProspect />
                           </Suspense>
                         </ConditionalLayout>
                       </ProtectedRoute>

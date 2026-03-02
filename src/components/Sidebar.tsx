@@ -232,6 +232,7 @@ const navSections: NavSection[] = [
           { icon: Flame, label: "CRM Insights", to: "/crm-insights" },
           { icon: Calculator, label: "Planejamento", to: "/planejamento" },
           { icon: Target, label: "Metas", to: "/metas" },
+          { icon: Sparkles, label: "Kanban Prospect", to: "/kanban-prospect" },
           { icon: FolderKanban, label: "Projetos", to: "/projetos" },
           { icon: Workflow, label: "Hub Ops", to: "/workflows" },
           { icon: ClipboardCheck, label: "Auditoria n8n", to: "/n8n-audit" },
