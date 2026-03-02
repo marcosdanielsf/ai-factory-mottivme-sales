@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { runConclave } from "../../services/conclaveService";
 
 // ============================================
 // TIPOS
@@ -313,35 +314,23 @@ export function BrainConclave() {
     setError(null);
     setSubmitting(true);
 
-    const councilConfig = {
-      agents: Array.from(selectedAgents).map((agentId) => ({
-        agent_id: agentId,
-        role: agents.find((a) => a.id === agentId)?.agent_name || "expert",
-        weight: 1,
-      })),
-    };
-
-    const { error: insertErr } = await supabase
-      .from("conclave_sessions")
-      .insert({
+    try {
+      await runConclave({
         question: question.trim(),
-        context: context.trim() || null,
-        council_config: councilConfig,
-        status: "deliberating",
+        context: context.trim() || undefined,
+        agentIds: Array.from(selectedAgents),
       });
 
-    setSubmitting(false);
-
-    if (insertErr) {
-      setError(insertErr.message);
-      return;
+      setQuestion("");
+      setContext("");
+      setSelectedAgents(new Set());
+      setPreset(null);
+      fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro na deliberação");
+    } finally {
+      setSubmitting(false);
     }
-
-    setQuestion("");
-    setContext("");
-    setSelectedAgents(new Set());
-    setPreset(null);
-    fetchData();
   };
 
   return (

@@ -321,14 +321,44 @@ consensus_level: high (todos concordam >80%), medium (maioria concorda), low (op
 
 async function saveConclaveSession(
   session: Omit<ConclaveSession, "id">,
+  durationMs: number,
 ): Promise<string> {
   try {
+    // Mapear para colunas reais da tabela conclave_sessions (063_conclave.sql)
+    const councilConfig = {
+      agents: session.agent_responses.map((r) => ({
+        agent_id: r.agent_id,
+        role: r.agent_name,
+        weight: 1,
+      })),
+      consensus_level: session.consensus_level,
+      key_agreements: session.key_agreements,
+      key_disagreements: session.key_disagreements,
+    };
+
+    const individualResponses: Record<string, string> = {};
+    for (const r of session.agent_responses) {
+      individualResponses[r.agent_name] = r.response;
+    }
+
+    const fullSynthesis = [
+      session.synthesis,
+      session.final_recommendation
+        ? `\n\n**Recomendação Final:** ${session.final_recommendation}`
+        : "",
+    ].join("");
+
     const result = await fetchWithAuth("conclave_sessions", {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
-        ...session,
-        created_at: new Date().toISOString(),
+        question: session.question,
+        context: session.context || null,
+        council_config: councilConfig,
+        status: "completed",
+        synthesis: fullSynthesis,
+        individual_responses: individualResponses,
+        duration_ms: durationMs,
       }),
     });
     return result?.[0]?.id || "unsaved";
@@ -345,6 +375,8 @@ export async function runConclave(
   request: ConclaveRequest,
 ): Promise<ConclaveSession> {
   const { question, context, agentIds, maxTokensPerAgent = 1200 } = request;
+
+  const totalStart = Date.now();
 
   if (!question || question.trim().length === 0) {
     throw new Error("Questao nao pode ser vazia");
@@ -412,7 +444,10 @@ export async function runConclave(
   };
 
   // Salvar no Supabase
-  const sessionId = await saveConclaveSession(sessionData);
+  const sessionId = await saveConclaveSession(
+    sessionData,
+    Date.now() - totalStart,
+  );
 
   return { id: sessionId, ...sessionData };
 }
