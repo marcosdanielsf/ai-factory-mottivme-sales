@@ -123,6 +123,12 @@ const navSections: NavSection[] = [
         permission: "canAccessDashboard",
       },
       {
+        icon: Layers,
+        label: "Sales Hub",
+        to: "/sales-hub",
+        permission: "canAccessDashboard",
+      },
+      {
         icon: Bot,
         label: "JARVIS",
         to: "/jarvis",
