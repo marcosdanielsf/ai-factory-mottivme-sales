@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Lightbulb,
   CheckCircle2,
@@ -10,21 +10,22 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Filter
-} from 'lucide-react';
+  Filter,
+} from "lucide-react";
 
 interface Suggestion {
   id: string;
-  type: 'tone' | 'engagement' | 'compliance' | 'conversion' | 'completeness';
+  type: "tone" | "engagement" | "compliance" | "conversion" | "completeness";
   title: string;
   description: string;
   impact_score: number;
-  source: 'llm_evaluation' | 'user_feedback' | 'pattern_detection';
+  source: "llm_evaluation" | "user_feedback" | "pattern_detection";
   evidence?: string[];
   suggested_change?: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'applied';
+  status: "pending" | "accepted" | "rejected" | "applied";
   created_at: string;
   conversation_count?: number;
+  agent_name?: string;
 }
 
 interface ExperienceSuggestionsProps {
@@ -38,41 +39,41 @@ interface ExperienceSuggestionsProps {
 
 const TYPE_CONFIG = {
   tone: {
-    label: 'Tom',
+    label: "Tom",
     icon: MessageSquare,
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/20',
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/20",
   },
   engagement: {
-    label: 'Engajamento',
+    label: "Engajamento",
     icon: TrendingUp,
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/20',
+    color: "text-green-400",
+    bgColor: "bg-green-500/20",
   },
   compliance: {
-    label: 'Compliance',
+    label: "Compliance",
     icon: AlertCircle,
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-500/20',
+    color: "text-yellow-400",
+    bgColor: "bg-yellow-500/20",
   },
   conversion: {
-    label: 'Conversao',
+    label: "Conversao",
     icon: Sparkles,
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/20',
+    color: "text-purple-400",
+    bgColor: "bg-purple-500/20",
   },
   completeness: {
-    label: 'Completude',
+    label: "Completude",
     icon: CheckCircle2,
-    color: 'text-cyan-400',
-    bgColor: 'bg-cyan-500/20',
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/20",
   },
 };
 
 const SOURCE_LABELS = {
-  llm_evaluation: 'Avaliacao IA',
-  user_feedback: 'Feedback Usuario',
-  pattern_detection: 'Deteccao de Padrao',
+  llm_evaluation: "Avaliacao IA",
+  user_feedback: "Feedback Usuario",
+  pattern_detection: "Deteccao de Padrao",
 };
 
 export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
@@ -84,15 +85,21 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
   onApply,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('pending');
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("pending");
+  const [filterAgent, setFilterAgent] = useState<string>("all");
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
 
+  const agentOptions = Array.from(
+    new Set(suggestions.map((s) => s.agent_name).filter(Boolean) as string[]),
+  );
+
   const filteredSuggestions = suggestions.filter((s) => {
-    if (filterType !== 'all' && s.type !== filterType) return false;
-    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
+    if (filterType !== "all" && s.type !== filterType) return false;
+    if (filterStatus !== "all" && s.status !== filterStatus) return false;
+    if (filterAgent !== "all" && s.agent_name !== filterAgent) return false;
     return true;
   });
 
@@ -110,7 +117,7 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
     try {
       await onReject(id, rejectReason);
       setShowRejectModal(null);
-      setRejectReason('');
+      setRejectReason("");
     } finally {
       setProcessingId(null);
     }
@@ -126,24 +133,42 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
   };
 
   const getImpactColor = (score: number) => {
-    if (score >= 8) return 'text-green-400';
-    if (score >= 6) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 8) return "text-green-400";
+    if (score >= 6) return "text-yellow-400";
+    return "text-red-400";
   };
 
-  const getStatusBadge = (status: Suggestion['status']) => {
+  const getStatusBadge = (status: Suggestion["status"]) => {
     const badges = {
-      pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Pendente' },
-      accepted: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Aceita' },
-      rejected: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Rejeitada' },
-      applied: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Aplicada' },
+      pending: {
+        bg: "bg-yellow-500/20",
+        text: "text-yellow-400",
+        label: "Pendente",
+      },
+      accepted: {
+        bg: "bg-blue-500/20",
+        text: "text-blue-400",
+        label: "Aceita",
+      },
+      rejected: {
+        bg: "bg-red-500/20",
+        text: "text-red-400",
+        label: "Rejeitada",
+      },
+      applied: {
+        bg: "bg-green-500/20",
+        text: "text-green-400",
+        label: "Aplicada",
+      },
     };
     return badges[status];
   };
 
-  const pendingCount = suggestions.filter(s => s.status === 'pending').length;
-  const acceptedCount = suggestions.filter(s => s.status === 'accepted').length;
-  const appliedCount = suggestions.filter(s => s.status === 'applied').length;
+  const pendingCount = suggestions.filter((s) => s.status === "pending").length;
+  const acceptedCount = suggestions.filter(
+    (s) => s.status === "accepted",
+  ).length;
+  const appliedCount = suggestions.filter((s) => s.status === "applied").length;
 
   return (
     <div className="space-y-6">
@@ -155,7 +180,9 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
               <Lightbulb className="text-yellow-400" size={20} />
             </div>
             <div>
-              <div className="text-2xl font-bold text-text-primary">{pendingCount}</div>
+              <div className="text-2xl font-bold text-text-primary">
+                {pendingCount}
+              </div>
               <div className="text-xs text-text-muted">Pendentes</div>
             </div>
           </div>
@@ -167,7 +194,9 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
               <CheckCircle2 className="text-blue-400" size={20} />
             </div>
             <div>
-              <div className="text-2xl font-bold text-text-primary">{acceptedCount}</div>
+              <div className="text-2xl font-bold text-text-primary">
+                {acceptedCount}
+              </div>
               <div className="text-xs text-text-muted">Aceitas</div>
             </div>
           </div>
@@ -179,7 +208,9 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
               <Sparkles className="text-green-400" size={20} />
             </div>
             <div>
-              <div className="text-2xl font-bold text-text-primary">{appliedCount}</div>
+              <div className="text-2xl font-bold text-text-primary">
+                {appliedCount}
+              </div>
               <div className="text-xs text-text-muted">Aplicadas</div>
             </div>
           </div>
@@ -192,7 +223,11 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
             </div>
             <div>
               <div className="text-2xl font-bold text-text-primary">
-                +{((appliedCount / Math.max(suggestions.length, 1)) * 2.5).toFixed(1)}
+                +
+                {(
+                  (appliedCount / Math.max(suggestions.length, 1)) *
+                  2.5
+                ).toFixed(1)}
               </div>
               <div className="text-xs text-text-muted">Score Estimado</div>
             </div>
@@ -214,7 +249,9 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
         >
           <option value="all">Todos os tipos</option>
           {Object.entries(TYPE_CONFIG).map(([key, config]) => (
-            <option key={key} value={key}>{config.label}</option>
+            <option key={key} value={key}>
+              {config.label}
+            </option>
           ))}
         </select>
 
@@ -230,6 +267,21 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
           <option value="rejected">Rejeitadas</option>
         </select>
 
+        {agentOptions.length > 0 && (
+          <select
+            value={filterAgent}
+            onChange={(e) => setFilterAgent(e.target.value)}
+            className="bg-bg-secondary border border-border-default rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-accent-primary"
+          >
+            <option value="all">Todos os agentes</option>
+            {agentOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <span className="text-sm text-text-muted ml-auto">
           {filteredSuggestions.length} sugestoes encontradas
         </span>
@@ -239,9 +291,16 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
       <div className="space-y-4">
         {filteredSuggestions.length === 0 ? (
           <div className="bg-bg-secondary border border-border-default rounded-lg p-12 text-center">
-            <Lightbulb size={48} className="mx-auto text-text-muted mb-4 opacity-50" />
-            <h3 className="text-lg font-medium text-text-primary mb-2">Nenhuma sugestao encontrada</h3>
-            <p className="text-text-muted">Ajuste os filtros ou aguarde novas sugestoes do sistema.</p>
+            <Lightbulb
+              size={48}
+              className="mx-auto text-text-muted mb-4 opacity-50"
+            />
+            <h3 className="text-lg font-medium text-text-primary mb-2">
+              Nenhuma sugestao encontrada
+            </h3>
+            <p className="text-text-muted">
+              Ajuste os filtros ou aguarde novas sugestoes do sistema.
+            </p>
           </div>
         ) : (
           filteredSuggestions.map((suggestion) => {
@@ -259,39 +318,60 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
                 <div className="p-4">
                   <div className="flex items-start gap-4">
                     {/* Type Icon */}
-                    <div className={`p-2 ${typeConfig.bgColor} rounded-lg shrink-0`}>
+                    <div
+                      className={`p-2 ${typeConfig.bgColor} rounded-lg shrink-0`}
+                    >
                       <TypeIcon className={typeConfig.color} size={20} />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-text-primary">{suggestion.title}</h4>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusBadge.bg} ${statusBadge.text}`}>
+                        <h4 className="font-medium text-text-primary">
+                          {suggestion.title}
+                        </h4>
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusBadge.bg} ${statusBadge.text}`}
+                        >
                           {statusBadge.label}
                         </span>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeConfig.bgColor} ${typeConfig.color}`}>
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeConfig.bgColor} ${typeConfig.color}`}
+                        >
                           {typeConfig.label}
                         </span>
+                        {suggestion.agent_name && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent-primary/10 text-accent-primary">
+                            {suggestion.agent_name}
+                          </span>
+                        )}
                       </div>
 
-                      <p className="text-sm text-text-secondary mb-2">{suggestion.description}</p>
+                      <p className="text-sm text-text-secondary mb-2">
+                        {suggestion.description}
+                      </p>
 
                       <div className="flex items-center gap-4 text-xs text-text-muted">
                         <span className="flex items-center gap-1">
                           <Clock size={12} />
-                          {new Date(suggestion.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(suggestion.created_at).toLocaleDateString(
+                            "pt-BR",
+                          )}
                         </span>
                         <span>{SOURCE_LABELS[suggestion.source]}</span>
                         {suggestion.conversation_count && (
-                          <span>{suggestion.conversation_count} conversas analisadas</span>
+                          <span>
+                            {suggestion.conversation_count} conversas analisadas
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* Impact Score */}
                     <div className="text-right shrink-0">
-                      <div className={`text-2xl font-bold ${getImpactColor(suggestion.impact_score)}`}>
+                      <div
+                        className={`text-2xl font-bold ${getImpactColor(suggestion.impact_score)}`}
+                      >
                         {suggestion.impact_score.toFixed(1)}
                       </div>
                       <div className="text-xs text-text-muted">Impacto</div>
@@ -299,7 +379,9 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
 
                     {/* Expand Toggle */}
                     <button
-                      onClick={() => setExpandedId(isExpanded ? null : suggestion.id)}
+                      onClick={() =>
+                        setExpandedId(isExpanded ? null : suggestion.id)
+                      }
                       className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
                     >
                       {isExpanded ? (
@@ -316,24 +398,32 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
                   <div className="px-4 pb-4 pt-0">
                     <div className="border-t border-border-default pt-4 space-y-4">
                       {/* Evidence */}
-                      {suggestion.evidence && suggestion.evidence.length > 0 && (
-                        <div>
-                          <h5 className="text-xs font-medium text-text-muted uppercase mb-2">Evidencias</h5>
-                          <ul className="space-y-1">
-                            {suggestion.evidence.map((e, i) => (
-                              <li key={i} className="text-sm text-text-secondary flex items-start gap-2">
-                                <span className="text-accent-primary">•</span>
-                                {e}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                      {suggestion.evidence &&
+                        suggestion.evidence.length > 0 && (
+                          <div>
+                            <h5 className="text-xs font-medium text-text-muted uppercase mb-2">
+                              Evidencias
+                            </h5>
+                            <ul className="space-y-1">
+                              {suggestion.evidence.map((e, i) => (
+                                <li
+                                  key={i}
+                                  className="text-sm text-text-secondary flex items-start gap-2"
+                                >
+                                  <span className="text-accent-primary">•</span>
+                                  {e}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
                       {/* Suggested Change */}
                       {suggestion.suggested_change && (
                         <div>
-                          <h5 className="text-xs font-medium text-text-muted uppercase mb-2">Mudanca Sugerida</h5>
+                          <h5 className="text-xs font-medium text-text-muted uppercase mb-2">
+                            Mudanca Sugerida
+                          </h5>
                           <div className="bg-bg-tertiary p-3 rounded-lg">
                             <code className="text-sm text-text-primary whitespace-pre-wrap">
                               {suggestion.suggested_change}
@@ -343,7 +433,7 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
                       )}
 
                       {/* Actions */}
-                      {suggestion.status === 'pending' && (
+                      {suggestion.status === "pending" && (
                         <div className="flex gap-2 justify-end pt-2">
                           <button
                             onClick={() => setShowRejectModal(suggestion.id)}
@@ -364,7 +454,7 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
                         </div>
                       )}
 
-                      {suggestion.status === 'accepted' && (
+                      {suggestion.status === "accepted" && (
                         <div className="flex gap-2 justify-end pt-2">
                           <button
                             onClick={() => handleApply(suggestion.id)}
@@ -389,9 +479,12 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-bg-secondary border border-border-default rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Rejeitar Sugestao</h3>
+            <h3 className="text-lg font-semibold text-text-primary mb-4">
+              Rejeitar Sugestao
+            </h3>
             <p className="text-sm text-text-muted mb-4">
-              Opcional: descreva o motivo da rejeicao para melhorar futuras sugestoes.
+              Opcional: descreva o motivo da rejeicao para melhorar futuras
+              sugestoes.
             </p>
             <textarea
               value={rejectReason}
@@ -404,7 +497,7 @@ export const ExperienceSuggestions: React.FC<ExperienceSuggestionsProps> = ({
               <button
                 onClick={() => {
                   setShowRejectModal(null);
-                  setRejectReason('');
+                  setRejectReason("");
                 }}
                 className="px-4 py-2 text-sm text-text-secondary hover:bg-bg-tertiary rounded-lg transition-colors"
               >
