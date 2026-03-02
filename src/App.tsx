@@ -241,6 +241,11 @@ const KanbanProspect = lazy(() =>
   import("./pages/KanbanProspect").then((m) => ({ default: m.KanbanProspect })),
 );
 
+// Sales Hub — Command Center unificado
+const SalesHub = lazy(() =>
+  import("./pages/SalesHub").then((m) => ({ default: m.SalesHub })),
+);
+
 // Planejamento Publico (link unico para clientes)
 const PlanejamentoPublico = lazy(() => import("./pages/PlanejamentoPublico"));
 
@@ -557,6 +562,18 @@ const App = () => {
                         <ConditionalLayout>
                           <Suspense fallback={<LoadingFallback />}>
                             <KanbanProspect />
+                          </Suspense>
+                        </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/sales-hub"
+                    element={
+                      <ProtectedRoute>
+                        <ConditionalLayout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <SalesHub />
                           </Suspense>
                         </ConditionalLayout>
                       </ProtectedRoute>
