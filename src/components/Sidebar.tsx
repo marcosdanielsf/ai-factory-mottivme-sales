@@ -66,6 +66,7 @@ import {
   Package,
   Server,
   Upload,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -242,6 +243,12 @@ const navSections: NavSection[] = [
           { icon: FolderKanban, label: "Projetos", to: "/projetos" },
           { icon: Workflow, label: "Hub Ops", to: "/workflows" },
           { icon: ClipboardCheck, label: "Auditoria n8n", to: "/n8n-audit" },
+          {
+            icon: Wrench,
+            label: "Ferramentas IA",
+            to: "/tool-monitor",
+            permission: "canAccessPromptEditor" as keyof Permissions,
+          },
           { icon: Server, label: "GHL Ops", to: "/ghl-ops" },
         ],
       },

@@ -297,6 +297,9 @@ const N8nAudit = lazy(() =>
   import("./pages/N8nAudit").then((m) => ({ default: m.N8nAudit })),
 );
 
+// Tool Monitor (tracking de tool calls dos agentes IA)
+const ToolMonitor = lazy(() => import("./pages/ToolMonitor"));
+
 // Attendants (cadastro de atendentes humanos para handoff)
 const AttendantsPage = lazy(() =>
   import("./pages/Attendants").then((m) => ({ default: m.Attendants })),
@@ -1494,6 +1497,20 @@ const App = () => {
                             <N8nAudit />
                           </Suspense>
                         </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Tool Monitor */}
+                  <Route
+                    path="/tool-monitor"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <ToolMonitor />
+                          </Suspense>
+                        </Layout>
                       </ProtectedRoute>
                     }
                   />
