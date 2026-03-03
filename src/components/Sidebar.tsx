@@ -243,12 +243,6 @@ const navSections: NavSection[] = [
           { icon: FolderKanban, label: "Projetos", to: "/projetos" },
           { icon: Workflow, label: "Hub Ops", to: "/workflows" },
           { icon: ClipboardCheck, label: "Auditoria n8n", to: "/n8n-audit" },
-          {
-            icon: Wrench,
-            label: "Ferramentas IA",
-            to: "/tool-monitor",
-            permission: "canAccessPromptEditor" as keyof Permissions,
-          },
           { icon: Server, label: "GHL Ops", to: "/ghl-ops" },
         ],
       },
@@ -319,6 +313,12 @@ const navSections: NavSection[] = [
         icon: ClipboardCheck,
         label: "Auditoria",
         to: "/agent-audit",
+        permission: "canAccessPromptEditor",
+      },
+      {
+        icon: Wrench,
+        label: "Ferramentas IA",
+        to: "/tool-monitor",
         permission: "canAccessPromptEditor",
       },
       {
