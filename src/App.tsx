@@ -118,6 +118,7 @@ const ProspectorCampaignDetail = lazy(
 const ProspectorInbox = lazy(() => import("./pages/ProspectorInbox"));
 const ProspectorAI = lazy(() => import("./pages/ProspectorAI"));
 const ProspectorAccounts = lazy(() => import("./pages/ProspectorAccounts"));
+const ProspectorIGGrowth = lazy(() => import("./pages/ProspectorIGGrowth"));
 
 // Video Producer pages (lazy loaded)
 const VideoProducerDashboard = lazy(
@@ -872,6 +873,18 @@ const App = () => {
                         <ConditionalLayout>
                           <Suspense fallback={<LoadingFallback />}>
                             <ProspectorAccounts />
+                          </Suspense>
+                        </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/prospector/ig-growth"
+                    element={
+                      <ProtectedRoute>
+                        <ConditionalLayout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <ProspectorIGGrowth />
                           </Suspense>
                         </ConditionalLayout>
                       </ProtectedRoute>
