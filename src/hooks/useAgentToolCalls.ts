@@ -19,7 +19,8 @@ export interface ToolCall {
 export interface Filters {
   locationId?: string;
   toolName?: string;
-  onlyErrors?: boolean;
+  agentName?: string;
+  statusFilter?: "all" | "success" | "error";
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
@@ -50,9 +51,12 @@ export function useAgentToolCalls(filters: Filters = {}) {
       if (filters.locationId)
         query = query.eq("location_id", filters.locationId);
       if (filters.toolName) query = query.eq("tool_name", filters.toolName);
-      if (filters.onlyErrors) query = query.eq("success", false);
+      if (filters.agentName) query = query.eq("agent_name", filters.agentName);
+      if (filters.statusFilter === "success") query = query.eq("success", true);
+      if (filters.statusFilter === "error") query = query.eq("success", false);
       if (filters.dateFrom) query = query.gte("called_at", filters.dateFrom);
-      if (filters.dateTo) query = query.lte("called_at", filters.dateTo);
+      if (filters.dateTo)
+        query = query.lte("called_at", filters.dateTo + "T23:59:59");
 
       const { data, error: err } = await query;
       if (err) throw err;
@@ -71,7 +75,8 @@ export function useAgentToolCalls(filters: Filters = {}) {
   }, [
     filters.locationId,
     filters.toolName,
-    filters.onlyErrors,
+    filters.agentName,
+    filters.statusFilter,
     filters.dateFrom,
     filters.dateTo,
     filters.limit,
