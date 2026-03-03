@@ -196,6 +196,11 @@ const navSections: NavSection[] = [
           { icon: FileText, label: "Templates", to: "/prospector/templates" },
           { icon: TrendingUp, label: "Analytics", to: "/prospector/analytics" },
           {
+            icon: BarChart3,
+            label: "Crescimento IG",
+            to: "/prospector/ig-growth",
+          },
+          {
             icon: Search,
             label: "LinkedIn Posts",
             to: "/leadgen/linkedin-posts",
