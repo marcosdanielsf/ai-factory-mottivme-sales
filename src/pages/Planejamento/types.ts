@@ -1,4 +1,4 @@
-export type Currency = 'BRL' | 'USD';
+export type Currency = "BRL" | "USD";
 
 export interface ProductItem {
   id: string;
@@ -25,6 +25,7 @@ export interface SubFunnel {
 
 export interface PlanningState {
   step: 1 | 2 | 3;
+  segment?: string | null;
   currency: Currency;
   products: ProductItem[];
   marketing: {
@@ -48,7 +49,7 @@ export interface SubFunnelResults {
   overallRate: number;
 }
 
-export type ScenarioKey = 'pessimista' | 'realista' | 'otimista';
+export type ScenarioKey = "pessimista" | "realista" | "otimista";
 
 export interface ScenarioConfig {
   pessimista: number;
@@ -92,13 +93,26 @@ export interface AnnualProductRow {
   productName: string;
   ticket: number;
   maxDiscountPct: number;
-  monthly: Record<number, { qtd: number; vendasBrl: number; descontoBrl: number; receitaAcumulada: number }>;
+  monthly: Record<
+    number,
+    {
+      qtd: number;
+      vendasBrl: number;
+      descontoBrl: number;
+      receitaAcumulada: number;
+    }
+  >;
   totalQtd: number;
   totalAnual: number;
   totalDesconto: number;
 }
 
-export type CostCategory = 'marketing' | 'operacional' | 'ocupacional' | 'gestao' | 'impostos';
+export type CostCategory =
+  | "marketing"
+  | "operacional"
+  | "ocupacional"
+  | "gestao"
+  | "impostos";
 
 export interface AnnualCostRow {
   category: CostCategory;
