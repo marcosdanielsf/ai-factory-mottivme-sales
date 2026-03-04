@@ -54,15 +54,17 @@ export function SegmentSelector({
   onClear,
 }: SegmentSelectorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [hoveredSegment, setHoveredSegment] = useState<SegmentKey | null>(null);
+  const [previewSegment, setPreviewSegment] = useState<SegmentKey | null>(null);
 
   const selectedBenchmark = selectedSegment
     ? SEGMENT_BENCHMARKS[selectedSegment as SegmentKey]
     : null;
-  const previewBenchmark = hoveredSegment
-    ? SEGMENT_BENCHMARKS[hoveredSegment]
-    : selectedBenchmark;
-  const previewKey = hoveredSegment ?? (selectedSegment as SegmentKey | null);
+  const activePreview =
+    previewSegment ?? (selectedSegment as SegmentKey | null);
+  const previewBenchmark = activePreview
+    ? SEGMENT_BENCHMARKS[activePreview]
+    : null;
+  const previewKey = activePreview;
 
   return (
     <div className="mb-5 rounded-xl border border-border-default bg-bg-secondary overflow-hidden">
@@ -119,10 +121,14 @@ export function SegmentSelector({
                 return (
                   <button
                     key={key}
-                    onMouseEnter={() => setHoveredSegment(key)}
-                    onMouseLeave={() => setHoveredSegment(null)}
+                    onMouseEnter={() => setPreviewSegment(key)}
+                    onMouseLeave={() => {
+                      if (previewSegment === key && selectedSegment !== key) {
+                        // Keep preview if clicked, clear only on mouse leave without click
+                      }
+                    }}
                     onClick={() => {
-                      onApplyBenchmarks(key);
+                      setPreviewSegment(key);
                     }}
                     className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg border text-center transition-all ${
                       isSelected
