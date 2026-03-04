@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   DndContext,
@@ -87,6 +87,9 @@ import {
   GripVertical,
   Link2,
   Trash2,
+  Pencil,
+  ArrowRight,
+  MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -486,10 +489,14 @@ const DraggableWrapper = ({
   id,
   isCollapsed,
   children,
+  onDoubleClick,
+  onContextMenu,
 }: {
   id: string;
   isCollapsed: boolean;
   children: React.ReactNode;
+  onDoubleClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) => {
   const {
     attributes,
@@ -507,17 +514,15 @@ const DraggableWrapper = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="group/drag relative">
-      {!isCollapsed && (
-        <span
-          {...attributes}
-          {...listeners}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 cursor-grab opacity-0 group-hover/drag:opacity-40 hover:!opacity-100 transition-opacity"
-          style={{ marginLeft: 2 }}
-        >
-          <GripVertical size={12} className="text-text-muted" />
-        </span>
-      )}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group/drag relative cursor-grab active:cursor-grabbing"
+      onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
+      {...attributes}
+      {...listeners}
+    >
       {children}
     </div>
   );
@@ -790,9 +795,13 @@ export const Sidebar = ({
     loaded: orderLoaded,
     customItems,
     reorderItems,
+    moveItemToSection,
     addCustomLink,
     removeCustomLink,
     applyItemOrder,
+    renameItem,
+    getCustomLabel,
+    getItemSection,
   } = useSidebarOrder();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set(),
@@ -802,9 +811,46 @@ export const Sidebar = ({
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    itemKey: string;
+    itemLabel: string;
+    sectionKey: string;
+    isCustomLink: boolean;
+  } | null>(null);
+
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handler = () => setContextMenu(null);
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, [contextMenu]);
+
+  // Build lookup of all hardcoded items for cross-section moves
+  const allItemsMap = useMemo(() => {
+    const map: Record<
+      string,
+      { item: NavItemConfig; originalSection: string }
+    > = {};
+    navSections.forEach((section, idx) => {
+      const key = section.title || `_root_${idx}`;
+      section.items.forEach((item) => {
+        map[item.label] = { item, originalSection: key };
+      });
+    });
+    return map;
+  }, []);
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) => {
@@ -1000,21 +1046,42 @@ export const Sidebar = ({
         </div>
       )}
 
-      {/* Nav - Filtrado por permissões + DnD reordenável */}
+      {/* Nav - Filtrado por permissões + DnD reordenável + cross-section moves */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
         {filteredSections.map((section, sectionIndex) => {
           const expanded = isSectionExpanded(section);
           const sectionKey = section.title || `_root_${sectionIndex}`;
+
+          // Compute effective items: original + moved-in items, minus moved-out items
+          const baseItems = section.items.filter((item) => {
+            const movedTo = getItemSection(item.label);
+            return !movedTo || movedTo === sectionKey;
+          });
+
+          // Find items moved INTO this section from other sections
+          const movedInItems: NavItemConfig[] = [];
+          Object.entries(allItemsMap).forEach(
+            ([label, { item, originalSection }]) => {
+              if (originalSection === sectionKey) return;
+              const movedTo = getItemSection(label);
+              if (movedTo === sectionKey) {
+                movedInItems.push(item);
+              }
+            },
+          );
+
+          const allSectionItems = [...baseItems, ...movedInItems];
+
           // Apply saved item order
           const orderedItemLabels = applyItemOrder(
             sectionKey,
-            section.items.map((i) => i.label),
+            allSectionItems.map((i) => i.label),
           );
           const orderedItems = orderedItemLabels
-            .map((label) => section.items.find((i) => i.label === label))
+            .map((label) => allSectionItems.find((i) => i.label === label))
             .filter(Boolean) as NavItemConfig[];
           // Add any items not in saved order (new items)
-          section.items.forEach((item) => {
+          allSectionItems.forEach((item) => {
             if (!orderedItems.find((o) => o.label === item.label)) {
               orderedItems.push(item);
             }
@@ -1036,6 +1103,43 @@ export const Sidebar = ({
               newIndex,
             );
             reorderItems(sectionKey, newOrder);
+          };
+
+          const startEditing = (itemKey: string, currentLabel: string) => {
+            const customLabel = getCustomLabel(itemKey);
+            setEditingId(itemKey);
+            setEditValue(customLabel || currentLabel);
+          };
+
+          const finishEditing = () => {
+            if (editingId && editValue.trim()) {
+              const originalLabel = editingId.split("::")[1];
+              if (editValue.trim() !== originalLabel) {
+                renameItem(editingId, editValue.trim());
+              } else {
+                renameItem(editingId, "");
+              }
+            }
+            setEditingId(null);
+            setEditValue("");
+          };
+
+          const openContextMenu = (
+            e: React.MouseEvent,
+            itemKey: string,
+            itemLabel: string,
+            isCustom: boolean,
+          ) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              itemKey,
+              itemLabel,
+              sectionKey,
+              isCustomLink: isCustom,
+            });
           };
 
           return (
@@ -1065,16 +1169,47 @@ export const Sidebar = ({
                   >
                     {orderedItems.map((item) => {
                       const itemId = `${sectionKey}::${item.label}`;
+                      const displayLabel = getCustomLabel(itemId) || item.label;
+
+                      // Inline editing mode
+                      if (editingId === itemId && !isCollapsed) {
+                        return (
+                          <div key={itemId} className="mx-2 my-0.5">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={finishEditing}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") finishEditing();
+                                if (e.key === "Escape") {
+                                  setEditingId(null);
+                                  setEditValue("");
+                                }
+                              }}
+                              className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-accent-primary rounded-md text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                              autoFocus
+                            />
+                          </div>
+                        );
+                      }
+
                       return (
                         <DraggableWrapper
                           key={itemId}
                           id={itemId}
                           isCollapsed={isCollapsed}
+                          onDoubleClick={() =>
+                            !isCollapsed && startEditing(itemId, item.label)
+                          }
+                          onContextMenu={(e) =>
+                            openContextMenu(e, itemId, item.label, false)
+                          }
                         >
                           {item.subItems && item.subItems.length > 0 ? (
                             <SidebarExpandableItem
                               icon={item.icon}
-                              label={item.label}
+                              label={displayLabel}
                               to={item.to}
                               subItems={item.subItems}
                               onNavigate={handleNavigate}
@@ -1083,7 +1218,7 @@ export const Sidebar = ({
                           ) : (
                             <SidebarItem
                               icon={item.icon}
-                              label={item.label}
+                              label={displayLabel}
                               to={item.to}
                               badge={item.badge}
                               onNavigate={handleNavigate}
@@ -1097,7 +1232,8 @@ export const Sidebar = ({
                   <DragOverlay>
                     {activeItemId && (
                       <div className="bg-bg-secondary border border-border-default rounded-md px-3 py-1.5 text-sm shadow-lg text-text-primary opacity-90">
-                        {activeItemId.split("::")[1]}
+                        {getCustomLabel(activeItemId) ||
+                          activeItemId.split("::")[1]}
                       </div>
                     )}
                   </DragOverlay>
@@ -1107,7 +1243,13 @@ export const Sidebar = ({
                 {customItems
                   .filter((ci) => ci.section_title === sectionKey)
                   .map((ci) => (
-                    <div key={ci.id} className="group/custom relative">
+                    <div
+                      key={ci.id}
+                      className="group/custom relative"
+                      onContextMenu={(e) =>
+                        openContextMenu(e, `custom::${ci.id}`, ci.label, true)
+                      }
+                    >
                       {isCollapsed ? (
                         <a
                           href={ci.href}
@@ -1289,6 +1431,95 @@ export const Sidebar = ({
           </div>
         )}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] bg-bg-secondary border border-border-default rounded-lg shadow-xl py-1 min-w-[180px] text-sm"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Renomear */}
+          <button
+            onClick={() => {
+              const customLabel = getCustomLabel(contextMenu.itemKey);
+              setEditingId(contextMenu.itemKey);
+              setEditValue(customLabel || contextMenu.itemLabel);
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors text-left"
+          >
+            <Pencil size={14} />
+            <span>Renomear</span>
+          </button>
+
+          {/* Mover para... */}
+          {!contextMenu.isCustomLink && (
+            <>
+              <div className="border-t border-border-default my-1" />
+              <div className="px-3 py-1 text-xs text-text-muted font-medium">
+                Mover para...
+              </div>
+              {filteredSections
+                .filter((s) => {
+                  const key = s.title || `_root_0`;
+                  return key !== contextMenu.sectionKey;
+                })
+                .map((s, idx) => {
+                  const targetKey = s.title || `_root_${idx}`;
+                  return (
+                    <button
+                      key={targetKey}
+                      onClick={() => {
+                        moveItemToSection(contextMenu.itemLabel, targetKey);
+                        setContextMenu(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors text-left"
+                    >
+                      <ArrowRight size={14} />
+                      <span>{s.title || "Principal"}</span>
+                    </button>
+                  );
+                })}
+            </>
+          )}
+
+          {/* Deletar (apenas custom links) */}
+          {contextMenu.isCustomLink && (
+            <>
+              <div className="border-t border-border-default my-1" />
+              <button
+                onClick={() => {
+                  const customId = contextMenu.itemKey.replace("custom::", "");
+                  removeCustomLink(customId);
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-red-400 hover:bg-red-500/10 transition-colors text-left"
+              >
+                <Trash2 size={14} />
+                <span>Deletar</span>
+              </button>
+            </>
+          )}
+
+          {/* Resetar nome (se tem custom label) */}
+          {getCustomLabel(contextMenu.itemKey) && (
+            <>
+              <div className="border-t border-border-default my-1" />
+              <button
+                onClick={() => {
+                  renameItem(contextMenu.itemKey, "");
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-text-muted hover:bg-bg-hover hover:text-text-secondary transition-colors text-left"
+              >
+                <RefreshCw size={14} />
+                <span>Restaurar nome original</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
