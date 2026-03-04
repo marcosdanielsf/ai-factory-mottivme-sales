@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
+  DndContext,
+  closestCenter,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Home,
   ChevronDown,
   ChevronRight,
@@ -67,6 +84,9 @@ import {
   Server,
   Upload,
   Wrench,
+  GripVertical,
+  Link2,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -75,6 +95,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useLocations } from "../hooks/useLocations";
 import { useAiosContextHealth } from "../hooks/aios/useAiosContextHealth";
+import { useSidebarOrder } from "../hooks/useSidebarOrder";
 
 // ============================================
 // TIPOS
@@ -458,6 +479,51 @@ const navSections: NavSection[] = [
 ];
 
 // ============================================
+// DND WRAPPER
+// ============================================
+
+const DraggableWrapper = ({
+  id,
+  isCollapsed,
+  children,
+}: {
+  id: string;
+  isCollapsed: boolean;
+  children: React.ReactNode;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="group/drag relative">
+      {!isCollapsed && (
+        <span
+          {...attributes}
+          {...listeners}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 cursor-grab opacity-0 group-hover/drag:opacity-40 hover:!opacity-100 transition-opacity"
+          style={{ marginLeft: 2 }}
+        >
+          <GripVertical size={12} className="text-text-muted" />
+        </span>
+      )}
+      {children}
+    </div>
+  );
+};
+
+// ============================================
 // COMPONENTES
 // ============================================
 
@@ -720,8 +786,24 @@ export const Sidebar = ({
   const { brandName, logoUrl } = useTheme();
   const { locations, loading: locationsLoading } = useLocations();
   const { criticalCount } = useAiosContextHealth();
+  const {
+    loaded: orderLoaded,
+    customItems,
+    reorderItems,
+    addCustomLink,
+    removeCustomLink,
+    applyItemOrder,
+  } = useSidebarOrder();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set(),
+  );
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [newLinkLabel, setNewLinkLabel] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const toggleSection = (title: string) => {
@@ -918,10 +1000,44 @@ export const Sidebar = ({
         </div>
       )}
 
-      {/* Nav - Filtrado por permissões */}
+      {/* Nav - Filtrado por permissões + DnD reordenável */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1">
         {filteredSections.map((section, sectionIndex) => {
           const expanded = isSectionExpanded(section);
+          const sectionKey = section.title || `_root_${sectionIndex}`;
+          // Apply saved item order
+          const orderedItemLabels = applyItemOrder(
+            sectionKey,
+            section.items.map((i) => i.label),
+          );
+          const orderedItems = orderedItemLabels
+            .map((label) => section.items.find((i) => i.label === label))
+            .filter(Boolean) as NavItemConfig[];
+          // Add any items not in saved order (new items)
+          section.items.forEach((item) => {
+            if (!orderedItems.find((o) => o.label === item.label)) {
+              orderedItems.push(item);
+            }
+          });
+          const sortableIds = orderedItems.map(
+            (i) => `${sectionKey}::${i.label}`,
+          );
+
+          const handleSectionDragEnd = (event: DragEndEvent) => {
+            const { active, over } = event;
+            setActiveItemId(null);
+            if (!over || active.id === over.id) return;
+            const oldIndex = sortableIds.indexOf(String(active.id));
+            const newIndex = sortableIds.indexOf(String(over.id));
+            if (oldIndex === -1 || newIndex === -1) return;
+            const newOrder = arrayMove(
+              orderedItems.map((i) => i.label),
+              oldIndex,
+              newIndex,
+            );
+            reorderItems(sectionKey, newOrder);
+          };
+
           return (
             <div key={sectionIndex}>
               <SectionTitle
@@ -935,29 +1051,99 @@ export const Sidebar = ({
                   expanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                {section.items.map((item) =>
-                  item.subItems && item.subItems.length > 0 ? (
-                    <SidebarExpandableItem
-                      key={item.to}
-                      icon={item.icon}
-                      label={item.label}
-                      to={item.to}
-                      subItems={item.subItems}
-                      onNavigate={handleNavigate}
-                      isCollapsed={isCollapsed}
-                    />
-                  ) : (
-                    <SidebarItem
-                      key={item.to}
-                      icon={item.icon}
-                      label={item.label}
-                      to={item.to}
-                      badge={item.badge}
-                      onNavigate={handleNavigate}
-                      isCollapsed={isCollapsed}
-                    />
-                  ),
-                )}
+                <DndContext
+                  sensors={dndSensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={(e: DragStartEvent) =>
+                    setActiveItemId(String(e.active.id))
+                  }
+                  onDragEnd={handleSectionDragEnd}
+                >
+                  <SortableContext
+                    items={sortableIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {orderedItems.map((item) => {
+                      const itemId = `${sectionKey}::${item.label}`;
+                      return (
+                        <DraggableWrapper
+                          key={itemId}
+                          id={itemId}
+                          isCollapsed={isCollapsed}
+                        >
+                          {item.subItems && item.subItems.length > 0 ? (
+                            <SidebarExpandableItem
+                              icon={item.icon}
+                              label={item.label}
+                              to={item.to}
+                              subItems={item.subItems}
+                              onNavigate={handleNavigate}
+                              isCollapsed={isCollapsed}
+                            />
+                          ) : (
+                            <SidebarItem
+                              icon={item.icon}
+                              label={item.label}
+                              to={item.to}
+                              badge={item.badge}
+                              onNavigate={handleNavigate}
+                              isCollapsed={isCollapsed}
+                            />
+                          )}
+                        </DraggableWrapper>
+                      );
+                    })}
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeItemId && (
+                      <div className="bg-bg-secondary border border-border-default rounded-md px-3 py-1.5 text-sm shadow-lg text-text-primary opacity-90">
+                        {activeItemId.split("::")[1]}
+                      </div>
+                    )}
+                  </DragOverlay>
+                </DndContext>
+
+                {/* Custom links in this section */}
+                {customItems
+                  .filter((ci) => ci.section_title === sectionKey)
+                  .map((ci) => (
+                    <div key={ci.id} className="group/custom relative">
+                      {isCollapsed ? (
+                        <a
+                          href={ci.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center p-2 mx-2 rounded-md text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors relative group"
+                          title={ci.label}
+                        >
+                          <ExternalLink size={18} />
+                          <div className="absolute left-full ml-2 px-2 py-1 bg-bg-tertiary border border-border-default rounded text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-lg">
+                            {ci.label}
+                          </div>
+                        </a>
+                      ) : (
+                        <a
+                          href={ci.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                        >
+                          <ExternalLink size={16} />
+                          <span className="truncate">{ci.label}</span>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              removeCustomLink(ci.id);
+                            }}
+                            className="ml-auto opacity-0 group-hover/custom:opacity-100 p-0.5 hover:text-red-400 transition-all"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </a>
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
           );
@@ -992,6 +1178,69 @@ export const Sidebar = ({
             </a>
           ))}
       </nav>
+
+      {/* Add custom link button */}
+      {!isCollapsed && (
+        <div className="px-3 pb-1">
+          {showAddLink ? (
+            <div className="space-y-2 p-2 bg-bg-tertiary rounded-lg border border-border-default">
+              <input
+                type="text"
+                value={newLinkLabel}
+                onChange={(e) => setNewLinkLabel(e.target.value)}
+                placeholder="Nome do link..."
+                className="w-full px-2 py-1 text-xs bg-bg-primary border border-border-default rounded text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
+                autoFocus
+              />
+              <input
+                type="url"
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full px-2 py-1 text-xs bg-bg-primary border border-border-default rounded text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary"
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={() => {
+                    if (newLinkLabel.trim() && newLinkUrl.trim()) {
+                      addCustomLink(
+                        newLinkLabel.trim(),
+                        newLinkUrl.trim(),
+                        "_root_0",
+                      );
+                      setNewLinkLabel("");
+                      setNewLinkUrl("");
+                      setShowAddLink(false);
+                    }
+                  }}
+                  disabled={!newLinkLabel.trim() || !newLinkUrl.trim()}
+                  className="flex-1 px-2 py-1 text-xs bg-accent-primary text-white rounded hover:bg-accent-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Adicionar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddLink(false);
+                    setNewLinkLabel("");
+                    setNewLinkUrl("");
+                  }}
+                  className="px-2 py-1 text-xs text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddLink(true)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-text-muted hover:text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              <Plus size={14} />
+              <span>Adicionar link</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <div
