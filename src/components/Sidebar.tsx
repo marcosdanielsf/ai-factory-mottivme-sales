@@ -517,20 +517,12 @@ const DraggableWrapper = ({
     <div
       ref={setNodeRef}
       style={style}
-      className="group/drag relative"
+      className="group/drag relative cursor-grab active:cursor-grabbing"
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      {...attributes}
+      {...listeners}
     >
-      {!isCollapsed && (
-        <span
-          {...attributes}
-          {...listeners}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 cursor-grab opacity-0 group-hover/drag:opacity-40 hover:!opacity-100 transition-opacity"
-          style={{ marginLeft: 2 }}
-        >
-          <GripVertical size={12} className="text-text-muted" />
-        </span>
-      )}
       {children}
     </div>
   );

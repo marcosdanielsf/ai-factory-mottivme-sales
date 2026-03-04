@@ -30,6 +30,7 @@ export function useSidebarOrder() {
   const [state, setState] = useState<SidebarOrderState>(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configIdRef = useRef<string | null>(null);
 
   // Load from Supabase
   useEffect(() => {
@@ -45,14 +46,16 @@ export function useSidebarOrder() {
         .select("*")
         .eq("user_id", user.id)
         .eq("type", "order_config")
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (!cancelled) {
         if (data?.href) {
           try {
             const parsed = JSON.parse(data.href);
-            // Backward compat: merge with defaults for new fields
             setState({ ...DEFAULT_STATE, ...parsed });
+            configIdRef.current = data.id;
           } catch {
             // corrupted data, use defaults
           }
@@ -66,7 +69,7 @@ export function useSidebarOrder() {
     };
   }, []);
 
-  // Debounced save
+  // Debounced save — uses select+update/insert because parent_id NULL breaks upsert
   const save = useCallback((newState: SidebarOrderState) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
@@ -75,20 +78,48 @@ export function useSidebarOrder() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const payload = {
-        user_id: user.id,
-        parent_id: null as string | null,
-        label: "_sidebar_config",
-        type: "order_config" as const,
-        href: JSON.stringify(newState),
-        icon: "Settings",
-        sort_order: 0,
-        is_default: false,
-      };
+      const jsonData = JSON.stringify(newState);
 
-      await supabase
-        .from("sidebar_items")
-        .upsert(payload, { onConflict: "user_id,parent_id,label" });
+      if (configIdRef.current) {
+        // Update existing row
+        await supabase
+          .from("sidebar_items")
+          .update({ href: jsonData })
+          .eq("id", configIdRef.current);
+      } else {
+        // Try to find existing row first
+        const { data: existing } = await supabase
+          .from("sidebar_items")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("type", "order_config")
+          .eq("label", "_sidebar_config")
+          .maybeSingle();
+
+        if (existing) {
+          configIdRef.current = existing.id;
+          await supabase
+            .from("sidebar_items")
+            .update({ href: jsonData })
+            .eq("id", existing.id);
+        } else {
+          // Insert new row
+          const { data: inserted } = await supabase
+            .from("sidebar_items")
+            .insert({
+              user_id: user.id,
+              label: "_sidebar_config",
+              type: "order_config",
+              href: jsonData,
+              icon: "Settings",
+              sort_order: 0,
+              is_default: false,
+            })
+            .select("id")
+            .single();
+          if (inserted) configIdRef.current = inserted.id;
+        }
+      }
     }, 500);
   }, []);
 
