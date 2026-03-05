@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import Anthropic from "@anthropic-ai/sdk";
 
-// ── Types (inlined to avoid bundler issues with src/ path aliases) ─────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SuggestTasksRequest {
   action: "suggest-tasks";
@@ -33,7 +32,7 @@ type AIRequest =
   | ExplainNodeRequest
   | CopilotRequest;
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const COLORS = [
   "#6EE7F7",
@@ -49,49 +48,60 @@ const COLORS = [
 
 const VALID_PRIORITIES = new Set(["low", "medium", "high", "urgent"]);
 
-// ── Handler ────────────────────────────────────────────────────────────────────
+// ── Gemini helper ─────────────────────────────────────────────────────────────
+
+async function callGemini(prompt: string, maxTokens = 1024): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers — allow the Vercel deployment and local dev
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-
-  if (req.method !== "POST") {
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error("[mindflow/ai] ANTHROPIC_API_KEY not set");
-    return res.status(500).json({ error: "AI service not configured" });
-  }
 
   const body = req.body as AIRequest;
-  if (!body?.action) {
+  if (!body?.action)
     return res.status(400).json({ error: "Missing action field" });
-  }
-
-  const client = new Anthropic({ apiKey });
 
   try {
     switch (body.action) {
       case "suggest-tasks":
-        return res.status(200).json(await handleSuggestTasks(client, body));
-
+        return res.status(200).json(await handleSuggestTasks(body));
       case "expand-node":
-        return res.status(200).json(await handleExpandNode(client, body));
-
+        return res.status(200).json(await handleExpandNode(body));
       case "explain":
-        return res.status(200).json(await handleExplain(client, body));
-
+        return res.status(200).json(await handleExplain(body));
       case "copilot":
-        return res.status(200).json(await handleCopilot(client, body));
-
+        return res.status(200).json(await handleCopilot(body));
       default:
         return res.status(400).json({ error: "Unknown action" });
     }
@@ -101,12 +111,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-// ── suggest-tasks ──────────────────────────────────────────────────────────────
+// ── suggest-tasks ─────────────────────────────────────────────────────────────
 
-async function handleSuggestTasks(
-  client: Anthropic,
-  body: SuggestTasksRequest,
-) {
+async function handleSuggestTasks(body: SuggestTasksRequest) {
   const { nodeLabel, existingTasks } = body;
 
   const prompt = `Você é um assistente de produtividade. Para o tópico "${nodeLabel}" ${
@@ -115,22 +122,23 @@ async function handleSuggestTasks(
       : "sem tarefas ainda"
   }, sugira de 3 a 5 tarefas acionáveis e específicas.
 
-Responda APENAS com JSON válido neste formato:
+Responda com JSON neste formato:
 {"tasks": [{"text": "Descrição da tarefa", "priority": "high"}, ...]}
 
 Prioridades válidas: "low", "medium", "high", "urgent". Seja direto e acionável. Não repita tarefas existentes.`;
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    // Fallback
+  try {
+    const text = await callGemini(prompt, 512);
+    const parsed = JSON.parse(text) as {
+      tasks: { text: string; priority: string }[];
+    };
+    return {
+      tasks: parsed.tasks.map((t) => ({
+        text: t.text,
+        priority: VALID_PRIORITIES.has(t.priority) ? t.priority : "medium",
+      })),
+    };
+  } catch {
     return {
       tasks: [
         { text: "Definir escopo", priority: "high" },
@@ -139,24 +147,11 @@ Prioridades válidas: "low", "medium", "high", "urgent". Seja direto e acionáve
       ],
     };
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as {
-    tasks: { text: string; priority: string }[];
-  };
-
-  return {
-    tasks: parsed.tasks.map((t) => ({
-      text: t.text,
-      priority: VALID_PRIORITIES.has(t.priority)
-        ? (t.priority as "low" | "medium" | "high" | "urgent")
-        : "medium",
-    })),
-  };
 }
 
-// ── expand-node ────────────────────────────────────────────────────────────────
+// ── expand-node ───────────────────────────────────────────────────────────────
 
-async function handleExpandNode(client: Anthropic, body: ExpandNodeRequest) {
+async function handleExpandNode(body: ExpandNodeRequest) {
   const { nodeLabel, existingChildren } = body;
 
   const prompt = `Você é um assistente de mapas mentais. Dado o nó "${nodeLabel}" ${
@@ -165,21 +160,21 @@ async function handleExpandNode(client: Anthropic, body: ExpandNodeRequest) {
       : "sem filhos ainda"
   }, sugira de 3 a 5 sub-tópicos relevantes para expandir esse nó.
 
-Responda APENAS com JSON válido neste formato:
+Responda com JSON neste formato:
 {"children": [{"label": "Nome do sub-tópico"}, ...]}
 
 Seja conciso, use labels curtas (2-4 palavras). Não repita os filhos existentes.`;
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  try {
+    const text = await callGemini(prompt, 512);
+    const parsed = JSON.parse(text) as { children: { label: string }[] };
+    return {
+      children: parsed.children.map((c, i) => ({
+        label: c.label,
+        color: COLORS[i % COLORS.length],
+      })),
+    };
+  } catch {
     return {
       children: [
         { label: "Sub-tópico 1", color: "#6EE7F7" },
@@ -188,67 +183,50 @@ Seja conciso, use labels curtas (2-4 palavras). Não repita os filhos existentes
       ],
     };
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as { children: { label: string }[] };
-
-  return {
-    children: parsed.children.map((c, i) => ({
-      label: c.label,
-      color: COLORS[i % COLORS.length],
-    })),
-  };
 }
 
-// ── explain ────────────────────────────────────────────────────────────────────
+// ── explain ───────────────────────────────────────────────────────────────────
 
-async function handleExplain(client: Anthropic, body: ExplainNodeRequest) {
+async function handleExplain(body: ExplainNodeRequest) {
   const { nodeLabel, nodeContext } = body;
 
-  const prompt = `Você é um assistente de mapas mentais. Explique de forma clara e concisa o conceito "${nodeLabel}"${
+  const prompt = `Explique de forma clara e concisa o conceito "${nodeLabel}"${
     nodeContext ? ` no contexto de: ${nodeContext}` : ""
   }.
 
-Responda APENAS com JSON válido neste formato:
+Responda com JSON neste formato:
 {"explanation": "Explicação em 2-3 frases."}
 
 Seja informativo mas sucinto. Fale em português.`;
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 256,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  try {
+    const text = await callGemini(prompt, 256);
+    const parsed = JSON.parse(text) as { explanation: string };
+    return { explanation: parsed.explanation };
+  } catch {
     return {
-      explanation: `"${nodeLabel}" é um conceito central neste mapa mental, representando uma área de foco importante para o projeto.`,
+      explanation: `"${nodeLabel}" é um conceito central neste mapa mental.`,
     };
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as { explanation: string };
-  return { explanation: parsed.explanation };
 }
 
-// ── copilot ────────────────────────────────────────────────────────────────────
+// ── copilot ───────────────────────────────────────────────────────────────────
 
-async function handleCopilot(client: Anthropic, body: CopilotRequest) {
+async function handleCopilot(body: CopilotRequest) {
   const { text, layout } = body;
 
-  const prompt = `Você é um assistente especializado em criar mapas mentais estruturados. O usuário quer criar um mapa mental sobre:
+  const prompt = `Você é um assistente especializado em criar mapas mentais. Crie um mapa mental sobre:
 
 "${text}"
 
-Layout preferido: ${layout}
+Layout: ${layout}
 
 Crie um mapa mental hierárquico com:
 - 1 nó raiz (id: "root", parent: null)
 - 3 a 6 nós de primeiro nível (filhos do root)
 - Opcionalmente 1 a 3 sub-nós para cada nó de primeiro nível
 
-Responda APENAS com JSON válido neste formato:
+Responda com JSON neste formato:
 {
   "nodes": [
     {"id": "root", "label": "Título Central", "parent": null},
@@ -257,58 +235,48 @@ Responda APENAS com JSON válido neste formato:
   ]
 }
 
-Use IDs sequenciais simples (root, n1, n2, n1_1, n1_2, etc.).
-Labels curtas e descritivas (2-5 palavras). Responda em português.`;
+IDs sequenciais (root, n1, n2, n1_1, etc.). Labels curtas (2-5 palavras). Português.`;
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const text2 = await callGemini(prompt, 2048);
+    const parsed = JSON.parse(text2) as {
+      nodes: { id: string; label: string; parent: string | null }[];
+    };
 
-  const responseText =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+    const colorMap = new Map<string, string>();
+    let colorIdx = 0;
+
+    const elements = parsed.nodes.map((n) => {
+      if (n.parent === "root" || n.parent === null) {
+        if (!colorMap.has(n.id)) {
+          colorMap.set(n.id, COLORS[colorIdx++ % COLORS.length]);
+        }
+      }
+      const color =
+        colorMap.get(n.id) ??
+        colorMap.get(n.parent ?? "") ??
+        COLORS[colorIdx++ % COLORS.length];
+
+      return {
+        id: n.id,
+        type: "node" as const,
+        x: 0,
+        y: 0,
+        width: 164,
+        height: 64,
+        parentId: n.parent ?? undefined,
+        data: {
+          label: n.label,
+          color,
+          status: "backlog" as const,
+          tasks: [],
+          parentId: n.parent ?? undefined,
+        },
+      };
+    });
+
+    return { elements };
+  } catch {
     return { elements: [] };
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as {
-    nodes: { id: string; label: string; parent: string | null }[];
-  };
-
-  // Assign colors per first-level branch
-  const colorMap = new Map<string, string>();
-  let colorIdx = 0;
-
-  const elements = parsed.nodes.map((n) => {
-    if (n.parent === "root" || n.parent === null) {
-      if (!colorMap.has(n.id)) {
-        colorMap.set(n.id, COLORS[colorIdx++ % COLORS.length]);
-      }
-    }
-    const color =
-      colorMap.get(n.id) ??
-      colorMap.get(n.parent ?? "") ??
-      COLORS[colorIdx++ % COLORS.length];
-
-    return {
-      id: n.id,
-      type: "node" as const,
-      x: 0,
-      y: 0,
-      width: 164,
-      height: 64,
-      parentId: n.parent ?? undefined,
-      data: {
-        label: n.label,
-        color,
-        status: "backlog" as const,
-        tasks: [],
-        parentId: n.parent ?? undefined,
-      },
-    };
-  });
-
-  return { elements };
 }
