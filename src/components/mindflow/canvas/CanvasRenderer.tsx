@@ -668,6 +668,9 @@ function MindFlowInner() {
             onlyRenderVisibleElements
             snapToGrid
             snapGrid={[8, 8]}
+            deleteKeyCode={null}
+            selectionKeyCode={null}
+            multiSelectionKeyCode="Shift"
             defaultEdgeOptions={{
               type: getEdgeTypeForLayout(
                 layout as Parameters<typeof getEdgeTypeForLayout>[0],

@@ -125,9 +125,11 @@ export function useKeyboard({
     };
 
     const handler = (e: KeyboardEvent) => {
-      // Ignore when typing in inputs/textareas (except our special edit inputs)
       const tag = (e.target as HTMLElement).tagName;
+      const ce = (e.target as HTMLElement).getAttribute("contenteditable");
+      // Ignore when typing in inputs/textareas/contenteditable
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (ce === "true") return;
       // Don't intercept when a node is in inline edit mode
       if (editingId) return;
 
@@ -200,8 +202,8 @@ export function useKeyboard({
       }
     };
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
   }, [
     selectedId,
     editingId,
