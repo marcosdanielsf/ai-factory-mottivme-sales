@@ -153,7 +153,7 @@ export async function saveMap(
   if (mapError) throw mapError;
 
   // Upsert elements if provided (delete + reinsert)
-  if (payload.elements && payload.elements.length > 0) {
+  if (payload.elements) {
     const { error: deleteError } = await supabase
       .from("mindflow_elements")
       .delete()
@@ -161,16 +161,27 @@ export async function saveMap(
 
     if (deleteError) throw deleteError;
 
-    const rows = payload.elements.map((el) => ({
-      ...el,
-      map_id: id,
-    }));
+    if (payload.elements.length > 0) {
+      const rows = payload.elements.map((el) => ({
+        id: el.id,
+        map_id: id,
+        type: el.type,
+        x: el.x,
+        y: el.y,
+        width: el.width ?? null,
+        height: el.height ?? null,
+        rotation: el.rotation ?? 0,
+        z_index: el.zIndex ?? 0,
+        parent_id: el.parentId ?? null,
+        data: el.data,
+      }));
 
-    const { error: insertError } = await supabase
-      .from("mindflow_elements")
-      .insert(rows);
+      const { error: insertError } = await supabase
+        .from("mindflow_elements")
+        .insert(rows);
 
-    if (insertError) throw insertError;
+      if (insertError) throw insertError;
+    }
   }
 
   return { ok: true };

@@ -10,7 +10,7 @@ const DEBOUNCE_MS = 1500;
  * Salva elements no Supabase via mindflowService.saveMap().
  * Se mapId for null/undefined, salva apenas no localStorage.
  */
-export function useAutoSave(mapId: string | null) {
+export function useAutoSave(mapId: string | null, disabled = false) {
   const elements = useCanvasStore((s) => s.elements);
   const layout = useCanvasStore((s) => s.layout);
   const setSaveStatus = useUIStore((s) => s.setSaveStatus);
@@ -24,6 +24,9 @@ export function useAutoSave(mapId: string | null) {
       isFirstRender.current = false;
       return;
     }
+
+    // Skip while loading from DB (evita sobrescrever dados reais)
+    if (disabled) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
 

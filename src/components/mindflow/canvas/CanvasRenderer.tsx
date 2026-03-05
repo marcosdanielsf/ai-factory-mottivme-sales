@@ -424,7 +424,7 @@ function MindFlowInner() {
   useKeyboard({ setNodes, setEdges, nodes, edges, onStartEdit });
 
   // Auto-save com debounce (mapId real = salva no Supabase, null = só localStorage)
-  useAutoSave(mapId && mapId !== "demo" ? mapId : null);
+  useAutoSave(mapId && mapId !== "demo" ? mapId : null, loadingMap);
 
   // Ctrl+V paste image from clipboard
   useEffect(() => {
