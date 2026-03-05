@@ -41,7 +41,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 
 - [x] 01-01: Database schema + migrations + indexes + RPC functions (Wave 1)
-- [ ] 01-02: TypeScript types + column registry + Supabase hooks + route scaffolding (Wave 2, depends on 01-01)
+- [x] 01-02: TypeScript types + column registry + Supabase hooks + route scaffolding (Wave 2, depends on 01-01)
 
 ### Phase 2: Table View Core
 
