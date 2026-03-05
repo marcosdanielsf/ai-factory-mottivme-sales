@@ -124,9 +124,52 @@
 
 > Populated by roadmap creation (maps REQ-IDs to phases)
 
-| REQ-ID | Phase | Status |
-| ------ | ----- | ------ |
-| —      | —     | —      |
+| REQ-ID    | Phase   | Status  |
+| --------- | ------- | ------- |
+| BOARD-01  | Phase 2 | Pending |
+| BOARD-02  | Phase 3 | Pending |
+| BOARD-03  | Phase 2 | Pending |
+| BOARD-04  | Phase 6 | Pending |
+| BOARD-05  | Phase 3 | Pending |
+| BOARD-06  | Phase 2 | Pending |
+| BOARD-07  | Phase 1 | Pending |
+| TABLE-01  | Phase 2 | Pending |
+| TABLE-02  | Phase 2 | Pending |
+| TABLE-03  | Phase 3 | Pending |
+| TABLE-04  | Phase 5 | Pending |
+| TABLE-05  | Phase 3 | Pending |
+| TABLE-06  | Phase 2 | Pending |
+| TABLE-07  | Phase 2 | Pending |
+| KANBAN-01 | Phase 4 | Pending |
+| KANBAN-02 | Phase 4 | Pending |
+| KANBAN-03 | Phase 4 | Pending |
+| KANBAN-04 | Phase 4 | Pending |
+| FILTER-01 | Phase 5 | Pending |
+| FILTER-02 | Phase 5 | Pending |
+| FILTER-03 | Phase 5 | Pending |
+| FILTER-04 | Phase 5 | Pending |
+| FILTER-05 | Phase 5 | Pending |
+| FILTER-06 | Phase 5 | Pending |
+| CRUD-01   | Phase 2 | Pending |
+| CRUD-02   | Phase 6 | Pending |
+| CRUD-03   | Phase 6 | Pending |
+| CRUD-04   | Phase 6 | Pending |
+| CRUD-05   | Phase 6 | Pending |
+| CRUD-06   | Phase 6 | Pending |
+| CRUD-07   | Phase 6 | Pending |
+| RT-01     | Phase 7 | Pending |
+| RT-02     | Phase 7 | Pending |
+| PERM-01   | Phase 7 | Pending |
+| PERM-02   | Phase 7 | Pending |
+| PERM-03   | Phase 7 | Pending |
+| NAV-01    | Phase 8 | Pending |
+| NAV-02    | Phase 2 | Pending |
+| NAV-03    | Phase 8 | Pending |
+| NAV-04    | Phase 8 | Pending |
+| TPL-01    | Phase 8 | Pending |
+| TPL-02    | Phase 8 | Pending |
+| MT-01     | Phase 8 | Pending |
+| MT-02     | Phase 8 | Pending |
 
 ---
 
@@ -139,4 +182,4 @@
 
 ---
 
-_Last updated: 2026-03-05 after requirements scoping_
+_Last updated: 2026-03-05 after roadmap creation_
