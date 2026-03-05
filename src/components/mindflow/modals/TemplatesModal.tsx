@@ -646,34 +646,58 @@ export function TemplatesModal({ open, onClose }: TemplatesModalProps) {
       replaceAll(newElements);
       setLayout(template.layout);
 
+      // Map CanvasElement type → ReactFlow node type
+      const typeMap: Record<string, string> = {
+        node: "mindMapNode",
+        sticky: "sticky",
+        text: "text",
+        shape: "shape",
+        frame: "frame",
+        image: "image",
+        comment: "comment",
+      };
+
       // Sync ReactFlow: convert CanvasElements → RF nodes/edges
-      // NOTE: do NOT pass parentId to RF nodes — RF uses it for nested grouping, not edges
       const rfNodes: Node[] = newElements.map((el) => ({
         id: el.id,
-        type: "mindMapNode",
+        type: typeMap[el.type] ?? "mindMapNode",
         position: { x: el.x, y: el.y },
         data: { ...el.data, parentId: el.parentId } as Record<string, unknown>,
+        ...(el.width ? { style: { width: el.width, height: el.height } } : {}),
       }));
-      const rfEdges: Edge[] = newElements
-        .filter((el) => el.parentId)
-        .map((el) => ({
-          id: `${el.parentId}-${el.id}`,
-          source: el.parentId!,
-          target: el.id,
-          type: "ortho",
-        }));
 
-      // Apply layout then set nodes
-      applyLayout(rfNodes, rfEdges, template.layout)
-        .then(({ nodes: ln, edges: le }) => {
-          setNodes(ln);
-          setEdges(le);
-          setTimeout(() => fitView({ padding: 0.2, duration: 600 }), 80);
-        })
-        .catch(() => {
-          setNodes(rfNodes);
-          setEdges(rfEdges);
-        });
+      // Only node-type elements with parentId get edges
+      const nodeElements = newElements.filter(
+        (el) => el.type === "node" && el.parentId,
+      );
+      const rfEdges: Edge[] = nodeElements.map((el) => ({
+        id: `${el.parentId}-${el.id}`,
+        source: el.parentId!,
+        target: el.id,
+        type: "ortho",
+      }));
+
+      // Only apply layout to tree nodes; keep frames/stickies at original position
+      const treeNodes = rfNodes.filter((n) => n.type === "mindMapNode");
+      const otherNodes = rfNodes.filter((n) => n.type !== "mindMapNode");
+
+      if (treeNodes.length > 0 && rfEdges.length > 0) {
+        applyLayout(treeNodes, rfEdges, template.layout)
+          .then(({ nodes: ln, edges: le }) => {
+            setNodes([...ln, ...otherNodes]);
+            setEdges(le);
+            setTimeout(() => fitView({ padding: 0.2, duration: 600 }), 80);
+          })
+          .catch(() => {
+            setNodes(rfNodes);
+            setEdges(rfEdges);
+          });
+      } else {
+        // No tree structure (e.g. Sprint Planning = only frames/stickies)
+        setNodes(rfNodes);
+        setEdges(rfEdges);
+        setTimeout(() => fitView({ padding: 0.2, duration: 600 }), 80);
+      }
 
       onClose();
       setConfirmTemplate(null);
