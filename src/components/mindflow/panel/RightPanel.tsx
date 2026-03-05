@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useCanvasStore } from "../store/canvasStore";
 import { useSelectionStore } from "../store/selectionStore";
@@ -42,9 +41,26 @@ function TasksTab({ nodeId }: { nodeId: string }) {
   const el = useCanvasStore((s) => s.getElementById(nodeId));
   const updateElement = useCanvasStore((s) => s.updateElement);
 
-  if (!el || el.type !== "node")
+  const nodeData = (el?.type === "node" ? el.data : null) as NodeData | null;
+
+  const addTask = useCallback(() => {
+    if (!newTask.trim() || !nodeData) return;
+    const task: Task = {
+      id: `t${Date.now()}`,
+      text: newTask.trim(),
+      done: false,
+      priority: newPrio,
+      due: newDue || null,
+    };
+    updateElement(nodeId, {
+      data: { ...nodeData, tasks: [...nodeData.tasks, task] },
+    });
+    setNewTask("");
+    setNewDue("");
+  }, [newTask, newPrio, newDue, nodeData, nodeId, updateElement]);
+
+  if (!el || !nodeData)
     return <Empty icon="🧠" text="Selecione um nó para gerenciar tarefas" />;
-  const nodeData = el.data as NodeData;
 
   const pct = nodeData.tasks.length
     ? Math.round(
@@ -81,20 +97,6 @@ function TasksTab({ nodeId }: { nodeId: string }) {
         t.id === taskId ? { ...t, priority } : t,
       ),
     });
-
-  const addTask = useCallback(() => {
-    if (!newTask.trim()) return;
-    const task: Task = {
-      id: `t${Date.now()}`,
-      text: newTask.trim(),
-      done: false,
-      priority: newPrio,
-      due: newDue || null,
-    };
-    patch({ tasks: [...nodeData.tasks, task] });
-    setNewTask("");
-    setNewDue("");
-  }, [newTask, newPrio, newDue, nodeData.tasks]);
 
   return (
     <div className="flex flex-col gap-3">

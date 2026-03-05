@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { useSelectionStore } from "../store/selectionStore";
 import type { ToolType } from "../types/canvas";
@@ -23,8 +22,12 @@ const TOOLS: ToolDef[] = [
   { id: "rect", label: "Retangulo", icon: "\u25AD", group: 2 },
   { id: "circle", label: "Circulo", icon: "\u25CB", group: 2 },
   { id: "diamond", label: "Losango", icon: "\u25C7", group: 2 },
-  // Group 3: Containers
+  // Group 3: Containers & Media
   { id: "frame", label: "Frame", icon: "\u25A1", shortcut: "F", group: 3 },
+  { id: "image", label: "Imagem", icon: "\uD83D\uDDBC", group: 3 },
+  // Group 4: Drawing & Comments
+  { id: "pen", label: "Caneta", icon: "\u270F", shortcut: "P", group: 4 },
+  { id: "comment", label: "Comentario", icon: "\uD83D\uDCAC", group: 4 },
 ];
 
 // ── Toolbar component ───────────────────────────────────────────────────────────

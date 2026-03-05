@@ -320,6 +320,58 @@ function MindFlowInner() {
   // Auto-save com debounce (null = sem Supabase, só localStorage)
   useAutoSave(null);
 
+  // Ctrl+V paste image from clipboard
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const newId = addElement({
+              type: "image",
+              x: 400 + Math.random() * 200,
+              y: 200 + Math.random() * 200,
+              width: 300,
+              height: 200,
+              data: {
+                storageKey: "",
+                url: dataUrl,
+                alt: file.name,
+                objectFit: "contain",
+              },
+            });
+            const newNode = {
+              id: newId,
+              type: "image",
+              position: {
+                x: 400 + Math.random() * 200,
+                y: 200 + Math.random() * 200,
+              },
+              data: {
+                storageKey: "",
+                url: dataUrl,
+                alt: file.name,
+                objectFit: "contain",
+              },
+              style: { width: 300, height: 200 },
+            };
+            setNodes((ns) => [...ns, newNode]);
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [addElement, setNodes]);
+
   // Apply auto-layout when layout changes
   useAutoLayout(nodes, edges, layout, setNodes, setEdges);
 

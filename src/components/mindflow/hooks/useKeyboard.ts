@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useCanvasStore } from "../store/canvasStore";
@@ -160,22 +159,20 @@ export function useKeyboard({
         return;
       }
 
+      // Always prevent Tab/Enter from navigating away from the canvas
+      if (e.key === "Tab" || e.key === "Enter") {
+        e.preventDefault();
+        if (!selectedId) return;
+        if (e.key === "Tab") {
+          addChild(selectedId);
+        } else {
+          addSibling(selectedId);
+        }
+        return;
+      }
+
       // Node-specific shortcuts (need selection)
       if (!selectedId) return;
-
-      // Tab — add child node
-      if (e.key === "Tab") {
-        e.preventDefault();
-        addChild(selectedId);
-        return;
-      }
-
-      // Enter — add sibling
-      if (e.key === "Enter") {
-        e.preventDefault();
-        addSibling(selectedId);
-        return;
-      }
 
       // F2 — start inline edit
       if (e.key === "F2") {
