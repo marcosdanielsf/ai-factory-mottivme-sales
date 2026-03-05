@@ -21,65 +21,65 @@ import type {
 } from "@/components/mindflow/types/ai";
 import type { CanvasElement } from "@/components/mindflow/types/elements";
 
-// ── AI Functions ─────────────────────────────────────────────────────────────
-// TODO: Estas funcoes retornam fallback mock por enquanto.
-// Para funcionar com IA real, implementar um dos caminhos:
-// 1. Supabase Edge Function que chama Anthropic API
-// 2. Vercel API route (api/ folder no projeto)
-// 3. Backend separado (Railway, etc.)
+// ── AI Endpoint ───────────────────────────────────────────────────────────────
+// Calls the Vercel Serverless Function at api/mindflow/ai.ts
+// In production: /api/mindflow/ai  (Vercel routing)
+// In local dev:  same path (Vercel dev server handles it)
+
+const AI_ENDPOINT = "/api/mindflow/ai";
+
+async function callAI<T>(payload: Record<string, unknown>): Promise<T> {
+  const res = await fetch(AI_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`AI request failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ── AI Functions ──────────────────────────────────────────────────────────────
 
 export async function suggestTasks(
   req: Omit<SuggestTasksRequest, "mapId">,
 ): Promise<SuggestTasksResponse> {
-  // TODO: Substituir por chamada ao backend com Anthropic
-  console.warn(
-    "[mindflowService] suggestTasks usando fallback mock — backend AI nao configurado",
-  );
-  return {
-    tasks: [
-      { text: "Definir escopo", priority: "high" },
-      { text: "Pesquisar referencias", priority: "medium" },
-      { text: "Documentar decisoes", priority: "low" },
-    ],
-  };
+  return callAI<SuggestTasksResponse>({
+    action: "suggest-tasks",
+    nodeLabel: req.nodeLabel,
+    existingTasks: req.existingTasks,
+  });
 }
 
 export async function expandNode(
   req: Omit<ExpandNodeRequest, "mapId">,
 ): Promise<ExpandNodeResponse> {
-  // TODO: Substituir por chamada ao backend com Anthropic
-  console.warn(
-    "[mindflowService] expandNode usando fallback mock — backend AI nao configurado",
-  );
-  return {
-    children: [
-      { label: "Sub-topico 1", color: "#6EE7F7" },
-      { label: "Sub-topico 2", color: "#A78BFA" },
-      { label: "Sub-topico 3", color: "#34D399" },
-    ],
-  };
+  return callAI<ExpandNodeResponse>({
+    action: "expand-node",
+    nodeLabel: req.nodeLabel,
+    existingChildren: req.existingChildren,
+  });
 }
 
 export async function explainNode(
   req: Omit<ExplainNodeRequest, "mapId">,
 ): Promise<ExplainNodeResponse> {
-  // TODO: Substituir por chamada ao backend com Anthropic
-  console.warn(
-    "[mindflowService] explainNode usando fallback mock — backend AI nao configurado",
-  );
-  return {
-    explanation: `"${req.nodeLabel}" e um conceito central neste mapa mental, representando uma area de foco importante para o projeto.`,
-  };
+  return callAI<ExplainNodeResponse>({
+    action: "explain",
+    nodeLabel: req.nodeLabel,
+    nodeContext: req.nodeContext,
+  });
 }
 
 export async function runCopilot(
   req: Omit<CopilotRequest, "mapId">,
 ): Promise<CopilotResponse> {
-  // TODO: Substituir por chamada ao backend com Anthropic
-  console.warn(
-    "[mindflowService] runCopilot usando fallback mock — backend AI nao configurado",
-  );
-  return { elements: [] };
+  return callAI<CopilotResponse>({
+    action: "copilot",
+    text: req.text,
+    layout: req.layout,
+  });
 }
 
 // ── Maps CRUD (Supabase direto) ─────────────────────────────────────────────

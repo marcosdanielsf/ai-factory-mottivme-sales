@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
@@ -30,6 +29,8 @@ import { DrawingOverlay } from "./overlays/DrawingOverlay";
 import { TopBar } from "../topbar/TopBar";
 import { RightPanel } from "../panel/RightPanel";
 import { Toolbar } from "../toolbar/Toolbar";
+import { ExportPanel } from "../modals/ExportPanel";
+import { TemplatesModal } from "../modals/TemplatesModal";
 import { useCanvasStore } from "../store/canvasStore";
 import { useSelectionStore } from "../store/selectionStore";
 import { useUIStore } from "../store/uiStore";
@@ -272,6 +273,10 @@ function MindFlowInner() {
 
   const copilotOpen = useUIStore((s) => s.copilotOpen);
   const closeCopilot = useUIStore((s) => s.closeCopilot);
+  const exportOpen = useUIStore((s) => s.exportOpen);
+  const closeExport = useUIStore((s) => s.closeExport);
+  const templatesOpen = useUIStore((s) => s.templatesOpen);
+  const closeTemplates = useUIStore((s) => s.closeTemplates);
 
   const [copilotText, setCopilotText] = useState("");
 
@@ -663,6 +668,10 @@ function MindFlowInner() {
 
         <RightPanel />
       </div>
+
+      {/* Export & Templates modals */}
+      <ExportPanel open={exportOpen} onClose={closeExport} />
+      <TemplatesModal open={templatesOpen} onClose={closeTemplates} />
 
       {/* Copilot modal */}
       {copilotOpen && (

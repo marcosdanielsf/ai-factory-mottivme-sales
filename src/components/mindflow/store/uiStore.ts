@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 
 type PanelTab = "tasks" | "ai" | "overview" | "comments";
@@ -13,6 +12,8 @@ interface UIStore {
   copilotOpen: boolean;
   emojiPickerOpen: boolean;
   imageUploadOpen: boolean;
+  exportOpen: boolean;
+  templatesOpen: boolean;
 
   // Presentation mode
   presentationMode: boolean;
@@ -33,6 +34,10 @@ interface UIStore {
   closeEmojiPicker: () => void;
   openImageUpload: () => void;
   closeImageUpload: () => void;
+  openExport: () => void;
+  closeExport: () => void;
+  openTemplates: () => void;
+  closeTemplates: () => void;
 
   // Presentation actions
   enterPresentation: (nodeId?: string) => void;
@@ -49,6 +54,8 @@ export const useUIStore = create<UIStore>()((set) => ({
   copilotOpen: false,
   emojiPickerOpen: false,
   imageUploadOpen: false,
+  exportOpen: false,
+  templatesOpen: false,
   presentationMode: false,
   presentationNodeId: null,
   saveStatus: "idle",
@@ -64,6 +71,10 @@ export const useUIStore = create<UIStore>()((set) => ({
   closeEmojiPicker: () => set({ emojiPickerOpen: false }),
   openImageUpload: () => set({ imageUploadOpen: true }),
   closeImageUpload: () => set({ imageUploadOpen: false }),
+  openExport: () => set({ exportOpen: true }),
+  closeExport: () => set({ exportOpen: false }),
+  openTemplates: () => set({ templatesOpen: true }),
+  closeTemplates: () => set({ templatesOpen: false }),
 
   enterPresentation: (nodeId) =>
     set({

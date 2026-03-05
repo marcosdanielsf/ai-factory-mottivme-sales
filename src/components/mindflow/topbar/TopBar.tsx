@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useCanvasStore } from "../store/canvasStore";
 import { useHistoryStore } from "../store/historyStore";
+import { applyLayout } from "../engine/layoutEngine";
 import { useUIStore } from "../store/uiStore";
 import { LAYOUTS } from "../types/canvas";
 
@@ -41,9 +42,13 @@ export function TopBar() {
   const redo = useHistoryStore((s) => s.redo);
 
   const openCopilot = useUIStore((s) => s.openCopilot);
+  const enterPresentation = useUIStore((s) => s.enterPresentation);
+  const openExport = useUIStore((s) => s.openExport);
+  const openTemplates = useUIStore((s) => s.openTemplates);
   const saveStatus = useUIStore((s) => s.saveStatus);
 
-  const { zoomIn, zoomOut, zoomTo, getZoom } = useReactFlow();
+  const reactFlowInstance = useReactFlow();
+  const { zoomIn, zoomOut, zoomTo, getZoom } = reactFlowInstance;
 
   const handleUndo = useCallback(() => {
     const prev = undo();
@@ -54,21 +59,6 @@ export function TopBar() {
     const next = redo();
     if (next) replaceAll(next);
   }, [redo, replaceAll]);
-
-  const handleExport = useCallback(() => {
-    const snapshot = JSON.stringify(
-      { elements, layout, exportedAt: new Date().toISOString() },
-      null,
-      2,
-    );
-    const blob = new Blob([snapshot], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mindflow-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [elements, layout]);
 
   // Compute global progress from elements (memoized to avoid re-calc on every render)
   const { allTasks, doneTasks, totalPct, lateTasks } = useMemo(() => {
@@ -250,8 +240,88 @@ export function TopBar() {
 
         <div className="w-px h-5 bg-white/[0.07] mx-0.5" />
 
-        <Btn onClick={handleExport} title="Exportar JSON">
-          ↓ JSON
+        <Btn
+          onClick={async () => {
+            const rf = reactFlowInstance;
+            if (!rf) return;
+            const nodes = rf.getNodes();
+            const edges = rf.getEdges();
+            const result = await applyLayout(nodes, edges, layout);
+            rf.setNodes(result.nodes);
+            rf.setEdges(result.edges);
+            setTimeout(() => rf.fitView({ padding: 0.2, duration: 800 }), 50);
+          }}
+          title="Organizar mapa (re-layout)"
+          className="text-[#A78BFA]"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mr-1"
+          >
+            <path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" strokeLinecap="round" />
+          </svg>
+          Organizar
+        </Btn>
+
+        <div className="w-px h-5 bg-white/[0.07] mx-0.5" />
+
+        <Btn onClick={openTemplates} title="Templates">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mr-1"
+          >
+            <rect x="1" y="1" width="5" height="5" rx="1" />
+            <rect x="8" y="1" width="5" height="5" rx="1" />
+            <rect x="1" y="8" width="5" height="5" rx="1" />
+            <rect x="8" y="8" width="5" height="5" rx="1" />
+          </svg>
+          Templates
+        </Btn>
+
+        <Btn onClick={openExport} title="Exportar (PNG, PDF, JSON)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mr-1"
+          >
+            <path
+              d="M7 2v7m0 0L4.5 6.5M7 9l2.5-2.5M2 11.5h10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Export
+        </Btn>
+
+        <Btn
+          onClick={() => enterPresentation()}
+          title="Modo Apresentacao"
+          className="text-[#6EE7F7]"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="currentColor"
+            className="mr-1"
+          >
+            <path d="M3 1.5v11l9-5.5z" />
+          </svg>
+          Apresentar
         </Btn>
       </div>
     </div>
