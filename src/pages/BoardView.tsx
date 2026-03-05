@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
@@ -28,8 +28,10 @@ import {
   Trash2,
   X,
   Loader2,
+  BrainCircuit,
 } from "lucide-react";
 import { useBoardData } from "../hooks/useBoardData";
+import { createMindFlowFromBoard } from "../lib/boardMindflowBridge";
 import {
   DEFAULT_STATUS_LABELS,
   getCellRawValue,
@@ -1275,10 +1277,12 @@ export function BoardView() {
     toggleGroupCollapsed,
   } = useBoardData();
 
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<ViewTab>("table");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
+  const [convertingToMindFlow, setConvertingToMindFlow] = useState(false);
 
   useEffect(() => {
     if (slug) fetchBoardBySlug(slug);
@@ -1314,6 +1318,20 @@ export function BoardView() {
     [boardData, addColumn],
   );
 
+  const handleConvertToMindFlow = useCallback(async () => {
+    if (!boardData || convertingToMindFlow) return;
+    setConvertingToMindFlow(true);
+    try {
+      const mapId = await createMindFlowFromBoard(boardData);
+      navigate(`/mindflow/${mapId}`);
+    } catch (e) {
+      console.error("[BoardView] Erro ao converter para MindFlow:", e);
+      alert("Erro ao converter para Mapa Mental. Tente novamente.");
+    } finally {
+      setConvertingToMindFlow(false);
+    }
+  }, [boardData, convertingToMindFlow, navigate]);
+
   // ── Loading / Error ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1346,7 +1364,7 @@ export function BoardView() {
     <div className="min-h-screen bg-[#07070f]">
       {/* ── Board Header ───────────────────────────────────────────────────── */}
       <div className="border-b border-zinc-800 bg-[#07070f] px-6 py-4">
-        {/* Title */}
+        {/* Title + MindFlow button */}
         <div className="mb-3 flex items-center gap-2">
           <span className="text-2xl">{board.icon ?? "📋"}</span>
           {editingTitle ? (
@@ -1373,6 +1391,20 @@ export function BoardView() {
               {board.name}
             </h1>
           )}
+          <div className="flex-1" />
+          <button
+            onClick={handleConvertToMindFlow}
+            disabled={convertingToMindFlow}
+            title="Abrir como Mapa Mental"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all border border-[rgba(110,231,247,0.2)] bg-[rgba(110,231,247,0.06)] text-[#6EE7F7] hover:bg-[rgba(110,231,247,0.12)] disabled:opacity-50"
+          >
+            {convertingToMindFlow ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <BrainCircuit size={14} />
+            )}
+            Abrir como Mapa Mental
+          </button>
         </div>
 
         {/* View tabs */}

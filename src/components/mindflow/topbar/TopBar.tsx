@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useReactFlow } from "@xyflow/react";
 import { useCanvasStore } from "../store/canvasStore";
 import { useHistoryStore } from "../store/historyStore";
 import { applyLayout } from "../engine/layoutEngine";
 import { useUIStore } from "../store/uiStore";
 import { LAYOUTS } from "../types/canvas";
+import { createBoardFromMindFlow } from "@/lib/boardMindflowBridge";
 
 function Btn({
   onClick,
@@ -29,7 +31,10 @@ function Btn({
 }
 
 export function TopBar() {
+  const { id: mapId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const [convertingToBoard, setConvertingToBoard] = useState(false);
 
   const layout = useCanvasStore((s) => s.layout);
   const setLayout = useCanvasStore((s) => s.setLayout);
@@ -324,6 +329,40 @@ export function TopBar() {
             />
           </svg>
           Export
+        </Btn>
+
+        <Btn
+          onClick={async () => {
+            if (!mapId || mapId === "demo" || convertingToBoard) return;
+            setConvertingToBoard(true);
+            try {
+              const boardSlug = await createBoardFromMindFlow(mapId);
+              navigate(`/boards/${boardSlug}`);
+            } catch (e) {
+              console.error("[TopBar] Erro ao converter para Board:", e);
+              alert("Erro ao converter para Board. Tente novamente.");
+            } finally {
+              setConvertingToBoard(false);
+            }
+          }}
+          title="Abrir como Board"
+          className={`${!mapId || mapId === "demo" ? "opacity-30" : ""}`}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mr-1"
+          >
+            <rect x="1" y="1" width="5" height="5" rx="1" />
+            <rect x="8" y="1" width="5" height="5" rx="1" />
+            <rect x="1" y="8" width="5" height="5" rx="1" />
+            <rect x="8" y="8" width="5" height="5" rx="1" />
+          </svg>
+          {convertingToBoard ? "Convertendo..." : "Board"}
         </Btn>
 
         <Btn
