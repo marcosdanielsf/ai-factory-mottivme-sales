@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -42,6 +43,7 @@ import {
 } from "../engine/layoutEngine";
 import { useKeyboard } from "../hooks/useKeyboard";
 import { useAutoSave } from "../hooks/useAutoSave";
+import { getMap } from "@/services/mindflow/mindflowService";
 import type {
   NodeData,
   StickyData,
@@ -257,9 +259,32 @@ function useAutoLayout(
   }, [layout, nodes.length]);
 }
 
+// ── Helper: DB rows (snake_case) → v4-compatible nodes ───────────────────────
+function dbRowsToV4(rows: Record<string, unknown>[]) {
+  return rows
+    .filter((r) => r.type === "node")
+    .map((r) => {
+      const data = (r.data ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id as string,
+        label: (data.label as string) ?? "Sem titulo",
+        x: (r.x as number) ?? 0,
+        y: (r.y as number) ?? 0,
+        color: (data.color as string) ?? "#6EE7F7",
+        parent: (r.parent_id as string) ?? null,
+        status: (data.status as string) ?? "backlog",
+        tasks: (data.tasks as unknown[]) ?? [],
+        emoji: data.emoji as string | undefined,
+      };
+    });
+}
+
 // ── Inner editor (needs ReactFlowProvider) ────────────────────────────────────
 function MindFlowInner() {
+  const { id: mapId } = useParams<{ id: string }>();
+
   const layout = useCanvasStore((s) => s.layout);
+  const setLayout = useCanvasStore((s) => s.setLayout);
   const canvasElements = useCanvasStore((s) => s.elements);
   const addElement = useCanvasStore((s) => s.addElement);
   const updateElement = useCanvasStore((s) => s.updateElement);
@@ -277,6 +302,7 @@ function MindFlowInner() {
   const closeTemplates = useUIStore((s) => s.closeTemplates);
 
   const [copilotText, setCopilotText] = useState("");
+  const [loadingMap, setLoadingMap] = useState(false);
 
   // Initialize nodes/edges from v4 data on first mount
   const { nodes: initNodes, edges: initEdges } = v4ToReactFlow(
@@ -288,8 +314,65 @@ function MindFlowInner() {
 
   const replaceAll = useCanvasStore((s) => s.replaceAll);
 
-  // BUG #1 FIX: Populate canvasStore with initial data on mount
+  // Load map from Supabase if mapId is a real UUID (not "demo")
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
+    if (!mapId || mapId === "demo" || hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    setLoadingMap(true);
+    getMap(mapId)
+      .then(({ map, elements: dbElements }) => {
+        if (!dbElements || dbElements.length === 0) {
+          setLoadingMap(false);
+          return;
+        }
+
+        // Set layout from map
+        if (map?.layout) {
+          setLayout(map.layout as Parameters<typeof setLayout>[0]);
+        }
+
+        // Convert DB rows → v4 format → React Flow nodes/edges
+        const v4Nodes = dbRowsToV4(dbElements as Record<string, unknown>[]);
+        if (v4Nodes.length === 0) {
+          setLoadingMap(false);
+          return;
+        }
+
+        const { nodes: rfNodes, edges: rfEdges } = v4ToReactFlow(
+          v4Nodes as Parameters<typeof v4ToReactFlow>[0],
+        );
+        setNodes(rfNodes);
+        setEdges(rfEdges);
+
+        // Sync canvasStore
+        const canvasEls = v4Nodes.map((n) => ({
+          id: n.id,
+          type: "node" as const,
+          x: n.x,
+          y: n.y,
+          parentId: n.parent ?? undefined,
+          data: {
+            label: n.label,
+            color: n.color,
+            status: n.status as import("../types/elements").StatusType,
+            tasks: n.tasks as import("../types/elements").Task[],
+            emoji: n.emoji,
+          },
+        }));
+        replaceAll(canvasEls);
+        setLoadingMap(false);
+      })
+      .catch((err) => {
+        console.error("[MindFlow] Erro ao carregar mapa:", err);
+        setLoadingMap(false);
+      });
+  }, [mapId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Populate canvasStore with demo data on mount (only if no mapId)
+  useEffect(() => {
+    if (mapId && mapId !== "demo") return;
     const initialElements = (
       INITIAL_V4 as Parameters<typeof v4ToReactFlow>[0]
     ).map((n) => ({
@@ -340,8 +423,8 @@ function MindFlowInner() {
   // Keyboard shortcuts
   useKeyboard({ setNodes, setEdges, nodes, edges, onStartEdit });
 
-  // Auto-save com debounce (null = sem Supabase, só localStorage)
-  useAutoSave(null);
+  // Auto-save com debounce (mapId real = salva no Supabase, null = só localStorage)
+  useAutoSave(mapId && mapId !== "demo" ? mapId : null);
 
   // Ctrl+V paste image from clipboard
   useEffect(() => {
@@ -653,6 +736,17 @@ function MindFlowInner() {
     },
     [nodes, addElement, setNodes, setEdges, selectOne, layout],
   );
+
+  if (loadingMap) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-[#07070f]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#6EE7F7] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-slate-500">Carregando mapa...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-screen flex flex-col bg-[#07070f] font-['DM_Sans','Segoe_UI',sans-serif]">
