@@ -360,9 +360,27 @@ export async function createMindFlowFromBoard(
 
   if (mapErr) throw mapErr;
 
-  // Inserir elements
+  // Inserir elements (mapear camelCase → snake_case + gerar UUIDs)
   if (elements.length > 0) {
-    const rows = elements.map((el) => ({ ...el, map_id: map.id }));
+    // Mapear IDs locais → UUIDs do DB
+    const idMap = new Map<string, string>();
+    for (const el of elements) {
+      idMap.set(el.id, crypto.randomUUID());
+    }
+
+    const rows = elements.map((el) => ({
+      id: idMap.get(el.id)!,
+      map_id: map.id,
+      type: el.type,
+      x: el.x,
+      y: el.y,
+      width: el.width ?? null,
+      height: el.height ?? null,
+      rotation: el.rotation ?? 0,
+      z_index: el.zIndex ?? 0,
+      parent_id: el.parentId ? (idMap.get(el.parentId) ?? null) : null,
+      data: el.data,
+    }));
     const { error: elErr } = await supabase
       .from("mindflow_elements")
       .insert(rows);
@@ -384,7 +402,22 @@ export async function createBoardFromMindFlow(mapId: string): Promise<string> {
 
   if (mapRes.error) throw mapRes.error;
 
-  const elements = (elemRes.data ?? []) as CanvasElement[];
+  // Mapear snake_case do DB → camelCase do CanvasElement
+  const rawRows = elemRes.data ?? [];
+  const elements: CanvasElement[] = rawRows.map(
+    (row: Record<string, unknown>) => ({
+      id: row.id as string,
+      type: row.type as CanvasElement["type"],
+      x: (row.x as number) ?? 0,
+      y: (row.y as number) ?? 0,
+      width: row.width as number | undefined,
+      height: row.height as number | undefined,
+      rotation: row.rotation as number | undefined,
+      zIndex: row.z_index as number | undefined,
+      parentId: (row.parent_id as string) ?? null,
+      data: row.data as CanvasElement["data"],
+    }),
+  );
   const mapTitle = mapRes.data?.title ?? "Mapa Mental";
 
   return mindFlowToBoard(elements, mapTitle);
