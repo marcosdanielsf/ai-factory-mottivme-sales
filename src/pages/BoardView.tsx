@@ -6,6 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -128,8 +129,14 @@ function CellRenderer({ item, column, onUpdate }: CellRendererProps) {
       );
 
     case "status": {
-      const labels: StatusLabel[] =
-        column.settings?.labels ?? DEFAULT_STATUS_LABELS;
+      const rawLabels = column.settings?.labels ?? DEFAULT_STATUS_LABELS;
+      const labels: StatusLabel[] = rawLabels.map(
+        (l: { id: string; label?: string; text?: string; color: string }) => ({
+          id: l.id,
+          label: l.label ?? l.text ?? l.id,
+          color: l.color,
+        }),
+      );
       const currentId =
         typeof val?.value_json === "string" ? val.value_json : null;
       const current = labels.find((l) => l.id === currentId);
@@ -769,6 +776,370 @@ function AddGroupDialog({ onClose, onAdd }: AddGroupDialogProps) {
   );
 }
 
+// ── Kanban Card ──────────────────────────────────────────────────────────────
+
+interface KanbanCardProps {
+  item: BoardItem;
+  columns: BoardColumn[];
+  onUpdateName: (name: string) => void;
+  onDelete: () => void;
+}
+
+function KanbanCard({
+  item,
+  columns,
+  onUpdateName,
+  onDelete,
+}: KanbanCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, data: { type: "item", item } });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const [hovered, setHovered] = useState(false);
+
+  // Show up to 3 non-status columns as preview
+  const previewCols = columns
+    .filter((c) => c.column_type !== "status")
+    .slice(0, 3);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="group rounded-lg border border-zinc-800 bg-zinc-900/80 p-3 cursor-grab active:cursor-grabbing hover:border-zinc-700 transition-colors"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-xs font-medium text-zinc-200 leading-relaxed">
+          {item.name}
+        </span>
+        {hovered && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
+      </div>
+      {previewCols.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {previewCols.map((col) => {
+            const raw = getCellRawValue(item, col.id);
+            if (raw === null) return null;
+            const display = String(raw);
+            // Skip non-readable values like [object Object]
+            if (display.includes("[object")) return null;
+            return (
+              <span
+                key={col.id}
+                className="inline-block rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 truncate max-w-[100px]"
+                title={`${col.name}: ${display}`}
+              >
+                {display}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Kanban Column (droppable) ────────────────────────────────────────────────
+
+interface KanbanColumnProps {
+  statusLabel: StatusLabel;
+  items: BoardItem[];
+  columns: BoardColumn[];
+  onUpdateItemName: (itemId: string, name: string) => void;
+  onDeleteItem: (itemId: string) => void;
+  onAddItem: (name: string) => void;
+}
+
+function KanbanColumn({
+  statusLabel,
+  items,
+  columns,
+  onUpdateItemName,
+  onDeleteItem,
+  onAddItem,
+}: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `kanban-col-${statusLabel.id}`,
+  });
+  const [addingItem, setAddingItem] = useState(false);
+  const [newName, setNewName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const commitAdd = () => {
+    if (newName.trim()) {
+      onAddItem(newName.trim());
+      setNewName("");
+    }
+    setAddingItem(false);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex w-[260px] flex-shrink-0 flex-col rounded-xl border transition-colors ${
+        isOver
+          ? "border-blue-500/40 bg-blue-500/5"
+          : "border-zinc-800/60 bg-zinc-900/30"
+      }`}
+    >
+      {/* Column header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-zinc-800/60">
+        <div
+          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: statusLabel.color }}
+        />
+        <span className="text-xs font-semibold text-zinc-300 truncate">
+          {statusLabel.label}
+        </span>
+        <span className="ml-auto text-[10px] text-zinc-600">
+          {items.length}
+        </span>
+      </div>
+
+      {/* Cards */}
+      <div className="flex-1 space-y-2 p-2 min-h-[60px]">
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item) => (
+            <KanbanCard
+              key={item.id}
+              item={item}
+              columns={columns}
+              onUpdateName={(name) => onUpdateItemName(item.id, name)}
+              onDelete={() => onDeleteItem(item.id)}
+            />
+          ))}
+        </SortableContext>
+      </div>
+
+      {/* Add item */}
+      <div className="border-t border-zinc-800/40 px-2 py-1.5">
+        {addingItem ? (
+          <div className="flex items-center gap-1">
+            <input
+              ref={inputRef}
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Nome do item..."
+              className="flex-1 bg-transparent text-xs text-zinc-100 outline-none placeholder-zinc-600"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitAdd();
+                if (e.key === "Escape") {
+                  setNewName("");
+                  setAddingItem(false);
+                }
+              }}
+              onBlur={commitAdd}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setAddingItem(true);
+              setTimeout(() => inputRef.current?.focus(), 0);
+            }}
+            className="flex w-full items-center gap-1 rounded px-1 py-1 text-[11px] text-zinc-600 hover:bg-zinc-800/40 hover:text-zinc-400 transition-colors"
+          >
+            <Plus size={12} /> Adicionar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Board Kanban View ────────────────────────────────────────────────────────
+
+interface BoardKanbanViewProps {
+  boardId: string;
+  columns: BoardColumn[];
+  groups: BoardGroup[];
+  itemsByGroup: Record<string, BoardItem[]>;
+  onAddItem: (groupId: string, name: string) => void;
+  onUpdateItemName: (itemId: string, name: string) => void;
+  onUpdateItemValue: (
+    itemId: string,
+    columnId: string,
+    value: {
+      value_text?: string | null;
+      value_number?: number | null;
+      value_date?: string | null;
+      value_json?: unknown | null;
+    },
+  ) => void;
+  onDeleteItem: (itemId: string) => void;
+  allItems: BoardItem[];
+}
+
+function BoardKanbanView({
+  boardId,
+  columns,
+  groups,
+  itemsByGroup,
+  onAddItem,
+  onUpdateItemName,
+  onUpdateItemValue,
+  onDeleteItem,
+  allItems,
+}: BoardKanbanViewProps) {
+  // Find the first status column
+  const statusCol = columns.find((c) => c.column_type === "status");
+
+  if (!statusCol) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Kanban size={40} className="mb-3 text-zinc-700" />
+        <p className="text-sm font-medium text-zinc-400">
+          Adicione uma coluna de Status para usar o Kanban
+        </p>
+        <p className="mt-1 text-xs text-zinc-600">
+          O Kanban agrupa itens pelo valor da coluna de status.
+        </p>
+      </div>
+    );
+  }
+
+  // Normalize labels: DB may store "text" instead of "label"
+  const rawLabels = statusCol.settings?.labels ?? DEFAULT_STATUS_LABELS;
+  const labels: StatusLabel[] = rawLabels.map(
+    (l: { id: string; label?: string; text?: string; color: string }) => ({
+      id: l.id,
+      label: l.label ?? l.text ?? l.id,
+      color: l.color,
+    }),
+  );
+
+  // Group all items by their status value
+  const itemsByStatus: Record<string, BoardItem[]> = {};
+  const unassigned: BoardItem[] = [];
+
+  for (const label of labels) {
+    itemsByStatus[label.id] = [];
+  }
+
+  for (const item of allItems) {
+    const val = item.values?.find((v) => v.column_id === statusCol.id);
+    const statusId =
+      typeof val?.value_json === "string" ? val.value_json : null;
+    if (statusId && itemsByStatus[statusId]) {
+      itemsByStatus[statusId].push(item);
+    } else {
+      unassigned.push(item);
+    }
+  }
+
+  // Use the first group as default for new items
+  const defaultGroupId = groups[0]?.id;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const overId = String(over.id);
+    // Determine target status from the over element
+    let targetStatusId: string | null = null;
+
+    if (overId.startsWith("kanban-col-")) {
+      targetStatusId = overId.replace("kanban-col-", "");
+    } else {
+      // Dropped on another card — find which status column it belongs to
+      const overItem = allItems.find((i) => i.id === overId);
+      if (overItem) {
+        const overVal = overItem.values?.find(
+          (v) => v.column_id === statusCol.id,
+        );
+        targetStatusId =
+          typeof overVal?.value_json === "string" ? overVal.value_json : null;
+      }
+    }
+
+    if (targetStatusId) {
+      const draggedId = String(active.id);
+      // Update the status value of the dragged item
+      onUpdateItemValue(draggedId, statusCol.id, {
+        value_json: targetStatusId,
+      });
+    }
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex gap-3 overflow-x-auto pb-4">
+        {/* Unassigned column */}
+        {unassigned.length > 0 && (
+          <KanbanColumn
+            statusLabel={{
+              id: "__unassigned__",
+              label: "Sem status",
+              color: "#52525b",
+            }}
+            items={unassigned}
+            columns={columns}
+            onUpdateItemName={onUpdateItemName}
+            onDeleteItem={onDeleteItem}
+            onAddItem={(name) => {
+              if (defaultGroupId) onAddItem(defaultGroupId, name);
+            }}
+          />
+        )}
+
+        {/* Status columns */}
+        {labels.map((label) => (
+          <KanbanColumn
+            key={label.id}
+            statusLabel={label}
+            items={itemsByStatus[label.id] ?? []}
+            columns={columns}
+            onUpdateItemName={onUpdateItemName}
+            onDeleteItem={onDeleteItem}
+            onAddItem={(name) => {
+              if (!defaultGroupId) return;
+              onAddItem(defaultGroupId, name);
+              // After add, we'd need to set status — but since addItem returns async,
+              // the user can set status after creation via the table view or drag
+            }}
+          />
+        ))}
+      </div>
+    </DndContext>
+  );
+}
+
 // ── Coming Soon Placeholder ───────────────────────────────────────────────────
 
 function ComingSoon({ label }: { label: string }) {
@@ -1043,7 +1414,21 @@ export function BoardView() {
             onAddColumn={handleAddColumn}
           />
         )}
-        {activeView === "kanban" && <ComingSoon label="Kanban" />}
+        {activeView === "kanban" && (
+          <BoardKanbanView
+            boardId={board.id}
+            columns={columns.filter((c) => c.is_visible)}
+            groups={groups}
+            itemsByGroup={itemsByGroup}
+            onAddItem={handleAddItem}
+            onUpdateItemName={updateItemName}
+            onUpdateItemValue={(itemId, colId, value) =>
+              updateItemValue(itemId, colId, value)
+            }
+            onDeleteItem={deleteItem}
+            allItems={boardData.items}
+          />
+        )}
         {activeView === "calendar" && <ComingSoon label="Calendario" />}
       </div>
     </div>
