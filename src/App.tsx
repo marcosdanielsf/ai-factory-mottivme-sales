@@ -365,6 +365,14 @@ const MindFlowEditorPage = lazy(() =>
   })),
 );
 
+// Board Engine (PM tool tipo Monday.com)
+const BoardsList = lazy(() =>
+  import("./pages/BoardsList").then((m) => ({ default: m.BoardsList })),
+);
+const BoardView = lazy(() =>
+  import("./pages/BoardView").then((m) => ({ default: m.BoardView })),
+);
+
 const App = () => {
   return (
     <JarvisProvider>
@@ -1768,6 +1776,32 @@ const App = () => {
                         <Suspense fallback={<LoadingFallback />}>
                           <MindFlowEditorPage />
                         </Suspense>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Board Engine */}
+                  <Route
+                    path="/boards"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BoardsList />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/boards/:slug"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <BoardView />
+                          </Suspense>
+                        </Layout>
                       </ProtectedRoute>
                     }
                   />

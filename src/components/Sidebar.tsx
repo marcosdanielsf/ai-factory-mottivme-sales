@@ -90,6 +90,7 @@ import {
   Pencil,
   ArrowRight,
   MoreHorizontal,
+  LayoutGrid,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -270,6 +271,7 @@ const navSections: NavSection[] = [
           { icon: Target, label: "Metas", to: "/metas" },
           { icon: Sparkles, label: "Kanban Prospect", to: "/kanban-prospect" },
           { icon: FolderKanban, label: "Projetos", to: "/projetos" },
+          { icon: LayoutGrid, label: "Boards", to: "/boards" },
           { icon: Workflow, label: "Hub Ops", to: "/workflows" },
           { icon: ClipboardCheck, label: "Auditoria n8n", to: "/n8n-audit" },
           { icon: Server, label: "GHL Ops", to: "/ghl-ops" },
