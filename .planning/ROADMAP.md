@@ -40,8 +40,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 
-- [ ] 01-01: Database schema + migrations + indexes + RPC functions
-- [ ] 01-02: TypeScript types + column registry + Supabase hooks + route scaffolding
+- [x] 01-01: Database schema + migrations + indexes + RPC functions (Wave 1)
+- [ ] 01-02: TypeScript types + column registry + Supabase hooks + route scaffolding (Wave 2, depends on 01-01)
 
 ### Phase 2: Table View Core
 
@@ -181,7 +181,7 @@ Note: Phase 6 depends on Phase 2 (not Phase 5), so it CAN be parallelized with P
 
 | Phase                                    | Plans Complete | Status      | Completed |
 | ---------------------------------------- | -------------- | ----------- | --------- |
-| 1. Foundation                            | 0/2            | Not started | -         |
+| 1. Foundation                            | 1/2            | In progress | -         |
 | 2. Table View Core                       | 0/2            | Not started | -         |
 | 3. DnD + Column Types                    | 0/2            | Not started | -         |
 | 4. Kanban View                           | 0/1            | Not started | -         |

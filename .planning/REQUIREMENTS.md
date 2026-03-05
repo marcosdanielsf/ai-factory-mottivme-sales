@@ -15,7 +15,7 @@
 - [ ] **BOARD-04**: User can create subitems (1 level deep) under any item, collapsible in table view
 - [ ] **BOARD-05**: User can reorder items within and between groups via drag-and-drop
 - [ ] **BOARD-06**: Column types render appropriate editors: Text (inline input), Number (formatted input), Status (color-coded dropdown), Date (date picker), Person (user selector), Dropdown (custom options), Checkbox (toggle)
-- [ ] **BOARD-07**: Board stores column definitions as JSONB and item values as JSONB (column_values pattern)
+- [x] **BOARD-07**: Board stores column definitions as JSONB and item values as JSONB (column_values pattern)
 
 ### Table View
 
@@ -132,7 +132,7 @@
 | BOARD-04  | Phase 6 | Pending |
 | BOARD-05  | Phase 3 | Pending |
 | BOARD-06  | Phase 2 | Pending |
-| BOARD-07  | Phase 1 | Pending |
+| BOARD-07  | Phase 1 | Complete |
 | TABLE-01  | Phase 2 | Pending |
 | TABLE-02  | Phase 2 | Pending |
 | TABLE-03  | Phase 3 | Pending |
