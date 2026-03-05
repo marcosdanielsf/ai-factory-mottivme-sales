@@ -1,9 +1,9 @@
 import { Position, type Node, type Edge } from "@xyflow/react";
 import type { LayoutType } from "../types/canvas";
 
-// ── Node dimensions (compact, matching actual rendered size) ─────────────────
-const NODE_W = 160;
-const NODE_H = 56;
+// ── Node dimensions (generous to avoid overlap — rendered nodes with tasks are ~220px)
+const NODE_W = 220;
+const NODE_H = 64;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function buildChildMap(edges: Edge[]): Map<string, string[]> {
@@ -30,8 +30,8 @@ async function getOrgChartLayout(
   const childMap = buildChildMap(edges);
   const posMap = new Map<string, { x: number; y: number }>();
 
-  const H_GAP = 24; // gap between siblings (XMind: ~20-30px)
-  const V_GAP = 70; // gap between levels (XMind: ~60-80px)
+  const H_GAP = 40; // gap between siblings (wider to prevent overlap)
+  const V_GAP = 80; // gap between levels
 
   // Bottom-up: compute subtree width, then position top-down
   const subtreeWidth = (nodeId: string): number => {
@@ -254,24 +254,33 @@ async function getFishboneLayout(
     { x: number; y: number; sp: Position; tp: Position }
   >();
 
-  const CAUSE_SPACING = 160;
-  const CAUSE_Y_OFFSET = 120;
-  const SUB_Y_GAP = NODE_H + 8;
+  const SUB_Y_GAP = NODE_H + 12;
+  const CAUSE_Y_OFFSET = 140;
   const spineY = 0;
 
-  // Root at the RIGHT end
-  const spineLength = directChildren.length * CAUSE_SPACING;
+  // Dynamic spacing: each cause column is wide enough for its sub-causes
+  const causeSpacings = directChildren.map((childId) => {
+    const subCount = (childMap.get(childId) ?? []).length;
+    return Math.max(NODE_W + 40, NODE_W + subCount * 10);
+  });
+
+  const spineLength = causeSpacings.reduce((a, b) => a + b, 0) || NODE_W * 2;
+
+  // Root (effect) at the RIGHT end of the spine
   posMap.set(rootId, {
-    x: spineLength + 60,
+    x: spineLength + 80,
     y: spineY,
     sp: Position.Left,
     tp: Position.Left,
   });
 
+  // Place causes along the spine, alternating above/below
+  let cumulativeX = 0;
   directChildren.forEach((childId, i) => {
     const isAbove = i % 2 === 0;
-    const x = spineLength - i * CAUSE_SPACING;
+    const x = spineLength - cumulativeX - causeSpacings[i] / 2;
     const y = spineY + (isAbove ? -CAUSE_Y_OFFSET : CAUSE_Y_OFFSET);
+    cumulativeX += causeSpacings[i];
 
     posMap.set(childId, {
       x,
@@ -280,11 +289,12 @@ async function getFishboneLayout(
       tp: isAbove ? Position.Bottom : Position.Top,
     });
 
+    // Sub-causes stack vertically, offset left for diagonal feel
     const subChildren = childMap.get(childId) ?? [];
     subChildren.forEach((subId, j) => {
       const subY = isAbove ? y - (j + 1) * SUB_Y_GAP : y + (j + 1) * SUB_Y_GAP;
       posMap.set(subId, {
-        x: x - 20,
+        x: x - 30 - j * 15,
         y: subY,
         sp: isAbove ? Position.Bottom : Position.Top,
         tp: isAbove ? Position.Bottom : Position.Top,
@@ -322,11 +332,12 @@ async function getTimelineLayout(
     { x: number; y: number; sp: Position; tp: Position }
   >();
 
-  const H_SPACING = 180;
-  const V_OFFSET = 100;
-  const SUB_Y_GAP = NODE_H + 8;
+  const BASE_H_SPACING = NODE_W + 60;
+  const V_OFFSET = 130;
+  const SUB_Y_GAP = NODE_H + 12;
   const axisY = 0;
 
+  // Root at the left as the timeline origin
   posMap.set(rootId, {
     x: 0,
     y: axisY,
@@ -334,28 +345,35 @@ async function getTimelineLayout(
     tp: Position.Left,
   });
 
+  // Dynamic horizontal spacing based on sub-children count
+  let cumulativeX = BASE_H_SPACING;
   directChildren.forEach((childId, i) => {
-    const x = (i + 1) * H_SPACING;
     const isAbove = i % 2 === 0;
-    const y = axisY + (isAbove ? -V_OFFSET : V_OFFSET);
+    const subChildren = childMap.get(childId) ?? [];
+    const subHeight = subChildren.length * SUB_Y_GAP;
+    const dynamicVOffset = Math.max(V_OFFSET, subHeight + NODE_H);
+
+    const y = axisY + (isAbove ? -dynamicVOffset : dynamicVOffset);
 
     posMap.set(childId, {
-      x,
+      x: cumulativeX,
       y,
       sp: Position.Right,
       tp: isAbove ? Position.Bottom : Position.Top,
     });
 
-    const subChildren = childMap.get(childId) ?? [];
+    // Sub-events stack vertically, slightly indented
     subChildren.forEach((subId, j) => {
       const subY = isAbove ? y - (j + 1) * SUB_Y_GAP : y + (j + 1) * SUB_Y_GAP;
       posMap.set(subId, {
-        x: x + 16,
+        x: cumulativeX + 20,
         y: subY,
         sp: Position.Right,
         tp: isAbove ? Position.Bottom : Position.Top,
       });
     });
+
+    cumulativeX += BASE_H_SPACING;
   });
 
   const layoutedNodes = nodes.map((n) => {
