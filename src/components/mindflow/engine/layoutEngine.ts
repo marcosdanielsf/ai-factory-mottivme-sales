@@ -460,7 +460,6 @@ export function v4ToReactFlow(v4Nodes: V4Node[]): {
       emoji: n.emoji,
       parentId: n.parent,
     },
-    parentId: n.parent ?? undefined,
   }));
 
   const edges: Edge[] = v4Nodes

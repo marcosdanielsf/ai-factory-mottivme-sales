@@ -647,12 +647,12 @@ export function TemplatesModal({ open, onClose }: TemplatesModalProps) {
       setLayout(template.layout);
 
       // Sync ReactFlow: convert CanvasElements → RF nodes/edges
+      // NOTE: do NOT pass parentId to RF nodes — RF uses it for nested grouping, not edges
       const rfNodes: Node[] = newElements.map((el) => ({
         id: el.id,
         type: "mindMapNode",
         position: { x: el.x, y: el.y },
-        data: el.data as Record<string, unknown>,
-        parentId: el.parentId ?? undefined,
+        data: { ...el.data, parentId: el.parentId } as Record<string, unknown>,
       }));
       const rfEdges: Edge[] = newElements
         .filter((el) => el.parentId)
