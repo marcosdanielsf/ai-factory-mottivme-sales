@@ -126,6 +126,7 @@ const VideoProducerDashboard = lazy(
 );
 const VideoProducerNew = lazy(() => import("./pages/VideoProducerNew"));
 const VideoProducerDetail = lazy(() => import("./pages/VideoProducerDetail"));
+const VideoEditor = lazy(() => import("./pages/VideoEditor"));
 
 // Social Selling Dashboard
 const SocialSellingDashboard = lazy(
@@ -943,6 +944,26 @@ const App = () => {
                             <VideoProducerDetail />
                           </Suspense>
                         </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/video-editor"
+                    element={
+                      <ProtectedRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                          <VideoEditor />
+                        </Suspense>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/video-editor/:id"
+                    element={
+                      <ProtectedRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                          <VideoEditor />
+                        </Suspense>
                       </ProtectedRoute>
                     }
                   />
