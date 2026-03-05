@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useReactFlow, type Node, type Edge } from "@xyflow/react";
 import { useCanvasStore } from "../store/canvasStore";
+import { applyLayout } from "../engine/layoutEngine";
 import type { CanvasElement } from "../types/elements";
 import type { LayoutType } from "../types/canvas";
 
@@ -602,6 +604,7 @@ export function TemplatesModal({ open, onClose }: TemplatesModalProps) {
   const replaceAll = useCanvasStore((s) => s.replaceAll);
   const setLayout = useCanvasStore((s) => s.setLayout);
   const elements = useCanvasStore((s) => s.elements);
+  const { setNodes, setEdges, fitView } = useReactFlow();
   const [confirmTemplate, setConfirmTemplate] =
     useState<MindFlowTemplate | null>(null);
 
@@ -642,10 +645,40 @@ export function TemplatesModal({ open, onClose }: TemplatesModalProps) {
 
       replaceAll(newElements);
       setLayout(template.layout);
+
+      // Sync ReactFlow: convert CanvasElements → RF nodes/edges
+      const rfNodes: Node[] = newElements.map((el) => ({
+        id: el.id,
+        type: "mindMapNode",
+        position: { x: el.x, y: el.y },
+        data: el.data as Record<string, unknown>,
+        parentId: el.parentId ?? undefined,
+      }));
+      const rfEdges: Edge[] = newElements
+        .filter((el) => el.parentId)
+        .map((el) => ({
+          id: `${el.parentId}-${el.id}`,
+          source: el.parentId!,
+          target: el.id,
+          type: "ortho",
+        }));
+
+      // Apply layout then set nodes
+      applyLayout(rfNodes, rfEdges, template.layout)
+        .then(({ nodes: ln, edges: le }) => {
+          setNodes(ln);
+          setEdges(le);
+          setTimeout(() => fitView({ padding: 0.2, duration: 600 }), 80);
+        })
+        .catch(() => {
+          setNodes(rfNodes);
+          setEdges(rfEdges);
+        });
+
       onClose();
       setConfirmTemplate(null);
     },
-    [replaceAll, setLayout, onClose],
+    [replaceAll, setLayout, onClose, setNodes, setEdges, fitView],
   );
 
   const handleSelect = useCallback(

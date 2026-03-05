@@ -286,21 +286,46 @@ function MindFlowInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
 
-  // Sync canvasStore on node changes (drag, resize)
+  const replaceAll = useCanvasStore((s) => s.replaceAll);
+
+  // BUG #1 FIX: Populate canvasStore with initial data on mount
+  useEffect(() => {
+    const initialElements = (
+      INITIAL_V4 as Parameters<typeof v4ToReactFlow>[0]
+    ).map((n) => ({
+      id: n.id,
+      type: "node" as const,
+      x: n.x,
+      y: n.y,
+      parentId: n.parent ?? undefined,
+      data: {
+        label: n.label,
+        color: n.color,
+        status: n.status as import("../types/elements").StatusType,
+        tasks: n.tasks as import("../types/elements").Task[],
+        emoji: n.emoji,
+      },
+    }));
+    replaceAll(initialElements);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync canvasStore on node changes (drag, resize, add, remove)
+  const deleteElement = useCanvasStore((s) => s.deleteElement);
   const handleNodesChange: OnNodesChange = useCallback(
     (changes) => {
       onNodesChange(changes);
-      // Sync position updates back to canvasStore
       changes.forEach((change) => {
         if (change.type === "position" && change.position) {
           updateElement(change.id, {
             x: change.position.x,
             y: change.position.y,
           });
+        } else if (change.type === "remove") {
+          deleteElement(change.id);
         }
       });
     },
-    [onNodesChange, updateElement],
+    [onNodesChange, updateElement, deleteElement],
   );
 
   // Inline edit handler (usado pelo useKeyboard e double-click)
