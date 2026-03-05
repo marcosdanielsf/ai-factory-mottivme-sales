@@ -1,31 +1,152 @@
 import { Position, type Node, type Edge } from "@xyflow/react";
 import type { LayoutType } from "../types/canvas";
 
-const NODE_W = 200;
-const NODE_H = 100;
+// ── Node dimensions (compact, matching actual rendered size) ─────────────────
+const NODE_W = 160;
+const NODE_H = 56;
 
-// ── Dagre (Top-Down / Left-Right / Tree) ──────────────────────────────────────
-async function getDagreLayout(
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function buildChildMap(edges: Edge[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  edges.forEach((e) => {
+    if (!map.has(e.source)) map.set(e.source, []);
+    map.get(e.source)!.push(e.target);
+  });
+  return map;
+}
+
+function findRootId(nodes: Node[], edges: Edge[]): string {
+  const targets = new Set(edges.map((e) => e.target));
+  return nodes.find((n) => !targets.has(n.id))?.id ?? nodes[0]?.id;
+}
+
+// ── 1. ORGANOGRAMA (Top-Down — XMind style) ─────────────────────────────────
+// Bottom-up subtree width calculation, parent centered over children
+async function getOrgChartLayout(
   nodes: Node[],
   edges: Edge[],
-  rankdir: "TB" | "LR" = "TB",
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
+  const rootId = findRootId(nodes, edges);
+  const childMap = buildChildMap(edges);
+  const posMap = new Map<string, { x: number; y: number }>();
+
+  const H_GAP = 24; // gap between siblings (XMind: ~20-30px)
+  const V_GAP = 70; // gap between levels (XMind: ~60-80px)
+
+  // Bottom-up: compute subtree width, then position top-down
+  const subtreeWidth = (nodeId: string): number => {
+    const children = childMap.get(nodeId) ?? [];
+    if (children.length === 0) return NODE_W;
+    const childrenWidth = children.reduce((sum, c) => sum + subtreeWidth(c), 0);
+    return childrenWidth + H_GAP * (children.length - 1);
+  };
+
+  // Position nodes: parent is centered over its children span
+  const place = (nodeId: string, centerX: number, y: number) => {
+    const children = childMap.get(nodeId) ?? [];
+
+    if (children.length === 0) {
+      posMap.set(nodeId, { x: centerX - NODE_W / 2, y });
+      return;
+    }
+
+    // Compute total children span
+    const childWidths = children.map((c) => subtreeWidth(c));
+    const totalWidth =
+      childWidths.reduce((a, b) => a + b, 0) + H_GAP * (children.length - 1);
+
+    // Place parent centered
+    posMap.set(nodeId, { x: centerX - NODE_W / 2, y });
+
+    // Place children left-to-right, centered under parent
+    let childX = centerX - totalWidth / 2;
+    children.forEach((childId, i) => {
+      const cw = childWidths[i];
+      const childCenter = childX + cw / 2;
+      place(childId, childCenter, y + NODE_H + V_GAP);
+      childX += cw + H_GAP;
+    });
+  };
+
+  const rootWidth = subtreeWidth(rootId);
+  place(rootId, rootWidth / 2, 0);
+
+  const layoutedNodes = nodes.map((n) => {
+    const pos = posMap.get(n.id);
+    if (!pos) return n;
+    return {
+      ...n,
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
+      position: { x: pos.x, y: pos.y },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+}
+
+// ── 2. ARVORE (Indented tree — file explorer style) ─────────────────────────
+async function getTreeLayout(
+  nodes: Node[],
+  edges: Edge[],
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
+  const rootId = findRootId(nodes, edges);
+  const childMap = buildChildMap(edges);
+  const posMap = new Map<string, { x: number; y: number }>();
+
+  const H_INDENT = 180;
+  const V_GAP = 8;
+  let currentY = 0;
+
+  const layoutNode = (nodeId: string, depth: number) => {
+    posMap.set(nodeId, { x: depth * H_INDENT, y: currentY });
+    currentY += NODE_H + V_GAP;
+    const children = childMap.get(nodeId) ?? [];
+    children.forEach((childId) => layoutNode(childId, depth + 1));
+  };
+
+  layoutNode(rootId, 0);
+
+  const layoutedNodes = nodes.map((n) => {
+    const pos = posMap.get(n.id);
+    if (!pos) return n;
+    return {
+      ...n,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      position: { x: pos.x, y: pos.y },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+}
+
+// ── 3. LOGICA (Left-to-Right — compact dagre) ──────────────────────────────
+async function getLogicLayout(
+  nodes: Node[],
+  edges: Edge[],
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
   const dagre = (await import("@dagrejs/dagre")).default;
   const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir, nodesep: 60, ranksep: 100, edgesep: 30 });
+  g.setGraph({
+    rankdir: "LR",
+    nodesep: 16,
+    ranksep: 100,
+    edgesep: 10,
+    marginx: 20,
+    marginy: 20,
+  });
 
   nodes.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
   edges.forEach((e) => g.setEdge(e.source, e.target));
-
   dagre.layout(g);
 
-  const isHorizontal = rankdir === "LR";
   const layoutedNodes = nodes.map((n) => {
     const pos = g.node(n.id);
     return {
       ...n,
-      targetPosition: isHorizontal ? Position.Left : Position.Top,
-      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
       position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
     };
   });
@@ -33,164 +154,284 @@ async function getDagreLayout(
   return { nodes: layoutedNodes, edges };
 }
 
-// ── ELK (Fishbone / Timeline) ─────────────────────────────────────────────────
-async function getElkLayout(
+// ── 4. MAPA DE IDEIAS (Radial — compact) ───────────────────────────────────
+async function getRadialLayout(
   nodes: Node[],
   edges: Edge[],
-  options: Record<string, string> = {},
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
-  const ELK = (await import("elkjs/lib/elk.bundled.js")).default;
-  const elk = new ELK();
+  const rootId = findRootId(nodes, edges);
+  if (!rootId) return { nodes, edges };
 
-  const defaultOptions: Record<string, string> = {
-    "elk.algorithm": "layered",
-    "elk.layered.spacing.nodeNodeBetweenLayers": "100",
-    "elk.spacing.nodeNode": "80",
-    ...options,
+  const childMap = buildChildMap(edges);
+  const posMap = new Map<string, { x: number; y: number; angle: number }>();
+
+  // Count all descendants for weight-based angle distribution
+  const countDesc = (id: string): number => {
+    const ch = childMap.get(id) ?? [];
+    return ch.reduce((s, c) => s + 1 + countDesc(c), 0);
   };
 
-  const graph = {
-    id: "root",
-    layoutOptions: defaultOptions,
-    children: nodes.map((n) => ({ id: n.id, width: NODE_W, height: NODE_H })),
-    edges: edges.map((e) => ({
-      id: e.id,
-      sources: [e.source],
-      targets: [e.target],
-    })),
+  posMap.set(rootId, { x: -NODE_W / 2, y: -NODE_H / 2, angle: 0 });
+
+  const FIRST_RADIUS = 180;
+  const RADIUS_INC = 140;
+
+  const placeChildren = (
+    parentId: string,
+    startAngle: number,
+    sweep: number,
+    radius: number,
+  ) => {
+    const children = childMap.get(parentId) ?? [];
+    if (children.length === 0) return;
+
+    // Weight-based distribution: bigger subtrees get more angle
+    const weights = children.map((c) => 1 + countDesc(c));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    let angle = startAngle;
+    children.forEach((childId, i) => {
+      const childSweep = (weights[i] / totalWeight) * sweep;
+      const childAngle = angle + childSweep / 2;
+
+      const x = radius * Math.cos(childAngle) - NODE_W / 2;
+      const y = radius * Math.sin(childAngle) - NODE_H / 2;
+      posMap.set(childId, { x, y, angle: childAngle });
+
+      placeChildren(childId, angle, childSweep, radius + RADIUS_INC);
+      angle += childSweep;
+    });
   };
 
-  const result = await elk.layout(graph);
+  placeChildren(rootId, 0, Math.PI * 2, FIRST_RADIUS);
 
   const layoutedNodes = nodes.map((n) => {
-    const en = result.children?.find((c) => c.id === n.id);
-    if (!en) return n;
-    return { ...n, position: { x: en.x ?? 0, y: en.y ?? 0 } };
+    const p = posMap.get(n.id);
+    if (!p) return n;
+
+    let sp: Position;
+    let tp: Position;
+
+    if (n.id === rootId) {
+      sp = Position.Right;
+      tp = Position.Left;
+    } else {
+      const cosA = Math.cos(p.angle);
+      const sinA = Math.sin(p.angle);
+      if (Math.abs(cosA) > Math.abs(sinA)) {
+        sp = cosA > 0 ? Position.Right : Position.Left;
+        tp = cosA > 0 ? Position.Left : Position.Right;
+      } else {
+        sp = sinA > 0 ? Position.Bottom : Position.Top;
+        tp = sinA > 0 ? Position.Top : Position.Bottom;
+      }
+    }
+
+    return {
+      ...n,
+      position: { x: p.x, y: p.y },
+      sourcePosition: sp,
+      targetPosition: tp,
+    };
   });
 
   return { nodes: layoutedNodes, edges };
 }
 
-// ── d3-hierarchy Radial ────────────────────────────────────────────────────────
-async function getRadialLayout(
+// ── 5. ESPINHA DE PEIXE (Ishikawa) ─────────────────────────────────────────
+async function getFishboneLayout(
   nodes: Node[],
   edges: Edge[],
-  width = 1200,
-  height = 800,
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
-  const d3 = await import("d3-hierarchy");
-
-  // Find root (node with no incoming edges)
-  const targets = new Set(edges.map((e) => e.target));
-  const rootId = nodes.find((n) => !targets.has(n.id))?.id ?? nodes[0]?.id;
+  const rootId = findRootId(nodes, edges);
   if (!rootId) return { nodes, edges };
 
-  // Build hierarchy map
-  const childMap = new Map<string, string[]>();
-  edges.forEach((e) => {
-    if (!childMap.has(e.source)) childMap.set(e.source, []);
-    childMap.get(e.source)!.push(e.target);
+  const childMap = buildChildMap(edges);
+  const directChildren = childMap.get(rootId) ?? [];
+
+  const posMap = new Map<
+    string,
+    { x: number; y: number; sp: Position; tp: Position }
+  >();
+
+  const CAUSE_SPACING = 160;
+  const CAUSE_Y_OFFSET = 120;
+  const SUB_Y_GAP = NODE_H + 8;
+  const spineY = 0;
+
+  // Root at the RIGHT end
+  const spineLength = directChildren.length * CAUSE_SPACING;
+  posMap.set(rootId, {
+    x: spineLength + 60,
+    y: spineY,
+    sp: Position.Left,
+    tp: Position.Left,
   });
 
-  interface HNode {
-    id: string;
-    children?: HNode[];
-  }
-  const buildTree = (id: string): HNode => ({
-    id,
-    children: (childMap.get(id) ?? []).map(buildTree),
-  });
+  directChildren.forEach((childId, i) => {
+    const isAbove = i % 2 === 0;
+    const x = spineLength - i * CAUSE_SPACING;
+    const y = spineY + (isAbove ? -CAUSE_Y_OFFSET : CAUSE_Y_OFFSET);
 
-  const root = d3.hierarchy(buildTree(rootId));
-  const radius = Math.min(width, height) / 2 - 120;
+    posMap.set(childId, {
+      x,
+      y,
+      sp: isAbove ? Position.Bottom : Position.Top,
+      tp: isAbove ? Position.Bottom : Position.Top,
+    });
 
-  const treeLayout = d3
-    .tree<HNode>()
-    .size([2 * Math.PI, radius])
-    .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
-
-  treeLayout(root);
-
-  const posMap = new Map<string, { x: number; y: number }>();
-  root.descendants().forEach((d) => {
-    const angle = d.x ?? 0;
-    const r = d.y ?? 0;
-    posMap.set(d.data.id, {
-      x: width / 2 + r * Math.cos(angle - Math.PI / 2) - NODE_W / 2,
-      y: height / 2 + r * Math.sin(angle - Math.PI / 2) - NODE_H / 2,
+    const subChildren = childMap.get(childId) ?? [];
+    subChildren.forEach((subId, j) => {
+      const subY = isAbove ? y - (j + 1) * SUB_Y_GAP : y + (j + 1) * SUB_Y_GAP;
+      posMap.set(subId, {
+        x: x - 20,
+        y: subY,
+        sp: isAbove ? Position.Bottom : Position.Top,
+        tp: isAbove ? Position.Bottom : Position.Top,
+      });
     });
   });
 
   const layoutedNodes = nodes.map((n) => {
-    const pos = posMap.get(n.id);
-    return pos ? { ...n, position: pos } : n;
+    const p = posMap.get(n.id);
+    if (!p) return n;
+    return {
+      ...n,
+      position: { x: p.x, y: p.y },
+      sourcePosition: p.sp,
+      targetPosition: p.tp,
+    };
   });
 
   return { nodes: layoutedNodes, edges };
 }
 
-// ── Edge type per layout ───────────────────────────────────────────────────────
+// ── 6. LINHA DO TEMPO (Timeline) ────────────────────────────────────────────
+async function getTimelineLayout(
+  nodes: Node[],
+  edges: Edge[],
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
+  const rootId = findRootId(nodes, edges);
+  if (!rootId) return { nodes, edges };
+
+  const childMap = buildChildMap(edges);
+  const directChildren = childMap.get(rootId) ?? [];
+
+  const posMap = new Map<
+    string,
+    { x: number; y: number; sp: Position; tp: Position }
+  >();
+
+  const H_SPACING = 180;
+  const V_OFFSET = 100;
+  const SUB_Y_GAP = NODE_H + 8;
+  const axisY = 0;
+
+  posMap.set(rootId, {
+    x: 0,
+    y: axisY,
+    sp: Position.Right,
+    tp: Position.Left,
+  });
+
+  directChildren.forEach((childId, i) => {
+    const x = (i + 1) * H_SPACING;
+    const isAbove = i % 2 === 0;
+    const y = axisY + (isAbove ? -V_OFFSET : V_OFFSET);
+
+    posMap.set(childId, {
+      x,
+      y,
+      sp: Position.Right,
+      tp: isAbove ? Position.Bottom : Position.Top,
+    });
+
+    const subChildren = childMap.get(childId) ?? [];
+    subChildren.forEach((subId, j) => {
+      const subY = isAbove ? y - (j + 1) * SUB_Y_GAP : y + (j + 1) * SUB_Y_GAP;
+      posMap.set(subId, {
+        x: x + 16,
+        y: subY,
+        sp: Position.Right,
+        tp: isAbove ? Position.Bottom : Position.Top,
+      });
+    });
+  });
+
+  const layoutedNodes = nodes.map((n) => {
+    const p = posMap.get(n.id);
+    if (!p) return n;
+    return {
+      ...n,
+      position: { x: p.x, y: p.y },
+      sourcePosition: p.sp,
+      targetPosition: p.tp,
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+}
+
+// ── Edge type per layout ────────────────────────────────────────────────────
 export function getEdgeTypeForLayout(layout: LayoutType): string {
   switch (layout) {
-    case "radial":
-      return "default"; // bezier — organic
     case "topdown":
+      return "ortho";
     case "tree":
-      return "smoothstep";
+      return "ortho";
     case "leftright":
-      return "smoothstep";
+      return "ortho";
+    case "radial":
+      return "default"; // bezier curves for radial
     case "fishbone":
-    case "timeline":
       return "straight";
+    case "timeline":
+      return "ortho";
     default:
-      return "default";
+      return "ortho";
   }
 }
 
-// ── Main dispatcher ────────────────────────────────────────────────────────────
+// ── Main dispatcher ─────────────────────────────────────────────────────────
 export async function applyLayout(
   nodes: Node[],
   edges: Edge[],
   layout: LayoutType,
-  canvasWidth = 1200,
-  canvasHeight = 800,
 ): Promise<{ nodes: Node[]; edges: Edge[] }> {
   if (!nodes.length) return { nodes, edges };
 
+  const edgeType = getEdgeTypeForLayout(layout);
+  const typedEdges = edges.map((e) => ({ ...e, type: edgeType }));
+
+  let result: { nodes: Node[]; edges: Edge[] };
+
   switch (layout) {
     case "radial":
-      return getRadialLayout(nodes, edges, canvasWidth, canvasHeight);
-
+      result = await getRadialLayout(nodes, typedEdges);
+      break;
     case "topdown":
-      return getDagreLayout(nodes, edges, "TB");
-
+      result = await getOrgChartLayout(nodes, typedEdges);
+      break;
     case "leftright":
-      return getDagreLayout(nodes, edges, "LR");
-
+      result = await getLogicLayout(nodes, typedEdges);
+      break;
     case "tree":
-      return getDagreLayout(nodes, edges, "TB");
-
+      result = await getTreeLayout(nodes, typedEdges);
+      break;
     case "fishbone":
-      return getElkLayout(nodes, edges, {
-        "elk.algorithm": "layered",
-        "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80",
-      });
-
+      result = await getFishboneLayout(nodes, typedEdges);
+      break;
     case "timeline":
-      return getElkLayout(nodes, edges, {
-        "elk.algorithm": "layered",
-        "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "120",
-        "elk.spacing.nodeNode": "60",
-      });
-
+      result = await getTimelineLayout(nodes, typedEdges);
+      break;
     default:
-      return { nodes, edges };
+      result = { nodes, edges: typedEdges };
   }
+
+  return result;
 }
 
-// ── v4 data -> React Flow nodes/edges converter ────────────────────────────────
+// ── v4 data -> React Flow nodes/edges converter ─────────────────────────────
 export interface V4Node {
   id: string;
   label: string;
@@ -228,7 +469,7 @@ export function v4ToReactFlow(v4Nodes: V4Node[]): {
       id: `${n.parent}-${n.id}`,
       source: n.parent!,
       target: n.id,
-      type: "default",
+      type: "ortho",
     }));
 
   return { nodes, edges };

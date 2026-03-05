@@ -25,6 +25,7 @@ import { ShapeNode } from "./renderers/ShapeNode";
 import { FrameNode } from "./renderers/FrameNode";
 import { ImageNode } from "./renderers/ImageNode";
 import { CommentNode } from "./renderers/CommentNode";
+import { OrthoEdge } from "./renderers/OrthoEdge";
 import { DrawingOverlay } from "./overlays/DrawingOverlay";
 import { TopBar } from "../topbar/TopBar";
 import { RightPanel } from "../panel/RightPanel";
@@ -53,7 +54,7 @@ import type {
 import { NODE_COLORS } from "../types/canvas";
 import type { ToolType } from "../types/canvas";
 
-// ── IMPORTANTE: nodeTypes FORA do componente — evita re-render ─────────────────
+// ── IMPORTANTE: nodeTypes e edgeTypes FORA do componente — evita re-render ────
 const nodeTypes = {
   mindMapNode: MindMapNode,
   sticky: StickyNoteNode,
@@ -62,6 +63,10 @@ const nodeTypes = {
   frame: FrameNode,
   image: ImageNode,
   comment: CommentNode,
+};
+
+const edgeTypes = {
+  ortho: OrthoEdge,
 };
 
 // ── Dados iniciais (v4 compat) ─────────────────────────────────────────────────
@@ -240,21 +245,13 @@ function useAutoLayout(
 
     if (!nodes.length) return;
 
-    // Update edge types for new layout
-    const edgeType = getEdgeTypeForLayout(
-      layout as Parameters<typeof getEdgeTypeForLayout>[0],
-    );
-    const updatedEdges = edges.map((e) => ({ ...e, type: edgeType }));
-
-    applyLayout(
-      nodes,
-      updatedEdges,
-      layout as Parameters<typeof applyLayout>[2],
-    )
+    applyLayout(nodes, edges, layout as Parameters<typeof applyLayout>[2])
       .then(({ nodes: ln, edges: le }) => {
         setNodes(ln);
         setEdges(le);
-        setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
+        // Double fitView: immediate + delayed to ensure viewport adjusts
+        setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 50);
+        setTimeout(() => fitView({ padding: 0.2, duration: 200 }), 500);
       })
       .catch(console.error);
   }, [layout, nodes.length]);
@@ -268,6 +265,7 @@ function MindFlowInner() {
   const updateElement = useCanvasStore((s) => s.updateElement);
 
   const selectOne = useSelectionStore((s) => s.selectOne);
+  const selectMany = useSelectionStore((s) => s.selectMany);
   const clearSelection = useSelectionStore((s) => s.clearSelection);
   const selected = useSelectionStore((s) => s.selected);
 
@@ -547,6 +545,16 @@ function MindFlowInner() {
     [selectOne],
   );
 
+  // Sync React Flow marquee selection → our selectionStore
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: Node[] }) => {
+      if (selectedNodes.length > 1) {
+        selectMany(selectedNodes.map((n) => n.id));
+      }
+    },
+    [selectMany],
+  );
+
   const onConnect: OnConnect = useCallback(
     (params) => {
       // Prevent self-loops
@@ -660,7 +668,9 @@ function MindFlowInner() {
             onConnect={onConnect}
             onPaneClick={onPaneClick}
             onNodeClick={onNodeClick}
+            onSelectionChange={onSelectionChange}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             colorMode="dark"
             fitView
             minZoom={0.15}
@@ -669,13 +679,18 @@ function MindFlowInner() {
             snapToGrid
             snapGrid={[8, 8]}
             deleteKeyCode={null}
-            selectionKeyCode={null}
+            selectionKeyCode="Shift"
             multiSelectionKeyCode="Shift"
+            disableKeyboardA11y
             defaultEdgeOptions={{
               type: getEdgeTypeForLayout(
                 layout as Parameters<typeof getEdgeTypeForLayout>[0],
               ),
-              style: { strokeWidth: 1.5, strokeOpacity: 0.4 },
+              style: {
+                strokeWidth: 1.2,
+                stroke: "#334155",
+                strokeOpacity: 0.6,
+              },
             }}
           >
             <Background

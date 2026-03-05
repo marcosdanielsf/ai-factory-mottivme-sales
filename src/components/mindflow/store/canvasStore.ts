@@ -1,9 +1,7 @@
-
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { CanvasElement, CanvasOperation } from "../types/elements";
 import type { LayoutType, Viewport } from "../types/canvas";
-import { useHistoryStore } from "./historyStore";
 
 let _uid = 1000;
 const uid = () => `n${_uid++}`;
@@ -43,7 +41,7 @@ export const useCanvasStore = create<CanvasStore>()(
       const id = uid();
       const newEl: CanvasElement = { ...el, id };
       set((s) => ({ elements: [...s.elements, newEl] }));
-      useHistoryStore.getState().push(get().elements);
+
       return id;
     },
 
@@ -53,7 +51,6 @@ export const useCanvasStore = create<CanvasStore>()(
           el.id === id ? { ...el, ...patch } : el,
         ),
       }));
-      useHistoryStore.getState().push(get().elements);
     },
 
     deleteElement: (id) => {
@@ -67,7 +64,6 @@ export const useCanvasStore = create<CanvasStore>()(
       };
       collect(id);
       set((s) => ({ elements: s.elements.filter((el) => !allIds.has(el.id)) }));
-      useHistoryStore.getState().push(get().elements);
     },
 
     moveElement: (id, x, y) => {
@@ -107,12 +103,10 @@ export const useCanvasStore = create<CanvasStore>()(
         }
         return { elements };
       });
-      useHistoryStore.getState().push(get().elements);
     },
 
     replaceAll: (elements) => {
       set({ elements });
-      useHistoryStore.getState().push(elements);
     },
 
     getElementById: (id) => get().elements.find((el) => el.id === id),

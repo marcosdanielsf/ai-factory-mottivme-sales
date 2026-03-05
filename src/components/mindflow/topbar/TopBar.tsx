@@ -38,8 +38,8 @@ export function TopBar() {
 
   const canUndo = useHistoryStore((s) => s.canUndo);
   const canRedo = useHistoryStore((s) => s.canRedo);
-  const undo = useHistoryStore((s) => s.undo);
-  const redo = useHistoryStore((s) => s.redo);
+  const undoHistory = useHistoryStore((s) => s.undo);
+  const redoHistory = useHistoryStore((s) => s.redo);
 
   const openCopilot = useUIStore((s) => s.openCopilot);
   const enterPresentation = useUIStore((s) => s.enterPresentation);
@@ -48,17 +48,32 @@ export function TopBar() {
   const saveStatus = useUIStore((s) => s.saveStatus);
 
   const reactFlowInstance = useReactFlow();
-  const { zoomIn, zoomOut, zoomTo, getZoom } = reactFlowInstance;
+  const {
+    zoomIn,
+    zoomOut,
+    zoomTo,
+    getZoom,
+    getNodes,
+    getEdges,
+    setNodes,
+    setEdges,
+  } = reactFlowInstance;
 
   const handleUndo = useCallback(() => {
-    const prev = undo();
-    if (prev) replaceAll(prev);
-  }, [undo, replaceAll]);
+    const snapshot = undoHistory(getNodes(), getEdges());
+    if (snapshot) {
+      setNodes(snapshot.nodes);
+      setEdges(snapshot.edges);
+    }
+  }, [undoHistory, getNodes, getEdges, setNodes, setEdges]);
 
   const handleRedo = useCallback(() => {
-    const next = redo();
-    if (next) replaceAll(next);
-  }, [redo, replaceAll]);
+    const snapshot = redoHistory(getNodes(), getEdges());
+    if (snapshot) {
+      setNodes(snapshot.nodes);
+      setEdges(snapshot.edges);
+    }
+  }, [redoHistory, getNodes, getEdges, setNodes, setEdges]);
 
   // Compute global progress from elements (memoized to avoid re-calc on every render)
   const { allTasks, doneTasks, totalPct, lateTasks } = useMemo(() => {
@@ -244,12 +259,16 @@ export function TopBar() {
           onClick={async () => {
             const rf = reactFlowInstance;
             if (!rf) return;
-            const nodes = rf.getNodes();
-            const edges = rf.getEdges();
-            const result = await applyLayout(nodes, edges, layout);
+            const currentNodes = rf.getNodes();
+            const currentEdges = rf.getEdges();
+            const result = await applyLayout(
+              currentNodes,
+              currentEdges,
+              layout,
+            );
             rf.setNodes(result.nodes);
             rf.setEdges(result.edges);
-            setTimeout(() => rf.fitView({ padding: 0.2, duration: 800 }), 50);
+            setTimeout(() => rf.fitView({ padding: 0.2, duration: 600 }), 80);
           }}
           title="Organizar mapa (re-layout)"
           className="text-[#A78BFA]"

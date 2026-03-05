@@ -1,60 +1,86 @@
-
 import { create } from "zustand";
-import type { CanvasElement } from "../types/elements";
+import type { Node, Edge } from "@xyflow/react";
 
 const MAX_SNAPSHOTS = 50;
 
+interface Snapshot {
+  nodes: Node[];
+  edges: Edge[];
+}
+
 interface HistoryStore {
-  snapshots: CanvasElement[][];
-  cursor: number;
+  past: Snapshot[];
+  future: Snapshot[];
   canUndo: boolean;
   canRedo: boolean;
 
-  push: (elements: CanvasElement[]) => void;
-  undo: () => CanvasElement[] | null;
-  redo: () => CanvasElement[] | null;
+  /** Call BEFORE a mutation with current nodes/edges */
+  saveSnapshot: (nodes: Node[], edges: Edge[]) => void;
+  /** Undo: pops from past, pushes current to future, returns previous snapshot */
+  undo: (currentNodes: Node[], currentEdges: Edge[]) => Snapshot | null;
+  /** Redo: pops from future, pushes current to past, returns next snapshot */
+  redo: (currentNodes: Node[], currentEdges: Edge[]) => Snapshot | null;
 }
 
 export const useHistoryStore = create<HistoryStore>()((set, get) => ({
-  snapshots: [],
-  cursor: -1,
+  past: [],
+  future: [],
   canUndo: false,
   canRedo: false,
 
-  push: (elements) => {
-    const { snapshots, cursor } = get();
-    // Truncate redo history on new action
-    const truncated = snapshots.slice(0, cursor + 1);
-    const next = [...truncated, [...elements]].slice(-MAX_SNAPSHOTS);
+  saveSnapshot: (nodes, edges) => {
+    const past = [
+      ...get().past,
+      { nodes: structuredClone(nodes), edges: structuredClone(edges) },
+    ];
+    if (past.length > MAX_SNAPSHOTS) past.shift();
     set({
-      snapshots: next,
-      cursor: next.length - 1,
-      canUndo: next.length > 1,
+      past,
+      future: [],
+      canUndo: true,
       canRedo: false,
     });
   },
 
-  undo: () => {
-    const { snapshots, cursor } = get();
-    if (cursor <= 0) return null;
-    const newCursor = cursor - 1;
+  undo: (currentNodes, currentEdges) => {
+    const { past } = get();
+    if (past.length === 0) return null;
+    const snapshot = past[past.length - 1];
+    const newPast = past.slice(0, -1);
+    const newFuture = [
+      ...get().future,
+      {
+        nodes: structuredClone(currentNodes),
+        edges: structuredClone(currentEdges),
+      },
+    ];
     set({
-      cursor: newCursor,
-      canUndo: newCursor > 0,
+      past: newPast,
+      future: newFuture,
+      canUndo: newPast.length > 0,
       canRedo: true,
     });
-    return [...snapshots[newCursor]];
+    return snapshot;
   },
 
-  redo: () => {
-    const { snapshots, cursor } = get();
-    if (cursor >= snapshots.length - 1) return null;
-    const newCursor = cursor + 1;
+  redo: (currentNodes, currentEdges) => {
+    const { future } = get();
+    if (future.length === 0) return null;
+    const snapshot = future[future.length - 1];
+    const newFuture = future.slice(0, -1);
+    const newPast = [
+      ...get().past,
+      {
+        nodes: structuredClone(currentNodes),
+        edges: structuredClone(currentEdges),
+      },
+    ];
     set({
-      cursor: newCursor,
+      past: newPast,
+      future: newFuture,
       canUndo: true,
-      canRedo: newCursor < snapshots.length - 1,
+      canRedo: newFuture.length > 0,
     });
-    return [...snapshots[newCursor]];
+    return snapshot;
   },
 }));
