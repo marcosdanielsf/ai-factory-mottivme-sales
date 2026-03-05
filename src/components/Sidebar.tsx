@@ -435,6 +435,12 @@ const navSections: NavSection[] = [
           { icon: Activity, label: "Saúde", to: "/brain/health" },
         ],
       },
+      {
+        icon: Network,
+        label: "MindFlow",
+        to: "/mindflow",
+        permission: "canAccessPromptEditor",
+      },
     ],
   },
   {

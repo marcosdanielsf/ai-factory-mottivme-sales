@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { Location, useLocations } from '../hooks/useLocations';
-import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabase';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import { Location, useLocations } from "../hooks/useLocations";
+import { useAuth } from "./AuthContext";
+import { supabase } from "../lib/supabase";
 
 // Types
 interface AccountState {
@@ -21,10 +28,12 @@ interface AccountContextValue extends AccountState {
 }
 
 // Constants
-const STORAGE_KEY = 'selected-account';
+const STORAGE_KEY = "selected-account";
 
 // Context
-const AccountContext = createContext<AccountContextValue | undefined>(undefined);
+const AccountContext = createContext<AccountContextValue | undefined>(
+  undefined,
+);
 
 // Provider Component
 interface AccountProviderProps {
@@ -52,10 +61,10 @@ export function AccountProvider({ children }: AccountProviderProps) {
       if (user?.id) {
         try {
           const { data: userLoc } = await supabase
-            .from('user_locations')
-            .select('location_id, role')
-            .eq('user_id', user.id)
-            .in('role', ['client', 'employee'])
+            .from("user_locations")
+            .select("location_id, role")
+            .eq("user_id", user.id)
+            .in("role", ["client", "employee"])
             .limit(1)
             .maybeSingle();
 
@@ -64,14 +73,17 @@ export function AccountProvider({ children }: AccountProviderProps) {
           }
         } catch (err) {
           // user_locations query failed — continue to localStorage fallback
-          console.warn('user_locations query failed, falling back to localStorage:', err);
+          console.warn(
+            "user_locations query failed, falling back to localStorage:",
+            err,
+          );
         }
       }
 
       // Step 2: If user is a client, force their location (ignore localStorage)
       if (clientLocationId && locations.length > 0) {
         const clientLocation = locations.find(
-          loc => loc.location_id === clientLocationId
+          (loc) => loc.location_id === clientLocationId,
         );
         if (mounted) {
           if (clientLocation) {
@@ -102,7 +114,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
 
       if (storedAccountId && locations.length > 0) {
         const foundLocation = locations.find(
-          loc => loc.location_id === storedAccountId
+          (loc) => loc.location_id === storedAccountId,
         );
 
         if (mounted) {
@@ -126,7 +138,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
           }
         }
       } else if (mounted) {
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           isClientUser: false,
           loading: false,
@@ -151,32 +163,66 @@ export function AccountProvider({ children }: AccountProviderProps) {
       // Persist to localStorage
       localStorage.setItem(STORAGE_KEY, location.location_id);
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         selectedAccount: location,
         isViewingSubconta: true,
       }));
     } catch (err) {
-      console.error('Error selecting subconta:', err);
+      console.error("Error selecting subconta:", err);
     }
   }, []);
+
+  // GHL Nexus integration: allow external scripts to set location via postMessage
+  useEffect(() => {
+    const ALLOWED_ORIGINS = [
+      "https://nexus.socialfy.me",
+      "https://app.socialfy.me",
+      "https://app.gohighlevel.com",
+      "https://app.msgsndr.com",
+    ];
+
+    const handleMessage = (event: MessageEvent) => {
+      const isAllowed = ALLOWED_ORIGINS.some((origin) =>
+        event.origin.startsWith(origin),
+      );
+      if (!isAllowed) return;
+
+      const { type, locationId } = event.data ?? {};
+      if (type !== "nexus:setLocation" || typeof locationId !== "string")
+        return;
+
+      const matched = locations.find((loc) => loc.location_id === locationId);
+      if (matched) {
+        selectSubconta(matched);
+      } else {
+        console.warn(
+          "[AccountContext] nexus:setLocation — location not found:",
+          locationId,
+        );
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [locations, selectSubconta]);
 
   // Back to admin view (shows all 24+ pages) — blocked for client users
   const backToAdmin = useCallback(() => {
     if (state.isClientUser) {
-      console.warn('Client users cannot switch to admin view');
+      console.warn("Client users cannot switch to admin view");
       return;
     }
     try {
       localStorage.removeItem(STORAGE_KEY);
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         selectedAccount: null,
         isViewingSubconta: false,
       }));
     } catch (err) {
-      console.error('Error returning to admin:', err);
+      console.error("Error returning to admin:", err);
     }
   }, [state.isClientUser]);
 
@@ -194,13 +240,11 @@ export function AccountProvider({ children }: AccountProviderProps) {
       selectAccount,
       clearAccount,
     }),
-    [state, selectSubconta, backToAdmin, selectAccount, clearAccount]
+    [state, selectSubconta, backToAdmin, selectAccount, clearAccount],
   );
 
   return (
-    <AccountContext.Provider value={value}>
-      {children}
-    </AccountContext.Provider>
+    <AccountContext.Provider value={value}>{children}</AccountContext.Provider>
   );
 }
 
@@ -209,7 +253,7 @@ export function useAccount(): AccountContextValue {
   const context = useContext(AccountContext);
 
   if (context === undefined) {
-    throw new Error('useAccount must be used within an AccountProvider');
+    throw new Error("useAccount must be used within an AccountProvider");
   }
 
   return context;

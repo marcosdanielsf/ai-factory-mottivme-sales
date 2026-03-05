@@ -355,6 +355,16 @@ const LeadsListCompany = lazy(() => import("./pages/LeadGen/LeadsListCompany"));
 // Agent Builder (visual flow editor)
 const AgentBuilder = lazy(() => import("./pages/AgentBuilder"));
 
+// MindFlow (mapas mentais interativos com IA)
+const MindFlowList = lazy(() =>
+  import("./pages/MindFlow").then((m) => ({ default: m.MindFlowList })),
+);
+const MindFlowEditorPage = lazy(() =>
+  import("./pages/MindFlow/MindFlowEditor").then((m) => ({
+    default: m.MindFlowEditorPage,
+  })),
+);
+
 const App = () => {
   return (
     <JarvisProvider>
@@ -1734,6 +1744,30 @@ const App = () => {
                             <BrainHealth />
                           </Suspense>
                         </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* MindFlow */}
+                  <Route
+                    path="/mindflow"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <MindFlowList />
+                          </Suspense>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/mindflow/:id"
+                    element={
+                      <ProtectedRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                          <MindFlowEditorPage />
+                        </Suspense>
                       </ProtectedRoute>
                     }
                   />
