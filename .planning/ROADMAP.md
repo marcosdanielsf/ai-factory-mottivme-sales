@@ -13,7 +13,7 @@ MindFlow delivers flexible project management boards with typed columns, inline 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Database schema, types, column registry, route scaffolding, and Supabase hooks
+- [x] **Phase 1: Foundation** - Database schema, types, column registry, route scaffolding, and Supabase hooks (completed 2026-03-05)
 - [ ] **Phase 2: Table View Core** - Board page with table view, inline editing, groups, and basic item creation
 - [ ] **Phase 3: Drag-and-Drop + Column Types** - DnD for items/groups/columns, remaining column types, bulk actions
 - [ ] **Phase 4: Kanban View** - Kanban cards grouped by status/column with DnD between columns
@@ -181,7 +181,7 @@ Note: Phase 6 depends on Phase 2 (not Phase 5), so it CAN be parallelized with P
 
 | Phase                                    | Plans Complete | Status      | Completed |
 | ---------------------------------------- | -------------- | ----------- | --------- |
-| 1. Foundation                            | 1/2            | In progress | -         |
+| 1. Foundation                            | 1/2            | Complete    | 2026-03-05 |
 | 2. Table View Core                       | 0/2            | Not started | -         |
 | 3. DnD + Column Types                    | 0/2            | Not started | -         |
 | 4. Kanban View                           | 0/1            | Not started | -         |
