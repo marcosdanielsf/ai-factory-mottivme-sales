@@ -66,6 +66,8 @@ export function useGHLSalesDashboard({
     if (!session?.access_token || !locationId) return;
 
     const controller = new AbortController();
+    const token = session.access_token;
+    const signal = controller.signal;
 
     try {
       setLoading(true);
@@ -74,35 +76,45 @@ export function useGHLSalesDashboard({
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY);
 
-      const [pipelinesRes, oppsOpen, oppsWon, oppsLost] = await Promise.all([
-        ghlClient.getPipelines(
+      // Fetch pipelines primeiro — se falhar, nada funciona
+      let pipelinesData: GHLPipeline[] = [];
+      try {
+        const pipelinesRes = await ghlClient.getPipelines(
           locationId,
-          session.access_token,
-          controller.signal,
-        ),
-        ghlClient.getOpportunities(
-          { locationId, status: "open", limit: 100 },
-          session.access_token,
-          controller.signal,
-        ),
-        ghlClient.getOpportunities(
-          { locationId, status: "won", limit: 100 },
-          session.access_token,
-          controller.signal,
-        ),
-        ghlClient.getOpportunities(
-          { locationId, status: "lost", limit: 100 },
-          session.access_token,
-          controller.signal,
-        ),
+          token,
+          signal,
+        );
+        pipelinesData = pipelinesRes.pipelines || [];
+      } catch (err) {
+        console.warn("[GHL Dashboard] Pipelines fetch failed:", err);
+      }
+
+      // Fetch opportunities por status — cada um independente
+      const fetchOpps = async (status: string) => {
+        try {
+          const res = await ghlClient.getOpportunities(
+            { locationId, status, limit: 100 },
+            token,
+            signal,
+          );
+          return res.opportunities || [];
+        } catch (err) {
+          console.warn(
+            `[GHL Dashboard] Opportunities (${status}) fetch failed:`,
+            err,
+          );
+          return [];
+        }
+      };
+
+      const [oppsOpen, oppsWon, oppsLost] = await Promise.all([
+        fetchOpps("open"),
+        fetchOpps("won"),
+        fetchOpps("lost"),
       ]);
 
-      setPipelines(pipelinesRes.pipelines);
-      setAllOpportunities([
-        ...oppsOpen.opportunities,
-        ...oppsWon.opportunities,
-        ...oppsLost.opportunities,
-      ]);
+      setPipelines(pipelinesData);
+      setAllOpportunities([...oppsOpen, ...oppsWon, ...oppsLost]);
 
       // Events fetch separado — GHL exige calendarId, pode falhar
       try {
@@ -112,12 +124,24 @@ export function useGHLSalesDashboard({
             startTime: thirtyDaysAgo.getTime().toString(),
             endTime: now.getTime().toString(),
           },
-          session.access_token,
-          controller.signal,
+          token,
+          signal,
         );
         setEvents(eventsRes.events || []);
       } catch {
         setEvents([]);
+      }
+
+      // Se nenhum dado veio, avisar
+      if (
+        pipelinesData.length === 0 &&
+        oppsOpen.length === 0 &&
+        oppsWon.length === 0 &&
+        oppsLost.length === 0
+      ) {
+        setError(
+          "Nenhum dado retornado — verifique se o PIT desta location tem scope de pipelines/opportunities",
+        );
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
