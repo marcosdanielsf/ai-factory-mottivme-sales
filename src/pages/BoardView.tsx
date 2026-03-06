@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   useSensor,
@@ -778,19 +779,23 @@ function AddGroupDialog({ onClose, onAdd }: AddGroupDialogProps) {
   );
 }
 
-// ── Kanban Card ──────────────────────────────────────────────────────────────
+// ── Kanban Card (upgraded) ───────────────────────────────────────────────────
 
 interface KanbanCardProps {
   item: BoardItem;
   columns: BoardColumn[];
-  onUpdateName: (name: string) => void;
+  groupColor?: string;
+  statusColor?: string;
+  isDragOverlay?: boolean;
   onDelete: () => void;
 }
 
-function KanbanCard({
+const KanbanCard = React.memo(function KanbanCard({
   item,
   columns,
-  onUpdateName,
+  groupColor,
+  statusColor,
+  isDragOverlay,
   onDelete,
 }: KanbanCardProps) {
   const {
@@ -805,72 +810,88 @@ function KanbanCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const [hovered, setHovered] = useState(false);
 
-  // Show up to 3 non-status columns as preview
   const previewCols = columns
     .filter((c) => c.column_type !== "status")
     .slice(0, 3);
 
+  const groupIndicator = groupColor ?? statusColor ?? "#52525b";
+
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="group rounded-lg border border-zinc-800 bg-zinc-900/80 p-3 cursor-grab active:cursor-grabbing hover:border-zinc-700 transition-colors"
+      ref={isDragOverlay ? undefined : setNodeRef}
+      style={isDragOverlay ? undefined : style}
+      {...(isDragOverlay ? {} : attributes)}
+      {...(isDragOverlay ? {} : listeners)}
+      className={`relative rounded-lg border bg-zinc-900/80 p-3 cursor-grab active:cursor-grabbing transition-all overflow-hidden ${
+        isDragOverlay
+          ? "border-blue-500/60 shadow-[0_8px_32px_rgba(87,155,252,0.25)] scale-[1.03] rotate-[1deg]"
+          : isDragging
+            ? "border-zinc-800/40"
+            : "border-zinc-800 hover:border-zinc-600"
+      }`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-medium text-zinc-200 leading-relaxed">
-          {item.name}
-        </span>
-        {hovered && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
-          >
-            <Trash2 size={12} />
-          </button>
+      {/* Color indicator bar */}
+      <div
+        className="absolute top-0 left-0 w-1 h-full rounded-l-lg"
+        style={{ backgroundColor: groupIndicator }}
+      />
+
+      <div className="pl-2">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-xs font-medium text-zinc-200 leading-relaxed">
+            {item.name}
+          </span>
+          {hovered && !isDragOverlay && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
+
+        {previewCols.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {previewCols.map((col) => {
+              const raw = getCellRawValue(item, col.id);
+              if (raw === null) return null;
+              const display = String(raw);
+              if (display.includes("[object")) return null;
+              return (
+                <span
+                  key={col.id}
+                  className="inline-block rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 truncate max-w-[100px]"
+                  title={`${col.name}: ${display}`}
+                >
+                  {display}
+                </span>
+              );
+            })}
+          </div>
         )}
       </div>
-      {previewCols.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {previewCols.map((col) => {
-            const raw = getCellRawValue(item, col.id);
-            if (raw === null) return null;
-            const display = String(raw);
-            // Skip non-readable values like [object Object]
-            if (display.includes("[object")) return null;
-            return (
-              <span
-                key={col.id}
-                className="inline-block rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400 truncate max-w-[100px]"
-                title={`${col.name}: ${display}`}
-              >
-                {display}
-              </span>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
-}
+});
 
-// ── Kanban Column (droppable) ────────────────────────────────────────────────
+// ── Kanban Column (upgraded with drop zone highlight) ────────────────────────
 
 interface KanbanColumnProps {
   statusLabel: StatusLabel;
   items: BoardItem[];
   columns: BoardColumn[];
+  groups: BoardGroup[];
   onUpdateItemName: (itemId: string, name: string) => void;
   onDeleteItem: (itemId: string) => void;
   onAddItem: (name: string) => void;
@@ -880,6 +901,7 @@ function KanbanColumn({
   statusLabel,
   items,
   columns,
+  groups,
   onUpdateItemName,
   onDeleteItem,
   onAddItem,
@@ -899,31 +921,53 @@ function KanbanColumn({
     setAddingItem(false);
   };
 
+  const findGroupColor = (item: BoardItem) =>
+    groups.find((g) => g.id === item.group_id)?.color;
+
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-[260px] flex-shrink-0 flex-col rounded-xl border transition-colors ${
+      className={`flex w-[280px] flex-shrink-0 flex-col rounded-xl border transition-all duration-200 ${
         isOver
-          ? "border-blue-500/40 bg-blue-500/5"
+          ? "border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_20px_rgba(87,155,252,0.1)]"
           : "border-zinc-800/60 bg-zinc-900/30"
       }`}
     >
-      {/* Column header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-zinc-800/60">
+      {/* Column header with color bar */}
+      <div className="relative px-3 py-3 border-b border-zinc-800/60">
         <div
-          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+          className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
           style={{ backgroundColor: statusLabel.color }}
         />
-        <span className="text-xs font-semibold text-zinc-300 truncate">
-          {statusLabel.label}
-        </span>
-        <span className="ml-auto text-[10px] text-zinc-600">
-          {items.length}
-        </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: statusLabel.color }}
+            />
+            <span className="text-xs font-semibold text-zinc-200 truncate">
+              {statusLabel.label}
+            </span>
+          </div>
+          <span
+            className="px-2 py-0.5 text-[10px] font-bold rounded-full"
+            style={{
+              backgroundColor: `${statusLabel.color}20`,
+              color: statusLabel.color,
+            }}
+          >
+            {items.length}
+          </span>
+        </div>
       </div>
 
       {/* Cards */}
-      <div className="flex-1 space-y-2 p-2 min-h-[60px]">
+      <div className="flex-1 space-y-2 p-2 min-h-[80px]">
+        {isOver && items.length === 0 && (
+          <div className="flex items-center justify-center h-16 rounded-lg border-2 border-dashed border-blue-500/30 text-[11px] text-blue-400/60">
+            Soltar aqui
+          </div>
+        )}
         <SortableContext
           items={items.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
@@ -933,7 +977,8 @@ function KanbanColumn({
               key={item.id}
               item={item}
               columns={columns}
-              onUpdateName={(name) => onUpdateItemName(item.id, name)}
+              groupColor={findGroupColor(item)}
+              statusColor={statusLabel.color}
               onDelete={() => onDeleteItem(item.id)}
             />
           ))}
@@ -977,7 +1022,7 @@ function KanbanColumn({
   );
 }
 
-// ── Board Kanban View ────────────────────────────────────────────────────────
+// ── Board Kanban View (upgraded with filters, DragOverlay, group colors) ─────
 
 interface BoardKanbanViewProps {
   boardId: string;
@@ -1011,7 +1056,9 @@ function BoardKanbanView({
   onDeleteItem,
   allItems,
 }: BoardKanbanViewProps) {
-  // Find the first status column
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [filterGroup, setFilterGroup] = useState<string>("all");
+
   const statusCol = columns.find((c) => c.column_type === "status");
 
   if (!statusCol) {
@@ -1028,7 +1075,6 @@ function BoardKanbanView({
     );
   }
 
-  // Normalize labels: DB may store "text" instead of "label"
   const rawLabels = statusCol.settings?.labels ?? DEFAULT_STATUS_LABELS;
   const labels: StatusLabel[] = rawLabels.map(
     (l: { id: string; label?: string; text?: string; color: string }) => ({
@@ -1038,7 +1084,13 @@ function BoardKanbanView({
     }),
   );
 
-  // Group all items by their status value
+  // Filter items by group
+  const filteredItems =
+    filterGroup === "all"
+      ? allItems
+      : allItems.filter((i) => i.group_id === filterGroup);
+
+  // Group filtered items by status
   const itemsByStatus: Record<string, BoardItem[]> = {};
   const unassigned: BoardItem[] = [];
 
@@ -1046,7 +1098,7 @@ function BoardKanbanView({
     itemsByStatus[label.id] = [];
   }
 
-  for (const item of allItems) {
+  for (const item of filteredItems) {
     const val = item.values?.find((v) => v.column_id === statusCol.id);
     const statusId =
       typeof val?.value_json === "string" ? val.value_json : null;
@@ -1057,25 +1109,23 @@ function BoardKanbanView({
     }
   }
 
-  // Use the first group as default for new items
   const defaultGroupId = groups[0]?.id;
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     if (!over) return;
 
     const overId = String(over.id);
-    // Determine target status from the over element
     let targetStatusId: string | null = null;
 
     if (overId.startsWith("kanban-col-")) {
       targetStatusId = overId.replace("kanban-col-", "");
     } else {
-      // Dropped on another card — find which status column it belongs to
       const overItem = allItems.find((i) => i.id === overId);
       if (overItem) {
         const overVal = overItem.values?.find(
@@ -1088,57 +1138,110 @@ function BoardKanbanView({
 
     if (targetStatusId) {
       const draggedId = String(active.id);
-      // Update the status value of the dragged item
       onUpdateItemValue(draggedId, statusCol.id, {
         value_json: targetStatusId,
       });
     }
   };
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-3 overflow-x-auto pb-4">
-        {/* Unassigned column */}
-        {unassigned.length > 0 && (
-          <KanbanColumn
-            statusLabel={{
-              id: "__unassigned__",
-              label: "Sem status",
-              color: "#52525b",
-            }}
-            items={unassigned}
-            columns={columns}
-            onUpdateItemName={onUpdateItemName}
-            onDeleteItem={onDeleteItem}
-            onAddItem={(name) => {
-              if (defaultGroupId) onAddItem(defaultGroupId, name);
-            }}
-          />
-        )}
+  const activeItem = activeId ? allItems.find((i) => i.id === activeId) : null;
 
-        {/* Status columns */}
-        {labels.map((label) => (
-          <KanbanColumn
-            key={label.id}
-            statusLabel={label}
-            items={itemsByStatus[label.id] ?? []}
-            columns={columns}
-            onUpdateItemName={onUpdateItemName}
-            onDeleteItem={onDeleteItem}
-            onAddItem={(name) => {
-              if (!defaultGroupId) return;
-              onAddItem(defaultGroupId, name);
-              // After add, we'd need to set status — but since addItem returns async,
-              // the user can set status after creation via the table view or drag
-            }}
-          />
-        ))}
-      </div>
-    </DndContext>
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      {groups.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-500 font-medium">Grupo:</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setFilterGroup("all")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                filterGroup === "all"
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              }`}
+            >
+              Todos
+            </button>
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setFilterGroup(g.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                  filterGroup === g.id
+                    ? "bg-zinc-700 text-zinc-100"
+                    : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                }`}
+              >
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: g.color }}
+                />
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Kanban board */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(e) => setActiveId(String(e.active.id))}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {unassigned.length > 0 && (
+            <KanbanColumn
+              statusLabel={{
+                id: "__unassigned__",
+                label: "Sem status",
+                color: "#52525b",
+              }}
+              items={unassigned}
+              columns={columns}
+              groups={groups}
+              onUpdateItemName={onUpdateItemName}
+              onDeleteItem={onDeleteItem}
+              onAddItem={(name) => {
+                if (defaultGroupId) onAddItem(defaultGroupId, name);
+              }}
+            />
+          )}
+
+          {labels.map((label) => (
+            <KanbanColumn
+              key={label.id}
+              statusLabel={label}
+              items={itemsByStatus[label.id] ?? []}
+              columns={columns}
+              groups={groups}
+              onUpdateItemName={onUpdateItemName}
+              onDeleteItem={onDeleteItem}
+              onAddItem={(name) => {
+                if (defaultGroupId) onAddItem(defaultGroupId, name);
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Drag overlay for smooth visual feedback */}
+        <DragOverlay dropAnimation={null}>
+          {activeItem ? (
+            <KanbanCard
+              item={activeItem}
+              columns={columns}
+              groupColor={
+                groups.find((g) => g.id === activeItem.group_id)?.color
+              }
+              isDragOverlay
+              onDelete={() => {}}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
 
