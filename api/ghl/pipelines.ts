@@ -1,9 +1,55 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getGHLApiKey, GHL_BASE_URL } from "./ghl-utils";
+import { createClient } from "@supabase/supabase-js";
+
+// --- GHL Utils (inline — Vercel nao resolve imports relativos neste projeto) ---
+const SUPABASE_URL =
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_KEY =
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  "";
+const GHL_BASE_URL =
+  process.env.GHL_API_BASE_URL || "https://services.leadconnectorhq.com";
+const GHL_GLOBAL_KEY = process.env.GHL_API_KEY || "";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sb: any = null;
+function getSb() {
+  if (!_sb) _sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  return _sb;
+}
+
+const keyCache = new Map<string, { key: string; expires: number }>();
+
+async function getGHLApiKey(locationId?: string | null): Promise<string> {
+  if (!locationId) return GHL_GLOBAL_KEY;
+  const cached = keyCache.get(locationId);
+  if (cached && cached.expires > Date.now()) return cached.key;
+  try {
+    const { data: clients } = await getSb().from("clients").select("metadata");
+    if (clients) {
+      const match = clients.find(
+        (c: any) =>
+          c.metadata?.location_id === locationId ||
+          c.metadata?.ghl_location_id === locationId,
+      );
+      const apiKey = match?.metadata?.api_key;
+      if (apiKey) {
+        keyCache.set(locationId, { key: apiKey, expires: Date.now() + 300000 });
+        return apiKey;
+      }
+    }
+  } catch (err) {
+    console.warn("[getGHLApiKey] Error:", err);
+  }
+  return GHL_GLOBAL_KEY;
+}
+// --- End GHL Utils ---
 
 // Cache simples em memoria (1 hora para Pipelines)
 const cache = new Map<string, { data: unknown; expires: number }>();
-const CACHE_TTL_MS = 3600000; // 1 hora
+const CACHE_TTL_MS = 3600000;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -25,14 +71,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "locationId is required" });
     }
 
-    // Check cache
     const cacheKey = `pipelines:${locationId}`;
     const cached = cache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {
       return res.status(200).json(cached.data);
     }
 
-    // Use location-specific PIT token
     const apiKey = await getGHLApiKey(locationId);
 
     const ghlRes = await fetch(
@@ -56,9 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await ghlRes.json();
-
     cache.set(cacheKey, { data, expires: Date.now() + CACHE_TTL_MS });
-
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({
