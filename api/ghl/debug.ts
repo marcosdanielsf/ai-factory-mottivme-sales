@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let getKeyResult = "not tested";
 
   try {
-    const { getGHLApiKey, GHL_BASE_URL } = await import("./_utils");
+    const { getGHLApiKey, GHL_BASE_URL } = await import("./ghl-utils");
     utilsImport = `OK - GHL_BASE_URL=${GHL_BASE_URL}`;
 
     try {

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getGHLApiKey, GHL_BASE_URL } from "./_utils";
+import { getGHLApiKey, GHL_BASE_URL } from "./ghl-utils";
 
 // Cache simples em memoria (1 hora para Pipelines)
 const cache = new Map<string, { data: unknown; expires: number }>();

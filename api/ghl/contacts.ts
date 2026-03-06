@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getGHLApiKey, GHL_BASE_URL } from "./_utils";
+import { getGHLApiKey, GHL_BASE_URL } from "./ghl-utils";
 
 // Cache simples em memoria (60 segundos para Contacts)
 const cache = new Map<string, { data: unknown; expires: number }>();
