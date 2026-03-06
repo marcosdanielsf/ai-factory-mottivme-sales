@@ -81,17 +81,17 @@ export function useGHLSalesDashboard({
           controller.signal,
         ),
         ghlClient.getOpportunities(
-          { locationId, status: "open", limit: 500 },
+          { locationId, status: "open", limit: 100 },
           session.access_token,
           controller.signal,
         ),
         ghlClient.getOpportunities(
-          { locationId, status: "won", limit: 200 },
+          { locationId, status: "won", limit: 100 },
           session.access_token,
           controller.signal,
         ),
         ghlClient.getOpportunities(
-          { locationId, status: "lost", limit: 200 },
+          { locationId, status: "lost", limit: 100 },
           session.access_token,
           controller.signal,
         ),
