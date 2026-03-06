@@ -12,7 +12,14 @@ export const GHL_BASE_URL =
   process.env.GHL_API_BASE_URL || "https://services.leadconnectorhq.com";
 export const GHL_GLOBAL_KEY = process.env.GHL_API_KEY || "";
 
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabaseAdmin) {
+    if (!SUPABASE_URL) throw new Error("SUPABASE_URL not configured");
+    _supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 // Cache em memoria (5 min) — evita query repetida
 const keyCache = new Map<string, { key: string; expires: number }>();
@@ -33,7 +40,7 @@ export async function getGHLApiKey(
   if (cached && cached.expires > Date.now()) return cached.key;
 
   try {
-    const { data: clients } = await supabaseAdmin
+    const { data: clients } = await getSupabase()
       .from("clients")
       .select("metadata");
 
