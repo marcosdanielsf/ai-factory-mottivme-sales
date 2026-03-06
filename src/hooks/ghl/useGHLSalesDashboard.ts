@@ -185,20 +185,12 @@ export function useGHLSalesDashboard({
     fetchAll();
   }, [fetchAll]);
 
+  // Filtro por pipeline apenas — GHL API nao suporta filtro de data em opps
+  // e o campo createdAt pode nao existir na resposta (GHL usa dateAdded)
   const opportunities = useMemo(() => {
-    const startMs = effectiveDateRange.startDate?.getTime() ?? 0;
-    const endMs = effectiveDateRange.endDate?.getTime() ?? Date.now();
-
-    return allOpportunities.filter((o) => {
-      if (selectedPipelineId && o.pipelineId !== selectedPipelineId)
-        return false;
-      if (o.createdAt) {
-        const createdMs = new Date(o.createdAt).getTime();
-        if (createdMs < startMs || createdMs > endMs) return false;
-      }
-      return true;
-    });
-  }, [allOpportunities, selectedPipelineId, effectiveDateRange]);
+    if (!selectedPipelineId) return allOpportunities;
+    return allOpportunities.filter((o) => o.pipelineId === selectedPipelineId);
+  }, [allOpportunities, selectedPipelineId]);
 
   const stageNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -206,11 +198,27 @@ export function useGHLSalesDashboard({
     return map;
   }, [pipelines]);
 
-  const stageMetrics = useMemo((): StageMetric[] => {
-    const activePipeline = selectedPipelineId
-      ? pipelines.find((p) => p.id === selectedPipelineId)
-      : pipelines[0];
+  // Auto-detect pipeline com mais oportunidades quando nenhum selecionado
+  const activePipeline = useMemo(() => {
+    if (selectedPipelineId) {
+      return pipelines.find((p) => p.id === selectedPipelineId) || null;
+    }
+    if (pipelines.length === 0) return null;
+    if (pipelines.length === 1) return pipelines[0];
+    // Encontrar o pipeline com mais opps
+    let best = pipelines[0];
+    let bestCount = 0;
+    for (const p of pipelines) {
+      const count = opportunities.filter((o) => o.pipelineId === p.id).length;
+      if (count > bestCount) {
+        bestCount = count;
+        best = p;
+      }
+    }
+    return best;
+  }, [pipelines, opportunities, selectedPipelineId]);
 
+  const stageMetrics = useMemo((): StageMetric[] => {
     if (!activePipeline) return [];
 
     const raw = activePipeline.stages.map((stage) => {
@@ -236,7 +244,7 @@ export function useGHLSalesDashboard({
       percentage: totalCount > 0 ? (s.count / totalCount) * 100 : 0,
       valuePercentage: totalValue > 0 ? (s.totalValue / totalValue) * 100 : 0,
     }));
-  }, [pipelines, opportunities, selectedPipelineId]);
+  }, [activePipeline, opportunities]);
 
   const kpis = useMemo((): SalesDashboardKPIs => {
     const openOpps = opportunities.filter((o) => o.status === "open");
@@ -331,10 +339,6 @@ export function useGHLSalesDashboard({
   }, [opportunities, stageNameMap]);
 
   const funnelMetrics = useMemo((): FunnelMetric[] => {
-    const activePipeline = selectedPipelineId
-      ? pipelines.find((p) => p.id === selectedPipelineId)
-      : pipelines[0];
-
     if (!activePipeline) return [];
 
     const raw = activePipeline.stages.map((stage) => {
@@ -372,7 +376,7 @@ export function useGHLSalesDashboard({
         conversionFromPrevious,
       };
     });
-  }, [pipelines, opportunities, selectedPipelineId]);
+  }, [activePipeline, opportunities]);
 
   const dailyTrend = useMemo((): DailyTrendEntry[] => {
     const map = new Map<string, DailyTrendEntry>();
