@@ -283,6 +283,11 @@ const navSections: NavSection[] = [
         to: "/ghl",
         permission: "canAccessAgendamentos",
         subItems: [
+          {
+            icon: BarChart3,
+            label: "Sales Dashboard",
+            to: "/ghl/sales-dashboard",
+          },
           { icon: TrendingUp, label: "Vendas", to: "/ghl/pipeline" },
           { icon: Calendar, label: "Agenda", to: "/ghl/agenda" },
           { icon: Users, label: "Leads", to: "/ghl/leads" },

@@ -342,6 +342,7 @@ const ImobIndicacoes = lazy(() =>
 const GHLPipeline = lazy(() => import("./pages/ghl/GHLPipeline"));
 const GHLAgenda = lazy(() => import("./pages/ghl/GHLAgenda"));
 const GHLLeads = lazy(() => import("./pages/ghl/GHLLeads"));
+const GHLSalesDashboard = lazy(() => import("./pages/ghl/GHLSalesDashboard"));
 
 // Lead Gen Portal
 const LinkedinPostScraper = lazy(
@@ -1416,6 +1417,18 @@ const App = () => {
                   />
 
                   {/* GHL Direct Dashboard */}
+                  <Route
+                    path="/ghl/sales-dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <ConditionalLayout>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <GHLSalesDashboard />
+                          </Suspense>
+                        </ConditionalLayout>
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/ghl/pipeline"
                     element={
