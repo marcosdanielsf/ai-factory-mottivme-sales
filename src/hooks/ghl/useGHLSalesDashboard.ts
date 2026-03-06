@@ -74,38 +74,28 @@ export function useGHLSalesDashboard({
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY);
 
-      const [pipelinesRes, oppsOpen, oppsWon, oppsLost, eventsRes] =
-        await Promise.all([
-          ghlClient.getPipelines(
-            locationId,
-            session.access_token,
-            controller.signal,
-          ),
-          ghlClient.getOpportunities(
-            { locationId, status: "open", limit: 500 },
-            session.access_token,
-            controller.signal,
-          ),
-          ghlClient.getOpportunities(
-            { locationId, status: "won", limit: 200 },
-            session.access_token,
-            controller.signal,
-          ),
-          ghlClient.getOpportunities(
-            { locationId, status: "lost", limit: 200 },
-            session.access_token,
-            controller.signal,
-          ),
-          ghlClient.getEvents(
-            {
-              locationId,
-              startTime: thirtyDaysAgo.getTime().toString(),
-              endTime: now.getTime().toString(),
-            },
-            session.access_token,
-            controller.signal,
-          ),
-        ]);
+      const [pipelinesRes, oppsOpen, oppsWon, oppsLost] = await Promise.all([
+        ghlClient.getPipelines(
+          locationId,
+          session.access_token,
+          controller.signal,
+        ),
+        ghlClient.getOpportunities(
+          { locationId, status: "open", limit: 500 },
+          session.access_token,
+          controller.signal,
+        ),
+        ghlClient.getOpportunities(
+          { locationId, status: "won", limit: 200 },
+          session.access_token,
+          controller.signal,
+        ),
+        ghlClient.getOpportunities(
+          { locationId, status: "lost", limit: 200 },
+          session.access_token,
+          controller.signal,
+        ),
+      ]);
 
       setPipelines(pipelinesRes.pipelines);
       setAllOpportunities([
@@ -113,7 +103,22 @@ export function useGHLSalesDashboard({
         ...oppsWon.opportunities,
         ...oppsLost.opportunities,
       ]);
-      setEvents(eventsRes.events);
+
+      // Events fetch separado — GHL exige calendarId, pode falhar
+      try {
+        const eventsRes = await ghlClient.getEvents(
+          {
+            locationId,
+            startTime: thirtyDaysAgo.getTime().toString(),
+            endTime: now.getTime().toString(),
+          },
+          session.access_token,
+          controller.signal,
+        );
+        setEvents(eventsRes.events || []);
+      } catch {
+        setEvents([]);
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       console.error("Error fetching sales dashboard:", err);
