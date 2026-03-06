@@ -81,7 +81,7 @@ export function useGHLSalesDashboard({
     [],
   );
   const [events, setEvents] = useState<GHLEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const effectiveDateRange = useMemo((): DateRange => {

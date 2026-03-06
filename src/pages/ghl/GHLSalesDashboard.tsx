@@ -349,6 +349,44 @@ export default function GHLSalesDashboard() {
     dateRange,
   });
 
+  // ---- No location selected ----
+  if (!effectiveLocationId) {
+    return (
+      <div className="bg-bg-primary">
+        <div className="sticky top-0 z-20 bg-bg-primary/95 backdrop-blur border-b border-border-default">
+          <div className="px-4 md:px-6 py-3">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <BarChart2 size={20} className="text-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-text-primary">
+                    Sales Dashboard (GHL)
+                  </h1>
+                  <p className="text-xs text-text-muted">
+                    Selecione uma location para visualizar
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <LocationSelector
+                  locations={locations}
+                  selectedLocationId={selectedLocationId}
+                  onChange={setSelectedLocationId}
+                  isLoading={locationsLoading}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-[60vh] text-text-muted text-sm">
+          Selecione um cliente no filtro acima para carregar o dashboard
+        </div>
+      </div>
+    );
+  }
+
   // ---- Skeleton ----
   if (loading) {
     return (
