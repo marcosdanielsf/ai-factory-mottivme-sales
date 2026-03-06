@@ -6,6 +6,7 @@ import type {
   GHLEvent,
 } from "../../services/ghl/ghlTypes";
 import { useAuth } from "../../contexts/AuthContext";
+import type { DateRange } from "../../components/DateRangePicker";
 
 const STAGNATION_DAYS = 7;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -15,6 +16,25 @@ export interface StageMetric {
   stageName: string;
   count: number;
   totalValue: number;
+  percentage: number;
+  valuePercentage: number;
+}
+
+export interface FunnelMetric {
+  stageName: string;
+  stageId: string;
+  count: number;
+  totalValue: number;
+  percentOfTotal: number;
+  conversionFromPrevious: number | null;
+}
+
+export interface DailyTrendEntry {
+  date: string;
+  open: number;
+  won: number;
+  lost: number;
+  total: number;
 }
 
 export interface SalesDashboardKPIs {
@@ -47,11 +67,13 @@ export interface StagnatedOpp {
 interface UseGHLSalesDashboardProps {
   locationId: string;
   selectedPipelineId?: string;
+  dateRange?: DateRange;
 }
 
 export function useGHLSalesDashboard({
   locationId,
   selectedPipelineId,
+  dateRange,
 }: UseGHLSalesDashboardProps) {
   const { session } = useAuth();
   const [pipelines, setPipelines] = useState<GHLPipeline[]>([]);
@@ -61,6 +83,13 @@ export function useGHLSalesDashboard({
   const [events, setEvents] = useState<GHLEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const effectiveDateRange = useMemo((): DateRange => {
+    if (dateRange) return dateRange;
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * MS_PER_DAY);
+    return { startDate: start, endDate: end };
+  }, [dateRange]);
 
   const fetchAll = useCallback(async () => {
     if (!session?.access_token || !locationId) return;
@@ -157,9 +186,19 @@ export function useGHLSalesDashboard({
   }, [fetchAll]);
 
   const opportunities = useMemo(() => {
-    if (!selectedPipelineId) return allOpportunities;
-    return allOpportunities.filter((o) => o.pipelineId === selectedPipelineId);
-  }, [allOpportunities, selectedPipelineId]);
+    const startMs = effectiveDateRange.startDate?.getTime() ?? 0;
+    const endMs = effectiveDateRange.endDate?.getTime() ?? Date.now();
+
+    return allOpportunities.filter((o) => {
+      if (selectedPipelineId && o.pipelineId !== selectedPipelineId)
+        return false;
+      if (o.createdAt) {
+        const createdMs = new Date(o.createdAt).getTime();
+        if (createdMs < startMs || createdMs > endMs) return false;
+      }
+      return true;
+    });
+  }, [allOpportunities, selectedPipelineId, effectiveDateRange]);
 
   const stageNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -174,7 +213,7 @@ export function useGHLSalesDashboard({
 
     if (!activePipeline) return [];
 
-    return activePipeline.stages.map((stage) => {
+    const raw = activePipeline.stages.map((stage) => {
       const stageOpps = opportunities.filter(
         (o) => o.pipelineStageId === stage.id,
       );
@@ -188,6 +227,15 @@ export function useGHLSalesDashboard({
         ),
       };
     });
+
+    const totalCount = raw.reduce((sum, s) => sum + s.count, 0);
+    const totalValue = raw.reduce((sum, s) => sum + s.totalValue, 0);
+
+    return raw.map((s) => ({
+      ...s,
+      percentage: totalCount > 0 ? (s.count / totalCount) * 100 : 0,
+      valuePercentage: totalValue > 0 ? (s.totalValue / totalValue) * 100 : 0,
+    }));
   }, [pipelines, opportunities, selectedPipelineId]);
 
   const kpis = useMemo((): SalesDashboardKPIs => {
@@ -282,6 +330,74 @@ export function useGHLSalesDashboard({
       .sort((a, b) => b.daysSinceChange - a.daysSinceChange);
   }, [opportunities, stageNameMap]);
 
+  const funnelMetrics = useMemo((): FunnelMetric[] => {
+    const activePipeline = selectedPipelineId
+      ? pipelines.find((p) => p.id === selectedPipelineId)
+      : pipelines[0];
+
+    if (!activePipeline) return [];
+
+    const raw = activePipeline.stages.map((stage) => {
+      const stageOpps = opportunities.filter(
+        (o) => o.pipelineStageId === stage.id,
+      );
+      return {
+        stageId: stage.id,
+        stageName: stage.name,
+        count: stageOpps.length,
+        totalValue: stageOpps.reduce(
+          (sum, o) => sum + (o.monetaryValue || 0),
+          0,
+        ),
+      };
+    });
+
+    const totalCount = raw.reduce((sum, s) => sum + s.count, 0);
+    const totalValue = raw.reduce((sum, s) => sum + s.totalValue, 0);
+
+    return raw.map((s, idx) => {
+      const prevCount = idx > 0 ? raw[idx - 1].count : null;
+      const conversionFromPrevious: number | null =
+        idx === 0
+          ? null
+          : prevCount != null && prevCount > 0
+            ? (s.count / prevCount) * 100
+            : 0;
+      return {
+        stageId: s.stageId,
+        stageName: s.stageName,
+        count: s.count,
+        totalValue: s.totalValue,
+        percentOfTotal: totalCount > 0 ? (s.count / totalCount) * 100 : 0,
+        conversionFromPrevious,
+      };
+    });
+  }, [pipelines, opportunities, selectedPipelineId]);
+
+  const dailyTrend = useMemo((): DailyTrendEntry[] => {
+    const map = new Map<string, DailyTrendEntry>();
+
+    opportunities.forEach((o) => {
+      const dateKey = o.createdAt
+        ? new Date(o.createdAt).toISOString().slice(0, 10)
+        : null;
+      if (!dateKey) return;
+
+      if (!map.has(dateKey)) {
+        map.set(dateKey, { date: dateKey, open: 0, won: 0, lost: 0, total: 0 });
+      }
+      const entry = map.get(dateKey)!;
+      entry.total += 1;
+      if (o.status === "open") entry.open += 1;
+      else if (o.status === "won") entry.won += 1;
+      else if (o.status === "lost") entry.lost += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+  }, [opportunities]);
+
   const recentOpps = useMemo(() => {
     return [...opportunities]
       .sort((a, b) => {
@@ -301,12 +417,15 @@ export function useGHLSalesDashboard({
   return {
     pipelines,
     stageMetrics,
+    funnelMetrics,
+    dailyTrend,
     kpis,
     showRate,
     stagnatedOpps,
     recentOpps,
     loading,
     error,
+    dateRange: effectiveDateRange,
     refetch: fetchAll,
   };
 }
