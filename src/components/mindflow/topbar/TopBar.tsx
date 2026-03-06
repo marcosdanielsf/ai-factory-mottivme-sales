@@ -7,6 +7,7 @@ import { applyLayout } from "../engine/layoutEngine";
 import { useUIStore } from "../store/uiStore";
 import { LAYOUTS } from "../types/canvas";
 import { createBoardFromMindFlow } from "@/lib/boardMindflowBridge";
+import { mindFlowToProjetos } from "@/lib/projetosMindflowBridge";
 
 function Btn({
   onClick,
@@ -35,6 +36,7 @@ export function TopBar() {
   const navigate = useNavigate();
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const [convertingToBoard, setConvertingToBoard] = useState(false);
+  const [creatingTasks, setCreatingTasks] = useState(false);
 
   const layout = useCanvasStore((s) => s.layout);
   const setLayout = useCanvasStore((s) => s.setLayout);
@@ -363,6 +365,44 @@ export function TopBar() {
             <rect x="8" y="8" width="5" height="5" rx="1" />
           </svg>
           {convertingToBoard ? "Convertendo..." : "Board"}
+        </Btn>
+
+        <Btn
+          onClick={async () => {
+            if (!mapId || mapId === "demo" || creatingTasks) return;
+            setCreatingTasks(true);
+            try {
+              const count = await mindFlowToProjetos(mapId);
+              if (count === 0) {
+                alert(
+                  "Nenhuma task encontrada. Use L1 nodes como colunas de status e L2 nodes como tasks.",
+                );
+                return;
+              }
+              navigate("/projetos");
+            } catch (e) {
+              console.error("[TopBar] Erro ao criar tasks:", e);
+              alert("Erro ao criar tasks. Tente novamente.");
+            } finally {
+              setCreatingTasks(false);
+            }
+          }}
+          title="Criar Tasks no Projetos (L1=status, L2=tasks)"
+          className={`text-[#22C55E] ${!mapId || mapId === "demo" ? "opacity-30" : ""}`}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mr-1"
+          >
+            <path d="M2 3.5h7M2 7h10M2 10.5h5" strokeLinecap="round" />
+            <path d="M11.5 7.5v4M9.5 9.5h4" strokeLinecap="round" />
+          </svg>
+          {creatingTasks ? "Criando..." : "Criar Tasks"}
         </Btn>
 
         <Btn
