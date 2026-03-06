@@ -68,8 +68,8 @@ function KPICard({
 export default function GHLSalesDashboard() {
   const { selectedAccount } = useAccount();
   const { locations } = useLocations();
-  const locationId =
-    selectedAccount?.location_id || locations?.[0]?.location_id || "";
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const locationId = selectedAccount?.location_id || selectedLocationId || "";
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
 
   const {
@@ -89,8 +89,22 @@ export default function GHLSalesDashboard() {
 
   if (!locationId) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        Selecione uma conta para visualizar o dashboard.
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
+        <p>Selecione uma conta para visualizar o dashboard</p>
+        {locations.length > 0 && (
+          <select
+            value={selectedLocationId}
+            onChange={(e) => setSelectedLocationId(e.target.value)}
+            className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Selecionar location...</option>
+            {locations.map((loc) => (
+              <option key={loc.location_id} value={loc.location_id}>
+                {loc.location_name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
     );
   }
@@ -133,6 +147,22 @@ export default function GHLSalesDashboard() {
           Sales Dashboard (GHL Direct)
         </h1>
         <div className="flex items-center gap-3">
+          {!selectedAccount && locations.length > 0 && (
+            <select
+              value={selectedLocationId}
+              onChange={(e) => {
+                setSelectedLocationId(e.target.value);
+                setSelectedPipelineId("");
+              }}
+              className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {locations.map((loc) => (
+                <option key={loc.location_id} value={loc.location_id}>
+                  {loc.location_name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             value={selectedPipelineId}
             onChange={(e) => setSelectedPipelineId(e.target.value)}
