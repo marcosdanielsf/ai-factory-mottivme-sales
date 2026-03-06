@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createClient } from "@supabase/supabase-js";
+import { getGHLApiKey, GHL_BASE_URL } from "./ghl-utils";
 
 export default async function handler(
   _req: VercelRequest,
@@ -7,37 +7,13 @@ export default async function handler(
 ) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  const envCheck = {
-    VITE_SUPABASE_URL: !!process.env.VITE_SUPABASE_URL,
-    SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
-    GHL_API_BASE_URL: !!process.env.GHL_API_BASE_URL,
-    GHL_API_KEY: !!process.env.GHL_API_KEY,
-  };
-
-  let supabaseTest = "not tested";
-  let clientsQuery = "not tested";
-
+  let result = "not tested";
   try {
-    const url = process.env.VITE_SUPABASE_URL || "";
-    const key = process.env.SUPABASE_SERVICE_KEY || "";
-    const sb = createClient(url, key);
-    supabaseTest = "createClient OK";
-
-    const { data, error } = await sb
-      .from("clients")
-      .select("metadata")
-      .limit(2);
-    if (error) {
-      clientsQuery = `ERROR: ${error.message}`;
-    } else {
-      const locs = data
-        ?.map((c: any) => c.metadata?.location_id)
-        .filter(Boolean);
-      clientsQuery = `OK - ${data?.length} rows, locations: ${locs?.join(", ")}`;
-    }
+    const key = await getGHLApiKey("x7XafRxWaLa0EheQcaGS");
+    result = `OK - base=${GHL_BASE_URL}, key=${key ? key.substring(0, 8) + "..." : "EMPTY"}`;
   } catch (e: any) {
-    supabaseTest = `CRASH: ${e.message}`;
+    result = `ERROR: ${e.message}`;
   }
 
-  return res.status(200).json({ envCheck, supabaseTest, clientsQuery });
+  return res.status(200).json({ result });
 }
