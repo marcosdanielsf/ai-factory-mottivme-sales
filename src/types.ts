@@ -1,3 +1,4 @@
+import type React from "react";
 
 // --- Tipos Principais (Espelhados do Supabase) ---
 
@@ -7,7 +8,14 @@ export interface Lead {
   name: string;
   phone: string;
   email: string;
-  status: 'new_lead' | 'qualified' | 'call_booked' | 'proposal' | 'won' | 'lost' | 'scheduled'; // Added 'scheduled' for legacy compat
+  status:
+    | "new_lead"
+    | "qualified"
+    | "call_booked"
+    | "proposal"
+    | "won"
+    | "lost"
+    | "scheduled"; // Added 'scheduled' for legacy compat
   work_permit?: boolean;
   location_country?: string;
   career_segment?: string;
@@ -51,43 +59,69 @@ export interface ScoreDimensions {
 
 export interface AgentVersion {
   id: string;
-  agent_id: string;
+  agent_id?: string;
   agent_name?: string;
-  version_number: string;
+  version_number?: string;
   version?: string; // Fallback se o banco usar 'version'
-  system_prompt: string;
+  system_prompt?: string;
   prompts_by_mode?: Record<string, string>;
-  hyperpersonalization?: Record<string, any>;
+  hyperpersonalization?: Record<string, unknown>;
   change_log?: string;
   parent_version_id?: string;
   conversion_rate?: number;
   avg_interactions_to_goal?: number;
-  status: 'production' | 'sandbox' | 'archived' | 'draft' | 'pending_approval' | 'active';
-  validation_status?: 'production' | 'sandbox' | 'archived' | 'draft' | 'pending_approval' | 'active';
-  created_at: string;
+  status?:
+    | "production"
+    | "sandbox"
+    | "archived"
+    | "draft"
+    | "pending_approval"
+    | "active"
+    | string;
+  validation_status?:
+    | "production"
+    | "sandbox"
+    | "archived"
+    | "draft"
+    | "pending_approval"
+    | "active"
+    | string;
+  created_at?: string;
   deployed_at?: string;
   is_active?: boolean;
-  
+
   // Relacionamento com cliente
   client_id?: string;
   location_id?: string;
-  clients?: {
-    id?: string;
-    nome?: string;
-    empresa?: string;
-    telefone?: string;
-    email?: string;
-    vertical?: string;
-    status?: string;
-  };
+  clients?:
+    | {
+        id?: string;
+        nome?: string;
+        empresa?: string;
+        telefone?: string;
+        email?: string;
+        vertical?: string;
+        status?: string;
+      }
+    | {
+        id?: string;
+        nome?: string;
+        empresa?: string;
+        telefone?: string;
+        email?: string;
+        vertical?: string;
+        status?: string;
+      }[];
+  updated_at?: string;
+  framework_approved?: boolean;
 
   // 8 Campos de Configuração do Agente
-  tools_config?: Record<string, any>;
-  compliance_rules?: Record<string, any>;
-  personality_config?: Record<string, any>;
-  qualification_config?: Record<string, any>;
-  business_config?: Record<string, any>;
-  followup_scripts?: Record<string, any>;
+  tools_config?: Record<string, unknown>;
+  compliance_rules?: Record<string, unknown>;
+  personality_config?: Record<string, unknown>;
+  qualification_config?: Record<string, unknown>;
+  business_config?: Record<string, unknown>;
+  followup_scripts?: Record<string, unknown>;
   deployment_notes?: string;
 
   // Métricas agregadas de testes
@@ -97,17 +131,16 @@ export interface AgentVersion {
   last_test_at?: string;
   validation_score?: number;
   last_test_score?: number;
-
 }
 
 // Entrada da view agent_version_history (UNION de ativo + archived)
 export interface AgentVersionHistoryEntry {
   source_version_id: string;
   archive_id: string | null;
-  history_type: 'current' | 'archived';
+  history_type: "current" | "archived";
   version_label: string;
   version_timestamp: string;
-  archive_reason: 'upgrade' | 'rollback' | 'manual' | 'cleanup' | null;
+  archive_reason: "upgrade" | "rollback" | "manual" | "cleanup" | null;
   archived_by: string | null;
   agent_name: string;
   location_id: string;
@@ -120,13 +153,13 @@ export interface AgentVersionHistoryEntry {
   created_by_source: string | null;
   system_prompt: string;
   prompts_by_mode: Record<string, string> | null;
-  tools_config: Record<string, any> | null;
-  personality_config: Record<string, any> | null;
-  business_config: Record<string, any> | null;
-  qualification_config: Record<string, any> | null;
-  compliance_rules: Record<string, any> | null;
-  hyperpersonalization: Record<string, any> | null;
-  followup_scripts: Record<string, any> | null;
+  tools_config: Record<string, unknown> | null;
+  personality_config: Record<string, unknown> | null;
+  business_config: Record<string, unknown> | null;
+  qualification_config: Record<string, unknown> | null;
+  compliance_rules: Record<string, unknown> | null;
+  hyperpersonalization: Record<string, unknown> | null;
+  followup_scripts: Record<string, unknown> | null;
   evaluation_score: number | null;
   avg_score_overall: number | null;
   framework_approved: boolean | null;
@@ -138,7 +171,7 @@ export interface AgentConversation {
   id: string;
   lead_id?: string;
   agent_id?: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   channel?: string;
   tokens_used?: number;
@@ -153,7 +186,7 @@ export interface SalesCall {
   closer_agent_id?: string;
   audio_url?: string;
   transcript_text?: string;
-  analysis_data?: Record<string, any>; // JSONB
+  analysis_data?: Record<string, unknown>;
   deal_outcome?: string;
   duration_seconds?: number;
   created_at: string;
@@ -165,7 +198,7 @@ export interface Contract {
   amount_value?: number;
   product_name?: string;
   payment_terms?: string;
-  status: 'draft' | 'generated' | 'sent' | 'viewed' | 'signed';
+  status: "draft" | "generated" | "sent" | "viewed" | "signed";
   contract_url?: string;
   signed_at?: string;
   created_at: string;
@@ -187,7 +220,7 @@ export interface ImprovementLog {
   evaluated_version_id?: string;
   issue_detected: string;
   suggested_fix?: string;
-  severity?: 'high' | 'medium' | 'low';
+  severity?: "high" | "medium" | "low";
   is_implemented: boolean;
   created_at: string;
 }
@@ -199,7 +232,7 @@ export interface AgentTestRun {
   passed_tests?: number;
   failed_tests?: number;
   html_report_url?: string;
-  status?: 'running' | 'completed' | 'failed';
+  status?: "running" | "completed" | "failed";
   created_at: string;
   run_at?: string; // Data da execução do teste
 
@@ -222,13 +255,13 @@ export interface AgentTestRun {
   lead_classification?: string;
   sales_score?: number;
   total_tokens?: number;
-  test_details?: any[];
+  test_details?: Record<string, unknown>[];
   validation_status?: string;
   system_prompt?: string;
-  business_config?: Record<string, any>;
+  business_config?: Record<string, unknown>;
 
   // Campos para E2E
-  e2e_scenarios?: any[];
+  e2e_scenarios?: Record<string, unknown>[];
 
   // Deprecated: Scores antigos (mantidos para compatibilidade temporária)
   /** @deprecated Use score_dimensions.tone */
@@ -351,9 +384,9 @@ export interface Metric {
   title: string;
   value: string | number;
   subtext?: string;
-  icon?: any;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
   trend?: string;
-  trendDirection?: 'up' | 'down' | 'neutral';
+  trendDirection?: "up" | "down" | "neutral";
 }
 
 export interface Client {
@@ -375,7 +408,7 @@ export interface CallRecording {
   clientName: string;
   date: string;
   duration: string;
-  status: 'qualified' | 'rejected' | 'pending';
+  status: "qualified" | "rejected" | "pending";
   summary: string;
   tags: string[];
 }
@@ -385,7 +418,7 @@ export interface PromptChangeRequest {
   agentName: string;
   requestedBy: string;
   date: string;
-  type: 'refinement' | 'correction' | 'behavior';
-  status: 'pending' | 'approved' | 'rejected';
+  type: "refinement" | "correction" | "behavior";
+  status: "pending" | "approved" | "rejected";
   description: string;
 }
