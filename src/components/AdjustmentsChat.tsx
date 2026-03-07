@@ -1,20 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, Eye, Sparkles, Shield, AlertTriangle, Zap, Brain } from 'lucide-react';
-import DOMPurify from 'dompurify';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Sparkles,
+  Shield,
+  AlertTriangle,
+  Zap,
+  Brain,
+} from "lucide-react";
+import { sanitizeMarkdown } from "../lib/sanitizeMarkdown";
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   preview?: PromptPreview;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: "pending" | "approved" | "rejected";
   ragContext?: number; // Quantos padrões do RAG foram usados
   confidence?: number; // Confiança do Claude na resposta
 }
 
 interface PromptPreview {
-  zone: 'guardrails' | 'hyperpersonalization' | 'few_shot' | 'tools';
+  zone: "guardrails" | "hyperpersonalization" | "few_shot" | "tools";
   zone_label: string;
   before: string;
   after: string;
@@ -33,56 +46,64 @@ interface AdjustmentsChatProps {
 }
 
 // URL do webhook n8n - pode ser configurada via env
-const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES || 'https://mottivme.app.n8n.cloud/webhook/chat-ajustes';
-const N8N_WEBHOOK_SAVE_URL = import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES_SAVE || 'https://mottivme.app.n8n.cloud/webhook/chat-ajustes-save';
+const N8N_WEBHOOK_URL =
+  import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES ||
+  "https://mottivme.app.n8n.cloud/webhook/chat-ajustes";
+const N8N_WEBHOOK_SAVE_URL =
+  import.meta.env.VITE_N8N_WEBHOOK_CHAT_AJUSTES_SAVE ||
+  "https://mottivme.app.n8n.cloud/webhook/chat-ajustes-save";
 
 // Zonas editáveis pelo CS
 const EDITABLE_ZONES = {
   guardrails: {
-    label: 'Guardrails',
-    description: 'Regras de comportamento e limites',
+    label: "Guardrails",
+    description: "Regras de comportamento e limites",
     icon: Shield,
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-500/20',
+    color: "text-yellow-400",
+    bgColor: "bg-yellow-500/20",
   },
   hyperpersonalization: {
-    label: 'Hiperpersonalização',
-    description: 'Contexto e personalização do cliente',
+    label: "Hiperpersonalização",
+    description: "Contexto e personalização do cliente",
     icon: Sparkles,
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/20',
+    color: "text-purple-400",
+    bgColor: "bg-purple-500/20",
   },
   few_shot: {
-    label: 'Few-Shot Examples',
-    description: 'Exemplos de conversas ideais',
+    label: "Few-Shot Examples",
+    description: "Exemplos de conversas ideais",
     icon: Bot,
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/20',
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/20",
   },
   tools: {
-    label: 'Ferramentas',
-    description: 'Configuração de tools disponíveis',
+    label: "Ferramentas",
+    description: "Configuração de tools disponíveis",
     icon: AlertTriangle,
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/20',
+    color: "text-orange-400",
+    bgColor: "bg-orange-500/20",
   },
 };
 
 // Zonas protegidas (somente visualização)
-const PROTECTED_ZONES = ['operation_modes', 'prompt_structure', 'core_instructions'];
+const PROTECTED_ZONES = [
+  "operation_modes",
+  "prompt_structure",
+  "core_instructions",
+];
 
 export const AdjustmentsChat: React.FC<AdjustmentsChatProps> = ({
   agentId,
   agentName,
-  clientName = '',
+  clientName = "",
   currentPrompt,
   onApplyChanges,
   onClose,
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      role: 'system',
+      id: "1",
+      role: "system",
       content: `🛠️ **Engenheiro de Prompts** ativo para **${agentName}**.
 
 Eu **entendo a estrutura completa** deste agente e posso fazer alterações precisas em:
@@ -105,26 +126,30 @@ _"Inclua exemplo de objeção 'tá caro' com tratamento"_`,
       timestamp: new Date(),
     },
   ]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<Message | null>(null);
   const [lastAdjustmentData, setLastAdjustmentData] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Função para chamar o webhook n8n com RAG
-  const processUserRequestWithRAG = async (userMessage: string): Promise<Message> => {
+  const processUserRequestWithRAG = async (
+    userMessage: string,
+  ): Promise<Message> => {
     try {
       // Preparar resumo do prompt atual (primeiros 500 chars)
-      const promptSummary = currentPrompt.substring(0, 500) + (currentPrompt.length > 500 ? '...' : '');
+      const promptSummary =
+        currentPrompt.substring(0, 500) +
+        (currentPrompt.length > 500 ? "..." : "");
 
       const response = await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           agentId,
@@ -149,15 +174,19 @@ _"Inclua exemplo de objeção 'tá caro' com tratamento"_`,
 
       // Validar zona retornada
       const zone = data.result?.zone as keyof typeof EDITABLE_ZONES;
-      const validZone = EDITABLE_ZONES[zone] ? zone : 'guardrails';
+      const validZone = EDITABLE_ZONES[zone] ? zone : "guardrails";
       const zoneInfo = EDITABLE_ZONES[validZone];
 
       const preview: PromptPreview = {
         zone: validZone,
         zone_label: data.result?.zone_label || zoneInfo.label,
-        before: data.preview?.before || `[Conteúdo atual da zona ${zoneInfo.label}]`,
-        after: data.result?.adjustment_text || data.preview?.after || userMessage,
-        diff_summary: data.preview?.diff_summary || `Ajuste sugerido: "${userMessage.substring(0, 50)}..."`,
+        before:
+          data.preview?.before || `[Conteúdo atual da zona ${zoneInfo.label}]`,
+        after:
+          data.result?.adjustment_text || data.preview?.after || userMessage,
+        diff_summary:
+          data.preview?.diff_summary ||
+          `Ajuste sugerido: "${userMessage.substring(0, 50)}..."`,
         adjustment_text: data.result?.adjustment_text || userMessage,
         reasoning: data.result?.reasoning,
       };
@@ -171,7 +200,7 @@ _"Inclua exemplo de objeção 'tá caro' com tratamento"_`,
 **Ajuste sugerido:**
 _"${preview.adjustment_text}"_
 
-**Motivo:** ${preview.reasoning || 'Baseado na sua solicitação.'}`;
+**Motivo:** ${preview.reasoning || "Baseado na sua solicitação."}`;
 
       if (ragContextCount > 0) {
         contentMessage += `
@@ -190,17 +219,16 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
 
       return {
         id: Date.now().toString(),
-        role: 'assistant',
+        role: "assistant",
         content: contentMessage,
         timestamp: new Date(),
         preview,
-        status: 'pending',
+        status: "pending",
         ragContext: ragContextCount,
         confidence,
       };
-
     } catch (error) {
-      console.error('Erro ao processar com RAG:', error);
+      console.error("Erro ao processar com RAG:", error);
 
       // Fallback: processar localmente se webhook falhar
       return processUserRequestFallback(userMessage);
@@ -208,17 +236,29 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
   };
 
   // Fallback caso o webhook não funcione
-  const processUserRequestFallback = async (userMessage: string): Promise<Message> => {
+  const processUserRequestFallback = async (
+    userMessage: string,
+  ): Promise<Message> => {
     // Detectar zona baseado em keywords (fallback)
-    let detectedZone: keyof typeof EDITABLE_ZONES = 'guardrails';
+    let detectedZone: keyof typeof EDITABLE_ZONES = "guardrails";
     const lowerMessage = userMessage.toLowerCase();
 
-    if (lowerMessage.includes('horário') || lowerMessage.includes('contexto') || lowerMessage.includes('cliente')) {
-      detectedZone = 'hyperpersonalization';
-    } else if (lowerMessage.includes('exemplo') || lowerMessage.includes('conversa')) {
-      detectedZone = 'few_shot';
-    } else if (lowerMessage.includes('ferramenta') || lowerMessage.includes('tool')) {
-      detectedZone = 'tools';
+    if (
+      lowerMessage.includes("horário") ||
+      lowerMessage.includes("contexto") ||
+      lowerMessage.includes("cliente")
+    ) {
+      detectedZone = "hyperpersonalization";
+    } else if (
+      lowerMessage.includes("exemplo") ||
+      lowerMessage.includes("conversa")
+    ) {
+      detectedZone = "few_shot";
+    } else if (
+      lowerMessage.includes("ferramenta") ||
+      lowerMessage.includes("tool")
+    ) {
+      detectedZone = "tools";
     }
 
     const zoneInfo = EDITABLE_ZONES[detectedZone];
@@ -228,18 +268,22 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
       zone_label: zoneInfo.label,
       before: `[Conteúdo atual da zona ${zoneInfo.label}]`,
       after: userMessage,
-      diff_summary: `Adicionado: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`,
+      diff_summary: `Adicionado: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? "..." : ""}"`,
       adjustment_text: userMessage,
     };
 
     setLastAdjustmentData({
       userMessage,
-      result: { zone: detectedZone, zone_label: zoneInfo.label, adjustment_text: userMessage },
+      result: {
+        zone: detectedZone,
+        zone_label: zoneInfo.label,
+        adjustment_text: userMessage,
+      },
     });
 
     return {
       id: Date.now().toString(),
-      role: 'assistant',
+      role: "assistant",
       content: `Entendi! Vou adicionar isso na zona **${zoneInfo.label}**.
 
 **Resumo da alteração:**
@@ -250,7 +294,7 @@ ${preview.diff_summary}
 Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
       timestamp: new Date(),
       preview,
-      status: 'pending',
+      status: "pending",
       ragContext: 0,
     };
   };
@@ -260,26 +304,27 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: input,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
     setIsProcessing(true);
 
     try {
       const response = await processUserRequestWithRAG(input);
-      setMessages(prev => [...prev, response]);
+      setMessages((prev) => [...prev, response]);
       setPendingPreview(response);
     } catch (error) {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'assistant',
-          content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Tente novamente.',
+          role: "assistant",
+          content:
+            "Desculpe, ocorreu um erro ao processar sua solicitação. Tente novamente.",
           timestamp: new Date(),
         },
       ]);
@@ -289,12 +334,15 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
   };
 
   // Salvar padrão no RAG após aprovar
-  const saveToRAG = async (adjustmentData: any) => {
+  const saveToRAG = async (adjustmentData: {
+    userMessage?: string;
+    result?: { zone?: string; zone_label?: string; adjustment_text?: string };
+  }) => {
     try {
       await fetch(N8N_WEBHOOK_SAVE_URL, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           agentId,
@@ -306,9 +354,9 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
           adjustment_text: adjustmentData.result?.adjustment_text,
         }),
       });
-      console.log('Padrão salvo no RAG com sucesso');
+      console.log("Padrão salvo no RAG com sucesso");
     } catch (error) {
-      console.error('Erro ao salvar no RAG:', error);
+      console.error("Erro ao salvar no RAG:", error);
       // Não bloqueia o fluxo se falhar
     }
   };
@@ -319,26 +367,33 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`,
     setIsProcessing(true);
     try {
       // Aplicar a alteração
-      await onApplyChanges(pendingPreview.preview.zone, pendingPreview.preview.adjustment_text);
+      await onApplyChanges(
+        pendingPreview.preview.zone,
+        pendingPreview.preview.adjustment_text,
+      );
 
       // Salvar no RAG para aprendizado futuro
       if (lastAdjustmentData) {
         saveToRAG(lastAdjustmentData);
       }
 
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === pendingPreview.id ? { ...m, status: 'approved' as const } : m
-        )
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === pendingPreview.id
+            ? { ...m, status: "approved" as const }
+            : m,
+        ),
       );
 
-      const zoneLabel = pendingPreview.preview.zone_label || EDITABLE_ZONES[pendingPreview.preview.zone].label;
+      const zoneLabel =
+        pendingPreview.preview.zone_label ||
+        EDITABLE_ZONES[pendingPreview.preview.zone].label;
 
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'system',
+          role: "system",
           content: `Alteração aplicada com sucesso na zona **${zoneLabel}**!
 
 Uma nova versão do prompt foi criada.
@@ -350,12 +405,12 @@ Uma nova versão do prompt foi criada.
       setPendingPreview(null);
       setLastAdjustmentData(null);
     } catch (error) {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'system',
-          content: 'Erro ao aplicar alteração. Tente novamente.',
+          role: "system",
+          content: "Erro ao aplicar alteração. Tente novamente.",
           timestamp: new Date(),
         },
       ]);
@@ -367,18 +422,19 @@ Uma nova versão do prompt foi criada.
   const handleReject = () => {
     if (!pendingPreview) return;
 
-    setMessages(prev =>
-      prev.map(m =>
-        m.id === pendingPreview.id ? { ...m, status: 'rejected' as const } : m
-      )
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === pendingPreview.id ? { ...m, status: "rejected" as const } : m,
+      ),
     );
 
-    setMessages(prev => [
+    setMessages((prev) => [
       ...prev,
       {
         id: Date.now().toString(),
-        role: 'system',
-        content: 'Alteração cancelada. Descreva o que você gostaria de modificar.',
+        role: "system",
+        content:
+          "Alteração cancelada. Descreva o que você gostaria de modificar.",
         timestamp: new Date(),
       },
     ]);
@@ -388,7 +444,7 @@ Uma nova versão do prompt foi criada.
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -449,21 +505,21 @@ Uma nova versão do prompt foi criada.
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
           >
             {/* Avatar */}
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                message.role === 'user'
-                  ? 'bg-accent-primary'
-                  : message.role === 'system'
-                  ? 'bg-green-500/20'
-                  : 'bg-bg-tertiary'
+                message.role === "user"
+                  ? "bg-accent-primary"
+                  : message.role === "system"
+                    ? "bg-green-500/20"
+                    : "bg-bg-tertiary"
               }`}
             >
-              {message.role === 'user' ? (
+              {message.role === "user" ? (
                 <User size={16} className="text-white" />
-              ) : message.role === 'system' ? (
+              ) : message.role === "system" ? (
                 <CheckCircle2 size={16} className="text-green-400" />
               ) : (
                 <Bot size={16} className="text-text-secondary" />
@@ -473,39 +529,38 @@ Uma nova versão do prompt foi criada.
             {/* Content */}
             <div
               className={`max-w-[80%] ${
-                message.role === 'user' ? 'text-right' : ''
+                message.role === "user" ? "text-right" : ""
               }`}
             >
               <div
                 className={`inline-block px-4 py-2 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-accent-primary text-white'
-                    : message.role === 'system'
-                    ? 'bg-green-500/10 border border-green-500/30 text-text-secondary'
-                    : 'bg-bg-secondary border border-border-default text-text-secondary'
+                  message.role === "user"
+                    ? "bg-accent-primary text-white"
+                    : message.role === "system"
+                      ? "bg-green-500/10 border border-green-500/30 text-text-secondary"
+                      : "bg-bg-secondary border border-border-default text-text-secondary"
                 }`}
               >
                 <div
                   className="text-sm whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(
-                      message.content
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/_(.*?)_/g, '<em>$1</em>')
-                    ),
+                    __html: sanitizeMarkdown(message.content),
                   }}
                 />
 
                 {/* Preview Card */}
-                {message.preview && message.status === 'pending' && (
+                {message.preview && message.status === "pending" && (
                   <div className="mt-3 p-3 bg-bg-tertiary rounded-lg border border-border-default">
                     <div className="flex items-center gap-2 mb-2">
                       <Eye size={14} className="text-text-muted" />
-                      <span className="text-xs font-medium text-text-muted">Preview</span>
+                      <span className="text-xs font-medium text-text-muted">
+                        Preview
+                      </span>
                       <span
                         className={`text-xs px-2 py-0.5 rounded ${
-                          EDITABLE_ZONES[message.preview.zone]?.bgColor || 'bg-gray-500/20'
-                        } ${EDITABLE_ZONES[message.preview.zone]?.color || 'text-gray-400'}`}
+                          EDITABLE_ZONES[message.preview.zone]?.bgColor ||
+                          "bg-gray-500/20"
+                        } ${EDITABLE_ZONES[message.preview.zone]?.color || "text-gray-400"}`}
                       >
                         {message.preview.zone_label}
                       </span>
@@ -515,7 +570,9 @@ Uma nova versão do prompt foi criada.
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-text-secondary">{message.preview.diff_summary}</p>
+                    <p className="text-xs text-text-secondary">
+                      {message.preview.diff_summary}
+                    </p>
                     {message.preview.reasoning && (
                       <p className="text-xs text-text-muted mt-2 italic">
                         💡 {message.preview.reasoning}
@@ -525,15 +582,15 @@ Uma nova versão do prompt foi criada.
                 )}
 
                 {/* Status Badge */}
-                {message.status && message.status !== 'pending' && (
+                {message.status && message.status !== "pending" && (
                   <div
                     className={`mt-2 inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                      message.status === 'approved'
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-red-500/20 text-red-400'
+                      message.status === "approved"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
                     }`}
                   >
-                    {message.status === 'approved' ? (
+                    {message.status === "approved" ? (
                       <>
                         <CheckCircle2 size={12} /> Aprovado
                       </>
@@ -547,9 +604,9 @@ Uma nova versão do prompt foi criada.
               </div>
 
               <div className="text-xs text-text-muted mt-1">
-                {message.timestamp.toLocaleTimeString('pt-BR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
+                {message.timestamp.toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </div>
             </div>

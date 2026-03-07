@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface ReflectionLog {
   id: string;
@@ -124,7 +125,7 @@ export function useReflectionLoop() {
       }
       const logsData = logsResult.data || [];
       const transformedLogs: ReflectionLog[] = logsData.map(
-        (log: any, index: number) => {
+        (log, index: number) => {
           const scoreBreakdown = log.score_breakdown || {};
           const reflectionCompleta =
             scoreBreakdown.reflection_completa?.reflection || {};
@@ -175,8 +176,8 @@ export function useReflectionLoop() {
       };
 
       const transformedSuggestions: Suggestion[] = suggestionsData
-        .filter((s: any) => s.agent_version_id)
-        .map((s: any) => {
+        .filter((s) => s.agent_version_id)
+        .map((s) => {
           const firstLine =
             (s.diff_summary || s.suggestion_text || "").split("\n")[0] ||
             "Melhoria Sugerida";
@@ -265,7 +266,7 @@ export function useReflectionLoop() {
       ).length;
       const avgScore =
         logsData.length > 0
-          ? logsData.reduce((acc: number, l: any) => {
+          ? logsData.reduce((acc: number, l) => {
               const score =
                 l.score_breakdown?.reflection_completa?.reflection
                   ?.score_geral ||
@@ -281,9 +282,9 @@ export function useReflectionLoop() {
         pending_suggestions: pending,
         avg_score_improvement: avgScore,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useReflectionLoop] Error:", err);
-      setError(err.message || "Erro ao carregar dados");
+      setError(getErrorMessage(err) || "Erro ao carregar dados");
     } finally {
       setLoading(false);
     }
@@ -301,7 +302,7 @@ export function useReflectionLoop() {
       .update({ status: "accepted", reviewed_at: new Date().toISOString() })
       .eq("id", id);
 
-    if (err) throw new Error(`Erro ao aceitar sugestao: ${err.message}`);
+    if (err) throw new Error(`Erro ao aceitar sugestao: ${getErrorMessage(err)}`);
     setSuggestions((prev) =>
       prev.map((s) =>
         s.id === id ? { ...s, status: "accepted" as const } : s,
@@ -324,7 +325,7 @@ export function useReflectionLoop() {
       })
       .eq("id", id);
 
-    if (err) throw new Error(`Erro ao rejeitar sugestao: ${err.message}`);
+    if (err) throw new Error(`Erro ao rejeitar sugestao: ${getErrorMessage(err)}`);
     setSuggestions((prev) =>
       prev.map((s) =>
         s.id === id ? { ...s, status: "rejected" as const } : s,
@@ -342,7 +343,7 @@ export function useReflectionLoop() {
       .update({ status: "applied", applied_at: new Date().toISOString() })
       .eq("id", id);
 
-    if (err) throw new Error(`Erro ao aplicar sugestao: ${err.message}`);
+    if (err) throw new Error(`Erro ao aplicar sugestao: ${getErrorMessage(err)}`);
     setSuggestions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status: "applied" as const } : s)),
     );
@@ -357,7 +358,7 @@ export function useReflectionLoop() {
         updated_at: new Date().toISOString(),
       });
 
-    if (err) throw new Error(`Erro ao salvar config: ${err.message}`);
+    if (err) throw new Error(`Erro ao salvar config: ${getErrorMessage(err)}`);
     setConfig(newConfig);
   }, []);
 

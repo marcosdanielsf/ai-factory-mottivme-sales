@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
-import { Loader2, Zap } from 'lucide-react';
+import React, { useState } from "react";
+import { Loader2, Zap } from "lucide-react";
 
 interface EnrichmentActionsProps {
-  recordId: string;
-  onTrigger: (action: string, recordId: string) => Promise<void>;
+  recordId?: string;
+  leadId?: string;
+  onTrigger?: (action: string, recordId: string) => Promise<void>;
+  webhooks?: Record<string, string>;
   loading?: boolean;
 }
 
 const ENRICHMENT_OPTIONS = [
-  { key: 'enrich_record', label: 'Enrich Record' },
-  { key: 'enrich_person', label: 'Enrich Person' },
-  { key: 'enrich_company', label: 'Enrich Company' },
-  { key: 'verify_email', label: 'Verify Email' },
-  { key: 'enrich_socials', label: 'Enrich Socials' },
+  { key: "enrich_record", label: "Enrich Record" },
+  { key: "enrich_person", label: "Enrich Person" },
+  { key: "enrich_company", label: "Enrich Company" },
+  { key: "verify_email", label: "Verify Email" },
+  { key: "enrich_socials", label: "Enrich Socials" },
 ] as const;
 
-type ActionKey = (typeof ENRICHMENT_OPTIONS)[number]['key'];
+type ActionKey = (typeof ENRICHMENT_OPTIONS)[number]["key"];
 
 export default function EnrichmentActions({
   recordId,
@@ -23,7 +25,9 @@ export default function EnrichmentActions({
   loading = false,
 }: EnrichmentActionsProps) {
   const [selected, setSelected] = useState<Set<ActionKey>>(new Set());
-  const [loadingActions, setLoadingActions] = useState<Set<ActionKey>>(new Set());
+  const [loadingActions, setLoadingActions] = useState<Set<ActionKey>>(
+    new Set(),
+  );
 
   function toggleOption(key: ActionKey) {
     setSelected((prev) => {

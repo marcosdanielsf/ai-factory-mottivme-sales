@@ -12,6 +12,7 @@ import { SandboxChat } from '../../components/sandbox/SandboxChat';
 import { HandoffConfig, parseHandoffConfig, type HandoffConfigData } from '../../components/handoff/HandoffConfig';
 import { PromptGenerator } from '../../components/PromptGenerator';
 import { useAccount } from '../../contexts/AccountContext';
+import { getErrorMessage } from "../../lib/getErrorMessage";
 
 export const PromptEditor: React.FC = () => {
   const { showToast } = useToast();
@@ -205,9 +206,9 @@ export const PromptEditor: React.FC = () => {
         newIsActive ? 'success' : 'info'
       );
       refetchVersions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error toggling active status:', err);
-      showToast('Erro ao alterar status: ' + err.message, 'error');
+      showToast('Erro ao alterar status: ' + getErrorMessage(err), 'error');
     } finally {
       setIsTogglingActive(false);
     }
@@ -249,9 +250,9 @@ export const PromptEditor: React.FC = () => {
         : (activeVersion.validation_status === 'active' || activeVersion.validation_status === 'production' ? 'draft' : 'active');
       showToast(`${label} alterado para ${newVal}`, 'success');
       refetchVersions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error toggling field:', err);
-      showToast('Erro ao alterar campo: ' + err.message, 'error');
+      showToast('Erro ao alterar campo: ' + getErrorMessage(err), 'error');
     } finally {
       setIsTogglingActive(false);
     }
@@ -283,9 +284,9 @@ export const PromptEditor: React.FC = () => {
 
       showToast(`Versão ${activeVersion?.version_number || activeVersion?.version} publicada com sucesso!`, 'success');
       refetchVersions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error publishing version:', err);
-      showToast('Erro ao publicar versão: ' + err.message, 'error');
+      showToast('Erro ao publicar versão: ' + getErrorMessage(err), 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -354,9 +355,9 @@ export const PromptEditor: React.FC = () => {
       setIsDirty(false);
       showToast('Alterações salvas com sucesso!', 'success');
       refetchVersions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving version:', err);
-      showToast('Erro ao salvar: ' + err.message, 'error');
+      showToast('Erro ao salvar: ' + getErrorMessage(err), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -402,8 +403,8 @@ export const PromptEditor: React.FC = () => {
       showToast(`Nova versão ${nextVersion} criada!`, 'success');
       refetchVersions();
       setActiveVersionId(data.id);
-    } catch (err: any) {
-      showToast('Erro ao criar versão: ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast('Erro ao criar versão: ' + getErrorMessage(err), 'error');
     }
   };
 
@@ -438,8 +439,8 @@ export const PromptEditor: React.FC = () => {
       } else {
         showToast('Nenhum dado encontrado na Base de Conhecimento para este agente.', 'info');
       }
-    } catch (err: any) {
-      showToast('Erro ao carregar dados: ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast('Erro ao carregar dados: ' + getErrorMessage(err), 'error');
     }
   };
 
@@ -613,8 +614,8 @@ export const PromptEditor: React.FC = () => {
       showToast(`Ajuste aplicado! Nova versão ${nextVersion} criada.`, 'success');
       refetchVersions();
       setActiveVersionId(data.id);
-    } catch (err: any) {
-      showToast('Erro ao aplicar ajuste: ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast('Erro ao aplicar ajuste: ' + getErrorMessage(err), 'error');
       throw err;
     }
   };

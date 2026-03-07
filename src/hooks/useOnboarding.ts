@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // ============ TYPES ============
 
@@ -95,8 +96,8 @@ export function useOnboarding(): UseOnboardingReturn {
         success: true,
         sessionId: inserted.id,
       };
-    } catch (err: any) {
-      const errorMsg = err?.message || 'Erro ao salvar onboarding';
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(err) || 'Erro ao salvar onboarding';
       setError(errorMsg);
       return {
         success: false,
@@ -132,7 +133,7 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       return data as OnboardingSession;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao buscar onboarding:', err);
       return null;
     }

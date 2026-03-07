@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSplitMessages, SplitConfig } from './useSplitMessages';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface SandboxMessage {
   role: 'user' | 'assistant' | 'system';
@@ -138,10 +139,10 @@ export function useSandboxChat({ agentVersionId, locationId }: UseSandboxChatPro
       }
 
       setTotalTokens(prev => prev + estimateTokens(content) + tokenCount);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg: SandboxMessage = {
         role: 'system',
-        content: `Erro: ${err.message}`,
+        content: `Erro: ${getErrorMessage(err)}`,
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMsg]);

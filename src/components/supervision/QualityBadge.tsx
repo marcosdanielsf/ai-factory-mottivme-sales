@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   AlertTriangle,
   XCircle,
@@ -7,18 +7,18 @@ import {
   Repeat,
   MessageCircle,
   Shield,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   QualitySummary,
   QualityFlagType,
   QualitySeverity,
   severityConfig,
   qualityFlagConfig,
-} from '../../types/supervision';
+} from "../../types/supervision";
 
 interface QualityBadgeProps {
   summary: QualitySummary | null;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   showCount?: boolean;
   onClick?: () => void;
 }
@@ -29,7 +29,7 @@ interface QualityBadgeProps {
  */
 export const QualityBadge: React.FC<QualityBadgeProps> = ({
   summary,
-  size = 'sm',
+  size = "sm",
   showCount = true,
   onClick,
 }) => {
@@ -45,9 +45,9 @@ export const QualityBadge: React.FC<QualityBadgeProps> = ({
   const total = summary.total_unresolved;
 
   const sizeClasses = {
-    sm: 'w-5 h-5 text-xs',
-    md: 'w-6 h-6 text-sm',
-    lg: 'w-8 h-8 text-base',
+    sm: "w-5 h-5 text-xs",
+    md: "w-6 h-6 text-sm",
+    lg: "w-8 h-8 text-base",
   };
 
   const iconSize = {
@@ -64,7 +64,7 @@ export const QualityBadge: React.FC<QualityBadgeProps> = ({
         ${config.bgColor} ${config.color}
         ${sizeClasses[size]}
         transition-all hover:scale-110
-        ${onClick ? 'cursor-pointer' : 'cursor-default'}
+        ${onClick ? "cursor-pointer" : "cursor-default"}
       `}
       title={`${total} problema(s) - ${config.label}`}
     >
@@ -72,19 +72,21 @@ export const QualityBadge: React.FC<QualityBadgeProps> = ({
 
       {/* Contador */}
       {showCount && total > 1 && (
-        <span className={`
+        <span
+          className={`
           absolute -top-1 -right-1 min-w-[14px] h-[14px]
           flex items-center justify-center
           text-[10px] font-bold rounded-full
           bg-bg-primary border border-current
           ${config.color}
-        `}>
-          {total > 9 ? '9+' : total}
+        `}
+        >
+          {total > 9 ? "9+" : total}
         </span>
       )}
 
       {/* Pulse para critico */}
-      {severity === 'critical' && (
+      {severity === "critical" && (
         <span className="absolute inset-0 rounded-full bg-red-500/30 animate-ping" />
       )}
     </button>
@@ -103,7 +105,7 @@ interface QualityFlagIconProps {
 export const QualityFlagIcon: React.FC<QualityFlagIconProps> = ({
   flagType,
   size = 16,
-  className = '',
+  className = "",
 }) => {
   const config = qualityFlagConfig[flagType];
 
@@ -116,7 +118,9 @@ export const QualityFlagIcon: React.FC<QualityFlagIconProps> = ({
     BUG_TECNICO: Bug,
   }[flagType];
 
-  return <IconComponent size={size} className={`${config.color} ${className}`} />;
+  return (
+    <IconComponent size={size} className={`${config.color} ${className}`} />
+  );
 };
 
 interface QualityIndicatorProps {
@@ -145,7 +149,9 @@ export const QualityIndicator: React.FC<QualityIndicatorProps> = ({
 
   if (!expanded) {
     return (
-      <div className={`flex items-center gap-2 text-xs ${config?.color || 'text-text-muted'}`}>
+      <div
+        className={`flex items-center gap-2 text-xs ${config?.color || "text-text-muted"}`}
+      >
         <AlertTriangle size={14} />
         <span>{summary.total_unresolved} problema(s)</span>
       </div>
@@ -153,16 +159,23 @@ export const QualityIndicator: React.FC<QualityIndicatorProps> = ({
   }
 
   // Versao expandida com breakdown por tipo
-  const flagTypes: { type: QualityFlagType; count: number }[] = [
-    { type: 'FUGA_PROMPT', count: summary.fuga_count },
-    { type: 'ERRO_INFO', count: summary.erro_count },
-    { type: 'NAO_RESPONDEU', count: summary.timeout_count },
-    { type: 'BUG_TECNICO', count: summary.bug_count },
-  ].filter(f => f.count > 0);
+  const flagTypes = (
+    [
+      { type: "FUGA_PROMPT" as QualityFlagType, count: summary.fuga_count },
+      { type: "ERRO_INFO" as QualityFlagType, count: summary.erro_count },
+      {
+        type: "NAO_RESPONDEU" as QualityFlagType,
+        count: summary.timeout_count,
+      },
+      { type: "BUG_TECNICO" as QualityFlagType, count: summary.bug_count },
+    ] as { type: QualityFlagType; count: number }[]
+  ).filter((f) => f.count > 0);
 
   return (
     <div className="space-y-2">
-      <div className={`flex items-center gap-2 text-sm font-medium ${config?.color || 'text-text-muted'}`}>
+      <div
+        className={`flex items-center gap-2 text-sm font-medium ${config?.color || "text-text-muted"}`}
+      >
         <AlertTriangle size={16} />
         <span>{summary.total_unresolved} problema(s) detectado(s)</span>
       </div>
@@ -188,7 +201,7 @@ export const QualityIndicator: React.FC<QualityIndicatorProps> = ({
 
 interface SeverityBadgeProps {
   severity: QualitySeverity;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
 }
 
 /**
@@ -196,16 +209,18 @@ interface SeverityBadgeProps {
  */
 export const SeverityBadge: React.FC<SeverityBadgeProps> = ({
   severity,
-  size = 'sm',
+  size = "sm",
 }) => {
   const config = severityConfig[severity];
 
   return (
-    <span className={`
+    <span
+      className={`
       px-2 py-0.5 rounded-full text-xs font-medium
       ${config.bgColor} ${config.color}
-      ${size === 'md' ? 'px-3 py-1' : ''}
-    `}>
+      ${size === "md" ? "px-3 py-1" : ""}
+    `}
+    >
       {config.label}
     </span>
   );

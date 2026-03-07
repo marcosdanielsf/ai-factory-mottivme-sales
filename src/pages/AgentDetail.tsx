@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { AgentPerformanceRadar, ScoreAreaChart } from '../components/charts';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { SandboxChat } from '../components/sandbox/SandboxChat';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface AgentVersion {
   id: string;
@@ -91,9 +92,9 @@ export const AgentDetail = () => {
       if (!testsError && testsData) {
         setTestResults(testsData);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching agent:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -125,7 +126,7 @@ export const AgentDetail = () => {
       
       if (error) throw error;
       fetchAgent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error toggling active:', err);
     }
   };
@@ -141,7 +142,7 @@ export const AgentDetail = () => {
       
       if (error) throw error;
       fetchAgent();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error changing status:', err);
     }
   };

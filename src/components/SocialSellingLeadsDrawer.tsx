@@ -3,6 +3,7 @@ import { X, Search, MessageCircle, Pencil, ArrowLeft, Bot, UserCircle, Check, Ch
 import { supabase } from '../lib/supabase';
 import { getConversationMessages, type ConversationMessage } from '../lib/supabase-sales-ops';
 import type { CategorizedLead, OrigemBucket, SSSubtype } from '../hooks/useSocialSellingFunnel';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface Props {
   isOpen: boolean;
@@ -147,9 +148,9 @@ export function SocialSellingLeadsDrawer({ isOpen, onClose, title, leads, onLead
     try {
       const data = await getConversationMessages(lead.unique_id);
       setMessages(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar mensagens:', err);
-      setMessagesError(err.message || 'Erro ao carregar mensagens');
+      setMessagesError(getErrorMessage(err) || 'Erro ao carregar mensagens');
     } finally {
       setMessagesLoading(false);
     }
@@ -196,8 +197,8 @@ export function SocialSellingLeadsDrawer({ isOpen, onClose, title, leads, onLead
         setView('list');
         setSaveResult(null);
       }, 1000);
-    } catch (err: any) {
-      setSaveResult({ type: 'error', msg: err.message || 'Erro ao salvar' });
+    } catch (err: unknown) {
+      setSaveResult({ type: 'error', msg: getErrorMessage(err) || 'Erro ao salvar' });
     } finally {
       setSaving(false);
     }

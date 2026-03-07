@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { BuilderCanvas, type AgentFlow } from '../../components/builder/BuilderCanvas';
+import { getErrorMessage } from "../../lib/getErrorMessage";
 
 interface AgentVersionBasic {
   id: string;
@@ -34,10 +35,10 @@ export const AgentBuilder: React.FC = () => {
           .eq('id', agentId)
           .single();
 
-        if (err) throw new Error(err.message);
+        if (err) throw new Error(getErrorMessage(err));
         setVersion(data as AgentVersionBasic);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
       } finally {
         setLoading(false);
       }
@@ -54,7 +55,7 @@ export const AgentBuilder: React.FC = () => {
       .update({ agent_flow: flow, updated_at: new Date().toISOString() })
       .eq('id', agentId);
 
-    if (err) throw new Error(err.message);
+    if (err) throw new Error(getErrorMessage(err));
 
     setVersion(prev => prev ? { ...prev, agent_flow: flow } : null);
   }, [agentId]);

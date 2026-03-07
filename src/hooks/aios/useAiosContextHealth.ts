@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
-import { AiosContextHealth, AiosContextEntityType } from '../../types/aios';
+import { useEffect, useState, useCallback, useRef } from "react";
+import { supabase } from "../../lib/supabase";
+import { AiosContextHealth, AiosContextEntityType } from "../../types/aios";
 
 interface UseAiosContextHealthReturn {
   data: AiosContextHealth[];
@@ -8,13 +8,17 @@ interface UseAiosContextHealthReturn {
   error: string | null;
   refetch: () => void;
   refreshHealth: () => Promise<void>;
-  updateHealthScore: (id: string, score: number, notes?: string) => Promise<boolean>;
+  updateHealthScore: (
+    id: string,
+    score: number,
+    notes?: string,
+  ) => Promise<boolean>;
   criticalCount: number;
 }
 
 export function useAiosContextHealth(
-  filterType?: AiosContextEntityType | 'all',
-  filterHealth?: 'all' | 'saudavel' | 'atencao' | 'critico'
+  filterType?: AiosContextEntityType | "all",
+  filterHealth?: "all" | "saudavel" | "atencao" | "critico",
 ): UseAiosContextHealthReturn {
   const [data, setData] = useState<AiosContextHealth[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,34 +31,37 @@ export function useAiosContextHealth(
 
     try {
       let query = supabase
-        .from('aios_context_health')
-        .select('*')
-        .order('health_score', { ascending: true });
+        .from("aios_context_health")
+        .select("*")
+        .order("health_score", { ascending: true });
 
-      if (filterType && filterType !== 'all') {
-        query = query.eq('entity_type', filterType);
+      if (filterType && filterType !== "all") {
+        query = query.eq("entity_type", filterType);
       }
 
-      if (filterHealth && filterHealth !== 'all') {
-        if (filterHealth === 'saudavel') {
-          query = query.gte('health_score', 80);
-        } else if (filterHealth === 'atencao') {
-          query = query.gte('health_score', 50).lt('health_score', 80);
-        } else if (filterHealth === 'critico') {
-          query = query.lt('health_score', 50);
+      if (filterHealth && filterHealth !== "all") {
+        if (filterHealth === "saudavel") {
+          query = query.gte("health_score", 80);
+        } else if (filterHealth === "atencao") {
+          query = query.gte("health_score", 50).lt("health_score", 80);
+        } else if (filterHealth === "critico") {
+          query = query.lt("health_score", 50);
         }
       }
 
       const { data: result, error: fetchError } = await query;
 
       if (fetchError) {
-        console.warn('[useAiosContextHealth] Tabela indisponivel:', fetchError.message);
+        console.warn(
+          "[useAiosContextHealth] Tabela indisponivel:",
+          fetchError.message,
+        );
         setData([]);
       } else {
         setData(result ?? []);
       }
     } catch (err: unknown) {
-      console.error('[useAiosContextHealth] Erro:', err);
+      console.error("[useAiosContextHealth] Erro:", err);
       setData([]);
     } finally {
       setLoading(false);
@@ -76,8 +83,8 @@ export function useAiosContextHealth(
 
     // Busca todos os registros para recalcular
     const { data: all, error: fetchError } = await supabase
-      .from('aios_context_health')
-      .select('*');
+      .from("aios_context_health")
+      .select("*");
 
     if (fetchError) {
       setError(fetchError.message);
@@ -89,7 +96,8 @@ export function useAiosContextHealth(
     const updates: Promise<unknown>[] = [];
 
     for (const item of all ?? []) {
-      const diffHours = (now - new Date(item.last_updated_at).getTime()) / 3600000;
+      const diffHours =
+        (now - new Date(item.last_updated_at).getTime()) / 3600000;
       let newScore = item.health_score;
 
       // Penalizar scores de entidades sem atualização recente
@@ -106,10 +114,15 @@ export function useAiosContextHealth(
 
       if (newScore !== item.health_score) {
         updates.push(
-          supabase
-            .from('aios_context_health')
-            .update({ health_score: newScore, last_updated_at: new Date().toISOString() })
-            .eq('id', item.id)
+          Promise.resolve(
+            supabase
+              .from("aios_context_health")
+              .update({
+                health_score: newScore,
+                last_updated_at: new Date().toISOString(),
+              })
+              .eq("id", item.id),
+          ),
         );
       }
     }
@@ -132,9 +145,9 @@ export function useAiosContextHealth(
       }
 
       const { error: updateError } = await supabase
-        .from('aios_context_health')
+        .from("aios_context_health")
         .update(updateData)
-        .eq('id', id);
+        .eq("id", id);
 
       if (updateError) {
         setError(updateError.message);
@@ -144,7 +157,7 @@ export function useAiosContextHealth(
       await fetchHealth();
       return true;
     },
-    [fetchHealth]
+    [fetchHealth],
   );
 
   const criticalCount = data.filter((d) => d.health_score < 50).length;

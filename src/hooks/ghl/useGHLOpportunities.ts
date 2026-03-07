@@ -29,8 +29,8 @@ export function useGHLOpportunities({ locationId, status, limit = 100 }: UseGHLO
             );
             setOpportunities(data.opportunities);
             setError(null);
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
+        } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             console.error('Error fetching opportunities:', err);
             setError('Failed to load opportunities');
         } finally {

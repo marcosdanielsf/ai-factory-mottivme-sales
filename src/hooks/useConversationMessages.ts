@@ -67,7 +67,7 @@ export const useConversationMessages = (
       // Debug: log raw message types to help diagnose role mapping
       if (data && data.length > 0) {
         const typeCounts: Record<string, number> = {};
-        data.forEach((msg: any) => {
+        data.forEach((msg) => {
           const t = msg.message?.type || 'undefined';
           typeCounts[t] = (typeCounts[t] || 0) + 1;
         });
@@ -76,7 +76,7 @@ export const useConversationMessages = (
       }
 
       // Formatar mensagens (sem ordenação no cliente - já vem ordenado)
-      const formatted: SupervisionMessage[] = (data || []).map((msg: any) => ({
+      const formatted: SupervisionMessage[] = (data || []).map((msg) => ({
         message_id: String(msg.id),
         session_id: msg.session_id,
         location_id: msg.location_id,
@@ -101,7 +101,7 @@ export const useConversationMessages = (
       }
 
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching messages:', err);
       // Usar mock se nada funcionar
       setMessages(getMockMessages(sessionId));

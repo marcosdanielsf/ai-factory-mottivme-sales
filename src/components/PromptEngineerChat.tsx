@@ -1,6 +1,25 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, Eye, Sparkles, Shield, AlertTriangle, Zap, Brain, Code, Target, Briefcase, GitBranch, FileText, Settings } from 'lucide-react';
-import DOMPurify from 'dompurify';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Sparkles,
+  Shield,
+  AlertTriangle,
+  Zap,
+  Brain,
+  Code,
+  Target,
+  Briefcase,
+  GitBranch,
+  FileText,
+  Settings,
+} from "lucide-react";
+import { sanitizeMarkdown } from "../lib/sanitizeMarkdown";
 
 // =============================================================================
 // TYPES
@@ -8,11 +27,11 @@ import DOMPurify from 'dompurify';
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   preview?: PromptPreview;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: "pending" | "approved" | "rejected";
   zone?: EditableZone;
   confidence?: number;
 }
@@ -21,130 +40,140 @@ interface PromptPreview {
   zone: EditableZone;
   zone_label: string;
   field_path: string;
-  operation: 'add' | 'update' | 'remove';
+  operation: "add" | "update" | "remove";
   before: string;
   after: string;
   diff_summary: string;
   reasoning: string;
 }
 
-type EditableZone = 
-  | 'system_prompt'      // Prompt principal
-  | 'compliance_rules'   // Regras de compliance
-  | 'personality_config' // Personalidade
-  | 'business_config'    // Dados do negócio
-  | 'tools_config'       // Ferramentas
-  | 'hyperpersonalization' // Contexto
-  | 'prompts_by_mode';   // Prompts por modo
+type EditableZone =
+  | "system_prompt" // Prompt principal
+  | "compliance_rules" // Regras de compliance
+  | "personality_config" // Personalidade
+  | "business_config" // Dados do negócio
+  | "tools_config" // Ferramentas
+  | "hyperpersonalization" // Contexto
+  | "prompts_by_mode"; // Prompts por modo
 
 // =============================================================================
 // ZONE DEFINITIONS - Estrutura dos Agentes MOTTIVME
 // =============================================================================
 
-const ZONES: Record<EditableZone, {
-  label: string;
-  description: string;
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-  examples: string[];
-  structure_hint: string;
-}> = {
+const ZONES: Record<
+  EditableZone,
+  {
+    label: string;
+    description: string;
+    icon: React.ElementType;
+    color: string;
+    bgColor: string;
+    examples: string[];
+    structure_hint: string;
+  }
+> = {
   system_prompt: {
-    label: 'System Prompt',
-    description: 'Prompt principal do agente (CRITICS framework)',
+    label: "System Prompt",
+    description: "Prompt principal do agente (CRITICS framework)",
     icon: FileText,
-    color: 'text-cyan-400',
-    bgColor: 'bg-cyan-500/20',
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/20",
     examples: [
-      'Adicione uma nova objeção mapeada',
-      'Mude o tom da saudação',
-      'Adicione regra de formatação',
+      "Adicione uma nova objeção mapeada",
+      "Mude o tom da saudação",
+      "Adicione regra de formatação",
     ],
-    structure_hint: 'Seções: <Role>, <Constraints>, <Inputs>, <Tools>, <Instructions>, <Solutions>',
+    structure_hint:
+      "Seções: <Role>, <Constraints>, <Inputs>, <Tools>, <Instructions>, <Solutions>",
   },
   compliance_rules: {
-    label: 'Compliance',
-    description: 'Regras de segurança, escalação e anti-alucinação',
+    label: "Compliance",
+    description: "Regras de segurança, escalação e anti-alucinação",
     icon: Shield,
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/20',
+    color: "text-red-400",
+    bgColor: "bg-red-500/20",
     examples: [
-      'Adicione proibição de mencionar concorrentes',
-      'Configure trigger de escalação',
-      'Adicione regra anti-alucinação',
+      "Adicione proibição de mencionar concorrentes",
+      "Configure trigger de escalação",
+      "Adicione regra anti-alucinação",
     ],
-    structure_hint: 'Campos: proibicoes[], escalacao.triggers[], anti_alucinacao[], objecoes_mapeadas{}',
+    structure_hint:
+      "Campos: proibicoes[], escalacao.triggers[], anti_alucinacao[], objecoes_mapeadas{}",
   },
   personality_config: {
-    label: 'Personalidade',
-    description: 'Tom de voz, emojis, formalidade, idiomas',
+    label: "Personalidade",
+    description: "Tom de voz, emojis, formalidade, idiomas",
     icon: Sparkles,
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/20',
+    color: "text-purple-400",
+    bgColor: "bg-purple-500/20",
     examples: [
-      'Mude o tom para mais consultivo',
-      'Reduza uso de emojis',
-      'Configure nível de formalidade',
+      "Mude o tom para mais consultivo",
+      "Reduza uso de emojis",
+      "Configure nível de formalidade",
     ],
-    structure_hint: 'Campos: tom_voz, nivel_formalidade (1-10), uso_emojis, idiomas_suportados[], modos.{modo}.tom',
+    structure_hint:
+      "Campos: tom_voz, nivel_formalidade (1-10), uso_emojis, idiomas_suportados[], modos.{modo}.tom",
   },
   business_config: {
-    label: 'Negócio',
-    description: 'Valores, unidades, horários, dados comerciais',
+    label: "Negócio",
+    description: "Valores, unidades, horários, dados comerciais",
     icon: Briefcase,
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/20',
+    color: "text-orange-400",
+    bgColor: "bg-orange-500/20",
     examples: [
-      'Atualize valor do curso de nails',
-      'Adicione nova unidade',
-      'Configure horário de atendimento',
+      "Atualize valor do curso de nails",
+      "Adicione nova unidade",
+      "Configure horário de atendimento",
     ],
-    structure_hint: 'Campos: valores.{curso}, unidades[], horario, parcelamento{}',
+    structure_hint:
+      "Campos: valores.{curso}, unidades[], horario, parcelamento{}",
   },
   tools_config: {
-    label: 'Ferramentas',
-    description: 'Tools disponíveis e seus parâmetros',
+    label: "Ferramentas",
+    description: "Tools disponíveis e seus parâmetros",
     icon: Code,
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/20',
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/20",
     examples: [
-      'Habilite ferramenta de agendamento',
-      'Configure limite de chamadas',
-      'Adicione novo parâmetro em tool',
+      "Habilite ferramenta de agendamento",
+      "Configure limite de chamadas",
+      "Adicione novo parâmetro em tool",
     ],
-    structure_hint: 'Campos: enabled_tools.{categoria}[].code, .enabled, .parameters[], .max_chamadas_por_conversa',
+    structure_hint:
+      "Campos: enabled_tools.{categoria}[].code, .enabled, .parameters[], .max_chamadas_por_conversa",
   },
   hyperpersonalization: {
-    label: 'Contexto',
-    description: 'Setor, localização, público-alvo, modos ativos',
+    label: "Contexto",
+    description: "Setor, localização, público-alvo, modos ativos",
     icon: Target,
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/20',
+    color: "text-green-400",
+    bgColor: "bg-green-500/20",
     examples: [
-      'Configure público-alvo primário',
-      'Adicione modo de operação',
-      'Configure timezone',
+      "Configure público-alvo primário",
+      "Adicione modo de operação",
+      "Configure timezone",
     ],
-    structure_hint: 'Campos: setor, localizacao{}, publico_alvo{}, modos_habilitados[], saudacao_por_horario{}',
+    structure_hint:
+      "Campos: setor, localizacao{}, publico_alvo{}, modos_habilitados[], saudacao_por_horario{}",
   },
   prompts_by_mode: {
-    label: 'Modos',
-    description: 'Prompts específicos por modo de operação',
+    label: "Modos",
+    description: "Prompts específicos por modo de operação",
     icon: GitBranch,
-    color: 'text-violet-400',
-    bgColor: 'bg-violet-500/20',
+    color: "text-violet-400",
+    bgColor: "bg-violet-500/20",
     examples: [
-      'Edite prompt do modo SDR',
-      'Configure fluxo do followuper',
-      'Adicione novo modo de operação',
+      "Edite prompt do modo SDR",
+      "Configure fluxo do followuper",
+      "Adicione novo modo de operação",
     ],
-    structure_hint: 'Campos: sdr_inbound, social_seller, followuper, concierge, reativador',
+    structure_hint:
+      "Campos: sdr_inbound, social_seller, followuper, concierge, reativador",
   },
 };
 
 // Zonas protegidas (read-only)
-const PROTECTED_ZONES = ['id', 'client_id', 'created_at', 'version'];
+const PROTECTED_ZONES = ["id", "client_id", "created_at", "version"];
 
 // =============================================================================
 // PROMPT DO ENGENHEIRO
@@ -247,18 +276,24 @@ interface PromptEngineerChatProps {
   agentName: string;
   currentPrompt: string;
   currentConfigs: {
-    hyperpersonalization?: any;
-    compliance_rules?: any;
-    personality_config?: any;
-    business_config?: any;
-    tools_config?: any;
-    prompts_by_mode?: any;
+    hyperpersonalization?: Record<string, unknown>;
+    compliance_rules?: Record<string, unknown>;
+    personality_config?: Record<string, unknown>;
+    business_config?: Record<string, unknown>;
+    tools_config?: Record<string, unknown>;
+    prompts_by_mode?: Record<string, unknown>;
   };
-  onApplyChanges: (zone: string, newContent: any, fieldPath?: string) => Promise<void>;
+  onApplyChanges: (
+    zone: string,
+    newContent: string | Record<string, unknown>,
+    fieldPath?: string,
+  ) => Promise<void>;
   onClose?: () => void;
 }
 
-const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_PROMPT_ENGINEER || 'https://cliente-a1.mentorfy.io/webhook/engenheiro-prompt';
+const N8N_WEBHOOK_URL =
+  import.meta.env.VITE_N8N_WEBHOOK_PROMPT_ENGINEER ||
+  "https://cliente-a1.mentorfy.io/webhook/engenheiro-prompt";
 
 export const PromptEngineerChat: React.FC<PromptEngineerChatProps> = ({
   agentId,
@@ -270,13 +305,15 @@ export const PromptEngineerChat: React.FC<PromptEngineerChatProps> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      role: 'system',
+      id: "1",
+      role: "system",
       content: `🛠️ **Engenheiro de Prompts** ativo para **${agentName}**
 
 Eu conheço a estrutura completa deste agente e posso fazer alterações precisas em:
 
-${Object.entries(ZONES).map(([key, zone]) => `• **${zone.label}** - ${zone.description}`).join('\n')}
+${Object.entries(ZONES)
+  .map(([key, zone]) => `• **${zone.label}** - ${zone.description}`)
+  .join("\n")}
 
 **Como funciona:**
 1. Descreva o que quer alterar em linguagem natural
@@ -291,14 +328,14 @@ _"Atualize o valor do curso de nails para $950"_`,
       timestamp: new Date(),
     },
   ]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<Message | null>(null);
   const [selectedZone, setSelectedZone] = useState<EditableZone | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Preparar contexto do agente para o webhook
@@ -314,7 +351,9 @@ _"Atualize o valor do curso de nails para $950"_`,
         personality_config: currentConfigs.personality_config,
         business_config: currentConfigs.business_config,
         tools_config: currentConfigs.tools_config,
-        prompts_by_mode: currentConfigs.prompts_by_mode ? Object.keys(currentConfigs.prompts_by_mode) : [],
+        prompts_by_mode: currentConfigs.prompts_by_mode
+          ? Object.keys(currentConfigs.prompts_by_mode)
+          : [],
       },
     };
   };
@@ -338,10 +377,10 @@ _"Atualize o valor do curso de nails para $950"_`,
       // Formato esperado pelo workflow n8n:
       // { comando: "editar", cliente: "Nome", instrucao: "..." }
       const response = await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          comando: 'editar',
+          comando: "editar",
           cliente: agentName,
           instrucao: userMessage,
           // Dados extras para contexto
@@ -355,27 +394,27 @@ _"Atualize o valor do curso de nails para $950"_`,
       }
 
       const data = await response.json();
-      
+
       // Workflow retorna: { success, message, data: { version_id, versao }, comando }
       if (data.success && data.data?.version_id) {
         // Edição foi processada pelo workflow
         const detectedZone = selectedZone || detectZoneFromMessage(userMessage);
         const zoneInfo = ZONES[detectedZone];
-        
+
         const preview: PromptPreview = {
           zone: detectedZone,
           zone_label: zoneInfo.label,
           field_path: detectedZone,
-          operation: 'update',
-          before: '[Processado pelo Engenheiro n8n]',
+          operation: "update",
+          before: "[Processado pelo Engenheiro n8n]",
           after: userMessage,
           diff_summary: `Nova versão ${data.data.versao} criada`,
-          reasoning: data.message || 'Mudança aplicada via workflow n8n',
+          reasoning: data.message || "Mudança aplicada via workflow n8n",
         };
 
         return {
           id: Date.now().toString(),
-          role: 'assistant',
+          role: "assistant",
           content: `✅ **Mudança processada pelo Engenheiro!**
 
 **Agente:** ${agentName}
@@ -384,24 +423,24 @@ _"Atualize o valor do curso de nails para $950"_`,
 
 **ID para aprovar:** \`${data.data.version_id}\`
 
-${data.message || ''}
+${data.message || ""}
 
 A versão foi criada mas ainda precisa de aprovação.
 Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
           timestamp: new Date(),
           preview,
-          status: 'approved', // Já foi aplicado pelo workflow
+          status: "approved", // Já foi aplicado pelo workflow
           zone: detectedZone,
           confidence: 1,
         };
       }
-      
+
       // Se não teve sucesso ou é outro tipo de resposta
       if (!data.success) {
         return {
           id: Date.now().toString(),
-          role: 'assistant',
-          content: `⚠️ **Resposta do Engenheiro:**\n\n${data.message || 'Não foi possível processar a solicitação.'}`,
+          role: "assistant",
+          content: `⚠️ **Resposta do Engenheiro:**\n\n${data.message || "Não foi possível processar a solicitação."}`,
           timestamp: new Date(),
         };
       }
@@ -409,13 +448,12 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
       // Fallback para respostas de outros comandos (listar, ver, etc)
       return {
         id: Date.now().toString(),
-        role: 'assistant',
-        content: data.message || 'Comando processado.',
+        role: "assistant",
+        content: data.message || "Comando processado.",
         timestamp: new Date(),
       };
-
     } catch (error) {
-      console.error('Webhook error:', error);
+      console.error("Webhook error:", error);
       return processLocalFallback(userMessage);
     }
   };
@@ -432,50 +470,84 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
       /^(o que|quem|qual|quando|onde|por que)/,
     ];
     // Se bate padrão conversacional E não contém keywords de edição, é conversacional
-    const isConversational = conversationalPatterns.some(p => p.test(lower));
-    const hasEditKeywords = /(?:adicion|remov|atualiz|mude|alter|configur|habilit|desabilit|proibi|nunca|sempre|deve ser|defin|seta|coloque|troque|aument|diminu|reduz)/i.test(message);
+    const isConversational = conversationalPatterns.some((p) => p.test(lower));
+    const hasEditKeywords =
+      /(?:adicion|remov|atualiz|mude|alter|configur|habilit|desabilit|proibi|nunca|sempre|deve ser|defin|seta|coloque|troque|aument|diminu|reduz)/i.test(
+        message,
+      );
     return isConversational && !hasEditKeywords;
   };
 
   // Extrair o conteúdo da instrução (a regra/valor real, não o texto conversacional)
-  const extractInstructionContent = (message: string, zone: EditableZone): { content: string; operation: 'add' | 'update' | 'remove'; fieldPath: string } => {
+  const extractInstructionContent = (
+    message: string,
+    zone: EditableZone,
+  ): {
+    content: string;
+    operation: "add" | "update" | "remove";
+    fieldPath: string;
+  } => {
     const lower = message.toLowerCase();
 
     // Detectar operação
-    let operation: 'add' | 'update' | 'remove' = 'update';
-    if (/(?:adicion|inclua|coloque|insira|crie)/.test(lower)) operation = 'add';
-    if (/(?:remov|delet|tire|exclu)/.test(lower)) operation = 'remove';
+    let operation: "add" | "update" | "remove" = "update";
+    if (/(?:adicion|inclua|coloque|insira|crie)/.test(lower)) operation = "add";
+    if (/(?:remov|delet|tire|exclu)/.test(lower)) operation = "remove";
 
     // Extrair conteúdo baseado na zona
     switch (zone) {
-      case 'compliance_rules': {
+      case "compliance_rules": {
         // "nunca mencionar preço antes de qualificar" → extrair a regra
-        const ruleMatch = message.match(/(?:regra[:\s]*|nunca\s+|proib\w+[:\s]*|sempre\s+)(.+)/i);
+        const ruleMatch = message.match(
+          /(?:regra[:\s]*|nunca\s+|proib\w+[:\s]*|sempre\s+)(.+)/i,
+        );
         const content = ruleMatch ? ruleMatch[0].trim() : message;
-        const subField = /proibi|nunca/.test(lower) ? 'proibicoes' : /escala/.test(lower) ? 'escalacao.triggers' : 'proibicoes';
-        return { content, operation: operation === 'update' ? 'add' : operation, fieldPath: `compliance_rules.${subField}` };
+        const subField = /proibi|nunca/.test(lower)
+          ? "proibicoes"
+          : /escala/.test(lower)
+            ? "escalacao.triggers"
+            : "proibicoes";
+        return {
+          content,
+          operation: operation === "update" ? "add" : operation,
+          fieldPath: `compliance_rules.${subField}`,
+        };
       }
-      case 'personality_config': {
+      case "personality_config": {
         // "O tom no modo followuper deve ser mais casual" → extrair tom e modo
         const modeMatch = lower.match(/modo\s+(\w+)/);
         const mode = modeMatch ? modeMatch[1] : null;
-        const tomMatch = message.match(/(?:tom|estilo|voz)\s+(?:deve ser |mais |para )?\s*(.+)/i);
+        const tomMatch = message.match(
+          /(?:tom|estilo|voz)\s+(?:deve ser |mais |para )?\s*(.+)/i,
+        );
         const content = tomMatch ? tomMatch[1].trim() : message;
-        const fieldPath = mode ? `personality_config.modos.${mode}.tom` : 'personality_config.tom_voz';
-        return { content, operation: 'update', fieldPath };
+        const fieldPath = mode
+          ? `personality_config.modos.${mode}.tom`
+          : "personality_config.tom_voz";
+        return { content, operation: "update", fieldPath };
       }
-      case 'business_config': {
+      case "business_config": {
         // "Atualize o valor do curso de nails para $950" → extrair item e valor
-        const valueMatch = message.match(/(?:valor|preço)\s+(?:do|da|de)\s+(.+?)\s+(?:para|pra|=|:)\s*(.+)/i);
+        const valueMatch = message.match(
+          /(?:valor|preço)\s+(?:do|da|de)\s+(.+?)\s+(?:para|pra|=|:)\s*(.+)/i,
+        );
         if (valueMatch) {
-          return { content: `${valueMatch[1].trim()}: ${valueMatch[2].trim()}`, operation: 'update', fieldPath: `business_config.valores` };
+          return {
+            content: `${valueMatch[1].trim()}: ${valueMatch[2].trim()}`,
+            operation: "update",
+            fieldPath: `business_config.valores`,
+          };
         }
-        return { content: message, operation, fieldPath: 'business_config' };
+        return { content: message, operation, fieldPath: "business_config" };
       }
-      case 'prompts_by_mode': {
+      case "prompts_by_mode": {
         const modeMatch = lower.match(/modo\s+(\w+)/);
-        const mode = modeMatch ? modeMatch[1] : 'sdr_inbound';
-        return { content: message, operation, fieldPath: `prompts_by_mode.${mode}` };
+        const mode = modeMatch ? modeMatch[1] : "sdr_inbound";
+        return {
+          content: message,
+          operation,
+          fieldPath: `prompts_by_mode.${mode}`,
+        };
       }
       default:
         return { content: message, operation, fieldPath: zone };
@@ -484,23 +556,27 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
 
   // Obter valor atual de uma zona
   const getCurrentValue = (zone: EditableZone, fieldPath: string): string => {
-    if (zone === 'system_prompt') {
-      return currentPrompt ? currentPrompt.substring(0, 300) + (currentPrompt.length > 300 ? '...' : '') : '[vazio]';
+    if (zone === "system_prompt") {
+      return currentPrompt
+        ? currentPrompt.substring(0, 300) +
+            (currentPrompt.length > 300 ? "..." : "")
+        : "[vazio]";
     }
     const config = currentConfigs[zone as keyof typeof currentConfigs];
-    if (!config) return '[não configurado]';
+    if (!config) return "[não configurado]";
     // Navegar pelo fieldPath para achar o valor
-    const parts = fieldPath.split('.').slice(1); // Remove o nome da zona
-    let value: any = config;
+    const parts = fieldPath.split(".").slice(1); // Remove o nome da zona
+    let value: unknown = config;
     for (const part of parts) {
-      if (value && typeof value === 'object' && part in value) {
+      if (value && typeof value === "object" && part in value) {
         value = value[part];
       } else {
-        return JSON.stringify(config).substring(0, 200) + '...';
+        return JSON.stringify(config).substring(0, 200) + "...";
       }
     }
-    if (Array.isArray(value)) return value.join(', ');
-    if (typeof value === 'object') return JSON.stringify(value, null, 2).substring(0, 200);
+    if (Array.isArray(value)) return value.join(", ");
+    if (typeof value === "object")
+      return JSON.stringify(value, null, 2).substring(0, 200);
     return String(value);
   };
 
@@ -513,7 +589,10 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
 
     const detectedZone = selectedZone || detectZoneFromMessage(userMessage);
     const zoneInfo = ZONES[detectedZone];
-    const { content, operation, fieldPath } = extractInstructionContent(userMessage, detectedZone);
+    const { content, operation, fieldPath } = extractInstructionContent(
+      userMessage,
+      detectedZone,
+    );
     const currentValue = getCurrentValue(detectedZone, fieldPath);
 
     const preview: PromptPreview = {
@@ -523,19 +602,20 @@ Use o comando \`/prompt aprovar ${data.data.version_id}\` para ativar.`,
       operation,
       before: currentValue,
       after: content,
-      diff_summary: `${operation === 'add' ? 'Adicionar' : operation === 'remove' ? 'Remover' : 'Atualizar'} em ${zoneInfo.label}`,
-      reasoning: 'Processado localmente (webhook indisponível). Verifique o preview antes de aprovar.',
+      diff_summary: `${operation === "add" ? "Adicionar" : operation === "remove" ? "Remover" : "Atualizar"} em ${zoneInfo.label}`,
+      reasoning:
+        "Processado localmente (webhook indisponível). Verifique o preview antes de aprovar.",
     };
 
     return {
       id: Date.now().toString(),
-      role: 'assistant',
+      role: "assistant",
       content: `⚠️ **Modo Offline** - Processamento local
 
 ${formatPreviewMessage(preview, zoneInfo)}`,
       timestamp: new Date(),
       preview,
-      status: 'pending',
+      status: "pending",
       zone: detectedZone,
     };
   };
@@ -543,41 +623,74 @@ ${formatPreviewMessage(preview, zoneInfo)}`,
   // Detectar zona baseado em keywords
   const detectZoneFromMessage = (message: string): EditableZone => {
     const lower = message.toLowerCase();
-    
-    if (lower.includes('proibi') || lower.includes('compliance') || lower.includes('escala') || lower.includes('anti-alucina')) {
-      return 'compliance_rules';
+
+    if (
+      lower.includes("proibi") ||
+      lower.includes("compliance") ||
+      lower.includes("escala") ||
+      lower.includes("anti-alucina")
+    ) {
+      return "compliance_rules";
     }
-    if (lower.includes('tom') || lower.includes('emoji') || lower.includes('formal') || lower.includes('personalidade')) {
-      return 'personality_config';
+    if (
+      lower.includes("tom") ||
+      lower.includes("emoji") ||
+      lower.includes("formal") ||
+      lower.includes("personalidade")
+    ) {
+      return "personality_config";
     }
-    if (lower.includes('valor') || lower.includes('preço') || lower.includes('unidade') || lower.includes('horário') || lower.includes('parcela')) {
-      return 'business_config';
+    if (
+      lower.includes("valor") ||
+      lower.includes("preço") ||
+      lower.includes("unidade") ||
+      lower.includes("horário") ||
+      lower.includes("parcela")
+    ) {
+      return "business_config";
     }
-    if (lower.includes('ferramenta') || lower.includes('tool') || lower.includes('habilit')) {
-      return 'tools_config';
+    if (
+      lower.includes("ferramenta") ||
+      lower.includes("tool") ||
+      lower.includes("habilit")
+    ) {
+      return "tools_config";
     }
-    if (lower.includes('contexto') || lower.includes('público') || lower.includes('setor') || lower.includes('localização')) {
-      return 'hyperpersonalization';
+    if (
+      lower.includes("contexto") ||
+      lower.includes("público") ||
+      lower.includes("setor") ||
+      lower.includes("localização")
+    ) {
+      return "hyperpersonalization";
     }
-    if (lower.includes('modo') && (lower.includes('sdr') || lower.includes('followup') || lower.includes('social') || lower.includes('concierge'))) {
-      return 'prompts_by_mode';
+    if (
+      lower.includes("modo") &&
+      (lower.includes("sdr") ||
+        lower.includes("followup") ||
+        lower.includes("social") ||
+        lower.includes("concierge"))
+    ) {
+      return "prompts_by_mode";
     }
-    
+
     // Default: system_prompt
-    return 'system_prompt';
+    return "system_prompt";
   };
 
   // Criar mensagem pedindo clarificação
   const createClarificationMessage = (userMessage: string): Message => {
     return {
       id: Date.now().toString(),
-      role: 'assistant',
+      role: "assistant",
       content: `🤔 Preciso de mais contexto para fazer essa alteração.
 
 **Sua solicitação:** "${userMessage}"
 
 **Em qual zona você quer fazer essa alteração?**
-${Object.entries(ZONES).map(([key, zone], i) => `${i + 1}. **${zone.label}** - ${zone.description}`).join('\n')}
+${Object.entries(ZONES)
+  .map(([key, zone], i) => `${i + 1}. **${zone.label}** - ${zone.description}`)
+  .join("\n")}
 
 Me diz o número ou descreve melhor o que você quer alterar.`,
       timestamp: new Date(),
@@ -585,18 +698,21 @@ Me diz o número ou descreve melhor o que você quer alterar.`,
   };
 
   // Formatar mensagem de preview
-  const formatPreviewMessage = (preview: PromptPreview, zoneInfo: typeof ZONES[EditableZone]): string => {
+  const formatPreviewMessage = (
+    preview: PromptPreview,
+    zoneInfo: (typeof ZONES)[EditableZone],
+  ): string => {
     return `✅ Entendi! Vou fazer essa alteração em **${preview.zone_label}**.
 
-**Operação:** ${preview.operation === 'add' ? '➕ Adicionar' : preview.operation === 'remove' ? '➖ Remover' : '✏️ Atualizar'}
+**Operação:** ${preview.operation === "add" ? "➕ Adicionar" : preview.operation === "remove" ? "➖ Remover" : "✏️ Atualizar"}
 **Campo:** \`${preview.field_path}\`
 
 **Alteração proposta:**
-_"${preview.after.substring(0, 200)}${preview.after.length > 200 ? '...' : ''}"_
+_"${preview.after.substring(0, 200)}${preview.after.length > 200 ? "..." : ""}"_
 
 **Motivo:** ${preview.reasoning}
 
-${zoneInfo.structure_hint ? `💡 _Estrutura: ${zoneInfo.structure_hint}_` : ''}
+${zoneInfo.structure_hint ? `💡 _Estrutura: ${zoneInfo.structure_hint}_` : ""}
 
 Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
   };
@@ -606,28 +722,29 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: input,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
     setIsProcessing(true);
 
     try {
       const response = await processRequest(input);
-      setMessages(prev => [...prev, response]);
-      if (response.status === 'pending') {
+      setMessages((prev) => [...prev, response]);
+      if (response.status === "pending") {
         setPendingPreview(response);
       }
     } catch (error) {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'assistant',
-          content: '❌ Erro ao processar. Tente novamente ou descreva de forma diferente.',
+          role: "assistant",
+          content:
+            "❌ Erro ao processar. Tente novamente ou descreva de forma diferente.",
           timestamp: new Date(),
         },
       ]);
@@ -644,20 +761,22 @@ Clique em **Aprovar** para aplicar ou **Rejeitar** para cancelar.`;
       await onApplyChanges(
         pendingPreview.preview.zone,
         pendingPreview.preview.after,
-        pendingPreview.preview.field_path
+        pendingPreview.preview.field_path,
       );
 
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === pendingPreview.id ? { ...m, status: 'approved' as const } : m
-        )
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === pendingPreview.id
+            ? { ...m, status: "approved" as const }
+            : m,
+        ),
       );
 
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'system',
+          role: "system",
           content: `✅ **Alteração aplicada com sucesso!**
 
 **Zona:** ${pendingPreview.preview.zone_label}
@@ -669,13 +788,13 @@ Uma nova versão do prompt foi criada automaticamente.`,
       ]);
 
       setPendingPreview(null);
-    } catch (error: any) {
-      setMessages(prev => [
+    } catch (error: unknown) {
+      setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          role: 'system',
-          content: `❌ **Erro ao aplicar:** ${error.message}`,
+          role: "system",
+          content: `❌ **Erro ao aplicar:** ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           timestamp: new Date(),
         },
       ]);
@@ -687,18 +806,18 @@ Uma nova versão do prompt foi criada automaticamente.`,
   const handleReject = () => {
     if (!pendingPreview) return;
 
-    setMessages(prev =>
-      prev.map(m =>
-        m.id === pendingPreview.id ? { ...m, status: 'rejected' as const } : m
-      )
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === pendingPreview.id ? { ...m, status: "rejected" as const } : m,
+      ),
     );
 
-    setMessages(prev => [
+    setMessages((prev) => [
       ...prev,
       {
         id: Date.now().toString(),
-        role: 'system',
-        content: '↩️ Alteração cancelada. Descreva o que você quer modificar.',
+        role: "system",
+        content: "↩️ Alteração cancelada. Descreva o que você quer modificar.",
         timestamp: new Date(),
       },
     ]);
@@ -707,7 +826,7 @@ Uma nova versão do prompt foi criada automaticamente.`,
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -745,11 +864,15 @@ Uma nova versão do prompt foi criada automaticamente.`,
 
       {/* Zone Selector */}
       <div className="flex items-center gap-1.5 px-3 py-2 bg-bg-tertiary/50 border-b border-border-default overflow-x-auto">
-        <span className="text-[10px] text-text-muted uppercase shrink-0">Zona:</span>
+        <span className="text-[10px] text-text-muted uppercase shrink-0">
+          Zona:
+        </span>
         <button
           onClick={() => setSelectedZone(null)}
           className={`px-2 py-1 text-xs rounded transition-colors shrink-0 ${
-            !selectedZone ? 'bg-bg-secondary text-text-primary' : 'text-text-muted hover:text-text-secondary'
+            !selectedZone
+              ? "bg-bg-secondary text-text-primary"
+              : "text-text-muted hover:text-text-secondary"
           }`}
         >
           Auto
@@ -761,7 +884,9 @@ Uma nova versão do prompt foi criada automaticamente.`,
               key={key}
               onClick={() => setSelectedZone(key as EditableZone)}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors shrink-0 ${
-                selectedZone === key ? zone.bgColor + ' ' + zone.color : 'text-text-muted hover:text-text-secondary'
+                selectedZone === key
+                  ? zone.bgColor + " " + zone.color
+                  : "text-text-muted hover:text-text-secondary"
               }`}
               title={zone.description}
             >
@@ -777,54 +902,53 @@ Uma nova versão do prompt foi criada automaticamente.`,
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
           >
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                message.role === 'user'
-                  ? 'bg-accent-primary'
-                  : message.role === 'system'
-                  ? 'bg-green-500/20'
-                  : 'bg-gradient-to-br from-cyan-500/30 to-purple-500/30'
+                message.role === "user"
+                  ? "bg-accent-primary"
+                  : message.role === "system"
+                    ? "bg-green-500/20"
+                    : "bg-gradient-to-br from-cyan-500/30 to-purple-500/30"
               }`}
             >
-              {message.role === 'user' ? (
+              {message.role === "user" ? (
                 <User size={16} className="text-white" />
-              ) : message.role === 'system' ? (
+              ) : message.role === "system" ? (
                 <CheckCircle2 size={16} className="text-green-400" />
               ) : (
                 <Zap size={16} className="text-cyan-400" />
               )}
             </div>
 
-            <div className={`max-w-[85%] ${message.role === 'user' ? 'text-right' : ''}`}>
+            <div
+              className={`max-w-[85%] ${message.role === "user" ? "text-right" : ""}`}
+            >
               <div
                 className={`inline-block px-4 py-2 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-accent-primary text-white'
-                    : message.role === 'system'
-                    ? 'bg-green-500/10 border border-green-500/30 text-text-secondary'
-                    : 'bg-bg-secondary border border-border-default text-text-secondary'
+                  message.role === "user"
+                    ? "bg-accent-primary text-white"
+                    : message.role === "system"
+                      ? "bg-green-500/10 border border-green-500/30 text-text-secondary"
+                      : "bg-bg-secondary border border-border-default text-text-secondary"
                 }`}
               >
                 <div
                   className="text-sm whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(
-                      message.content
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/_(.*?)_/g, '<em>$1</em>')
-                        .replace(/`(.*?)`/g, '<code class="bg-bg-tertiary px-1 rounded text-xs">$1</code>')
-                    ),
+                    __html: sanitizeMarkdown(message.content),
                   }}
                 />
 
                 {/* Preview Card */}
-                {message.preview && message.status === 'pending' && (
+                {message.preview && message.status === "pending" && (
                   <div className="mt-3 p-3 bg-bg-tertiary rounded-lg border border-border-default">
                     <div className="flex items-center gap-2 mb-2">
                       <Eye size={14} className="text-text-muted" />
-                      <span className="text-xs font-medium text-text-muted">Preview</span>
+                      <span className="text-xs font-medium text-text-muted">
+                        Preview
+                      </span>
                       {message.zone && ZONES[message.zone] && (
                         <span
                           className={`text-xs px-2 py-0.5 rounded ${ZONES[message.zone].bgColor} ${ZONES[message.zone].color}`}
@@ -840,25 +964,32 @@ Uma nova versão do prompt foi criada automaticamente.`,
                 )}
 
                 {/* Status Badge */}
-                {message.status && message.status !== 'pending' && (
+                {message.status && message.status !== "pending" && (
                   <div
                     className={`mt-2 inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                      message.status === 'approved'
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-red-500/20 text-red-400'
+                      message.status === "approved"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
                     }`}
                   >
-                    {message.status === 'approved' ? (
-                      <><CheckCircle2 size={12} /> Aplicado</>
+                    {message.status === "approved" ? (
+                      <>
+                        <CheckCircle2 size={12} /> Aplicado
+                      </>
                     ) : (
-                      <><XCircle size={12} /> Cancelado</>
+                      <>
+                        <XCircle size={12} /> Cancelado
+                      </>
                     )}
                   </div>
                 )}
               </div>
 
               <div className="text-xs text-text-muted mt-1">
-                {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                {message.timestamp.toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
             </div>
           </div>
@@ -897,7 +1028,11 @@ Uma nova versão do prompt foi criada automaticamente.`,
             disabled={isProcessing}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
           >
-            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            {isProcessing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <CheckCircle2 size={16} />
+            )}
             Aprovar e Aplicar
           </button>
         </div>
@@ -910,9 +1045,10 @@ Uma nova versão do prompt foi criada automaticamente.`,
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={selectedZone 
-              ? `Alteração em ${ZONES[selectedZone].label}...` 
-              : "Descreva a alteração que você quer fazer..."
+            placeholder={
+              selectedZone
+                ? `Alteração em ${ZONES[selectedZone].label}...`
+                : "Descreva a alteração que você quer fazer..."
             }
             disabled={isProcessing || !!pendingPreview}
             className="flex-1 bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary resize-none disabled:opacity-50"

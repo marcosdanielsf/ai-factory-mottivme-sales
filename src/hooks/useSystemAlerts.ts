@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MOCK_ALERTS } from '../constants';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface SystemAlert {
   id: string;
@@ -27,9 +28,9 @@ export const useSystemAlerts = () => {
       // Simulating a delay to match the UI feel of other pages
       await new Promise(resolve => setTimeout(resolve, 800));
       setAlerts(MOCK_ALERTS as SystemAlert[]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching alerts:', err);
-      setError(err.message || 'Erro ao carregar alertas');
+      setError(getErrorMessage(err) || 'Erro ao carregar alertas');
     } finally {
       setLoading(false);
     }

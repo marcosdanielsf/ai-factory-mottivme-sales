@@ -19,6 +19,7 @@ import { useAccount } from '../contexts/AccountContext';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useAuth } from '../contexts/AuthContext';
 import { ghlClient } from '../services/ghl/ghlClient';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // Types
 type InterviewStatus = 'pending' | 'completed' | 'no_show' | 'lost' | 'converted';
@@ -401,9 +402,9 @@ export const StatusCenter = () => {
       }));
 
       setInterviews(finalData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching interviews:', err);
-      setError(err.message || 'Erro ao carregar entrevistas');
+      setError(getErrorMessage(err) || 'Erro ao carregar entrevistas');
     } finally {
       setIsLoading(false);
     }
@@ -518,7 +519,7 @@ export const StatusCenter = () => {
       };
 
       showToast(messages[newStatus], 'success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating status:', err);
       showToast('Erro ao atualizar status', 'error');
     } finally {

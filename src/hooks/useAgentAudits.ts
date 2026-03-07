@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // ============================================================================
 // HOOK: useAgentAudits
@@ -147,9 +148,9 @@ export const useAgentAudits = (locationId?: string) => {
       }));
 
       setScorecards(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao buscar auditorias:', err);
-      setError(err.message || 'Erro ao carregar auditorias');
+      setError(getErrorMessage(err) || 'Erro ao carregar auditorias');
     } finally {
       setLoading(false);
     }
@@ -212,9 +213,9 @@ export const useAgentAuditHistory = (agentVersionId?: string) => {
       }));
 
       setHistory(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao buscar histórico de auditorias:', err);
-      setError(err.message || 'Erro ao carregar histórico');
+      setError(getErrorMessage(err) || 'Erro ao carregar histórico');
     } finally {
       setLoading(false);
     }

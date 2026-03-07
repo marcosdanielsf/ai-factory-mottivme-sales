@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Mail, Send, Copy, Check, Loader2, UserPlus } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface InviteClientModalProps {
   isOpen: boolean;
@@ -72,9 +73,9 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
         // Email sending failed but invite was created
         console.warn('Failed to send invite email:', emailErr);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating invite:', err);
-      setError(err.message || 'Erro ao criar convite');
+      setError(getErrorMessage(err) || 'Erro ao criar convite');
     } finally {
       setLoading(false);
     }

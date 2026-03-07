@@ -36,7 +36,10 @@ import type {
 interface DecompositionTreeProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (input: DecomposeInput, result: DecomposeResult) => Promise<void>;
+  onConfirm: (
+    input: DecomposeInput,
+    result: DecomposeResult,
+  ) => Promise<void | string>;
   onDecompose: (input: DecomposeInput) => Promise<DecomposeResult>;
   locationId: string;
   locationName?: string;

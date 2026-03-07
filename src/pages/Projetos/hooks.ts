@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { ProjectTask, TaskStatus } from './types';
+import { getErrorMessage } from "../../lib/getErrorMessage";
 
 // =============================================
 // useProjectTasks — Fetch + filter tasks
@@ -27,8 +28,8 @@ export function useProjectTasks(projectKey?: string) {
       const { data, error: err } = await query;
       if (err) throw err;
       setTasks((data || []) as ProjectTask[]);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar tarefas');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar tarefas');
       console.error('useProjectTasks error:', err);
     } finally {
       setLoading(false);
@@ -66,7 +67,7 @@ export function useTaskMutations(
       const task = created as ProjectTask;
       setTasks((prev) => [task, ...prev]);
       return task;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('createTask error:', err);
       return null;
     } finally {
@@ -91,7 +92,7 @@ export function useTaskMutations(
       const task = updated as ProjectTask;
       setTasks((prev) => prev.map((t) => (t.id === id ? task : t)));
       return task;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('updateTask error:', err);
       return null;
     } finally {
@@ -112,7 +113,7 @@ export function useTaskMutations(
         .eq('id', id);
 
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('updateStatus error:', err);
       // Revert handled by caller if needed
     }
@@ -129,7 +130,7 @@ export function useTaskMutations(
       if (error) throw error;
       setTasks((prev) => prev.filter((t) => t.id !== id));
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('deleteTask error:', err);
       return false;
     } finally {

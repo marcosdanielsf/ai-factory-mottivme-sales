@@ -9,7 +9,7 @@ export interface LeadScoreRow {
   cpl: number;
   resp_pct: number;
   score: number;
-  potencial: 'alto' | 'medio' | 'baixo' | 'desqualificado';
+  potencial: "alto" | "medio" | "baixo" | "desqualificado";
   top_drivers: ScoreDriver[];
   top_detractors: ScoreDriver[];
   thumbnail_url?: string | null;
@@ -56,8 +56,8 @@ export interface FunnelAd {
   ad_name: string;
   campaign_name: string;
   steps: FunnelStep[];
-  won_value: number;
-  attribution_level?: 'exact' | 'campaign_inferred' | 'unattributed_inferred';
+  won_value?: number;
+  attribution_level?: "exact" | "campaign_inferred" | "unattributed_inferred";
   inferred_leads?: number;
 }
 
@@ -73,8 +73,8 @@ export interface PeriodDeltas {
 
 // P2.4: Heatmap de horarios
 export interface HeatmapRow {
-  hour_of_day: number;   // 0-23
-  day_of_week: number;   // 0=domingo, 6=sabado
+  hour_of_day: number; // 0-23
+  day_of_week: number; // 0=domingo, 6=sabado
   total_leads: number;
   leads_agendou: number;
   leads_won: number;
@@ -125,7 +125,7 @@ export interface FunnelLead {
 // Full Funnel Tracking (GHL data per ad)
 export interface FunnelTracking {
   ad_id: string;
-  attribution_level: 'exact' | 'campaign_inferred' | 'unattributed_inferred';
+  attribution_level: "exact" | "campaign_inferred" | "unattributed_inferred";
   total_leads: number;
   novo: number;
   em_contato: number;
@@ -135,4 +135,3 @@ export interface FunnelTracking {
   won: number;
   won_value: number;
 }
-

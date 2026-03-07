@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { FilterOption } from '../types/supervision';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface FilterOptionsState {
   locations: FilterOption[];
@@ -93,12 +94,12 @@ export const useFilterOptions = (): UseFilterOptionsReturn => {
           responsaveis: responsaveis.sort((a, b) => (a.label || '').localeCompare(b.label || '')),
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching filter options:', err);
-      setError(err.message || 'Erro ao carregar opcoes de filtro');
+      setError(getErrorMessage(err) || 'Erro ao carregar opcoes de filtro');
 
       // Fallback com dados estaticos se a view nao existir
-      if (err.message?.includes('does not exist')) {
+      if (getErrorMessage(err)?.includes('does not exist')) {
         setOptions(getMockOptions());
         setError(null);
       }

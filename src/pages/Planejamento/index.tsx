@@ -226,7 +226,10 @@ export function Planejamento() {
         calc_attendance_rate: weightedRate("attendanceRate"),
         calc_conversion_rate: weightedRate("conversionRate"),
         calc_average_ticket: plan.products[0]?.ticket || 1000,
-        products_snapshot: plan.products,
+        products_snapshot: plan.products as unknown as Record<
+          string,
+          unknown
+        >[],
         marketing_config: {
           ...plan.marketing,
           scenarioConfig: plan.scenarioConfig,
@@ -269,7 +272,7 @@ export function Planejamento() {
       const prods =
         Array.isArray(activeGoal.products_snapshot) &&
         activeGoal.products_snapshot.length > 0
-          ? (activeGoal.products_snapshot as ProductItem[])
+          ? (activeGoal.products_snapshot as unknown as ProductItem[])
           : [
               {
                 ...createDefaultProduct(),

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentPerformanceSummary } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export const useAgentPerformance = () => {
   const [performance, setPerformance] = useState<AgentPerformanceSummary[]>([]);
@@ -55,9 +56,9 @@ export const useAgentPerformance = () => {
         // Mock data se não houver agentes
         setPerformance(getMockPerformance());
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching agent performance:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
       setPerformance(getMockPerformance());
     } finally {
       setLoading(false);

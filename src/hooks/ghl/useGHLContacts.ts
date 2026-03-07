@@ -54,8 +54,8 @@ export function useGHLContacts({ locationId, limit = 50, query }: UseGHLContacts
             }
 
             setError(null);
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
+        } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             console.error('Error fetching contacts:', err);
             setError('Failed to load contacts');
         } finally {

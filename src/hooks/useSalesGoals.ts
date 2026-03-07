@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // ============================================================================
 // HOOK: useSalesGoals
@@ -30,7 +31,7 @@ export interface SalesGoal {
   calc_attendance_rate: number;
   calc_conversion_rate: number;
   calc_average_ticket: number;
-  products_snapshot: any[];
+  products_snapshot: Record<string, unknown>[];
   marketing_config: Record<string, any>;
   currency: string;
   is_active: boolean;
@@ -148,7 +149,7 @@ export const useSalesGoals = (locationId?: string | null) => {
         .eq('location_id', locationId)
         .order('created_at', { ascending: false });
 
-      if (err) throw new Error(err.message);
+      if (err) throw new Error(getErrorMessage(err));
 
       const allGoals = (data || []) as SalesGoal[];
       setGoals(allGoals);
@@ -160,8 +161,8 @@ export const useSalesGoals = (locationId?: string | null) => {
         g.period_end >= today
       ) || null;
       setActiveGoal(active);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar metas');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar metas');
       console.error('[useSalesGoals Error]', err);
     } finally {
       setLoading(false);
@@ -206,7 +207,7 @@ export const useSalesGoals = (locationId?: string | null) => {
       .update(updates)
       .eq('id', id);
 
-    if (err) throw new Error(err.message);
+    if (err) throw new Error(getErrorMessage(err));
     await fetchGoals();
   }, [fetchGoals]);
 

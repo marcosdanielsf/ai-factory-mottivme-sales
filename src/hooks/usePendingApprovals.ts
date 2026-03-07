@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentVersion, PendingApproval } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface ApprovalRequest extends AgentVersion {
   agent_name?: string;
@@ -69,9 +70,9 @@ export const usePendingApprovals = () => {
 
       setApprovals(formattedFromView as ApprovalRequest[]);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching approvals:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export const usePendingApprovals = () => {
       
       setApprovals(prev => prev.filter(a => a.id !== id));
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error approving version:', err);
       return { error: err };
     }

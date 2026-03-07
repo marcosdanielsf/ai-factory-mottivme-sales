@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { SupervisionStatus, SupervisionAction } from '../types/supervision';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface UseSupervisionActionsReturn {
   executing: boolean;
@@ -91,12 +92,12 @@ export const useSupervisionActions = (
 
         onSuccess?.();
         return true;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error updating supervision state:', err);
-        setError(err.message || 'Erro ao atualizar estado');
+        setError(getErrorMessage(err) || 'Erro ao atualizar estado');
 
         // Se tabela nao existe, simular sucesso para desenvolvimento
-        if (err.message?.includes('does not exist')) {
+        if (getErrorMessage(err)?.includes('does not exist')) {
           console.log('Mock: Supervision state updated', { sessionId, updates });
           onSuccess?.();
           setError(null);

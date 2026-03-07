@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 export interface Location {
   location_id: string;
@@ -14,19 +14,24 @@ function fetchLocationsOnce(): Promise<Location[]> {
   if (cachedLocations) return Promise.resolve(cachedLocations);
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = supabase
-    .from('ghl_locations')
-    .select('location_id, location_name')
-    .order('location_name')
+  fetchPromise = Promise.resolve(
+    supabase
+      .from("ghl_locations")
+      .select("location_id, location_name")
+      .order("location_name"),
+  )
     .then(({ data, error }) => {
       if (error) throw error;
       cachedLocations = data || [];
       return cachedLocations;
     })
-    .catch((err) => {
-      fetchPromise = null; // allow retry on error
-      throw err;
-    });
+    .then(
+      (result) => result,
+      (err) => {
+        fetchPromise = null; // allow retry on error
+        throw err;
+      },
+    );
 
   return fetchPromise;
 }
@@ -58,7 +63,9 @@ export const useLocations = () => {
         }
       });
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return { locations, loading, error };

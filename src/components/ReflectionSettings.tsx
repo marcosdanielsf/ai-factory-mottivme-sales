@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Settings,
   Clock,
@@ -11,8 +11,8 @@ import {
   Sliders,
   Bell,
   Shield,
-  Zap
-} from 'lucide-react';
+  Zap,
+} from "lucide-react";
 
 interface ReflectionConfig {
   // Timing
@@ -62,7 +62,7 @@ const DEFAULT_CONFIG: ReflectionConfig = {
   notify_on_update: true,
   notify_on_weakness_pattern: true,
   notify_on_score_drop: true,
-  notification_channels: ['email', 'slack'],
+  notification_channels: ["email", "slack"],
   max_changes_per_cycle: 3,
   cooldown_after_change_hours: 4,
 };
@@ -74,10 +74,14 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
   onSave,
   isLoading = false,
 }) => {
-  const [config, setConfig] = useState<ReflectionConfig>(currentConfig || DEFAULT_CONFIG);
+  const [config, setConfig] = useState<ReflectionConfig>(
+    currentConfig || DEFAULT_CONFIG,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeSection, setActiveSection] = useState<'timing' | 'thresholds' | 'behavior' | 'notifications' | 'limits'>('timing');
+  const [activeSection, setActiveSection] = useState<
+    "timing" | "thresholds" | "behavior" | "notifications" | "limits"
+  >("timing");
 
   useEffect(() => {
     if (currentConfig) {
@@ -85,8 +89,11 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
     }
   }, [currentConfig]);
 
-  const handleChange = (key: keyof ReflectionConfig, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+  const handleChange = (
+    key: keyof ReflectionConfig,
+    value: string | number | boolean | string[],
+  ) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
     setIsDirty(true);
   };
 
@@ -106,11 +113,11 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
   };
 
   const sections = [
-    { id: 'timing', label: 'Timing', icon: Clock },
-    { id: 'thresholds', label: 'Thresholds', icon: Target },
-    { id: 'behavior', label: 'Comportamento', icon: Sliders },
-    { id: 'notifications', label: 'Notificacoes', icon: Bell },
-    { id: 'limits', label: 'Limites', icon: Shield },
+    { id: "timing", label: "Timing", icon: Clock },
+    { id: "thresholds", label: "Thresholds", icon: Target },
+    { id: "behavior", label: "Comportamento", icon: Sliders },
+    { id: "notifications", label: "Notificacoes", icon: Bell },
+    { id: "limits", label: "Limites", icon: Shield },
   ];
 
   return (
@@ -122,7 +129,9 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
             <Settings className="text-purple-400" size={20} />
           </div>
           <div>
-            <h3 className="font-semibold text-text-primary">Configuracoes do Reflection Loop</h3>
+            <h3 className="font-semibold text-text-primary">
+              Configuracoes do Reflection Loop
+            </h3>
             <p className="text-xs text-text-muted">Agente: {agentName}</p>
           </div>
         </div>
@@ -141,12 +150,12 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
             disabled={!isDirty || isSaving}
             className={`flex items-center gap-1 px-4 py-1.5 text-sm rounded-lg transition-colors ${
               isDirty && !isSaving
-                ? 'bg-accent-primary text-white hover:bg-accent-primary/90'
-                : 'bg-bg-tertiary text-text-muted cursor-not-allowed'
+                ? "bg-accent-primary text-white hover:bg-accent-primary/90"
+                : "bg-bg-tertiary text-text-muted cursor-not-allowed"
             }`}
           >
-            <Save size={14} className={isSaving ? 'animate-spin' : ''} />
-            {isSaving ? 'Salvando...' : 'Salvar'}
+            <Save size={14} className={isSaving ? "animate-spin" : ""} />
+            {isSaving ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </div>
@@ -162,8 +171,8 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                 onClick={() => setActiveSection(section.id as any)}
                 className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors ${
                   activeSection === section.id
-                    ? 'bg-bg-secondary text-text-primary border-r-2 border-accent-primary'
-                    : 'text-text-secondary hover:bg-bg-secondary hover:text-text-primary'
+                    ? "bg-bg-secondary text-text-primary border-r-2 border-accent-primary"
+                    : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
                 }`}
               >
                 <Icon size={16} />
@@ -176,12 +185,13 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
         {/* Content */}
         <div className="flex-1 p-6 space-y-6">
           {/* Timing Section */}
-          {activeSection === 'timing' && (
+          {activeSection === "timing" && (
             <>
               <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                 <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-text-secondary">
-                  Configure a frequencia com que o sistema analisa as conversas e gera sugestoes de melhoria.
+                  Configure a frequencia com que o sistema analisa as conversas
+                  e gera sugestoes de melhoria.
                 </p>
               </div>
 
@@ -195,11 +205,17 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     min={1}
                     max={168}
                     value={config.reflection_interval_hours}
-                    onChange={(e) => handleChange('reflection_interval_hours', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "reflection_interval_hours",
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
-                    A cada quantas horas o sistema deve rodar o ciclo de reflexao. Padrao: 24h
+                    A cada quantas horas o sistema deve rodar o ciclo de
+                    reflexao. Padrao: 24h
                   </p>
                 </div>
 
@@ -212,11 +228,17 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     min={10}
                     max={500}
                     value={config.min_conversations_before_reflection}
-                    onChange={(e) => handleChange('min_conversations_before_reflection', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "min_conversations_before_reflection",
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
-                    Quantidade minima de conversas necessarias para gerar insights significativos.
+                    Quantidade minima de conversas necessarias para gerar
+                    insights significativos.
                   </p>
                 </div>
               </div>
@@ -224,12 +246,16 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
           )}
 
           {/* Thresholds Section */}
-          {activeSection === 'thresholds' && (
+          {activeSection === "thresholds" && (
             <>
               <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <AlertTriangle size={18} className="text-yellow-400 shrink-0 mt-0.5" />
+                <AlertTriangle
+                  size={18}
+                  className="text-yellow-400 shrink-0 mt-0.5"
+                />
                 <p className="text-sm text-text-secondary">
-                  Defina os limites que determinam quando uma melhoria deve ser aplicada ou quando alertas devem ser disparados.
+                  Defina os limites que determinam quando uma melhoria deve ser
+                  aplicada ou quando alertas devem ser disparados.
                 </p>
               </div>
 
@@ -245,7 +271,12 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                       max={9}
                       step={0.5}
                       value={config.update_threshold}
-                      onChange={(e) => handleChange('update_threshold', parseFloat(e.target.value))}
+                      onChange={(e) =>
+                        handleChange(
+                          "update_threshold",
+                          parseFloat(e.target.value),
+                        )
+                      }
                       className="flex-1 h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer"
                     />
                     <span className="text-lg font-bold text-accent-primary w-12 text-center">
@@ -253,7 +284,8 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-text-muted mt-1">
-                    Score minimo para que a IA decida UPDATE ao inves de MAINTAIN. Abaixo disso, mantem o prompt atual.
+                    Score minimo para que a IA decida UPDATE ao inves de
+                    MAINTAIN. Abaixo disso, mantem o prompt atual.
                   </p>
                 </div>
 
@@ -266,11 +298,18 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     min={2}
                     max={10}
                     value={config.weakness_repeat_threshold}
-                    onChange={(e) => handleChange('weakness_repeat_threshold', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "weakness_repeat_threshold",
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
-                    Quantas vezes uma mesma fraqueza precisa aparecer em avaliacoes diferentes para disparar uma sugestao de correcao.
+                    Quantas vezes uma mesma fraqueza precisa aparecer em
+                    avaliacoes diferentes para disparar uma sugestao de
+                    correcao.
                   </p>
                 </div>
 
@@ -284,7 +323,12 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     max={3}
                     step={0.1}
                     value={config.significant_drop_threshold}
-                    onChange={(e) => handleChange('significant_drop_threshold', parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "significant_drop_threshold",
+                        parseFloat(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
@@ -296,28 +340,34 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
           )}
 
           {/* Behavior Section */}
-          {activeSection === 'behavior' && (
+          {activeSection === "behavior" && (
             <>
               <div className="flex items-start gap-3 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
                 <Zap size={18} className="text-purple-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-text-secondary">
-                  Configure como o sistema deve se comportar ao identificar oportunidades de melhoria.
+                  Configure como o sistema deve se comportar ao identificar
+                  oportunidades de melhoria.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Auto-aplicar correcoes menores</h4>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Auto-aplicar correcoes menores
+                    </h4>
                     <p className="text-xs text-text-muted mt-1">
-                      Aplicar automaticamente fixes de baixo impacto sem aprovacao manual.
+                      Aplicar automaticamente fixes de baixo impacto sem
+                      aprovacao manual.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.auto_apply_minor_fixes}
-                      onChange={(e) => handleChange('auto_apply_minor_fixes', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("auto_apply_minor_fixes", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary peer-focus:ring-2 peer-focus:ring-accent-primary/30 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -326,7 +376,9 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
 
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Exigir aprovacao para mudancas maiores</h4>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Exigir aprovacao para mudancas maiores
+                    </h4>
                     <p className="text-xs text-text-muted mt-1">
                       Mudancas estruturais sempre precisam de aprovacao humana.
                     </p>
@@ -335,7 +387,12 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     <input
                       type="checkbox"
                       checked={config.require_approval_for_major_changes}
-                      onChange={(e) => handleChange('require_approval_for_major_changes', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange(
+                          "require_approval_for_major_changes",
+                          e.target.checked,
+                        )
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary peer-focus:ring-2 peer-focus:ring-accent-primary/30 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -344,16 +401,21 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
 
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Pausar em score baixo</h4>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Pausar em score baixo
+                    </h4>
                     <p className="text-xs text-text-muted mt-1">
-                      Pausar auto-aplicacoes quando o score cair abaixo do threshold.
+                      Pausar auto-aplicacoes quando o score cair abaixo do
+                      threshold.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.pause_on_low_score}
-                      onChange={(e) => handleChange('pause_on_low_score', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("pause_on_low_score", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary peer-focus:ring-2 peer-focus:ring-accent-primary/30 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -371,7 +433,12 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                       max={7}
                       step={0.5}
                       value={config.low_score_threshold}
-                      onChange={(e) => handleChange('low_score_threshold', parseFloat(e.target.value))}
+                      onChange={(e) =>
+                        handleChange(
+                          "low_score_threshold",
+                          parseFloat(e.target.value),
+                        )
+                      }
                       className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                     />
                   </div>
@@ -381,19 +448,25 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
           )}
 
           {/* Notifications Section */}
-          {activeSection === 'notifications' && (
+          {activeSection === "notifications" && (
             <>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Notificar em Updates</h4>
-                    <p className="text-xs text-text-muted mt-1">Enviar notificacao quando uma melhoria for aplicada.</p>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Notificar em Updates
+                    </h4>
+                    <p className="text-xs text-text-muted mt-1">
+                      Enviar notificacao quando uma melhoria for aplicada.
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.notify_on_update}
-                      onChange={(e) => handleChange('notify_on_update', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("notify_on_update", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -402,14 +475,23 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
 
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Notificar em Padrao de Fraqueza</h4>
-                    <p className="text-xs text-text-muted mt-1">Alertar quando uma fraqueza aparecer repetidamente.</p>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Notificar em Padrao de Fraqueza
+                    </h4>
+                    <p className="text-xs text-text-muted mt-1">
+                      Alertar quando uma fraqueza aparecer repetidamente.
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.notify_on_weakness_pattern}
-                      onChange={(e) => handleChange('notify_on_weakness_pattern', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange(
+                          "notify_on_weakness_pattern",
+                          e.target.checked,
+                        )
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -418,14 +500,20 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
 
                 <div className="flex items-center justify-between p-4 bg-bg-tertiary rounded-lg">
                   <div>
-                    <h4 className="text-sm font-medium text-text-primary">Notificar em Queda de Score</h4>
-                    <p className="text-xs text-text-muted mt-1">Alertar quando o score cair significativamente.</p>
+                    <h4 className="text-sm font-medium text-text-primary">
+                      Notificar em Queda de Score
+                    </h4>
+                    <p className="text-xs text-text-muted mt-1">
+                      Alertar quando o score cair significativamente.
+                    </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.notify_on_score_drop}
-                      onChange={(e) => handleChange('notify_on_score_drop', e.target.checked)}
+                      onChange={(e) =>
+                        handleChange("notify_on_score_drop", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-bg-secondary rounded-full peer peer-checked:bg-accent-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -433,21 +521,26 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">Canais de Notificacao</label>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Canais de Notificacao
+                  </label>
                   <div className="flex gap-2">
-                    {['email', 'slack', 'webhook', 'sms'].map((channel) => (
+                    {["email", "slack", "webhook", "sms"].map((channel) => (
                       <button
                         key={channel}
                         onClick={() => {
-                          const channels = config.notification_channels.includes(channel)
-                            ? config.notification_channels.filter(c => c !== channel)
-                            : [...config.notification_channels, channel];
-                          handleChange('notification_channels', channels);
+                          const channels =
+                            config.notification_channels.includes(channel)
+                              ? config.notification_channels.filter(
+                                  (c) => c !== channel,
+                                )
+                              : [...config.notification_channels, channel];
+                          handleChange("notification_channels", channels);
                         }}
                         className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                           config.notification_channels.includes(channel)
-                            ? 'bg-accent-primary text-white'
-                            : 'bg-bg-tertiary text-text-secondary hover:bg-bg-secondary'
+                            ? "bg-accent-primary text-white"
+                            : "bg-bg-tertiary text-text-secondary hover:bg-bg-secondary"
                         }`}
                       >
                         {channel.charAt(0).toUpperCase() + channel.slice(1)}
@@ -460,12 +553,13 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
           )}
 
           {/* Limits Section */}
-          {activeSection === 'limits' && (
+          {activeSection === "limits" && (
             <>
               <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
                 <Shield size={18} className="text-red-400 shrink-0 mt-0.5" />
                 <p className="text-sm text-text-secondary">
-                  Defina limites de seguranca para evitar mudancas excessivas no prompt.
+                  Defina limites de seguranca para evitar mudancas excessivas no
+                  prompt.
                 </p>
               </div>
 
@@ -479,11 +573,17 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     min={1}
                     max={10}
                     value={config.max_changes_per_cycle}
-                    onChange={(e) => handleChange('max_changes_per_cycle', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "max_changes_per_cycle",
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
-                    Quantas mudancas podem ser aplicadas em um unico ciclo de reflexao.
+                    Quantas mudancas podem ser aplicadas em um unico ciclo de
+                    reflexao.
                   </p>
                 </div>
 
@@ -496,11 +596,17 @@ export const ReflectionSettings: React.FC<ReflectionSettingsProps> = ({
                     min={1}
                     max={48}
                     value={config.cooldown_after_change_hours}
-                    onChange={(e) => handleChange('cooldown_after_change_hours', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      handleChange(
+                        "cooldown_after_change_hours",
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full bg-bg-tertiary border border-border-default rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent-primary"
                   />
                   <p className="text-xs text-text-muted mt-1">
-                    Tempo de espera apos aplicar uma mudanca antes de permitir outra.
+                    Tempo de espera apos aplicar uma mudanca antes de permitir
+                    outra.
                   </p>
                 </div>
               </div>

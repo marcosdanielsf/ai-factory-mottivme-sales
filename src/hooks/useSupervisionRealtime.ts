@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseSupervisionRealtimeOptions {
-  onNewMessage?: (payload: any) => void;
-  onConversationUpdate?: (payload: any) => void;
-  onSupervisionStateChange?: (payload: any) => void;
+  onNewMessage?: (payload: Record<string, unknown>) => void;
+  onConversationUpdate?: (payload: Record<string, unknown>) => void;
+  onSupervisionStateChange?: (payload: Record<string, unknown>) => void;
   enabled?: boolean;
 }
 
@@ -127,7 +127,7 @@ export const useSupervisionRealtime = ({
  */
 export const useConversationRealtime = (
   sessionId: string | null,
-  onNewMessage: (message: any) => void
+  onNewMessage: (message: Record<string, unknown>) => void
 ) => {
   const channelRef = useRef<RealtimeChannel | null>(null);
 

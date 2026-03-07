@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface SendMessageOptions {
   sessionId: string;
@@ -137,9 +138,9 @@ export const useSendMessage = (
 
         onSuccess?.();
         return true;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[SendMessage] Erro:', err);
-        setError(err.message || 'Erro ao enviar mensagem');
+        setError(getErrorMessage(err) || 'Erro ao enviar mensagem');
         return false;
       } finally {
         setSending(false);

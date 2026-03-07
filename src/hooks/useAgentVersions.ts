@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentVersion, AgentVersionHistoryEntry } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export const useAgentVersions = (agentId?: string) => {
   const [versions, setVersions] = useState<AgentVersion[]>([]);
@@ -46,9 +47,9 @@ export const useAgentVersions = (agentId?: string) => {
       if (versionsError) throw versionsError;
 
       setVersions(versionsData || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching agent versions:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

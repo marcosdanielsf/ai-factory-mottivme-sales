@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   HelpCircle,
   MessageCircle,
@@ -9,8 +9,8 @@ import {
   ExternalLink,
   Mail,
   Phone,
-  Clock
-} from 'lucide-react';
+  Clock,
+} from "lucide-react";
 
 interface FAQ {
   question: string;
@@ -19,28 +19,34 @@ interface FAQ {
 
 const faqs: FAQ[] = [
   {
-    question: 'Como editar o comportamento do meu agente?',
-    answer: 'Acesse "Meu Agente" no menu lateral, clique em "Editar com IA" e descreva as mudancas que deseja. O Engenheiro de Prompts vai sugerir as alteracoes e voce pode aprovar ou rejeitar cada uma.',
+    question: "Como editar o comportamento do meu agente?",
+    answer:
+      'Acesse "Meu Agente" no menu lateral, clique em "Editar com IA" e descreva as mudancas que deseja. O Engenheiro de Prompts vai sugerir as alteracoes e voce pode aprovar ou rejeitar cada uma.',
   },
   {
-    question: 'O que significa cada nota no Score do Agente?',
-    answer: 'O Score avalia: Tom de voz (adequacao ao publico), Engajamento (capacidade de manter conversa), Tratamento de objecoes, Qualificacao (identificar leads qualificados), e Fechamento (converter em agendamentos).',
+    question: "O que significa cada nota no Score do Agente?",
+    answer:
+      "O Score avalia: Tom de voz (adequacao ao publico), Engajamento (capacidade de manter conversa), Tratamento de objecoes, Qualificacao (identificar leads qualificados), e Fechamento (converter em agendamentos).",
   },
   {
-    question: 'Como acompanhar as conversas do agente?',
-    answer: 'Va em "Conversas" para ver todas as interacoes. Voce pode filtrar por status (ativas, pendentes, concluidas) e buscar por nome ou conteudo das mensagens.',
+    question: "Como acompanhar as conversas do agente?",
+    answer:
+      'Va em "Conversas" para ver todas as interacoes. Voce pode filtrar por status (ativas, pendentes, concluidas) e buscar por nome ou conteudo das mensagens.',
   },
   {
-    question: 'Posso desfazer alteracoes no agente?',
-    answer: 'Sim! Cada alteracao fica salva no historico de versoes. Voce pode voltar para qualquer versao anterior a qualquer momento na pagina "Meu Agente".',
+    question: "Posso desfazer alteracoes no agente?",
+    answer:
+      'Sim! Cada alteracao fica salva no historico de versoes. Voce pode voltar para qualquer versao anterior a qualquer momento na pagina "Meu Agente".',
   },
   {
-    question: 'Como melhorar a taxa de conversao?',
-    answer: 'Analise as conversas onde o agente nao conseguiu agendar, identifique padroes de objecoes, e use o Engenheiro de Prompts para ensinar o agente a lidar melhor com essas situacoes.',
+    question: "Como melhorar a taxa de conversao?",
+    answer:
+      "Analise as conversas onde o agente nao conseguiu agendar, identifique padroes de objecoes, e use o Engenheiro de Prompts para ensinar o agente a lidar melhor com essas situacoes.",
   },
   {
-    question: 'O agente funciona 24 horas?',
-    answer: 'Sim! Seu agente responde automaticamente a qualquer momento. Voce pode configurar horarios especificos de atendimento e mensagens fora de horario nas configuracoes.',
+    question: "O agente funciona 24 horas?",
+    answer:
+      "Sim! Seu agente responde automaticamente a qualquer momento. Voce pode configurar horarios especificos de atendimento e mensagens fora de horario nas configuracoes.",
   },
 ];
 
@@ -53,7 +59,9 @@ const FAQItem = ({ faq }: { faq: FAQ }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between py-4 text-left hover:text-accent-primary transition-colors"
       >
-        <span className="font-medium text-text-primary pr-4">{faq.question}</span>
+        <span className="font-medium text-text-primary pr-4">
+          {faq.question}
+        </span>
         {isOpen ? (
           <ChevronDown size={20} className="text-accent-primary shrink-0" />
         ) : (
@@ -74,9 +82,9 @@ const ResourceCard = ({
   title,
   description,
   action,
-  href
+  href,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   description: string;
   action: string;
@@ -160,7 +168,8 @@ export const ClientAjuda = () => {
           Precisa de mais ajuda?
         </h2>
         <p className="text-text-secondary mb-6">
-          Nossa equipe esta disponivel para ajudar voce a tirar o maximo do seu agente de vendas.
+          Nossa equipe esta disponivel para ajudar voce a tirar o maximo do seu
+          agente de vendas.
         </p>
 
         <div className="grid md:grid-cols-3 gap-4">

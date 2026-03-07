@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface Tab {
   key: string;
@@ -7,12 +7,18 @@ interface Tab {
 }
 
 interface SourceTabsProps {
-  tabs: Tab[];
-  activeTab: string;
-  onTabChange: (key: string) => void;
+  tabs: Tab[] | string[];
+  activeTab?: string;
+  active?: string;
+  onTabChange?: (key: string) => void;
+  onChange?: (key: string) => void;
 }
 
-export default function SourceTabs({ tabs, activeTab, onTabChange }: SourceTabsProps) {
+export default function SourceTabs({
+  tabs,
+  activeTab,
+  onTabChange,
+}: SourceTabsProps) {
   return (
     <div className="flex items-center gap-1 border-b border-border-default">
       {tabs.map((tab) => {
@@ -23,8 +29,8 @@ export default function SourceTabs({ tabs, activeTab, onTabChange }: SourceTabsP
             onClick={() => onTabChange(tab.key)}
             className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               isActive
-                ? 'border-accent-primary text-accent-primary'
-                : 'border-transparent text-text-muted hover:text-text-secondary'
+                ? "border-accent-primary text-accent-primary"
+                : "border-transparent text-text-muted hover:text-text-secondary"
             }`}
           >
             {tab.label}
@@ -32,8 +38,8 @@ export default function SourceTabs({ tabs, activeTab, onTabChange }: SourceTabsP
               <span
                 className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                   isActive
-                    ? 'bg-accent-primary/20 text-accent-primary'
-                    : 'bg-bg-tertiary text-text-muted'
+                    ? "bg-accent-primary/20 text-accent-primary"
+                    : "bg-bg-tertiary text-text-muted"
                 }`}
               >
                 {tab.count}

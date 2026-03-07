@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AgentConversation } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface ConversationSummary {
   id: string;
@@ -71,9 +72,9 @@ export const useAgentConversations = () => {
       });
 
       setConversations(formatted as ConversationSummary[]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching conversations:', err);
-      setError(err.message || 'Erro ao carregar conversas');
+      setError(getErrorMessage(err) || 'Erro ao carregar conversas');
     } finally {
       setLoading(false);
     }

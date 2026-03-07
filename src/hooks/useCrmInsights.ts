@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface CrmInsightLead {
   id: number;
@@ -73,8 +74,8 @@ export const useCrmInsights = (): UseCrmInsightsReturn => {
       );
 
       setLeads(filtered);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar insights CRM');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar insights CRM');
     } finally {
       setLoading(false);
     }

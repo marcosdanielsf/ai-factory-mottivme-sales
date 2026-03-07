@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // Tipos para custos de cliente
 export interface ClientCostSummary {
@@ -286,9 +287,9 @@ export const useClientCosts = (options: UseClientCostsOptions = {}): UseClientCo
       setClients(filteredResult);
       setTotalCost(total);
       setTotalRequests(requests);
-    } catch (err: any) {
+    } catch (err: unknown) {
       retryCountRef.current += 1;
-      setError(err.message || 'Erro ao carregar custos');
+      setError(getErrorMessage(err) || 'Erro ao carregar custos');
       console.error('Error fetching costs:', err);
     } finally {
       setLoading(false);
@@ -378,8 +379,8 @@ export const useClientCostDetails = (locationName: string | null, options: UseCl
         });
 
         setDailyCosts(Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date)));
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
         console.error('Error fetching cost details:', err);
       } finally {
         setLoading(false);
@@ -459,8 +460,8 @@ export const useGlobalCostSummary = () => {
           avg_cost_per_client: totalClients > 0 ? totalCost / totalClients : 0,
           top_model: topModel,
         });
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
       } finally {
         setLoading(false);
       }

@@ -1,34 +1,53 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MessageSquare, LayoutList, Columns3, BarChart3, CheckSquare, X, ChevronDown, Archive, MoveRight } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import {
+  MessageSquare,
+  LayoutList,
+  Columns3,
+  BarChart3,
+  CheckSquare,
+  X,
+  ChevronDown,
+  Archive,
+  MoveRight,
+} from "lucide-react";
 import {
   SupervisionHeader,
   ConversationList,
   ConversationDetail,
   SupervisionKanban,
   SupervisionMetrics,
-} from '../components/supervision';
-import { useSupervisionPanel } from '../hooks/useSupervisionPanel';
-import { useConversationMessages } from '../hooks/useConversationMessages';
-import { useSupervisionActions } from '../hooks/useSupervisionActions';
-import { useFilterOptions } from '../hooks/useFilterOptions';
-import { useSupervisionRealtime, useConversationRealtime } from '../hooks/useSupervisionRealtime';
-import { useSendMessage } from '../hooks/useSendMessage';
-import { useGHLSync } from '../hooks/useGHLSync';
-import { useSavedFilters } from '../hooks/useSavedFilters';
-import { useIsMobile } from '../hooks/useMediaQuery';
-import { useAccount } from '../contexts/AccountContext';
-import { useAuth } from '../contexts/AuthContext';
-import { ghlClient } from '../services/ghl/ghlClient';
-import { SupervisionConversation, SupervisionStatus, supervisionStatusConfig, leadSourceConfig, LeadSource } from '../types/supervision';
-import { SavedFiltersPanel } from '../components/supervision/SavedFiltersPanel';
-import { LostReasonModal } from '../components/supervision/LostReasonModal';
+} from "../components/supervision";
+import { useSupervisionPanel } from "../hooks/useSupervisionPanel";
+import { useConversationMessages } from "../hooks/useConversationMessages";
+import { useSupervisionActions } from "../hooks/useSupervisionActions";
+import { useFilterOptions } from "../hooks/useFilterOptions";
+import {
+  useSupervisionRealtime,
+  useConversationRealtime,
+} from "../hooks/useSupervisionRealtime";
+import { useSendMessage } from "../hooks/useSendMessage";
+import { useGHLSync } from "../hooks/useGHLSync";
+import { useSavedFilters } from "../hooks/useSavedFilters";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { useAccount } from "../contexts/AccountContext";
+import { useAuth } from "../contexts/AuthContext";
+import { ghlClient } from "../services/ghl/ghlClient";
+import {
+  SupervisionConversation,
+  SupervisionStatus,
+  supervisionStatusConfig,
+  leadSourceConfig,
+  LeadSource,
+} from "../types/supervision";
+import { SavedFiltersPanel } from "../components/supervision/SavedFiltersPanel";
+import { LostReasonModal } from "../components/supervision/LostReasonModal";
 
-type ViewMode = 'list' | 'kanban' | 'metrics';
+type ViewMode = "list" | "kanban" | "metrics";
 
 export const Supervision: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<SupervisionConversation | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -48,7 +67,7 @@ export const Supervision: React.FC = () => {
   // Feature #15: Lead Source Prompt state
   const [showLeadSourcePrompt, setShowLeadSourcePrompt] = useState<{
     sessionId: string;
-    pendingAction: 'scheduled' | 'converted';
+    pendingAction: "scheduled" | "converted";
     scheduledAt?: string;
     notes?: string;
   } | null>(null);
@@ -60,7 +79,8 @@ export const Supervision: React.FC = () => {
   // Fetch tags do contato GHL quando muda a conversa selecionada
   // No MOTTIVME, session_id = GHL contactId (n8n usa contactId como session key)
   useEffect(() => {
-    const contact_id = selectedConversation?.contact_id || selectedConversation?.session_id;
+    const contact_id =
+      selectedConversation?.contact_id || selectedConversation?.session_id;
     const location_id = selectedConversation?.location_id;
     const token = session?.access_token;
 
@@ -72,7 +92,8 @@ export const Supervision: React.FC = () => {
     let cancelled = false;
     setContactTagsLoading(true);
 
-    ghlClient.getContact(contact_id, token, location_id)
+    ghlClient
+      .getContact(contact_id, token, location_id)
       .then(({ contact }) => {
         if (!cancelled) {
           setContactTags(contact.tags || []);
@@ -80,7 +101,10 @@ export const Supervision: React.FC = () => {
       })
       .catch((err) => {
         if (!cancelled) {
-          console.warn('[Supervision] Failed to fetch contact tags:', err.message);
+          console.warn(
+            "[Supervision] Failed to fetch contact tags:",
+            err.message,
+          );
           setContactTags([]);
         }
       })
@@ -88,8 +112,15 @@ export const Supervision: React.FC = () => {
         if (!cancelled) setContactTagsLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [selectedConversation?.contact_id, selectedConversation?.session_id, selectedConversation?.location_id, session?.access_token]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedConversation?.contact_id,
+    selectedConversation?.session_id,
+    selectedConversation?.location_id,
+    session?.access_token,
+  ]);
 
   const {
     conversations,
@@ -106,7 +137,8 @@ export const Supervision: React.FC = () => {
     refetch: refetchMessages,
   } = useConversationMessages(selectedConversation?.session_id || null);
 
-  const { options: filterOptions, loading: filterOptionsLoading } = useFilterOptions();
+  const { options: filterOptions, loading: filterOptionsLoading } =
+    useFilterOptions();
 
   const {
     executing,
@@ -133,9 +165,11 @@ export const Supervision: React.FC = () => {
     refetchMessages();
   });
 
-  const { syncMeetingStatus, syncLeadSource, syncAddTag, syncRemoveTag } = useGHLSync();
+  const { syncMeetingStatus, syncLeadSource, syncAddTag, syncRemoveTag } =
+    useGHLSync();
 
-  const { savedFilters, defaultClientFilters, saveFilter, deleteFilter } = useSavedFilters(filterOptions.locations);
+  const { savedFilters, defaultClientFilters, saveFilter, deleteFilter } =
+    useSavedFilters(filterOptions.locations);
 
   // Real-time
   useSupervisionRealtime({
@@ -145,17 +179,24 @@ export const Supervision: React.FC = () => {
     onConversationUpdate: useCallback(() => {
       refetch();
     }, [refetch]),
-    onSupervisionStateChange: useCallback((payload) => {
-      refetch();
-      const current = selectedConversationRef.current;
-      if (current && payload.new?.session_id === current.session_id) {
-        setSelectedConversation((prev) =>
-          prev
-            ? { ...prev, ai_enabled: payload.new?.ai_enabled, supervision_status: payload.new?.status }
-            : null
-        );
-      }
-    }, [refetch]),
+    onSupervisionStateChange: useCallback(
+      (payload: any) => {
+        refetch();
+        const current = selectedConversationRef.current;
+        if (current && payload.new?.session_id === current.session_id) {
+          setSelectedConversation((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  ai_enabled: payload.new?.ai_enabled,
+                  supervision_status: payload.new?.status,
+                }
+              : null,
+          );
+        }
+      },
+      [refetch],
+    ),
     enabled: true,
   });
 
@@ -163,12 +204,15 @@ export const Supervision: React.FC = () => {
     selectedConversation?.session_id || null,
     useCallback(() => {
       refetchMessages();
-    }, [refetchMessages])
+    }, [refetchMessages]),
   );
 
-  const handleSelectConversation = useCallback((conversation: SupervisionConversation) => {
-    setSelectedConversation(conversation);
-  }, []);
+  const handleSelectConversation = useCallback(
+    (conversation: SupervisionConversation) => {
+      setSelectedConversation(conversation);
+    },
+    [],
+  );
 
   const handleCloseDetail = useCallback(() => {
     setSelectedConversation(null);
@@ -188,47 +232,56 @@ export const Supervision: React.FC = () => {
     }
   }, [resumeAI]);
 
-  const handleMarkScheduled = useCallback(async (scheduledAt: string, notes?: string) => {
-    const current = selectedConversationRef.current;
-    if (!current) return;
+  const handleMarkScheduled = useCallback(
+    async (scheduledAt: string, notes?: string) => {
+      const current = selectedConversationRef.current;
+      if (!current) return;
 
-    // Feature #15: validar lead_source antes de agendar
-    if (!current.lead_source) {
-      setShowLeadSourcePrompt({
-        sessionId: current.session_id,
-        pendingAction: 'scheduled',
-        scheduledAt,
-        notes,
-      });
-      return;
-    }
+      // Feature #15: validar lead_source antes de agendar
+      if (!current.lead_source) {
+        setShowLeadSourcePrompt({
+          sessionId: current.session_id,
+          pendingAction: "scheduled",
+          scheduledAt,
+          notes,
+        });
+        return;
+      }
 
-    await markAsScheduled(current.session_id, scheduledAt, notes);
-  }, [markAsScheduled]);
+      await markAsScheduled(current.session_id, scheduledAt, notes);
+    },
+    [markAsScheduled],
+  );
 
-  const handleMarkConverted = useCallback(async (notes?: string) => {
-    const current = selectedConversationRef.current;
-    if (!current) return;
+  const handleMarkConverted = useCallback(
+    async (notes?: string) => {
+      const current = selectedConversationRef.current;
+      if (!current) return;
 
-    // Feature #15: validar lead_source antes de converter
-    if (!current.lead_source) {
-      setShowLeadSourcePrompt({
-        sessionId: current.session_id,
-        pendingAction: 'converted',
-        notes,
-      });
-      return;
-    }
+      // Feature #15: validar lead_source antes de converter
+      if (!current.lead_source) {
+        setShowLeadSourcePrompt({
+          sessionId: current.session_id,
+          pendingAction: "converted",
+          notes,
+        });
+        return;
+      }
 
-    await markAsConverted(current.session_id, notes);
-  }, [markAsConverted]);
+      await markAsConverted(current.session_id, notes);
+    },
+    [markAsConverted],
+  );
 
-  const handleAddNote = useCallback(async (notes: string) => {
-    const current = selectedConversationRef.current;
-    if (current) {
-      await addNote(current.session_id, notes);
-    }
-  }, [addNote]);
+  const handleAddNote = useCallback(
+    async (notes: string) => {
+      const current = selectedConversationRef.current;
+      if (current) {
+        await addNote(current.session_id, notes);
+      }
+    },
+    [addNote],
+  );
 
   const handleArchive = useCallback(async () => {
     const current = selectedConversationRef.current;
@@ -238,91 +291,111 @@ export const Supervision: React.FC = () => {
     }
   }, [archiveConversation]);
 
-  const handleMarkAsLost = useCallback(async (reason: string, notes?: string) => {
-    const current = selectedConversationRef.current;
-    if (current) {
-      await markAsLost(current.session_id, reason, notes);
-    }
-  }, [markAsLost]);
+  const handleMarkAsLost = useCallback(
+    async (reason: string, notes?: string) => {
+      const current = selectedConversationRef.current;
+      if (current) {
+        await markAsLost(current.session_id, reason, notes);
+      }
+    },
+    [markAsLost],
+  );
 
-  const handleUpdateMeetingStatus = useCallback(async (meetingStatus: string, notes?: string) => {
-    const current = selectedConversationRef.current;
-    if (!current) return;
+  const handleUpdateMeetingStatus = useCallback(
+    async (meetingStatus: string, notes?: string) => {
+      const current = selectedConversationRef.current;
+      if (!current) return;
 
-    await updateMeetingStatus(current.session_id, meetingStatus, notes);
+      await updateMeetingStatus(current.session_id, meetingStatus, notes);
 
-    // Feature #11: Non-blocking GHL sync (fire-and-forget)
-    syncMeetingStatus({
-      sessionId: current.session_id,
-      locationId: current.location_id || '',
-      contactId: current.contact_id || undefined,
-      meetingStatus,
-      notes,
-    });
-  }, [updateMeetingStatus, syncMeetingStatus]);
+      // Feature #11: Non-blocking GHL sync (fire-and-forget)
+      syncMeetingStatus({
+        sessionId: current.session_id,
+        locationId: current.location_id || "",
+        contactId: current.contact_id || undefined,
+        meetingStatus,
+        notes,
+      });
+    },
+    [updateMeetingStatus, syncMeetingStatus],
+  );
 
-  const handleUpdateLeadSource = useCallback(async (source: string) => {
-    const current = selectedConversationRef.current;
-    if (!current) return;
+  const handleUpdateLeadSource = useCallback(
+    async (source: string) => {
+      const current = selectedConversationRef.current;
+      if (!current) return;
 
-    await updateLeadSource(current.session_id, source);
+      await updateLeadSource(current.session_id, source);
 
-    // Feature #11: Non-blocking GHL sync (fire-and-forget)
-    syncLeadSource({
-      sessionId: current.session_id,
-      locationId: current.location_id || '',
-      contactId: current.contact_id || undefined,
-      leadSource: source,
-    });
-  }, [updateLeadSource, syncLeadSource]);
+      // Feature #11: Non-blocking GHL sync (fire-and-forget)
+      syncLeadSource({
+        sessionId: current.session_id,
+        locationId: current.location_id || "",
+        contactId: current.contact_id || undefined,
+        leadSource: source,
+      });
+    },
+    [updateLeadSource, syncLeadSource],
+  );
 
-  const handleAddTag = useCallback((tag: string) => {
-    const current = selectedConversationRef.current;
-    const contactId = current?.contact_id || current?.session_id;
-    if (!contactId || !current?.location_id) return;
+  const handleAddTag = useCallback(
+    (tag: string) => {
+      const current = selectedConversationRef.current;
+      const contactId = current?.contact_id || current?.session_id;
+      if (!contactId || !current?.location_id) return;
 
-    // Optimistic update
-    setContactTags(prev => [...prev, tag]);
+      // Optimistic update
+      setContactTags((prev) => [...prev, tag]);
 
-    // Sync to GHL (non-blocking)
-    syncAddTag({
-      contactId,
-      locationId: current.location_id,
-      tags: [tag],
-    });
-  }, [syncAddTag]);
+      // Sync to GHL (non-blocking)
+      syncAddTag({
+        contactId,
+        locationId: current.location_id,
+        tags: [tag],
+      });
+    },
+    [syncAddTag],
+  );
 
-  const handleRemoveTag = useCallback((tag: string) => {
-    const current = selectedConversationRef.current;
-    const contactId = current?.contact_id || current?.session_id;
-    if (!contactId || !current?.location_id) return;
+  const handleRemoveTag = useCallback(
+    (tag: string) => {
+      const current = selectedConversationRef.current;
+      const contactId = current?.contact_id || current?.session_id;
+      if (!contactId || !current?.location_id) return;
 
-    // Optimistic update
-    setContactTags(prev => prev.filter(t => t !== tag));
+      // Optimistic update
+      setContactTags((prev) => prev.filter((t) => t !== tag));
 
-    // Sync to GHL (non-blocking)
-    syncRemoveTag({
-      contactId,
-      locationId: current.location_id,
-      tags: [tag],
-    });
-  }, [syncRemoveTag]);
+      // Sync to GHL (non-blocking)
+      syncRemoveTag({
+        contactId,
+        locationId: current.location_id,
+        tags: [tag],
+      });
+    },
+    [syncRemoveTag],
+  );
 
-  const handleSendMessage = useCallback(async (message: string): Promise<boolean> => {
-    const current = selectedConversationRef.current;
-    if (!current) return false;
-    return await sendMessage({
-      sessionId: current.session_id,
-      locationId: current.location_id || '',
-      contactId: current.contact_id || undefined,
-      message,
-      channel: (current.channel as 'instagram' | 'whatsapp' | 'sms' | 'email') || 'instagram',
-    });
-  }, [sendMessage]);
+  const handleSendMessage = useCallback(
+    async (message: string): Promise<boolean> => {
+      const current = selectedConversationRef.current;
+      if (!current) return false;
+      return await sendMessage({
+        sessionId: current.session_id,
+        locationId: current.location_id || "",
+        contactId: current.contact_id || undefined,
+        message,
+        channel:
+          (current.channel as "instagram" | "whatsapp" | "sms" | "email") ||
+          "instagram",
+      });
+    },
+    [sendMessage],
+  );
 
   // Selection handlers
   const handleToggleSelect = useCallback((sessionId: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(sessionId)) {
         next.delete(sessionId);
@@ -334,9 +407,9 @@ export const Supervision: React.FC = () => {
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    setSelectedIds(prev => {
-      const allIds = conversations.map(c => c.session_id);
-      const allSelected = allIds.every(id => prev.has(id));
+    setSelectedIds((prev) => {
+      const allIds = conversations.map((c) => c.session_id);
+      const allSelected = allIds.every((id) => prev.has(id));
       if (allSelected) return new Set();
       return new Set(allIds);
     });
@@ -348,25 +421,40 @@ export const Supervision: React.FC = () => {
     setBulkStatusOpen(false);
   }, []);
 
-  const handleBulkMoveStatus = useCallback(async (newStatus: SupervisionStatus) => {
-    setBulkStatusOpen(false);
-    const ids = Array.from(selectedIds);
-    for (const sessionId of ids) {
-      if (newStatus === 'converted') {
-        await markAsConverted(sessionId);
-      } else if (newStatus === 'archived') {
-        await archiveConversation(sessionId);
-      } else if (newStatus === 'ai_active') {
-        await resumeAI(sessionId);
-      } else if (newStatus === 'ai_paused') {
-        await pauseAI(sessionId);
-      } else if (newStatus === 'scheduled') {
-        await markAsScheduled(sessionId, new Date(Date.now() + 86400000).toISOString());
+  const handleBulkMoveStatus = useCallback(
+    async (newStatus: SupervisionStatus) => {
+      setBulkStatusOpen(false);
+      const ids = Array.from(selectedIds);
+      for (const sessionId of ids) {
+        if (newStatus === "converted") {
+          await markAsConverted(sessionId);
+        } else if (newStatus === "archived") {
+          await archiveConversation(sessionId);
+        } else if (newStatus === "ai_active") {
+          await resumeAI(sessionId);
+        } else if (newStatus === "ai_paused") {
+          await pauseAI(sessionId);
+        } else if (newStatus === "scheduled") {
+          await markAsScheduled(
+            sessionId,
+            new Date(Date.now() + 86400000).toISOString(),
+          );
+        }
       }
-    }
-    refetch();
-    handleCancelSelection();
-  }, [selectedIds, markAsConverted, archiveConversation, resumeAI, pauseAI, markAsScheduled, refetch, handleCancelSelection]);
+      refetch();
+      handleCancelSelection();
+    },
+    [
+      selectedIds,
+      markAsConverted,
+      archiveConversation,
+      resumeAI,
+      pauseAI,
+      markAsScheduled,
+      refetch,
+      handleCancelSelection,
+    ],
+  );
 
   const handleBulkArchive = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -380,62 +468,77 @@ export const Supervision: React.FC = () => {
   // Close bulk status dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (bulkStatusRef.current && !bulkStatusRef.current.contains(e.target as Node)) {
+      if (
+        bulkStatusRef.current &&
+        !bulkStatusRef.current.contains(e.target as Node)
+      ) {
         setBulkStatusOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const [pendingLostSessionId, setPendingLostSessionId] = useState<string | null>(null);
+  const [pendingLostSessionId, setPendingLostSessionId] = useState<
+    string | null
+  >(null);
 
   const handleKanbanStatusChange = useCallback(
     async (sessionId: string, newStatus: SupervisionStatus) => {
-      if (newStatus === 'lost') {
+      if (newStatus === "lost") {
         setPendingLostSessionId(sessionId);
         return;
       }
 
       // Feature #15: validar lead_source antes de 'scheduled' ou 'converted' no Kanban
-      if (newStatus === 'scheduled' || newStatus === 'converted') {
-        const conversation = conversations.find(c => c.session_id === sessionId);
+      if (newStatus === "scheduled" || newStatus === "converted") {
+        const conversation = conversations.find(
+          (c) => c.session_id === sessionId,
+        );
         if (conversation && !conversation.lead_source) {
           setShowLeadSourcePrompt({
             sessionId,
             pendingAction: newStatus,
-            scheduledAt: newStatus === 'scheduled'
-              ? new Date(Date.now() + 86400000).toISOString()
-              : undefined,
+            scheduledAt:
+              newStatus === "scheduled"
+                ? new Date(Date.now() + 86400000).toISOString()
+                : undefined,
           });
           return;
         }
       }
 
-      if (newStatus === 'converted') {
+      if (newStatus === "converted") {
         await markAsConverted(sessionId);
-      } else if (newStatus === 'archived') {
+      } else if (newStatus === "archived") {
         await archiveConversation(sessionId);
-      } else if (newStatus === 'scheduled') {
-        await markAsScheduled(sessionId, new Date(Date.now() + 86400000).toISOString());
+      } else if (newStatus === "scheduled") {
+        await markAsScheduled(
+          sessionId,
+          new Date(Date.now() + 86400000).toISOString(),
+        );
       } else {
-        const { supabase } = await import('../lib/supabase');
-        await supabase
-          .from('supervision_states')
-          .upsert(
-            {
-              session_id: sessionId,
-              status: newStatus,
-              ai_enabled: newStatus === 'ai_active',
-              updated_by: 'user',
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'session_id' }
-          );
+        const { supabase } = await import("../lib/supabase");
+        await supabase.from("supervision_states").upsert(
+          {
+            session_id: sessionId,
+            status: newStatus,
+            ai_enabled: newStatus === "ai_active",
+            updated_by: "user",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "session_id" },
+        );
         refetch();
       }
     },
-    [conversations, markAsConverted, markAsScheduled, archiveConversation, refetch]
+    [
+      conversations,
+      markAsConverted,
+      markAsScheduled,
+      archiveConversation,
+      refetch,
+    ],
   );
 
   const handleKanbanLostConfirm = useCallback(
@@ -446,7 +549,7 @@ export const Supervision: React.FC = () => {
         refetch();
       }
     },
-    [pendingLostSessionId, markAsLost, refetch]
+    [pendingLostSessionId, markAsLost, refetch],
   );
 
   // Bulk Actions Bar Component
@@ -461,22 +564,32 @@ export const Supervision: React.FC = () => {
         {!isClientUser && (
           <div className="relative" ref={bulkStatusRef}>
             <button
-              onClick={() => setBulkStatusOpen(v => !v)}
+              onClick={() => setBulkStatusOpen((v) => !v)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-bg-hover hover:bg-border-default rounded-lg text-xs text-text-secondary transition-colors"
             >
               <MoveRight size={12} />
               <span>Mover Status</span>
-              <ChevronDown size={11} className={`transition-transform ${bulkStatusOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={11}
+                className={`transition-transform ${bulkStatusOpen ? "rotate-180" : ""}`}
+              />
             </button>
             {bulkStatusOpen && (
               <div className="absolute top-full left-0 mt-1 w-44 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden">
-                {(Object.entries(supervisionStatusConfig) as [SupervisionStatus, typeof supervisionStatusConfig[SupervisionStatus]][]).map(([status, config]) => (
+                {(
+                  Object.entries(supervisionStatusConfig) as [
+                    SupervisionStatus,
+                    (typeof supervisionStatusConfig)[SupervisionStatus],
+                  ][]
+                ).map(([status, config]) => (
                   <button
                     key={status}
                     onClick={() => handleBulkMoveStatus(status)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-text-secondary hover:bg-bg-hover transition-colors"
                   >
-                    <span className={`w-2 h-2 rounded-full ${config.bgColor}`} />
+                    <span
+                      className={`w-2 h-2 rounded-full ${config.bgColor}`}
+                    />
                     <span className={config.color}>{config.label}</span>
                   </button>
                 ))}
@@ -509,13 +622,15 @@ export const Supervision: React.FC = () => {
   // View Toggle Component
   const ViewToggle = () => (
     <div className="flex items-center gap-1">
-      {viewMode === 'list' && (
+      {viewMode === "list" && (
         <button
-          onClick={() => selectionMode ? handleCancelSelection() : setSelectionMode(true)}
+          onClick={() =>
+            selectionMode ? handleCancelSelection() : setSelectionMode(true)
+          }
           className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors ${
             selectionMode
-              ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
-              : 'bg-bg-hover text-text-muted hover:text-text-secondary'
+              ? "bg-accent-primary/10 text-accent-primary border border-accent-primary/30"
+              : "bg-bg-hover text-text-muted hover:text-text-secondary"
           }`}
           title="Selecionar conversas"
         >
@@ -524,33 +639,42 @@ export const Supervision: React.FC = () => {
       )}
       <div className="flex bg-bg-hover rounded-lg p-0.5">
         <button
-          onClick={() => { setViewMode('list'); handleCancelSelection(); }}
+          onClick={() => {
+            setViewMode("list");
+            handleCancelSelection();
+          }}
           className={`p-1.5 rounded-md transition-colors ${
-            viewMode === 'list'
-              ? 'bg-accent-primary text-white'
-              : 'text-text-muted hover:text-text-secondary'
+            viewMode === "list"
+              ? "bg-accent-primary text-white"
+              : "text-text-muted hover:text-text-secondary"
           }`}
           title="Lista"
         >
           <LayoutList size={14} />
         </button>
         <button
-          onClick={() => { setViewMode('kanban'); handleCancelSelection(); }}
+          onClick={() => {
+            setViewMode("kanban");
+            handleCancelSelection();
+          }}
           className={`p-1.5 rounded-md transition-colors ${
-            viewMode === 'kanban'
-              ? 'bg-accent-primary text-white'
-              : 'text-text-muted hover:text-text-secondary'
+            viewMode === "kanban"
+              ? "bg-accent-primary text-white"
+              : "text-text-muted hover:text-text-secondary"
           }`}
           title="Kanban"
         >
           <Columns3 size={14} />
         </button>
         <button
-          onClick={() => { setViewMode('metrics'); handleCancelSelection(); }}
+          onClick={() => {
+            setViewMode("metrics");
+            handleCancelSelection();
+          }}
           className={`p-1.5 rounded-md transition-colors ${
-            viewMode === 'metrics'
-              ? 'bg-accent-primary text-white'
-              : 'text-text-muted hover:text-text-secondary'
+            viewMode === "metrics"
+              ? "bg-accent-primary text-white"
+              : "text-text-muted hover:text-text-secondary"
           }`}
           title="Metricas"
         >
@@ -561,32 +685,46 @@ export const Supervision: React.FC = () => {
   );
 
   // Feature #15: handler executado pelo LeadSourcePromptModal apos usuario escolher fonte
-  const handleLeadSourcePromptSelect = useCallback(async (source: string) => {
-    if (!showLeadSourcePrompt) return;
-    const { sessionId, pendingAction, scheduledAt, notes } = showLeadSourcePrompt;
+  const handleLeadSourcePromptSelect = useCallback(
+    async (source: string) => {
+      if (!showLeadSourcePrompt) return;
+      const { sessionId, pendingAction, scheduledAt, notes } =
+        showLeadSourcePrompt;
 
-    // 1. Salvar lead source localmente
-    await updateLeadSource(sessionId, source);
+      // 1. Salvar lead source localmente
+      await updateLeadSource(sessionId, source);
 
-    // 2. Sync GHL (non-blocking)
-    const conversation = conversations.find(c => c.session_id === sessionId);
-    syncLeadSource({
-      sessionId,
-      locationId: conversation?.location_id || '',
-      contactId: conversation?.contact_id || undefined,
-      leadSource: source,
-    });
+      // 2. Sync GHL (non-blocking)
+      const conversation = conversations.find(
+        (c) => c.session_id === sessionId,
+      );
+      syncLeadSource({
+        sessionId,
+        locationId: conversation?.location_id || "",
+        contactId: conversation?.contact_id || undefined,
+        leadSource: source,
+      });
 
-    // 3. Executar acao pendente
-    if (pendingAction === 'scheduled' && scheduledAt) {
-      await markAsScheduled(sessionId, scheduledAt, notes);
-    } else if (pendingAction === 'converted') {
-      await markAsConverted(sessionId, notes);
-    }
+      // 3. Executar acao pendente
+      if (pendingAction === "scheduled" && scheduledAt) {
+        await markAsScheduled(sessionId, scheduledAt, notes);
+      } else if (pendingAction === "converted") {
+        await markAsConverted(sessionId, notes);
+      }
 
-    setShowLeadSourcePrompt(null);
-    refetch();
-  }, [showLeadSourcePrompt, updateLeadSource, syncLeadSource, markAsScheduled, markAsConverted, conversations, refetch]);
+      setShowLeadSourcePrompt(null);
+      refetch();
+    },
+    [
+      showLeadSourcePrompt,
+      updateLeadSource,
+      syncLeadSource,
+      markAsScheduled,
+      markAsConverted,
+      conversations,
+      refetch,
+    ],
+  );
 
   const detailProps = {
     conversation: selectedConversation!,
@@ -631,20 +769,21 @@ export const Supervision: React.FC = () => {
               isMobile={true}
               viewToggle={<ViewToggle />}
             />
-            {(savedFilters.length > 0 || defaultClientFilters.length > 0) && viewMode !== 'metrics' && (
-              <div className="px-3">
-                <SavedFiltersPanel
-                  savedFilters={savedFilters}
-                  defaultClientFilters={defaultClientFilters}
-                  currentFilters={filters}
-                  activeLocationId={filters.locationId}
-                  onApply={setFilters}
-                  onSave={saveFilter}
-                  onDelete={deleteFilter}
-                />
-              </div>
-            )}
-            {viewMode === 'list' && (
+            {(savedFilters.length > 0 || defaultClientFilters.length > 0) &&
+              viewMode !== "metrics" && (
+                <div className="px-3">
+                  <SavedFiltersPanel
+                    savedFilters={savedFilters}
+                    defaultClientFilters={defaultClientFilters}
+                    currentFilters={filters}
+                    activeLocationId={filters.locationId}
+                    onApply={setFilters}
+                    onSave={saveFilter}
+                    onDelete={deleteFilter}
+                  />
+                </div>
+              )}
+            {viewMode === "list" && (
               <>
                 {selectionMode && <BulkActionsBar />}
                 <ConversationList
@@ -659,7 +798,7 @@ export const Supervision: React.FC = () => {
                 />
               </>
             )}
-            {viewMode === 'kanban' && (
+            {viewMode === "kanban" && (
               <SupervisionKanban
                 conversations={conversations}
                 onSelect={handleSelectConversation}
@@ -667,8 +806,11 @@ export const Supervision: React.FC = () => {
                 selectedId={selectedConversation?.session_id || null}
               />
             )}
-            {viewMode === 'metrics' && (
-              <SupervisionMetrics conversations={conversations} filterOptions={filterOptions} />
+            {viewMode === "metrics" && (
+              <SupervisionMetrics
+                conversations={conversations}
+                filterOptions={filterOptions}
+              />
             )}
           </>
         )}
@@ -680,7 +822,7 @@ export const Supervision: React.FC = () => {
   return (
     <div className="h-full flex bg-bg-primary">
       {/* Left Panel — only visible in list mode */}
-      {viewMode === 'list' && (
+      {viewMode === "list" && (
         <div className="w-[400px] flex flex-col border-r border-border-default bg-bg-secondary">
           <SupervisionHeader
             stats={stats}
@@ -718,11 +860,13 @@ export const Supervision: React.FC = () => {
       )}
 
       {/* Kanban View */}
-      {viewMode === 'kanban' && (
+      {viewMode === "kanban" && (
         <div className="flex-1 flex flex-col">
           <div className="px-4 py-2 border-b border-border-default bg-bg-secondary flex items-center gap-3">
             <ViewToggle />
-            <h1 className="text-base font-semibold text-text-primary">Supervisao IA - Kanban</h1>
+            <h1 className="text-base font-semibold text-text-primary">
+              Supervisao IA - Kanban
+            </h1>
           </div>
           <div className="flex-1 flex overflow-hidden">
             <SupervisionKanban
@@ -741,18 +885,23 @@ export const Supervision: React.FC = () => {
       )}
 
       {/* Metrics View */}
-      {viewMode === 'metrics' && (
+      {viewMode === "metrics" && (
         <div className="flex-1 flex flex-col">
           <div className="px-4 py-2 border-b border-border-default bg-bg-secondary flex items-center gap-3">
             <ViewToggle />
-            <h1 className="text-base font-semibold text-text-primary">Supervisao IA - Metricas</h1>
+            <h1 className="text-base font-semibold text-text-primary">
+              Supervisao IA - Metricas
+            </h1>
           </div>
-          <SupervisionMetrics conversations={conversations} filterOptions={filterOptions} />
+          <SupervisionMetrics
+            conversations={conversations}
+            filterOptions={filterOptions}
+          />
         </div>
       )}
 
       {/* List View — right panel */}
-      {viewMode === 'list' && (
+      {viewMode === "list" && (
         <div className="flex-1 flex flex-col">
           {selectedConversation ? (
             <ConversationDetail {...detailProps} isMobile={false} />
@@ -766,7 +915,8 @@ export const Supervision: React.FC = () => {
                   Selecione uma conversa
                 </h3>
                 <p className="text-sm text-text-muted max-w-xs">
-                  Escolha uma conversa na lista para visualizar as mensagens e realizar acoes
+                  Escolha uma conversa na lista para visualizar as mensagens e
+                  realizar acoes
                 </p>
               </div>
             </div>
@@ -782,12 +932,19 @@ export const Supervision: React.FC = () => {
               Fonte do Lead
             </h3>
             <p className="text-sm text-text-muted mb-4">
-              Defina a fonte antes de{' '}
-              {showLeadSourcePrompt.pendingAction === 'scheduled' ? 'agendar' : 'converter'}{' '}
+              Defina a fonte antes de{" "}
+              {showLeadSourcePrompt.pendingAction === "scheduled"
+                ? "agendar"
+                : "converter"}{" "}
               este lead.
             </p>
             <div className="max-h-52 overflow-y-auto space-y-0.5 mb-4 -mx-1 px-1">
-              {(Object.entries(leadSourceConfig) as [LeadSource, { label: string }][]).map(([key, cfg]) => (
+              {(
+                Object.entries(leadSourceConfig) as [
+                  LeadSource,
+                  { label: string },
+                ][]
+              ).map(([key, cfg]) => (
                 <button
                   key={key}
                   onClick={() => handleLeadSourcePromptSelect(key)}

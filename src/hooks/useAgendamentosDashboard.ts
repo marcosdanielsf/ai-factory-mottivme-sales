@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // =============================================================================
 // TYPES — consolidated from useAgendamentosStats + useCriativoPerformance + useLeadSegmentation
@@ -299,8 +300,8 @@ export const useAgendamentosDashboard = (
       setWonContactIds(new Set(wonData.map((o: any) => o.contact_id)));
       setWonCount(wonData.length);
       setExactLeadsCount(countResult.count ?? leadsResult.data?.length ?? 0);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar dados');
       console.error('[AgendamentosDashboard Error]', err);
     } finally {
       setLoading(false);

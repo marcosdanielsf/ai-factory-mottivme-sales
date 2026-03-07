@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { getErrorMessage } from "../lib/getErrorMessage";
 import {
   Mic,
   MicOff,
@@ -287,7 +288,7 @@ Regras:
               setIsSpeaking(false);
             }
           },
-          onerror: (e: any) => {
+          onerror: (e: unknown) => {
             console.error("Voice error:", e);
             setError("Erro na conexão de voz");
             cleanup();
@@ -299,9 +300,9 @@ Regras:
       });
 
       sessionPromiseRef.current = sessionPromise;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to start voice:", err);
-      setError(err.message || "Erro ao iniciar voz");
+      setError(getErrorMessage(err) || "Erro ao iniciar voz");
       setIsConnecting(false);
     }
   };
@@ -336,7 +337,9 @@ Regras:
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const model = ai.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+      const model = (ai as any).getGenerativeModel({
+        model: "gemini-2.5-flash-lite",
+      });
 
       const result = await model.generateContent({
         contents: [
@@ -363,7 +366,7 @@ Regras:
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Text chat error:", err);
       setError("Erro ao enviar mensagem");
     } finally {

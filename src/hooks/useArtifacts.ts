@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { FactoryArtifact } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export const useArtifacts = (agentId?: string) => {
   const [artifacts, setArtifacts] = useState<FactoryArtifact[]>([]);
@@ -32,9 +33,9 @@ export const useArtifacts = (agentId?: string) => {
       } else {
         setArtifacts(data || []);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching artifacts:', err);
-      setError(err.message || 'Erro ao carregar documentos');
+      setError(getErrorMessage(err) || 'Erro ao carregar documentos');
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ export const useArtifacts = (agentId?: string) => {
       }
       setArtifacts(prev => [data, ...prev]);
       return { data, error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error uploading artifact:', err);
       // Retornar o erro completo para que o chamador possa exibir detalhes
       return { data: null, error: err };
@@ -77,7 +78,7 @@ export const useArtifacts = (agentId?: string) => {
       if (error) throw error;
       setArtifacts(prev => prev.filter(a => a.id !== id));
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting artifact:', err);
       return { error: err };
     }

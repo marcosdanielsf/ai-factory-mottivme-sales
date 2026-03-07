@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // API base URL from env
 const TEST_API_URL = import.meta.env.VITE_TEST_API_URL || 'http://localhost:8000';
@@ -87,9 +88,9 @@ export const useTestRunner = () => {
       });
 
       setAgentVersions(Array.from(seen.values()));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching agent versions:', err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setLoadingAgents(false);
     }
@@ -129,10 +130,10 @@ export const useTestRunner = () => {
       startPolling(runId);
 
       return runId;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error running test:', err);
       setStatus('error');
-      setError(err.message || 'Erro ao iniciar teste');
+      setError(getErrorMessage(err) || 'Erro ao iniciar teste');
       return null;
     }
   }, []);
@@ -164,7 +165,7 @@ export const useTestRunner = () => {
             pollingRef.current = null;
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Polling error:', err);
         // Don't stop polling on transient errors, but count failures
       }
@@ -185,7 +186,7 @@ export const useTestRunner = () => {
       }
 
       return await response.json();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching results:', err);
       return null;
     }

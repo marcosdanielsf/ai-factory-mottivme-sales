@@ -27,8 +27,8 @@ export function useGHLPipelines(locationId: string) {
                     setPipelines(data.pipelines);
                     setError(null);
                 }
-            } catch (err: any) {
-                if (err.name === 'AbortError') return;
+            } catch (err: unknown) {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
                 console.error('Error fetching pipelines:', err);
                 if (mounted) setError('Failed to load pipelines');
             } finally {

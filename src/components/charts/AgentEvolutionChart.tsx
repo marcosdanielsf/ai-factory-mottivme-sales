@@ -60,20 +60,35 @@ const SCORE_LABELS_REFLECTION = {
   media: "Media",
 };
 
-function CustomTooltip({ active, payload, labels }: any) {
+interface TooltipEntry {
+  dataKey?: string;
+  value?: number;
+  color?: string;
+  payload?: Record<string, unknown>;
+}
+
+function CustomTooltip({
+  active,
+  payload,
+  labels,
+}: {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  labels?: Record<string, string>;
+}) {
   if (!active || !payload || !payload.length) return null;
 
   const scoreLabels = labels || SCORE_LABELS_IMPROVER;
-  const data = payload[0].payload;
+  const data = payload[0].payload as Record<string, unknown>;
 
   return (
     <div className="bg-bg-tertiary border border-border-default rounded-lg p-4 shadow-xl">
       <p className="text-text-secondary text-sm font-medium mb-3 border-b border-border-default pb-2">
-        {data.displayDate}
+        {data.displayDate as string}
       </p>
 
       <div className="space-y-2 mb-3">
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry: TooltipEntry, index: number) => (
           <div key={index} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span
@@ -89,7 +104,7 @@ function CustomTooltip({ active, payload, labels }: any) {
               </span>
             </div>
             <span className="text-text-primary font-bold tabular-nums">
-              {entry.value.toFixed(0)}
+              {(entry.value ?? 0).toFixed(0)}
             </span>
           </div>
         ))}
@@ -99,11 +114,11 @@ function CustomTooltip({ active, payload, labels }: any) {
         <div className="flex items-center gap-2 text-xs">
           <span className="text-text-muted">Versao:</span>
           <span className="text-text-secondary font-mono">
-            {data.versionBefore}
+            {data.versionBefore as string}
           </span>
           <span className="text-accent-primary">→</span>
           <span className="text-accent-primary font-mono font-semibold">
-            {data.versionAfter}
+            {data.versionAfter as string}
           </span>
         </div>
       </div>
@@ -253,8 +268,12 @@ export function AgentEvolutionChart({
       const { data: rlLogs, error: rlError } = await rlQuery;
 
       if (!rlError && rlLogs && rlLogs.length > 0) {
-        const formattedData: EvolutionData[] = rlLogs.map((log: any) => {
-          const agentInfo = log.agent_versions || {};
+        type RLLog = (typeof rlLogs)[number];
+        const formattedData: EvolutionData[] = rlLogs.map((log: RLLog) => {
+          const agentInfo = (log.agent_versions || {}) as Record<
+            string,
+            unknown
+          >;
           return {
             date: log.created_at,
             displayDate: new Date(log.created_at).toLocaleDateString("pt-BR", {
@@ -267,8 +286,8 @@ export function AgentEvolutionChart({
             neurovendas: (log.score_depth || 0) * 10,
             pessoas: (log.score_tone || 0) * 10,
             media: (log.overall_score || 0) * 10,
-            versionBefore: agentInfo.version || "N/A",
-            versionAfter: agentInfo.version || "N/A",
+            versionBefore: (agentInfo.version as string) || "N/A",
+            versionAfter: (agentInfo.version as string) || "N/A",
           };
         });
 

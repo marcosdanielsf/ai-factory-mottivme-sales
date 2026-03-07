@@ -27,8 +27,8 @@ export function useGHLCalendar(locationId: string, dateRange: DateRange | undefi
             );
             setEvents(data.events);
             setError(null);
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
+        } catch (err: unknown) {
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             console.error('Error fetching calendar events:', err);
             setError('Failed to load events');
         } finally {

@@ -23,6 +23,7 @@ export type ToolType =
   | "image"
   | "emoji"
   | "draw"
+  | "pen"
   | "comment";
 
 export interface Viewport {

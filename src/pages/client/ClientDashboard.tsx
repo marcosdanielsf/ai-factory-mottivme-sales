@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo } from "react";
 import {
   Users,
   Calendar,
@@ -8,10 +8,10 @@ import {
   CheckCircle,
   Clock,
   ArrowRight,
-  Sparkles
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+  Sparkles,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Metric Card Component
 const MetricCard = ({
@@ -19,27 +19,27 @@ const MetricCard = ({
   label,
   value,
   change,
-  changeType = 'neutral',
-  color = 'primary'
+  changeType = "neutral",
+  color = "primary",
 }: {
-  icon: any;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
   value: string | number;
   change?: string;
-  changeType?: 'positive' | 'negative' | 'neutral';
-  color?: 'primary' | 'success' | 'warning' | 'info';
+  changeType?: "positive" | "negative" | "neutral";
+  color?: "primary" | "success" | "warning" | "info";
 }) => {
   const colors = {
-    primary: 'bg-accent-primary/10 text-accent-primary',
-    success: 'bg-emerald-500/10 text-emerald-400',
-    warning: 'bg-amber-500/10 text-amber-400',
-    info: 'bg-blue-500/10 text-blue-400',
+    primary: "bg-accent-primary/10 text-accent-primary",
+    success: "bg-emerald-500/10 text-emerald-400",
+    warning: "bg-amber-500/10 text-amber-400",
+    info: "bg-blue-500/10 text-blue-400",
   };
 
   const changeColors = {
-    positive: 'text-emerald-400',
-    negative: 'text-red-400',
-    neutral: 'text-text-muted',
+    positive: "text-emerald-400",
+    negative: "text-red-400",
+    neutral: "text-text-muted",
   };
 
   return (
@@ -68,18 +68,18 @@ const QuickAction = ({
   title,
   description,
   to,
-  color = 'primary'
+  color = "primary",
 }: {
-  icon: any;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   description: string;
   to: string;
   color?: string;
 }) => {
   const colors: Record<string, string> = {
-    primary: 'from-accent-primary to-purple-500',
-    success: 'from-emerald-500 to-teal-500',
-    warning: 'from-amber-500 to-orange-500',
+    primary: "from-accent-primary to-purple-500",
+    success: "from-emerald-500 to-teal-500",
+    warning: "from-amber-500 to-orange-500",
   };
 
   return (
@@ -87,7 +87,9 @@ const QuickAction = ({
       to={to}
       className="group flex items-center gap-4 p-5 bg-bg-secondary border border-border-default rounded-xl hover:border-accent-primary/50 transition-all"
     >
-      <div className={`p-3 rounded-xl bg-gradient-to-br ${colors[color]} text-white`}>
+      <div
+        className={`p-3 rounded-xl bg-gradient-to-br ${colors[color]} text-white`}
+      >
         <Icon size={24} />
       </div>
       <div className="flex-1">
@@ -96,7 +98,10 @@ const QuickAction = ({
         </h3>
         <p className="text-sm text-text-muted">{description}</p>
       </div>
-      <ArrowRight size={20} className="text-text-muted group-hover:text-accent-primary group-hover:translate-x-1 transition-all" />
+      <ArrowRight
+        size={20}
+        className="text-text-muted group-hover:text-accent-primary group-hover:translate-x-1 transition-all"
+      />
     </Link>
   );
 };
@@ -105,9 +110,9 @@ const QuickAction = ({
 const ActivityItem = ({
   type,
   message,
-  time
+  time,
 }: {
-  type: 'lead' | 'appointment' | 'message' | 'agent';
+  type: "lead" | "appointment" | "message" | "agent";
   message: string;
   time: string;
 }) => {
@@ -119,10 +124,10 @@ const ActivityItem = ({
   };
 
   const colors = {
-    lead: 'bg-blue-500/10 text-blue-400',
-    appointment: 'bg-emerald-500/10 text-emerald-400',
-    message: 'bg-purple-500/10 text-purple-400',
-    agent: 'bg-amber-500/10 text-amber-400',
+    lead: "bg-blue-500/10 text-blue-400",
+    appointment: "bg-emerald-500/10 text-emerald-400",
+    message: "bg-purple-500/10 text-purple-400",
+    agent: "bg-amber-500/10 text-amber-400",
   };
 
   const Icon = icons[type];
@@ -144,39 +149,65 @@ export const ClientDashboard = () => {
   const { user } = useAuth();
 
   // Mock data - em producao viria do banco
-  const metrics = useMemo(() => ({
-    totalLeads: 127,
-    leadsThisWeek: 23,
-    appointments: 8,
-    appointmentsThisWeek: 3,
-    messages: 342,
-    conversionRate: '18%',
-  }), []);
+  const metrics = useMemo(
+    () => ({
+      totalLeads: 127,
+      leadsThisWeek: 23,
+      appointments: 8,
+      appointmentsThisWeek: 3,
+      messages: 342,
+      conversionRate: "18%",
+    }),
+    [],
+  );
 
-  const agentStatus = useMemo(() => ({
-    name: 'Maya',
-    version: 'v5.2.1',
-    status: 'active',
-    score: 8.7,
-    lastUpdate: '2 dias atras',
-  }), []);
+  const agentStatus = useMemo(
+    () => ({
+      name: "Maya",
+      version: "v5.2.1",
+      status: "active",
+      score: 8.7,
+      lastUpdate: "2 dias atras",
+    }),
+    [],
+  );
 
   const recentActivity = [
-    { type: 'lead' as const, message: 'Novo lead: Maria Silva demonstrou interesse', time: 'Ha 15 min' },
-    { type: 'appointment' as const, message: 'Agendamento confirmado para amanha 14h', time: 'Ha 1 hora' },
-    { type: 'message' as const, message: 'Conversa encerrada com Joao Santos', time: 'Ha 2 horas' },
-    { type: 'agent' as const, message: 'Agente tratou objecao de preco com sucesso', time: 'Ha 3 horas' },
-    { type: 'lead' as const, message: 'Lead Carlos Souza entrou no funil', time: 'Ha 4 horas' },
+    {
+      type: "lead" as const,
+      message: "Novo lead: Maria Silva demonstrou interesse",
+      time: "Ha 15 min",
+    },
+    {
+      type: "appointment" as const,
+      message: "Agendamento confirmado para amanha 14h",
+      time: "Ha 1 hora",
+    },
+    {
+      type: "message" as const,
+      message: "Conversa encerrada com Joao Santos",
+      time: "Ha 2 horas",
+    },
+    {
+      type: "agent" as const,
+      message: "Agente tratou objecao de preco com sucesso",
+      time: "Ha 3 horas",
+    },
+    {
+      type: "lead" as const,
+      message: "Lead Carlos Souza entrou no funil",
+      time: "Ha 4 horas",
+    },
   ];
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Bom dia';
-    if (hour < 18) return 'Boa tarde';
-    return 'Boa noite';
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
   }, []);
 
-  const userName = user?.user_metadata?.full_name?.split(' ')[0] || 'Usuario';
+  const userName = user?.user_metadata?.full_name?.split(" ")[0] || "Usuario";
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -199,16 +230,23 @@ export const ClientDashboard = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-text-primary">{agentStatus.name}</h2>
-                <span className="text-sm text-text-muted font-mono">{agentStatus.version}</span>
+                <h2 className="text-xl font-bold text-text-primary">
+                  {agentStatus.name}
+                </h2>
+                <span className="text-sm text-text-muted font-mono">
+                  {agentStatus.version}
+                </span>
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs font-medium rounded-full">
                   <CheckCircle size={12} />
                   Ativo
                 </span>
               </div>
               <p className="text-sm text-text-muted mt-0.5">
-                Score: <span className="text-accent-primary font-semibold">{agentStatus.score}/10</span> •
-                Atualizado {agentStatus.lastUpdate}
+                Score:{" "}
+                <span className="text-accent-primary font-semibold">
+                  {agentStatus.score}/10
+                </span>{" "}
+                • Atualizado {agentStatus.lastUpdate}
               </p>
             </div>
           </div>
@@ -260,7 +298,9 @@ export const ClientDashboard = () => {
       <div className="grid md:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <div className="md:col-span-2 space-y-4">
-          <h3 className="text-lg font-semibold text-text-primary">Acoes Rapidas</h3>
+          <h3 className="text-lg font-semibold text-text-primary">
+            Acoes Rapidas
+          </h3>
           <div className="space-y-3">
             <QuickAction
               icon={Bot}
@@ -288,7 +328,9 @@ export const ClientDashboard = () => {
 
         {/* Recent Activity */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-text-primary">Atividade Recente</h3>
+          <h3 className="text-lg font-semibold text-text-primary">
+            Atividade Recente
+          </h3>
           <div className="bg-bg-secondary border border-border-default rounded-xl p-4 space-y-1">
             {recentActivity.map((activity, index) => (
               <ActivityItem

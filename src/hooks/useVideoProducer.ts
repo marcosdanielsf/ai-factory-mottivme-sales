@@ -1,22 +1,22 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 
 // ═══════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════
 
-export type VideoFormat = 'reel' | 'short' | 'long' | 'carrossel';
+export type VideoFormat = "reel" | "short" | "long" | "carrossel";
 export type VideoStatus =
-  | 'draft'
-  | 'audio_generating'
-  | 'audio_ready'
-  | 'video_generating'
-  | 'video_ready'
-  | 'publishing'
-  | 'published'
-  | 'failed';
-export type TACOTrack = 'T' | 'A' | 'C' | 'O' | 'H';
-export type Brand = 'vertex' | 'socialfy' | 'mottivme';
+  | "draft"
+  | "audio_generating"
+  | "audio_ready"
+  | "video_generating"
+  | "video_ready"
+  | "publishing"
+  | "published"
+  | "failed";
+export type TACOTrack = "T" | "A" | "C" | "O" | "H";
+export type Brand = "vertex" | "socialfy" | "mottivme";
 
 export interface VideoProductionItem {
   id: string;
@@ -54,6 +54,7 @@ export interface VideoAvatar {
   language: string;
   is_active: boolean;
   metadata: Record<string, any>;
+  style?: string;
 }
 
 export interface VideoVoice {
@@ -91,12 +92,12 @@ export const useVideoQueue = (brand?: Brand) => {
       setError(null);
 
       let query = supabase
-        .from('video_production_queue')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("video_production_queue")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (brand) {
-        query = query.eq('brand', brand);
+        query = query.eq("brand", brand);
       }
 
       const { data, error: queryError } = await query;
@@ -105,9 +106,10 @@ export const useVideoQueue = (brand?: Brand) => {
 
       setItems(data || []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar fila de vídeos';
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar fila de vídeos";
       setError(message);
-      console.error('Error in useVideoQueue:', err);
+      console.error("Error in useVideoQueue:", err);
     } finally {
       setLoading(false);
     }
@@ -118,18 +120,18 @@ export const useVideoQueue = (brand?: Brand) => {
 
     // Real-time subscription for status changes
     const channel = supabase
-      .channel('video_queue_changes')
+      .channel("video_queue_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'video_production_queue',
+          event: "*",
+          schema: "public",
+          table: "video_production_queue",
           filter: brand ? `brand=eq.${brand}` : undefined,
         },
         () => {
           fetchQueue();
-        }
+        },
       )
       .subscribe();
 
@@ -152,18 +154,19 @@ export const useVideoItem = (id: string) => {
       setError(null);
 
       const { data, error: queryError } = await supabase
-        .from('video_production_queue')
-        .select('*')
-        .eq('id', id)
+        .from("video_production_queue")
+        .select("*")
+        .eq("id", id)
         .single();
 
       if (queryError) throw queryError;
 
       setItem(data);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar vídeo';
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar vídeo";
       setError(message);
-      console.error('Error in useVideoItem:', err);
+      console.error("Error in useVideoItem:", err);
     } finally {
       setLoading(false);
     }
@@ -178,16 +181,16 @@ export const useVideoItem = (id: string) => {
     const channel = supabase
       .channel(`video_item_${id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'video_production_queue',
+          event: "*",
+          schema: "public",
+          table: "video_production_queue",
           filter: `id=eq.${id}`,
         },
         () => {
           fetchItem();
-        }
+        },
       )
       .subscribe();
 
@@ -210,13 +213,13 @@ export const useVideoAvatars = (brand?: Brand) => {
       setError(null);
 
       let query = supabase
-        .from('video_avatars')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+        .from("video_avatars")
+        .select("*")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
 
       if (brand) {
-        query = query.eq('brand', brand);
+        query = query.eq("brand", brand);
       }
 
       const { data, error: queryError } = await query;
@@ -225,9 +228,10 @@ export const useVideoAvatars = (brand?: Brand) => {
 
       setAvatars(data || []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar avatares';
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar avatares";
       setError(message);
-      console.error('Error in useVideoAvatars:', err);
+      console.error("Error in useVideoAvatars:", err);
     } finally {
       setLoading(false);
     }
@@ -251,13 +255,13 @@ export const useVideoVoices = (brand?: Brand) => {
       setError(null);
 
       let query = supabase
-        .from('video_voices')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+        .from("video_voices")
+        .select("*")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
 
       if (brand) {
-        query = query.eq('brand', brand);
+        query = query.eq("brand", brand);
       }
 
       const { data, error: queryError } = await query;
@@ -266,9 +270,10 @@ export const useVideoVoices = (brand?: Brand) => {
 
       setVoices(data || []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar vozes';
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar vozes";
       setError(message);
-      console.error('Error in useVideoVoices:', err);
+      console.error("Error in useVideoVoices:", err);
     } finally {
       setLoading(false);
     }
@@ -297,12 +302,10 @@ export const useVideoMetrics = (brand?: Brand) => {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('video_production_queue')
-        .select('status');
+      let query = supabase.from("video_production_queue").select("status");
 
       if (brand) {
-        query = query.eq('brand', brand);
+        query = query.eq("brand", brand);
       }
 
       const { data, error: queryError } = await query;
@@ -313,19 +316,24 @@ export const useVideoMetrics = (brand?: Brand) => {
       const total = items.length;
       const producing = items.filter(
         (item) =>
-          item.status === 'audio_generating' ||
-          item.status === 'video_generating' ||
-          item.status === 'publishing'
+          item.status === "audio_generating" ||
+          item.status === "video_generating" ||
+          item.status === "publishing",
       ).length;
-      const ready = items.filter((item) => item.status === 'video_ready').length;
-      const published = items.filter((item) => item.status === 'published').length;
-      const failed = items.filter((item) => item.status === 'failed').length;
+      const ready = items.filter(
+        (item) => item.status === "video_ready",
+      ).length;
+      const published = items.filter(
+        (item) => item.status === "published",
+      ).length;
+      const failed = items.filter((item) => item.status === "failed").length;
 
       setMetrics({ total, producing, ready, published, failed });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar métricas';
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar métricas";
       setError(message);
-      console.error('Error in useVideoMetrics:', err);
+      console.error("Error in useVideoMetrics:", err);
     } finally {
       setLoading(false);
     }
@@ -338,51 +346,57 @@ export const useVideoMetrics = (brand?: Brand) => {
   return { metrics, loading, error, refetch: fetchMetrics };
 };
 
-export const createVideoItem = async (data: Partial<VideoProductionItem>): Promise<string> => {
+export const createVideoItem = async (
+  data: Partial<VideoProductionItem>,
+): Promise<string> => {
   try {
     const { data: inserted, error: insertError } = await supabase
-      .from('video_production_queue')
+      .from("video_production_queue")
       .insert({
         title: data.title,
         script: data.script,
         format: data.format,
         duration_target: data.duration_target,
         taco_track: data.taco_track,
-        status: data.status || 'draft',
+        status: data.status || "draft",
         voice_id: data.voice_id,
         avatar_id: data.avatar_id,
         publish_channels: data.publish_channels || [],
         scheduled_at: data.scheduled_at,
         metadata: data.metadata || {},
-        brand: data.brand || 'mottivme',
+        brand: data.brand || "mottivme",
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (insertError) throw insertError;
 
     return inserted.id;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erro ao criar vídeo';
-    console.error('Error creating video item:', err);
+    const message = err instanceof Error ? err.message : "Erro ao criar vídeo";
+    console.error("Error creating video item:", err);
     throw new Error(message);
   }
 };
 
-export const updateVideoItem = async (id: string, updates: Partial<VideoProductionItem>) => {
+export const updateVideoItem = async (
+  id: string,
+  updates: Partial<VideoProductionItem>,
+) => {
   try {
     const { error: updateError } = await supabase
-      .from('video_production_queue')
+      .from("video_production_queue")
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq("id", id);
 
     if (updateError) throw updateError;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erro ao atualizar vídeo';
-    console.error('Error updating video item:', err);
+    const message =
+      err instanceof Error ? err.message : "Erro ao atualizar vídeo";
+    console.error("Error updating video item:", err);
     throw new Error(message);
   }
 };
@@ -390,14 +404,15 @@ export const updateVideoItem = async (id: string, updates: Partial<VideoProducti
 export const deleteVideoItem = async (id: string) => {
   try {
     const { error: deleteError } = await supabase
-      .from('video_production_queue')
+      .from("video_production_queue")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (deleteError) throw deleteError;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erro ao deletar vídeo';
-    console.error('Error deleting video item:', err);
+    const message =
+      err instanceof Error ? err.message : "Erro ao deletar vídeo";
+    console.error("Error deleting video item:", err);
     throw new Error(message);
   }
 };
@@ -405,13 +420,13 @@ export const deleteVideoItem = async (id: string) => {
 export const triggerVideoProduction = async (id: string) => {
   try {
     // First, update status to indicate production started
-    await updateVideoItem(id, { status: 'audio_generating' });
+    await updateVideoItem(id, { status: "audio_generating" });
 
     // Fetch the full item so we can send required fields to the webhook
     const { data: item, error: fetchError } = await supabase
-      .from('video_production_queue')
-      .select('voice_id, avatar_id, format, script')
-      .eq('id', id)
+      .from("video_production_queue")
+      .select("voice_id, avatar_id, format, script")
+      .eq("id", id)
       .single();
 
     if (fetchError) throw fetchError;
@@ -419,13 +434,13 @@ export const triggerVideoProduction = async (id: string) => {
     // Call webhook to start production
     const webhookUrl = import.meta.env.VITE_VIDEO_PRODUCTION_WEBHOOK;
     if (!webhookUrl) {
-      throw new Error('VITE_VIDEO_PRODUCTION_WEBHOOK não configurado');
+      throw new Error("VITE_VIDEO_PRODUCTION_WEBHOOK não configurado");
     }
 
     const response = await fetch(webhookUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         queue_id: id,
@@ -441,13 +456,14 @@ export const triggerVideoProduction = async (id: string) => {
       throw new Error(`Webhook failed: ${errorText}`);
     }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erro ao iniciar produção';
-    console.error('Error triggering video production:', err);
+    const message =
+      err instanceof Error ? err.message : "Erro ao iniciar produção";
+    console.error("Error triggering video production:", err);
 
     // Revert status on error
     await updateVideoItem(id, {
-      status: 'failed',
-      error_message: message
+      status: "failed",
+      error_message: message,
     });
 
     throw new Error(message);

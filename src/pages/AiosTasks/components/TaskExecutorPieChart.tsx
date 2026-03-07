@@ -1,5 +1,12 @@
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ExecutorDistribution } from '../../../hooks/aios/useAiosTasksExpanded';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { ExecutorDistribution } from "../../../hooks/aios/useAiosTasksExpanded";
 
 interface TaskExecutorPieChartProps {
   data: ExecutorDistribution[];
@@ -18,10 +25,15 @@ function CustomTooltip({ active, payload }: any) {
   );
 }
 
-export function TaskExecutorPieChart({ data, loading }: TaskExecutorPieChartProps) {
+export function TaskExecutorPieChart({
+  data,
+  loading,
+}: TaskExecutorPieChartProps) {
   return (
     <div className="bg-bg-secondary border border-border-default rounded-lg p-4">
-      <h3 className="text-text-primary text-sm font-semibold mb-4">Distribuicao por Executor</h3>
+      <h3 className="text-text-primary text-sm font-semibold mb-4">
+        Distribuicao por Executor
+      </h3>
       {loading ? (
         <div className="h-52 animate-pulse bg-bg-tertiary rounded" />
       ) : data.length === 0 ? (
@@ -32,7 +44,7 @@ export function TaskExecutorPieChart({ data, loading }: TaskExecutorPieChartProp
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
-              data={data}
+              data={data as any[]}
               cx="50%"
               cy="50%"
               innerRadius={55}

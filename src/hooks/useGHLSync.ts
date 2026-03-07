@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ghlClient } from '../services/ghl/ghlClient';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // Mapeamento meeting_status -> tag GHL (mesmo padrao do StatusCenter)
 const MEETING_TAG_MAP: Record<string, string | null> = {
@@ -109,9 +110,9 @@ export const useGHLSync = (): UseGHLSyncReturn => {
 
         console.log(`[GHLSync] Meeting status synced: tag=${tag || '-'}, opp=${oppStatus || '-'}`);
         return true;
-      } catch (err: any) {
-        console.warn('[GHLSync] Sync failed (non-blocking):', err.message);
-        setError(err.message);
+      } catch (err: unknown) {
+        console.warn('[GHLSync] Sync failed (non-blocking):', getErrorMessage(err));
+        setError(getErrorMessage(err));
         return false;
       } finally {
         setSyncing(false);
@@ -147,8 +148,8 @@ export const useGHLSync = (): UseGHLSyncReturn => {
 
         console.log(`[GHLSync] Lead source synced: tag=fonte-${params.leadSource}`);
         return true;
-      } catch (err: any) {
-        console.warn('[GHLSync] Lead source sync failed (non-blocking):', err.message);
+      } catch (err: unknown) {
+        console.warn('[GHLSync] Lead source sync failed (non-blocking):', getErrorMessage(err));
         return false;
       } finally {
         setSyncing(false);
@@ -182,9 +183,9 @@ export const useGHLSync = (): UseGHLSyncReturn => {
 
         console.log(`[GHLSync] Tags added: ${params.tags.join(', ')}`);
         return true;
-      } catch (err: any) {
-        console.warn('[GHLSync] syncAddTag failed (non-blocking):', err.message);
-        setError(err.message);
+      } catch (err: unknown) {
+        console.warn('[GHLSync] syncAddTag failed (non-blocking):', getErrorMessage(err));
+        setError(getErrorMessage(err));
         return false;
       } finally {
         setSyncing(false);
@@ -218,9 +219,9 @@ export const useGHLSync = (): UseGHLSyncReturn => {
 
         console.log(`[GHLSync] Tags removed: ${params.tags.join(', ')}`);
         return true;
-      } catch (err: any) {
-        console.warn('[GHLSync] syncRemoveTag failed (non-blocking):', err.message);
-        setError(err.message);
+      } catch (err: unknown) {
+        console.warn('[GHLSync] syncRemoveTag failed (non-blocking):', getErrorMessage(err));
+        setError(getErrorMessage(err));
         return false;
       } finally {
         setSyncing(false);

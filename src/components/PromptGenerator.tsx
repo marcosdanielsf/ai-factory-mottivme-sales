@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Wand2, ArrowRight, ArrowLeft, Loader2, Copy, Check, X, Bot, Building2, MessageCircle, Shield, Eye } from 'lucide-react';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface PromptGeneratorProps {
   onGenerated: (prompt: string) => void;
@@ -136,9 +137,9 @@ Retorne APENAS o system prompt, sem explicacoes ou comentarios.`;
       const result = await res.json();
       const prompt = result.choices?.[0]?.message?.content || '';
       setGeneratedPrompt(prompt);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[PromptGenerator]', err);
-      setGeneratedPrompt(`// Erro ao gerar: ${err.message}\n\n${getFallbackPrompt(data)}`);
+      setGeneratedPrompt(`// Erro ao gerar: ${getErrorMessage(err)}\n\n${getFallbackPrompt(data)}`);
     } finally {
       setGenerating(false);
     }

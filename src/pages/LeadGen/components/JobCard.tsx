@@ -1,8 +1,8 @@
-import React from 'react';
-import StatusBadge from './StatusBadge';
+import React from "react";
+import StatusBadge from "./StatusBadge";
 
 interface JobCardProps {
-  id: string;
+  id?: string;
   title: string;
   subtitle?: string;
   status: string;
@@ -24,12 +24,14 @@ export default function JobCard({
       onClick={onClick}
       className={`rounded-lg p-3 cursor-pointer transition-colors border ${
         isSelected
-          ? 'border-accent-primary bg-accent-primary/5'
-          : 'bg-bg-secondary border-border-default hover:border-accent-primary/50'
+          ? "border-accent-primary bg-accent-primary/5"
+          : "bg-bg-secondary border-border-default hover:border-accent-primary/50"
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <p className="text-sm font-medium text-text-primary truncate flex-1">{title}</p>
+        <p className="text-sm font-medium text-text-primary truncate flex-1">
+          {title}
+        </p>
         <StatusBadge status={status} size="sm" />
       </div>
 

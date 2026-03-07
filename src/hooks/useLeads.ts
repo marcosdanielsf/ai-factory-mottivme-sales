@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Lead } from '../types';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export type LeadFilter = 'Todos' | 'Hoje' | 'Amanhã' | 'Agendados';
 
@@ -118,7 +119,7 @@ export const useLeads = (options: UseLeadsOptions = {}): UseLeadsReturn => {
       }
 
       // Mapear dados do Supabase para o formato Lead
-      const mappedLeads: Lead[] = (data || []).map((row: any) => ({
+      const mappedLeads: Lead[] = (data || []).map((row) => ({
         id: row.id,
         ghl_contact_id: row.ghl_contact_id,
         name: row.name || 'Lead sem nome',
@@ -142,8 +143,8 @@ export const useLeads = (options: UseLeadsOptions = {}): UseLeadsReturn => {
 
       setLeads(mappedLeads);
       setTotalCount(count || 0);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar leads');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar leads');
       console.error('Error fetching leads:', err);
     } finally {
       setLoading(false);
@@ -195,8 +196,8 @@ export const useLeadById = (id: string | null) => {
             scheduled_date: formatScheduledDate(data.outreach_sent_at || data.scraped_at),
           });
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
         console.error('Error fetching lead:', err);
       } finally {
         setLoading(false);
@@ -238,8 +239,8 @@ export const useLeadConversations = (leadId: string | null) => {
         if (queryError) throw queryError;
 
         setMessages(data || []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
         console.error('Error fetching conversations:', err);
       } finally {
         setLoading(false);

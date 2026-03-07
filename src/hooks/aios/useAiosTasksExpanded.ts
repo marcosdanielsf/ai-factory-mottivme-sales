@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { getErrorMessage } from "../../lib/getErrorMessage";
 
 // Tipos locais para a visao task-centric
 export type ExecutorType = 'agent' | 'worker' | 'clone' | 'human';
@@ -192,8 +193,8 @@ export function useAiosTasksExpanded(filters: UseAiosTasksExpandedFilters = {}) 
       }
 
       setRawTasks(filtered);
-    } catch (err: any) {
-      setError(err.message ?? 'Erro desconhecido');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) ?? 'Erro desconhecido');
     }
 
     setLoading(false);

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 export interface WorkflowCostSummary {
   workflow_name: string;
@@ -172,9 +173,9 @@ export const useWorkflowCosts = (options: UseWorkflowCostsOptions = {}): UseWork
         setTotalCost(result.reduce((acc, w) => acc + w.total_cost_usd, 0));
         setTotalRequests(result.reduce((acc, w) => acc + w.total_requests, 0));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       retryCountRef.current += 1;
-      setError(err.message || 'Erro ao carregar custos por workflow');
+      setError(getErrorMessage(err) || 'Erro ao carregar custos por workflow');
       console.error('Error fetching workflow costs:', err);
     } finally {
       setLoading(false);
@@ -254,8 +255,8 @@ export const useWorkflowClientBreakdown = (workflowName: string | null, dateRang
         setClients(
           Object.values(clientMap).sort((a, b) => b.total_cost_usd - a.total_cost_usd)
         );
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
         console.error('Error fetching workflow client breakdown:', err);
       } finally {
         setLoading(false);

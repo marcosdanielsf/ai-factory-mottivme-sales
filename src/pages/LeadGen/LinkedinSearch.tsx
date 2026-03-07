@@ -1,42 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ExternalLink, RefreshCw, Play, Linkedin, AlertCircle, FileText, Plus } from 'lucide-react';
-import { useLinkedinSearch } from '../../hooks/leadgen/useLinkedinSearch';
-import { useLeadGenWebhook } from '../../hooks/leadgen/useLeadGenWebhook';
-import JobCard from './components/JobCard';
-import StatusBadge from './components/StatusBadge';
-import ActionButton from './components/ActionButton';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  ExternalLink,
+  RefreshCw,
+  Play,
+  Linkedin,
+  AlertCircle,
+  FileText,
+  Plus,
+} from "lucide-react";
+import { useLinkedinSearch } from "../../hooks/leadgen/useLinkedinSearch";
+import { useLeadGenWebhook } from "../../hooks/leadgen/useLeadGenWebhook";
+import JobCard from "./components/JobCard";
+import StatusBadge from "./components/StatusBadge";
+import ActionButton from "./components/ActionButton";
 
 export default function LinkedinSearchPage() {
-  const { searches: data, loading, error, refetch: refresh, createJob } = useLinkedinSearch();
+  const {
+    searches: data,
+    loading,
+    error,
+    refetch: refresh,
+    createJob,
+  } = useLinkedinSearch();
   const { triggerWebhook, loading: webhookLoading } = useLeadGenWebhook();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ search_url: '', notes: '' });
+  const [form, setForm] = useState({ search_url: "", notes: "" });
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
-  const selected = data?.find(d => d.id === selectedId);
+  const selected = data?.find((d) => d.id === selectedId);
 
-  const filtered = data?.filter(d =>
-    !searchQuery ||
-    d.search_url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.status?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) ?? [];
+  const filtered =
+    data?.filter(
+      (d) =>
+        !searchQuery ||
+        d.search_url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.status?.toLowerCase().includes(searchQuery.toLowerCase()),
+    ) ?? [];
 
-  const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, item) => {
-    const key = item.status || 'sem_status';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
+  const grouped = filtered.reduce<Record<string, typeof filtered>>(
+    (acc, item) => {
+      const key = item.status || "sem_status";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    },
+    {},
+  );
 
-  const statusOrder = ['pending', 'running', 'completed', 'error', 'sem_status'];
+  const statusOrder = [
+    "pending",
+    "running",
+    "completed",
+    "error",
+    "sem_status",
+  ];
   const sortedGroups = statusOrder
-    .filter(s => grouped[s]?.length > 0)
-    .concat(Object.keys(grouped).filter(s => !statusOrder.includes(s)));
+    .filter((s) => grouped[s]?.length > 0)
+    .concat(Object.keys(grouped).filter((s) => !statusOrder.includes(s)));
 
   const handleCreate = async () => {
     if (!form.search_url.trim()) return;
@@ -46,11 +74,11 @@ export default function LinkedinSearchPage() {
         search_url: form.search_url.trim(),
         notes: form.notes.trim() || undefined,
       });
-      setForm({ search_url: '', notes: '' });
+      setForm({ search_url: "", notes: "" });
       setShowCreate(false);
       if (job?.id) setSelectedId(job.id);
     } catch (err) {
-      console.error('Error creating job:', err);
+      console.error("Error creating job:", err);
     } finally {
       setCreating(false);
     }
@@ -62,7 +90,9 @@ export default function LinkedinSearchPage() {
       <div className="flex items-center justify-between p-4 border-b border-border-default gap-3">
         <div className="flex items-center gap-2">
           <Linkedin size={20} className="text-accent-primary" />
-          <h1 className="text-xl font-semibold text-text-primary">LinkedIn Search</h1>
+          <h1 className="text-xl font-semibold text-text-primary">
+            LinkedIn Search
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -71,12 +101,15 @@ export default function LinkedinSearchPage() {
               type="text"
               placeholder="Buscar por URL ou notas..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent-primary focus:outline-none w-64"
             />
           </div>
           <button
-            onClick={() => { setShowCreate(true); setSelectedId(null); }}
+            onClick={() => {
+              setShowCreate(true);
+              setSelectedId(null);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 transition-all"
           >
             <Plus size={16} />
@@ -87,7 +120,7 @@ export default function LinkedinSearchPage() {
             disabled={loading}
             className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
@@ -104,7 +137,10 @@ export default function LinkedinSearchPage() {
         <div className="w-[350px] border-r border-border-default overflow-y-auto p-3 space-y-4">
           {loading ? (
             [...Array(4)].map((_, i) => (
-              <div key={i} className="h-20 bg-bg-secondary rounded-lg animate-pulse" />
+              <div
+                key={i}
+                className="h-20 bg-bg-secondary rounded-lg animate-pulse"
+              />
             ))
           ) : sortedGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -118,20 +154,23 @@ export default function LinkedinSearchPage() {
               </button>
             </div>
           ) : (
-            sortedGroups.map(status => (
+            sortedGroups.map((status) => (
               <div key={status}>
                 <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider px-1 mb-1">
                   {status}
                 </p>
                 <div className="space-y-2">
-                  {grouped[status].map(item => (
+                  {grouped[status].map((item) => (
                     <JobCard
                       key={item.id}
-                      title={item.search_url || 'Sem URL'}
-                      subtitle={item.notes || ''}
+                      title={item.search_url || "Sem URL"}
+                      subtitle={item.notes || ""}
                       status={item.status}
                       isSelected={selectedId === item.id}
-                      onClick={() => { setSelectedId(item.id); setShowCreate(false); }}
+                      onClick={() => {
+                        setSelectedId(item.id);
+                        setShowCreate(false);
+                      }}
                     />
                   ))}
                 </div>
@@ -144,25 +183,35 @@ export default function LinkedinSearchPage() {
         <div className="flex-1 overflow-y-auto p-6">
           {showCreate ? (
             <div className="max-w-2xl space-y-6">
-              <h2 className="text-lg font-semibold text-text-primary">Novo Job — LinkedIn Search</h2>
+              <h2 className="text-lg font-semibold text-text-primary">
+                Novo Job — LinkedIn Search
+              </h2>
 
               <div>
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Search URL *</label>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                  Search URL *
+                </label>
                 <input
                   type="url"
                   placeholder="https://www.linkedin.com/search/results/people/?keywords=..."
                   value={form.search_url}
-                  onChange={e => setForm(f => ({ ...f, search_url: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, search_url: e.target.value }))
+                  }
                   className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:border-accent-primary focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Notes</label>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                  Notes
+                </label>
                 <textarea
                   placeholder="Descricao da busca..."
                   value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
+                  }
                   rows={3}
                   className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted resize-none focus:border-accent-primary focus:outline-none"
                 />
@@ -174,7 +223,11 @@ export default function LinkedinSearchPage() {
                   disabled={!form.search_url.trim() || creating}
                   className="flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg text-sm font-medium hover:bg-accent-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  {creating ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                  {creating ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    <Plus size={16} />
+                  )}
                   Criar Job
                 </button>
                 <button
@@ -188,12 +241,16 @@ export default function LinkedinSearchPage() {
           ) : selected ? (
             <div className="max-w-2xl space-y-6">
               <div>
-                <h2 className="text-lg font-semibold text-text-primary mb-1">Detalhes do Job</h2>
+                <h2 className="text-lg font-semibold text-text-primary mb-1">
+                  Detalhes do Job
+                </h2>
                 <p className="text-xs text-text-muted">ID: {selected.id}</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Search URL</label>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                  Search URL
+                </label>
                 {selected.search_url ? (
                   <a
                     href={selected.search_url}
@@ -205,15 +262,19 @@ export default function LinkedinSearchPage() {
                     <ExternalLink size={14} className="flex-shrink-0" />
                   </a>
                 ) : (
-                  <span className="text-sm text-text-muted italic">Sem URL</span>
+                  <span className="text-sm text-text-muted italic">
+                    Sem URL
+                  </span>
                 )}
               </div>
 
               {selected.search_criteria && (
                 <div>
-                  <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Search Criteria</label>
+                  <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                    Search Criteria
+                  </label>
                   <pre className="font-mono text-sm bg-bg-secondary border border-border-default rounded-lg p-3 overflow-x-auto text-text-primary whitespace-pre-wrap">
-                    {typeof selected.search_criteria === 'string'
+                    {typeof selected.search_criteria === "string"
                       ? selected.search_criteria
                       : JSON.stringify(selected.search_criteria, null, 2)}
                   </pre>
@@ -221,24 +282,32 @@ export default function LinkedinSearchPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Notes</label>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                  Notes
+                </label>
                 <textarea
                   readOnly
-                  value={selected.notes || ''}
+                  value={selected.notes || ""}
                   rows={4}
                   className="w-full bg-bg-secondary border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary resize-none focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Status</label>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1">
+                  Status
+                </label>
                 <StatusBadge status={selected.status} />
               </div>
 
               {selected.error_status && (
                 <div className="p-3 bg-accent-error/10 border border-accent-error/20 rounded-lg">
-                  <p className="text-xs font-bold text-accent-error uppercase mb-1">Error Status</p>
-                  <p className="text-sm text-accent-error">{selected.error_status}</p>
+                  <p className="text-xs font-bold text-accent-error uppercase mb-1">
+                    Error Status
+                  </p>
+                  <p className="text-sm text-accent-error">
+                    {selected.error_status}
+                  </p>
                 </div>
               )}
 
@@ -246,13 +315,17 @@ export default function LinkedinSearchPage() {
                 label="Get Leads"
                 icon={<Play size={16} />}
                 loading={webhookLoading}
-                onClick={() => triggerWebhook('linkedin_search', selected.id)}
+                onClick={() =>
+                  triggerWebhook("linkedin_search", { recordId: selected.id })
+                }
               />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Linkedin size={48} className="text-text-muted opacity-20 mb-4" />
-              <p className="text-text-muted text-sm">Selecione um job ou crie um novo</p>
+              <p className="text-text-muted text-sm">
+                Selecione um job ou crie um novo
+              </p>
             </div>
           )}
         </div>

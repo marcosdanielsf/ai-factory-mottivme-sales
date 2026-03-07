@@ -136,7 +136,7 @@ export const KnowledgeBase = () => {
         await refetchArtifacts?.();
         setActiveTab('documentos');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Exceção no handleAddArtifact:', err);
       showToast('Erro ao processar upload', 'error');
     } finally {

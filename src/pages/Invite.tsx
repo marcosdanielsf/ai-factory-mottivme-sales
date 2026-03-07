@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Building2, CheckCircle, XCircle, Loader2, Mail, Lock, User } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 interface InviteData {
   id: string;
@@ -115,9 +116,9 @@ export const Invite = () => {
       } else {
         setFormError(data?.error || 'Erro ao aceitar convite');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error accepting invite:', err);
-      setFormError(err.message || 'Erro ao aceitar convite');
+      setFormError(getErrorMessage(err) || 'Erro ao aceitar convite');
     } finally {
       setFormLoading(false);
     }
@@ -147,9 +148,9 @@ export const Invite = () => {
       if (data.user) {
         // User created, accept invite will be triggered by useEffect
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup error:', err);
-      setFormError(err.message || 'Erro ao criar conta');
+      setFormError(getErrorMessage(err) || 'Erro ao criar conta');
     } finally {
       setFormLoading(false);
     }
@@ -174,9 +175,9 @@ export const Invite = () => {
       if (data.user) {
         // User logged in, accept invite will be triggered by useEffect
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      setFormError(err.message || 'Erro ao fazer login');
+      setFormError(getErrorMessage(err) || 'Erro ao fazer login');
     } finally {
       setFormLoading(false);
     }

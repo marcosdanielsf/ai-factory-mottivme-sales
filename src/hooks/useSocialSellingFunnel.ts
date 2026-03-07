@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getErrorMessage } from "../lib/getErrorMessage";
 
 // ============================================================================
 // HOOK: useSocialSellingFunnel
@@ -188,8 +189,8 @@ export const useSocialSellingFunnel = (
 
       setRawData(leadsResult.data || []);
       setAppointmentsData(apptsResult.data || []);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Erro ao carregar dados');
       console.error('[SocialSellingFunnel Error]', err);
     } finally {
       setLoading(false);

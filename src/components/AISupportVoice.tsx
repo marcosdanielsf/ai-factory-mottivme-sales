@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { Mic, MicOff, Loader2, X, Volume2, MessageSquare } from 'lucide-react';
+import React, { useState, useRef } from "react";
+import { Mic, MicOff, Loader2, X, Volume2, MessageSquare } from "lucide-react";
 
 // Audio Utility Functions
 function encode(bytes: Uint8Array) {
-  let binary = '';
+  let binary = "";
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
@@ -48,7 +48,10 @@ interface AISupportVoiceProps {
   };
 }
 
-const AISupportVoice: React.FC<AISupportVoiceProps> = ({ currentPage, agentContext }) => {
+const AISupportVoice: React.FC<AISupportVoiceProps> = ({
+  currentPage,
+  agentContext,
+}) => {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -80,11 +83,11 @@ Regras:
 
     const contextInfo = currentPage
       ? `\n\nO usuário está atualmente na página: ${currentPage}`
-      : '';
+      : "";
 
     const agentInfo = agentContext
       ? `\nContexto do agente selecionado: ${agentContext.agentName} (ID: ${agentContext.agentId})`
-      : '';
+      : "";
 
     return baseInstruction + contextInfo + agentInfo;
   };
@@ -99,31 +102,35 @@ Regras:
     setIsConnecting(true);
     try {
       // Importação dinâmica do Google GenAI
-      const { GoogleGenAI, Modality } = await import('@google/genai');
+      const { GoogleGenAI, Modality } = await import("@google/genai");
 
       // API Key do ambiente - configurar em .env como VITE_GEMINI_API_KEY
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
       if (!apiKey) {
-        console.error('GEMINI_API_KEY não configurada');
+        console.error("GEMINI_API_KEY não configurada");
         setIsConnecting(false);
         return;
       }
 
       const ai = new GoogleGenAI({ apiKey });
 
-      audioContextInRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextOutRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      audioContextInRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )({ sampleRate: 16000 });
+      audioContextOutRef.current = new (
+        window.AudioContext || (window as any).webkitAudioContext
+      )({ sampleRate: 24000 });
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: "gemini-2.5-flash-native-audio-preview-09-2025",
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }, // Voz diferente para o suporte
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }, // Voz diferente para o suporte
           },
           systemInstruction: getSystemInstruction(),
         },
@@ -133,11 +140,15 @@ Regras:
             setIsActive(true);
             setIsListening(true);
 
-            const source = audioContextInRef.current!.createMediaStreamSource(streamRef.current!);
-            const scriptProcessor = audioContextInRef.current!.createScriptProcessor(4096, 1, 1);
+            const source = audioContextInRef.current!.createMediaStreamSource(
+              streamRef.current!,
+            );
+            const scriptProcessor =
+              audioContextInRef.current!.createScriptProcessor(4096, 1, 1);
 
             scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-              const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+              const inputData =
+                audioProcessingEvent.inputBuffer.getChannelData(0);
               const l = inputData.length;
               const int16 = new Int16Array(l);
               for (let i = 0; i < l; i++) {
@@ -145,7 +156,7 @@ Regras:
               }
               const pcmBlob = {
                 data: encode(new Uint8Array(int16.buffer)),
-                mimeType: 'audio/pcm;rate=16000',
+                mimeType: "audio/pcm;rate=16000",
               };
 
               sessionPromiseRef.current?.then((session) => {
@@ -157,17 +168,26 @@ Regras:
             scriptProcessor.connect(audioContextInRef.current!.destination);
           },
           onmessage: async (message: any) => {
-            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            const base64Audio =
+              message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (base64Audio && audioContextOutRef.current) {
               const ctx = audioContextOutRef.current;
-              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+              nextStartTimeRef.current = Math.max(
+                nextStartTimeRef.current,
+                ctx.currentTime,
+              );
 
-              const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+              const audioBuffer = await decodeAudioData(
+                decode(base64Audio),
+                ctx,
+                24000,
+                1,
+              );
               const source = ctx.createBufferSource();
               source.buffer = audioBuffer;
               source.connect(ctx.destination);
 
-              source.addEventListener('ended', () => {
+              source.addEventListener("ended", () => {
                 sourcesRef.current.delete(source);
               });
 
@@ -177,35 +197,34 @@ Regras:
             }
 
             if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => s.stop());
+              sourcesRef.current.forEach((s) => s.stop());
               sourcesRef.current.clear();
               nextStartTimeRef.current = 0;
             }
           },
-          onerror: (e: any) => {
-            console.error('AI Support Error:', e);
+          onerror: (e: unknown) => {
+            console.error("AI Support Error:", e);
             cleanup();
           },
           onclose: () => {
             cleanup();
-          }
-        }
+          },
+        },
       });
 
       sessionPromiseRef.current = sessionPromise;
-
     } catch (err) {
-      console.error('Failed to start AI support:', err);
+      console.error("Failed to start AI support:", err);
       setIsConnecting(false);
     }
   };
 
   const cleanup = () => {
-    sessionPromiseRef.current?.then(s => s.close());
-    streamRef.current?.getTracks().forEach(track => track.stop());
+    sessionPromiseRef.current?.then((s) => s.close());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     audioContextInRef.current?.close();
     audioContextOutRef.current?.close();
-    sourcesRef.current.forEach(s => s.stop());
+    sourcesRef.current.forEach((s) => s.stop());
     sourcesRef.current.clear();
     setIsActive(false);
     setIsListening(false);
@@ -219,7 +238,9 @@ Regras:
           <div className="flex justify-between items-start mb-3">
             <div className="flex items-center gap-2">
               <MessageSquare className="text-accent-primary" size={16} />
-              <span className="text-xs font-medium text-text-primary">AI Support</span>
+              <span className="text-xs font-medium text-text-primary">
+                AI Support
+              </span>
             </div>
             <button
               onClick={toggleAssistant}
@@ -232,12 +253,17 @@ Regras:
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center">
-                <Volume2 className="text-accent-primary animate-pulse" size={20} />
+                <Volume2
+                  className="text-accent-primary animate-pulse"
+                  size={20}
+                />
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-bg-secondary"></div>
             </div>
             <div>
-              <p className="text-sm font-medium text-text-primary">Ouvindo...</p>
+              <p className="text-sm font-medium text-text-primary">
+                Ouvindo...
+              </p>
               <p className="text-[10px] text-text-muted">Fale sua dúvida</p>
             </div>
           </div>
@@ -245,7 +271,8 @@ Regras:
           {currentPage && (
             <div className="mt-3 pt-3 border-t border-border-default">
               <p className="text-[10px] text-text-muted">
-                Contexto: <span className="text-accent-primary">{currentPage}</span>
+                Contexto:{" "}
+                <span className="text-accent-primary">{currentPage}</span>
               </p>
             </div>
           )}
@@ -258,11 +285,12 @@ Regras:
         disabled={isConnecting}
         className={`
           w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl relative group
-          ${isActive
-            ? 'bg-accent-primary text-white scale-95'
-            : 'bg-bg-secondary border border-border-default text-text-primary hover:border-accent-primary hover:text-accent-primary hover:scale-105'
+          ${
+            isActive
+              ? "bg-accent-primary text-white scale-95"
+              : "bg-bg-secondary border border-border-default text-text-primary hover:border-accent-primary hover:text-accent-primary hover:scale-105"
           }
-          ${isConnecting ? 'opacity-70' : ''}
+          ${isConnecting ? "opacity-70" : ""}
         `}
       >
         {isConnecting ? (
