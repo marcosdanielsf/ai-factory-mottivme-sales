@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080" />
+  <title>Story Impactante</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700&display=swap');
+
+    :root {
+      --cor-primaria: #6B0F1A;
+      --cor-secundaria: #F4ECE0;
+      --cor-acento: #C4953B;
+      --fonte-titulo: 'Playfair Display', Georgia, serif;
+      --fonte-corpo: 'Lato', sans-serif;
+      /* :root vars */
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--fonte-corpo);
+      position: relative;
+    }
+
+    /* Background: gradient diagonal vinho escuro */
+    .bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        var(--cor-primaria) 0%,
+        #2D0408 100%
+      );
+    }
+
+    /* Ornamento: circulo decorativo creme canto superior direito */
+    .ornamento-circulo {
+      position: absolute;
+      top: -200px;
+      right: -200px;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: var(--cor-secundaria);
+      opacity: 0.05;
+      pointer-events: none;
+    }
+
+    /* Ornamento: circulo menor canto inferior esquerdo */
+    .ornamento-circulo-2 {
+      position: absolute;
+      bottom: -150px;
+      left: -150px;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      border: 2px solid var(--cor-secundaria);
+      opacity: 0.06;
+      pointer-events: none;
+    }
+
+    /* Linha de acento superior */
+    .linha-topo {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: var(--cor-acento);
+    }
+
+    /* Conteudo verticalmente centralizado */
+    .conteudo {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 96px;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .linha-decorativa {
+      width: 80px;
+      height: 4px;
+      background: var(--cor-acento);
+      border-radius: 2px;
+      margin-bottom: 64px;
+    }
+
+    .titulo {
+      font-family: var(--fonte-titulo);
+      font-size: 108px;
+      font-weight: 700;
+      line-height: 1.06;
+      color: #ffffff;
+      letter-spacing: -0.025em;
+      margin-bottom: 52px;
+      text-shadow: 0 4px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .subtitulo {
+      font-family: var(--fonte-corpo);
+      font-size: 38px;
+      font-weight: 300;
+      line-height: 1.55;
+      color: var(--cor-secundaria);
+      opacity: 0.85;
+      max-width: 860px;
+      margin-bottom: 96px;
+    }
+
+    /* Botao CTA */
+    .cta-btn {
+      display: inline-block;
+      padding: 28px 72px;
+      border: 3px solid #ffffff;
+      color: #ffffff;
+      font-family: var(--fonte-corpo);
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      background: transparent;
+      margin-bottom: 0;
+      /* Efeito hover nao funciona em screenshot, mas define estado visual */
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* Rodape */
+    .rodape {
+      position: absolute;
+      bottom: 100px;
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      z-index: 2;
+    }
+
+    .rodape-separator {
+      width: 48px;
+      height: 1px;
+      background: var(--cor-acento);
+    }
+
+    .expert-name {
+      font-family: var(--fonte-titulo);
+      font-size: 32px;
+      font-weight: 400;
+      font-style: italic;
+      color: #ffffff;
+      opacity: 0.9;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background -->
+  <div class="bg"></div>
+
+  <!-- Ornamentos -->
+  <div class="ornamento-circulo"></div>
+  <div class="ornamento-circulo-2"></div>
+  <div class="linha-topo"></div>
+
+  <!-- Conteudo central -->
+  <div class="conteudo">
+    <div class="linha-decorativa"></div>
+    <h1 class="titulo">{{titulo}}</h1>
+    <p class="subtitulo">{{subtitulo}}</p>
+    <div class="cta-btn">{{cta}}</div>
+  </div>
+
+  <!-- Rodape -->
+  <div class="rodape">
+    <div class="rodape-separator"></div>
+    <div class="expert-name">{{expert_name}}</div>
+  </div>
+</body>
+</html>

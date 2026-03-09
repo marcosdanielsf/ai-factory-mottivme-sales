@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1200" />
+  <title>Banner Display Ads</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    :root {
+      --cor-primaria: #6B0F1A;
+      --cor-secundaria: #F4ECE0;
+      --cor-acento: #C9A96E;
+      --fonte-titulo: 'Playfair Display', Georgia, serif;
+      --fonte-corpo: 'Inter', sans-serif;
+      /* :root vars */
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1200px;
+      height: 628px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--fonte-corpo);
+      background: #1C1C24;
+      position: relative;
+      display: flex;
+    }
+
+    /* Secao esquerda: conteudo */
+    .secao-conteudo {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 56px 64px 52px 60px;
+      z-index: 5;
+    }
+
+    /* Fundo da secao esquerda */
+    .secao-conteudo::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: #1C1C24;
+      z-index: -1;
+    }
+
+    /* Secao direita: imagem */
+    .secao-foto {
+      width: 420px;
+      height: 628px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .foto-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--cor-primaria) 0%, #0D0008 100%);
+    }
+
+    .foto-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.5;
+      mix-blend-mode: luminosity;
+    }
+
+    /* Overlay gradiente da foto para conteudo */
+    .foto-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to left,
+        transparent 50%,
+        #1C1C24 100%
+      );
+    }
+
+    /* Ornamentos no fundo */
+    .ornamento-grid {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .ornamento-grid::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      left: -100px;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      border: 1px solid rgba(201, 169, 110, 0.06);
+    }
+
+    .ornamento-grid::after {
+      content: '';
+      position: absolute;
+      bottom: -60px;
+      right: 360px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: var(--cor-primaria);
+      opacity: 0.05;
+    }
+
+    /* Linha lateral de acento */
+    .linha-lateral {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(
+        to bottom,
+        var(--cor-acento) 0%,
+        rgba(201, 169, 110, 0.2) 100%
+      );
+    }
+
+    /* Topo */
+    .topo {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tag-urgencia {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      align-self: flex-start;
+    }
+
+    .tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cor-acento);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .tag-texto {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cor-acento);
+    }
+
+    /* Centro */
+    .centro {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .titulo {
+      font-family: var(--fonte-titulo);
+      font-size: 52px;
+      font-weight: 700;
+      line-height: 1.08;
+      color: #ffffff;
+      letter-spacing: -0.025em;
+      max-width: 540px;
+    }
+
+    .subtitulo {
+      font-family: var(--fonte-corpo);
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.55);
+      max-width: 480px;
+    }
+
+    /* Prova social / numeros */
+    .prova-social {
+      display: flex;
+      gap: 28px;
+      margin-top: 8px;
+    }
+
+    .metrica {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .metrica-numero {
+      font-family: var(--fonte-titulo);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--cor-acento);
+      line-height: 1;
+    }
+
+    .metrica-label {
+      font-size: 11px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.35);
+      letter-spacing: 0.06em;
+    }
+
+    .metrica-divisor {
+      width: 1px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.08);
+      align-self: center;
+    }
+
+    /* Rodape com CTA */
+    .rodape {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 36px;
+      background: var(--cor-primaria);
+      color: #ffffff;
+      font-family: var(--fonte-corpo);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+    }
+
+    .cta-seta {
+      font-size: 18px;
+      font-weight: 300;
+      opacity: 0.8;
+    }
+
+    .expert-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .expert-name {
+      font-family: var(--fonte-titulo);
+      font-size: 15px;
+      font-weight: 600;
+      font-style: italic;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .expert-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      letter-spacing: 0.05em;
+    }
+
+    /* Badge no canto da foto */
+    .foto-badge {
+      position: absolute;
+      bottom: 32px;
+      left: 24px;
+      z-index: 10;
+      padding: 8px 16px;
+      background: rgba(28, 28, 36, 0.85);
+      border: 1px solid rgba(201, 169, 110, 0.25);
+      border-radius: 2px;
+    }
+
+    .foto-badge-text {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cor-acento);
+    }
+  </style>
+</head>
+<body>
+  <!-- Secao conteudo -->
+  <div class="secao-conteudo">
+    <div class="ornamento-grid"></div>
+    <div class="linha-lateral"></div>
+
+    <!-- Topo -->
+    <div class="topo">
+      <div class="tag-urgencia">
+        <div class="tag-dot"></div>
+        <span class="tag-texto">Oferta especial</span>
+      </div>
+    </div>
+
+    <!-- Centro -->
+    <div class="centro">
+      <h1 class="titulo">{{titulo}}</h1>
+      <p class="subtitulo">{{subtitulo}}</p>
+    </div>
+
+    <!-- Rodape -->
+    <div class="rodape">
+      <div class="cta-btn">
+        {{cta}}
+        <span class="cta-seta">→</span>
+      </div>
+      <div class="expert-info">
+        <div class="expert-name">{{expert_name}}</div>
+        <div class="expert-sub">{{especialidade}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secao foto -->
+  <div class="secao-foto">
+    <div class="foto-bg"></div>
+    <img class="foto-img" src="{{foto_url}}" alt="{{expert_name}}" />
+    <div class="foto-overlay"></div>
+
+    <!-- Badge na foto -->
+    <div class="foto-badge">
+      <div class="foto-badge-text">{{especialidade}}</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -61,6 +61,40 @@ export interface BrandAsset {
   metadata?: Record<string, unknown>;
 }
 
+// ============ BRAND MARKETPLACE ============
+
+export interface BrandTemplate {
+  id: string;
+  slug: string;
+  name: string;
+  template_type: string;
+  category: string;
+  platform: string | null;
+  tags: string[];
+  default_variables: Record<string, string>;
+  thumbnail_url: string | null;
+  width: number;
+  height: number;
+  is_active: boolean;
+  is_marketplace: boolean;
+  sort_order: number;
+}
+
+export interface BrandRender {
+  id: string;
+  brand_config_id: string;
+  template_id: string | null;
+  template_slug: string;
+  variables: Record<string, string>;
+  render_url: string | null;
+  render_format: string;
+  source: string;
+  status: string;
+  error_message: string | null;
+  customized_by: string;
+  created_at: string;
+}
+
 // ============ BRAND STRATEGY ============
 
 export type BrandArchetype =
