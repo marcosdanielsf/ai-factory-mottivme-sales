@@ -17,6 +17,7 @@ import {
   Workflow,
   Building2,
   Fingerprint,
+  Lightbulb,
 } from "lucide-react";
 import { useAccount } from "../../contexts/AccountContext";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -32,6 +33,7 @@ import { BrandSites } from "./components/BrandSites";
 import { BrandKnowledgeBase } from "./components/BrandKnowledgeBase";
 import { DownloadAllButton } from "./components/DownloadAllButton";
 import { BrandStrategyWizard } from "./components/BrandStrategy";
+import { BrandConcepts } from "./components/BrandConcepts";
 import { supabase } from "../../lib/supabase";
 import type { BrandConfig } from "../../types/brand";
 
@@ -49,6 +51,7 @@ const TAB_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   sites: { label: "Sites", icon: Globe },
   workflows: { label: "Workflows", icon: Workflow },
   strategy: { label: "Estrategia", icon: Fingerprint },
+  concepts: { label: "Conceitos", icon: Lightbulb },
 };
 
 const LOGO_SUB_SECTIONS = ["logos", "signatures", "symbols"];
@@ -278,6 +281,9 @@ const ClientBrand: React.FC = () => {
   if (!sectionTabs.includes("strategy")) {
     sectionTabs.push("strategy");
   }
+  if (!sectionTabs.includes("concepts")) {
+    sectionTabs.push("concepts");
+  }
   const availableTabs = ["overview", ...sectionTabs];
 
   const renderTab = () => {
@@ -354,6 +360,8 @@ const ClientBrand: React.FC = () => {
         return (
           <BrandStrategyWizard locationId={activeBrand.location_id || ""} />
         );
+      case "concepts":
+        return <BrandConcepts locationId={activeBrand.location_id || ""} />;
       default:
         return null;
     }
