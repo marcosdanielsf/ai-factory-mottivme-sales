@@ -1,12 +1,23 @@
 export type ThemeVariableKey =
-  | 'bg-primary' | 'bg-secondary' | 'bg-tertiary' | 'bg-hover'
-  | 'text-primary' | 'text-secondary' | 'text-muted'
-  | 'border-default' | 'border-hover'
-  | 'accent-primary' | 'accent-success' | 'accent-warning' | 'accent-error';
+  | "bg-primary"
+  | "bg-secondary"
+  | "bg-tertiary"
+  | "bg-hover"
+  | "text-primary"
+  | "text-secondary"
+  | "text-muted"
+  | "border-default"
+  | "border-hover"
+  | "accent-primary"
+  | "accent-success"
+  | "accent-warning"
+  | "accent-error";
 
-export interface ThemeOverrides extends Partial<Record<ThemeVariableKey, string>> {
-  'favicon-url'?: string;
-  'page-title'?: string;
+export interface ThemeOverrides extends Partial<
+  Record<ThemeVariableKey, string>
+> {
+  "favicon-url"?: string;
+  "page-title"?: string;
 }
 
 export interface BrandConfig {
@@ -48,4 +59,48 @@ export interface BrandAsset {
   sort_order: number;
   description?: string;
   metadata?: Record<string, unknown>;
+}
+
+// ============ BRAND STRATEGY ============
+
+export type BrandArchetype =
+  | "innocent"
+  | "explorer"
+  | "sage"
+  | "hero"
+  | "outlaw"
+  | "magician"
+  | "everyman"
+  | "lover"
+  | "jester"
+  | "caregiver"
+  | "creator"
+  | "ruler";
+
+export interface BrandStrategy {
+  id: string;
+  location_id: string;
+  user_id: string;
+  archetype: BrandArchetype;
+  archetype_score: number;
+  personality_sincerity: number;
+  personality_excitement: number;
+  personality_competence: number;
+  personality_sophistication: number;
+  personality_ruggedness: number;
+  tone_formal_casual: number;
+  tone_serious_playful: number;
+  tone_respectful_irreverent: number;
+  tone_enthusiastic_matter_of_fact: number;
+  positioning_target: string;
+  positioning_category: string;
+  positioning_differentiator: string;
+  positioning_reason: string;
+  positioning_statement: string;
+  tagline: string;
+  tagline_alternatives: string[];
+  status: "draft" | "complete";
+  wizard_step: number;
+  created_at: string;
+  updated_at: string;
 }
