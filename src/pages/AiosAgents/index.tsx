@@ -1,15 +1,27 @@
-import { useState, useMemo } from 'react';
-import { Bot, Search, SlidersHorizontal } from 'lucide-react';
-import { useAiosAgents } from '../../hooks/aios/useAiosAgents';
-import { AiosAgentStatus } from '../../types/aios';
-import { AgentStatusCard } from './components/AgentStatusCard';
+import { useState, useMemo } from "react";
+import {
+  Bot,
+  Search,
+  SlidersHorizontal,
+  Terminal,
+  MessageSquare,
+} from "lucide-react";
+import { useAiosAgents } from "../../hooks/aios/useAiosAgents";
+import { AiosAgentStatus } from "../../types/aios";
+import { AgentStatusCard } from "./components/AgentStatusCard";
 
-const STATUS_FILTERS: { value: AiosAgentStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Ativo' },
-  { value: 'idle', label: 'Ocioso' },
-  { value: 'error', label: 'Erro' },
-  { value: 'offline', label: 'Offline' },
+const STATUS_FILTERS: { value: AiosAgentStatus | "all"; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "active", label: "Ativo" },
+  { value: "idle", label: "Ocioso" },
+  { value: "error", label: "Erro" },
+  { value: "offline", label: "Offline" },
+];
+
+const SOURCE_FILTERS: { value: string; label: string; icon: typeof Bot }[] = [
+  { value: "all", label: "Todos", icon: Bot },
+  { value: "claude_code", label: "Claude Code", icon: Terminal },
+  { value: "ghl_agent", label: "GHL Agents", icon: MessageSquare },
 ];
 
 function AgentCardSkeleton() {
@@ -31,15 +43,22 @@ function AgentCardSkeleton() {
 }
 
 export function AiosAgents() {
-  const [statusFilter, setStatusFilter] = useState<AiosAgentStatus | 'all'>('all');
-  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<AiosAgentStatus | "all">(
+    "all",
+  );
+  const [sourceFilter, setSourceFilter] = useState("claude_code");
+  const [search, setSearch] = useState("");
 
   const { data: agents, loading } = useAiosAgents();
 
   const filtered = useMemo(() => {
     let list = agents;
 
-    if (statusFilter !== 'all') {
+    if (sourceFilter !== "all") {
+      list = list.filter((a) => a.agent_source === sourceFilter);
+    }
+
+    if (statusFilter !== "all") {
       list = list.filter((a) => a.status === statusFilter);
     }
 
@@ -48,18 +67,30 @@ export function AiosAgents() {
       list = list.filter(
         (a) =>
           a.name.toLowerCase().includes(q) ||
-          (a.persona ?? '').toLowerCase().includes(q) ||
-          ((a.config?.model as string) ?? '').toLowerCase().includes(q)
+          (a.persona ?? "").toLowerCase().includes(q) ||
+          ((a.config?.model as string) ?? "").toLowerCase().includes(q),
       );
     }
 
     return list;
-  }, [agents, statusFilter, search]);
+  }, [agents, statusFilter, sourceFilter, search]);
 
   const statusCounts = useMemo(() => {
+    const sourceFiltered =
+      sourceFilter !== "all"
+        ? agents.filter((a) => a.agent_source === sourceFilter)
+        : agents;
+    const counts: Record<string, number> = { all: sourceFiltered.length };
+    for (const a of sourceFiltered) {
+      counts[a.status] = (counts[a.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [agents, sourceFilter]);
+
+  const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: agents.length };
     for (const a of agents) {
-      counts[a.status] = (counts[a.status] ?? 0) + 1;
+      counts[a.agent_source] = (counts[a.agent_source] ?? 0) + 1;
     }
     return counts;
   }, [agents]);
@@ -69,9 +100,13 @@ export function AiosAgents() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Agentes AIOS</h1>
+          <h1 className="text-xl font-semibold text-text-primary">
+            Agentes AIOS
+          </h1>
           <p className="text-sm text-text-muted mt-0.5">
-            {loading ? '...' : `${agents.length} agente${agents.length !== 1 ? 's' : ''} registrado${agents.length !== 1 ? 's' : ''}`}
+            {loading
+              ? "..."
+              : `${agents.length} agente${agents.length !== 1 ? "s" : ""} registrado${agents.length !== 1 ? "s" : ""}`}
           </p>
         </div>
 
@@ -88,6 +123,32 @@ export function AiosAgents() {
         </div>
       </div>
 
+      {/* Source filter tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {SOURCE_FILTERS.map((f) => {
+          const Icon = f.icon;
+          return (
+            <button
+              key={f.value}
+              onClick={() => setSourceFilter(f.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                sourceFilter === f.value
+                  ? "bg-accent-primary text-white"
+                  : "bg-bg-secondary text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-default"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {f.label}
+              <span
+                className={`${sourceFilter === f.value ? "text-white/70" : "text-text-muted"}`}
+              >
+                {sourceCounts[f.value] ?? 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Status filter tabs */}
       <div className="flex items-center gap-1 flex-wrap">
         <SlidersHorizontal className="w-4 h-4 text-text-muted mr-1" />
@@ -97,13 +158,15 @@ export function AiosAgents() {
             onClick={() => setStatusFilter(f.value)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               statusFilter === f.value
-                ? 'bg-accent-primary text-white'
-                : 'bg-bg-secondary text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-default'
+                ? "bg-accent-primary text-white"
+                : "bg-bg-secondary text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-default"
             }`}
           >
             {f.label}
             {statusCounts[f.value] !== undefined && (
-              <span className={`ml-1.5 ${statusFilter === f.value ? 'text-white/70' : 'text-text-muted'}`}>
+              <span
+                className={`ml-1.5 ${statusFilter === f.value ? "text-white/70" : "text-text-muted"}`}
+              >
                 {statusCounts[f.value]}
               </span>
             )}
@@ -122,9 +185,9 @@ export function AiosAgents() {
         <div className="text-center py-20">
           <Bot className="w-12 h-12 text-text-muted mx-auto mb-3" />
           <p className="text-text-muted text-sm">
-            {search || statusFilter !== 'all'
-              ? 'Nenhum agente encontrado com esses filtros'
-              : 'Nenhum agente registrado'}
+            {search || statusFilter !== "all"
+              ? "Nenhum agente encontrado com esses filtros"
+              : "Nenhum agente registrado"}
           </p>
         </div>
       ) : (

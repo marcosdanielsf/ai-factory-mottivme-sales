@@ -1,7 +1,7 @@
-import { useNavigate } from 'react-router-dom';
-import { Activity, DollarSign, Clock } from 'lucide-react';
-import { AiosAgentStatus } from '../../../types/aios';
-import { AgentStatusBadge } from './AgentStatusBadge';
+import { useNavigate } from "react-router-dom";
+import { Activity, DollarSign, Clock } from "lucide-react";
+import { AiosAgentStatus } from "../../../types/aios";
+import { AgentStatusBadge } from "./AgentStatusBadge";
 
 interface AgentStatusCardProps {
   id: string;
@@ -15,7 +15,7 @@ interface AgentStatusCardProps {
 }
 
 function relativeTime(dateStr: string | null): string {
-  if (!dateStr) return 'Nunca';
+  if (!dateStr) return "Nunca";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
@@ -23,15 +23,25 @@ function relativeTime(dateStr: string | null): string {
   if (days > 0) return `${days}d atrás`;
   if (hours > 0) return `${hours}h atrás`;
   if (mins > 0) return `${mins}min atrás`;
-  return 'agora';
+  return "agora";
+}
+
+function modelBadgeStyle(model: string): string {
+  if (model.includes("opus")) return "bg-purple-500/15 text-purple-400";
+  if (model.includes("haiku")) return "bg-emerald-500/15 text-emerald-400";
+  return "bg-blue-500/15 text-blue-400"; // sonnet / default
 }
 
 function statusBorderColor(status: AiosAgentStatus): string {
   switch (status) {
-    case 'active': return 'border-l-green-400';
-    case 'error': return 'border-l-red-400';
-    case 'offline': return 'border-l-gray-600';
-    default: return 'border-l-gray-400';
+    case "active":
+      return "border-l-green-400";
+    case "error":
+      return "border-l-red-400";
+    case "offline":
+      return "border-l-gray-600";
+    default:
+      return "border-l-gray-400";
   }
 }
 
@@ -66,9 +76,11 @@ export function AgentStatusCard({
       )}
 
       {model && (
-        <p className="text-xs text-text-secondary mb-3 font-mono bg-bg-tertiary px-2 py-0.5 rounded w-fit">
+        <span
+          className={`inline-block text-xs font-mono px-2 py-0.5 rounded w-fit mb-3 ${modelBadgeStyle(model)}`}
+        >
           {model}
-        </p>
+        </span>
       )}
 
       <div className="flex items-center gap-3 border-t border-border-default pt-3 mt-auto">
@@ -77,8 +89,7 @@ export function AgentStatusCard({
           {total_executions.toLocaleString()}
         </span>
         <span className="flex items-center gap-1 text-xs text-text-muted">
-          <DollarSign className="w-3 h-3" />
-          ${total_cost.toFixed(3)}
+          <DollarSign className="w-3 h-3" />${total_cost.toFixed(3)}
         </span>
         <span className="flex items-center gap-1 text-xs text-text-muted ml-auto">
           <Clock className="w-3 h-3" />
