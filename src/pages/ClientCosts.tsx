@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from "react";
 import {
   DollarSign,
   Users,
@@ -18,79 +18,117 @@ import {
   EyeOff,
   Search,
   ExternalLink,
-  GitBranch
-} from 'lucide-react';
-import { useToast } from '../hooks/useToast';
+  GitBranch,
+} from "lucide-react";
+import { useToast } from "../hooks/useToast";
 import {
   useClientCosts,
   useClientCostDetails,
   useGlobalCostSummary,
-  ClientCostSummary
-} from '../hooks/useClientCosts';
+  ClientCostSummary,
+} from "../hooks/useClientCosts";
 import {
   useWorkflowCosts,
   useWorkflowClientBreakdown,
-  WorkflowCostSummary
-} from '../hooks/useWorkflowCosts';
-import { useIsMobile } from '../hooks/useMediaQuery';
-import { DateRangePicker, DateRange } from '../components/DateRangePicker';
+  WorkflowCostSummary,
+} from "../hooks/useWorkflowCosts";
+import { useCostAnalytics } from "../hooks/useCostAnalytics";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { DateRangePicker, DateRange } from "../components/DateRangePicker";
 
 export const ClientCosts = () => {
   const { showToast } = useToast();
   const isMobile = useIsMobile();
 
   // Date range state - null = usa view agregada (rapido), com datas = pagina llm_costs (lento)
-  const [dateRange, setDateRange] = useState<DateRange>({ startDate: null, endDate: null });
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+  });
 
-  const [selectedClient, setSelectedClient] = useState<ClientCostSummary | null>(null);
+  const [selectedClient, setSelectedClient] =
+    useState<ClientCostSummary | null>(null);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'clients' | 'workflows'>('clients');
+  const [activeTab, setActiveTab] = useState<
+    "clients" | "workflows" | "analytics"
+  >("clients");
 
   // Workflow state
-  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowCostSummary | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] =
+    useState<WorkflowCostSummary | null>(null);
 
   // Novos filtros
-  const [clientFilter, setClientFilter] = useState<string>(''); // Filtro por cliente específico
-  const [canalFilter, setCanalFilter] = useState<string>(''); // Filtro por canal
-  const [workflowFilter, setWorkflowFilter] = useState<string>(''); // Filtro por workflow
+  const [clientFilter, setClientFilter] = useState<string>(""); // Filtro por cliente específico
+  const [canalFilter, setCanalFilter] = useState<string>(""); // Filtro por canal
+  const [workflowFilter, setWorkflowFilter] = useState<string>(""); // Filtro por workflow
   const [showInactive, setShowInactive] = useState<boolean>(false); // Mostrar inativos
   const [showFilters, setShowFilters] = useState<boolean>(false); // Toggle painel de filtros
 
-  const N8N_BASE_URL = 'https://cliente-a1.mentorfy.io/workflow';
+  const N8N_BASE_URL = "https://cliente-a1.mentorfy.io/workflow";
 
   // Hooks de dados
-  const { clients, allClients, allCanais, allWorkflows, totalCost, totalRequests, loading, error, refetch } = useClientCosts({
+  const {
+    clients,
+    allClients,
+    allCanais,
+    allWorkflows,
+    totalCost,
+    totalRequests,
+    loading,
+    error,
+    refetch,
+  } = useClientCosts({
     dateRange,
     clientName: clientFilter || undefined,
     canalFilter: canalFilter || undefined,
     workflowFilter: workflowFilter || undefined,
     showInactive,
-    inactiveDays: 30
+    inactiveDays: 30,
   });
   const { summary, loading: loadingSummary } = useGlobalCostSummary();
-  const { costs: clientDetails, dailyCosts, loading: loadingDetails } = useClientCostDetails(
-    selectedClient?.location_name || null,
-    { dateRange }
-  );
+  const {
+    costs: clientDetails,
+    dailyCosts,
+    loading: loadingDetails,
+  } = useClientCostDetails(selectedClient?.location_name || null, {
+    dateRange,
+  });
 
   // Workflow hooks
-  const { workflows, totalCost: wfTotalCost, totalRequests: wfTotalRequests, loading: loadingWorkflows, refetch: refetchWorkflows } = useWorkflowCosts({ dateRange });
-  const { clients: workflowClients, loading: loadingWfBreakdown } = useWorkflowClientBreakdown(
-    selectedWorkflow?.workflow_name || null,
-    dateRange
-  );
+  const {
+    workflows,
+    totalCost: wfTotalCost,
+    totalRequests: wfTotalRequests,
+    loading: loadingWorkflows,
+    refetch: refetchWorkflows,
+  } = useWorkflowCosts({ dateRange });
+  const { clients: workflowClients, loading: loadingWfBreakdown } =
+    useWorkflowClientBreakdown(
+      selectedWorkflow?.workflow_name || null,
+      dateRange,
+    );
+
+  // Analytics hooks
+  const {
+    byAgentMode,
+    byAgent,
+    abTest,
+    byFase,
+    loading: loadingAnalytics,
+    hasData: hasAnalyticsData,
+  } = useCostAnalytics();
 
   const handleRefresh = async () => {
     await Promise.all([refetch(), refetchWorkflows()]);
-    showToast('Dados de custos atualizados', 'info');
+    showToast("Dados de custos atualizados", "info");
   };
 
   // Formatar valor em USD
   const formatUSD = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     }).format(value);
@@ -105,11 +143,11 @@ export const ClientCosts = () => {
 
   // Formatar data
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -125,10 +163,15 @@ export const ClientCosts = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 border-b border-border-default pb-4 md:pb-6">
         <div>
           <div className="flex items-center gap-2 md:gap-3 mb-1">
-            <DollarSign size={isMobile ? 24 : 28} className="text-accent-primary" />
+            <DollarSign
+              size={isMobile ? 24 : 28}
+              className="text-accent-primary"
+            />
             <h1 className="text-xl md:text-3xl font-semibold">Custos de IA</h1>
           </div>
-          <p className="text-text-secondary text-sm md:text-base">Monitore o consumo de IA e custos por cliente.</p>
+          <p className="text-text-secondary text-sm md:text-base">
+            Monitore o consumo de IA e custos por cliente.
+          </p>
         </div>
 
         <div className="flex items-center gap-2 md:gap-3 flex-wrap w-full md:w-auto">
@@ -139,9 +182,13 @@ export const ClientCosts = () => {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 border rounded-lg transition-all ${
-                showFilters || clientFilter || canalFilter || workflowFilter || showInactive
-                  ? 'text-accent-primary bg-accent-primary/10 border-accent-primary/30'
-                  : 'text-text-muted hover:text-text-primary hover:bg-bg-secondary border-border-default'
+                showFilters ||
+                clientFilter ||
+                canalFilter ||
+                workflowFilter ||
+                showInactive
+                  ? "text-accent-primary bg-accent-primary/10 border-accent-primary/30"
+                  : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border-border-default"
               }`}
               title="Filtros avançados"
             >
@@ -154,7 +201,7 @@ export const ClientCosts = () => {
               className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all disabled:opacity-50"
               title="Atualizar dados"
             >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
@@ -165,12 +212,16 @@ export const ClientCosts = () => {
         <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4 space-y-3 md:space-y-0 md:flex md:flex-wrap md:items-center md:gap-4">
           <div className="flex items-center gap-2">
             <Search size={16} className="text-text-muted" />
-            <span className="text-xs font-bold text-text-muted uppercase">Filtros:</span>
+            <span className="text-xs font-bold text-text-muted uppercase">
+              Filtros:
+            </span>
           </div>
 
           {/* Dropdown de Cliente */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted hidden md:inline">Cliente:</label>
+            <label className="text-xs text-text-muted hidden md:inline">
+              Cliente:
+            </label>
             <select
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
@@ -188,7 +239,9 @@ export const ClientCosts = () => {
 
           {/* Dropdown de Canal */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted hidden md:inline">Canal:</label>
+            <label className="text-xs text-text-muted hidden md:inline">
+              Canal:
+            </label>
             <select
               value={canalFilter}
               onChange={(e) => setCanalFilter(e.target.value)}
@@ -206,7 +259,9 @@ export const ClientCosts = () => {
 
           {/* Dropdown de Workflow */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted hidden md:inline">Workflow:</label>
+            <label className="text-xs text-text-muted hidden md:inline">
+              Workflow:
+            </label>
             <select
               value={workflowFilter}
               onChange={(e) => setWorkflowFilter(e.target.value)}
@@ -229,22 +284,27 @@ export const ClientCosts = () => {
               disabled={loading}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
                 showInactive
-                  ? 'bg-accent-primary/10 border-accent-primary/30 text-accent-primary'
-                  : 'bg-bg-primary border-border-default text-text-muted hover:text-text-primary'
+                  ? "bg-accent-primary/10 border-accent-primary/30 text-accent-primary"
+                  : "bg-bg-primary border-border-default text-text-muted hover:text-text-primary"
               }`}
             >
               {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
-              <span className="hidden md:inline">{showInactive ? 'Mostrando inativos' : 'Mostrar inativos'}</span>
+              <span className="hidden md:inline">
+                {showInactive ? "Mostrando inativos" : "Mostrar inativos"}
+              </span>
               <span className="md:hidden">Inativos</span>
             </button>
 
             {/* Limpar Filtros */}
-            {(clientFilter || canalFilter || workflowFilter || showInactive) && (
+            {(clientFilter ||
+              canalFilter ||
+              workflowFilter ||
+              showInactive) && (
               <button
                 onClick={() => {
-                  setClientFilter('');
-                  setCanalFilter('');
-                  setWorkflowFilter('');
+                  setClientFilter("");
+                  setCanalFilter("");
+                  setWorkflowFilter("");
                   setShowInactive(false);
                 }}
                 className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
@@ -257,7 +317,9 @@ export const ClientCosts = () => {
           {/* Info de inativos - escondido no mobile */}
           <div className="hidden md:block md:ml-auto text-xs text-text-muted">
             {!showInactive && (
-              <span>Mostrando apenas clientes com atividade nos últimos 30 dias</span>
+              <span>
+                Mostrando apenas clientes com atividade nos últimos 30 dias
+              </span>
             )}
           </div>
         </div>
@@ -266,26 +328,37 @@ export const ClientCosts = () => {
       {/* Tabs */}
       <div className="flex items-center gap-1 bg-bg-secondary border border-border-default rounded-xl p-1">
         <button
-          onClick={() => setActiveTab('clients')}
+          onClick={() => setActiveTab("clients")}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
-            activeTab === 'clients'
-              ? 'bg-accent-primary text-white shadow-sm'
-              : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'
+            activeTab === "clients"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
           }`}
         >
           <Users size={16} />
           Por Cliente
         </button>
         <button
-          onClick={() => setActiveTab('workflows')}
+          onClick={() => setActiveTab("workflows")}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
-            activeTab === 'workflows'
-              ? 'bg-accent-primary text-white shadow-sm'
-              : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'
+            activeTab === "workflows"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
           }`}
         >
           <GitBranch size={16} />
           Por Workflow
+        </button>
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === "analytics"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <BarChart3 size={16} />
+          Analytics
         </button>
       </div>
 
@@ -297,7 +370,10 @@ export const ClientCosts = () => {
             <p className="text-red-500 font-medium">Erro ao carregar custos</p>
             <p className="text-red-400 text-sm">{error}</p>
           </div>
-          <button onClick={handleRefresh} className="ml-auto text-red-500 hover:underline text-sm">
+          <button
+            onClick={handleRefresh}
+            className="ml-auto text-red-500 hover:underline text-sm"
+          >
             Tentar novamente
           </button>
         </div>
@@ -305,42 +381,84 @@ export const ClientCosts = () => {
 
       {/* Summary Cards */}
       {(() => {
-        const isWf = activeTab === 'workflows';
-        const currentLoading = isWf ? loadingWorkflows : loading;
-        const currentTotalCost = isWf ? wfTotalCost : totalCost;
-        const currentTotalRequests = isWf ? wfTotalRequests : totalRequests;
-        const currentCount = isWf ? workflows.length : clients.length;
-        const countLabel = isWf ? 'Workflows' : 'Clientes';
-        const countSublabel = isWf ? 'Com consumo registrado' : 'Locations com consumo';
+        const isWf = activeTab === "workflows";
+        const isAnalytics = activeTab === "analytics";
+        const analyticsTotalCost = byAgentMode.reduce(
+          (s, r) => s + r.total_usd,
+          0,
+        );
+        const analyticsTotalCalls = byAgentMode.reduce(
+          (s, r) => s + r.chamadas,
+          0,
+        );
+        const currentLoading = isAnalytics
+          ? loadingAnalytics
+          : isWf
+            ? loadingWorkflows
+            : loading;
+        const currentTotalCost = isAnalytics
+          ? analyticsTotalCost
+          : isWf
+            ? wfTotalCost
+            : totalCost;
+        const currentTotalRequests = isAnalytics
+          ? analyticsTotalCalls
+          : isWf
+            ? wfTotalRequests
+            : totalRequests;
+        const currentCount = isAnalytics
+          ? byAgentMode.length
+          : isWf
+            ? workflows.length
+            : clients.length;
+        const countLabel = isAnalytics
+          ? "Modos"
+          : isWf
+            ? "Workflows"
+            : "Clientes";
+        const countSublabel = isAnalytics
+          ? "Agent modes rastreados"
+          : isWf
+            ? "Com consumo registrado"
+            : "Locations com consumo";
 
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2 md:mb-3">
-                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Total</span>
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Custo Total
+                </span>
                 <div className="p-1.5 md:p-2 bg-accent-primary/10 rounded-lg">
                   <DollarSign size={14} className="text-accent-primary" />
                 </div>
               </div>
               <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
-                {currentLoading ? '...' : formatUSD(currentTotalCost)}
+                {currentLoading ? "..." : formatUSD(currentTotalCost)}
               </div>
               <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
-                Periodo: {dateRange.startDate && dateRange.endDate
-                  ? `${dateRange.startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${dateRange.endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
-                  : 'Selecione um período'}
+                Periodo:{" "}
+                {dateRange.startDate && dateRange.endDate
+                  ? `${dateRange.startDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${dateRange.endDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+                  : "Selecione um período"}
               </p>
             </div>
 
             <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2 md:mb-3">
-                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">{countLabel}</span>
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  {countLabel}
+                </span>
                 <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-lg">
-                  {isWf ? <GitBranch size={14} className="text-blue-500" /> : <Users size={14} className="text-blue-500" />}
+                  {isWf ? (
+                    <GitBranch size={14} className="text-blue-500" />
+                  ) : (
+                    <Users size={14} className="text-blue-500" />
+                  )}
                 </div>
               </div>
               <div className="text-lg md:text-2xl font-bold text-text-primary">
-                {currentLoading ? '...' : currentCount}
+                {currentLoading ? "..." : currentCount}
               </div>
               <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
                 {countSublabel}
@@ -349,13 +467,15 @@ export const ClientCosts = () => {
 
             <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2 md:mb-3">
-                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Requests</span>
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Requests
+                </span>
                 <div className="p-1.5 md:p-2 bg-green-500/10 rounded-lg">
                   <Zap size={14} className="text-green-500" />
                 </div>
               </div>
               <div className="text-lg md:text-2xl font-bold text-text-primary">
-                {currentLoading ? '...' : formatNumber(currentTotalRequests)}
+                {currentLoading ? "..." : formatNumber(currentTotalRequests)}
               </div>
               <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
                 Chamadas de IA
@@ -364,13 +484,17 @@ export const ClientCosts = () => {
 
             <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2 md:mb-3">
-                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">Custo Médio</span>
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Custo Médio
+                </span>
                 <div className="p-1.5 md:p-2 bg-purple-500/10 rounded-lg">
                   <TrendingUp size={14} className="text-purple-500" />
                 </div>
               </div>
               <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
-                {currentLoading || currentTotalRequests === 0 ? '...' : formatUSD(currentTotalCost / currentTotalRequests)}
+                {currentLoading || currentTotalRequests === 0
+                  ? "..."
+                  : formatUSD(currentTotalCost / currentTotalRequests)}
               </div>
               <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
                 Por requisicao
@@ -385,24 +509,42 @@ export const ClientCosts = () => {
         <div className="bg-gradient-to-r from-accent-primary/5 to-blue-500/5 border border-accent-primary/20 rounded-xl p-3 md:p-5">
           <div className="flex items-center gap-2 mb-2 md:mb-3">
             <BarChart3 size={14} className="text-accent-primary" />
-            <span className="text-[10px] md:text-xs font-bold text-accent-primary uppercase tracking-wider">Resumo Global</span>
+            <span className="text-[10px] md:text-xs font-bold text-accent-primary uppercase tracking-wider">
+              Resumo Global
+            </span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div>
-              <p className="text-[10px] md:text-xs text-text-muted">Total Gasto</p>
-              <p className="text-sm md:text-lg font-bold text-text-primary truncate">{formatUSD(summary.total_cost_usd)}</p>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Total Gasto
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {formatUSD(summary.total_cost_usd)}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] md:text-xs text-text-muted">Total Tokens</p>
-              <p className="text-sm md:text-lg font-bold text-text-primary">{formatNumber(summary.total_tokens)}</p>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Total Tokens
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary">
+                {formatNumber(summary.total_tokens)}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] md:text-xs text-text-muted">Média/Cliente</p>
-              <p className="text-sm md:text-lg font-bold text-text-primary truncate">{formatUSD(summary.avg_cost_per_client)}</p>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Média/Cliente
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {formatUSD(summary.avg_cost_per_client)}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] md:text-xs text-text-muted">Top Model</p>
-              <p className="text-sm md:text-lg font-bold text-text-primary truncate">{summary.top_model}</p>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Top Model
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {summary.top_model}
+              </p>
             </div>
           </div>
         </div>
@@ -411,13 +553,19 @@ export const ClientCosts = () => {
       {/* Client Details Modal */}
       {selectedClient && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
-          <div className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
-            isMobile ? 'h-full max-h-full rounded-none' : 'max-w-4xl max-h-[90vh]'
-          }`}>
+          <div
+            className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
+              isMobile
+                ? "h-full max-h-full rounded-none"
+                : "max-w-4xl max-h-[90vh]"
+            }`}
+          >
             {/* Modal Header */}
             <div className="p-4 md:p-6 border-b border-border-default flex items-center justify-between">
               <div className="min-w-0 flex-1 mr-4">
-                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">{selectedClient.location_name}</h2>
+                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">
+                  {selectedClient.location_name}
+                </h2>
                 <p className="text-[10px] md:text-xs text-text-muted font-mono mt-1 truncate">
                   {selectedClient.location_ids?.length > 1
                     ? `${selectedClient.location_ids.length} location IDs`
@@ -433,42 +581,74 @@ export const ClientCosts = () => {
             </div>
 
             {/* Modal Content */}
-            <div className={`p-4 md:p-6 overflow-y-auto ${isMobile ? 'h-[calc(100%-80px)]' : 'max-h-[calc(90vh-120px)]'}`}>
+            <div
+              className={`p-4 md:p-6 overflow-y-auto ${isMobile ? "h-[calc(100%-80px)]" : "max-h-[calc(90vh-120px)]"}`}
+            >
               {/* Client Summary */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo Total</p>
-                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">{formatUSD(selectedClient.total_cost_usd)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo Total
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">
+                    {formatUSD(selectedClient.total_cost_usd)}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Conversas</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_conversations)}</p>
-                  <p className="text-[9px] text-text-muted mt-0.5">contatos unicos</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Conversas
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedClient.total_conversations)}
+                  </p>
+                  <p className="text-[9px] text-text-muted mt-0.5">
+                    contatos unicos
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Requisicoes</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_requests)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Requisicoes
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedClient.total_requests)}
+                  </p>
                   <p className="text-[9px] text-text-muted mt-0.5">
                     {selectedClient.total_conversations > 0
                       ? `~${(selectedClient.total_requests / selectedClient.total_conversations).toFixed(1)} req/conversa`
-                      : ''}
+                      : ""}
                   </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Tokens</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedClient.total_tokens_input + selectedClient.total_tokens_output)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Tokens
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(
+                      selectedClient.total_tokens_input +
+                        selectedClient.total_tokens_output,
+                    )}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Conversa</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Conversa
+                  </p>
                   <p className="text-base md:text-xl font-bold text-text-primary truncate">
                     {selectedClient.total_conversations > 0
-                      ? formatUSD(selectedClient.total_cost_usd / selectedClient.total_conversations)
-                      : '$0.00'}
+                      ? formatUSD(
+                          selectedClient.total_cost_usd /
+                            selectedClient.total_conversations,
+                        )
+                      : "$0.00"}
                   </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Request</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary truncate">{formatUSD(selectedClient.avg_cost_per_request)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Request
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {formatUSD(selectedClient.avg_cost_per_request)}
+                  </p>
                 </div>
               </div>
 
@@ -483,15 +663,24 @@ export const ClientCosts = () => {
                     /* VERSÃO MOBILE - Cards */
                     <div className="space-y-2">
                       {dailyCosts.slice(0, 5).map((day) => (
-                        <div key={day.date} className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between">
+                        <div
+                          key={day.date}
+                          className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between"
+                        >
                           <div>
-                            <p className="text-sm font-medium text-text-primary">{day.date}</p>
+                            <p className="text-sm font-medium text-text-primary">
+                              {day.date}
+                            </p>
                             <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
-                              <span>{formatNumber(day.tokens_input)} tokens</span>
+                              <span>
+                                {formatNumber(day.tokens_input)} tokens
+                              </span>
                               <span>{day.requests} req</span>
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-accent-primary font-mono">{formatUSD(day.cost_usd)}</p>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(day.cost_usd)}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -501,19 +690,33 @@ export const ClientCosts = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-bg-tertiary">
                           <tr>
-                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">Data</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Custo</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Tokens</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Requests</th>
+                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                              Data
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Custo
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Tokens
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Requests
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border-default">
                           {dailyCosts.slice(0, 7).map((day) => (
                             <tr key={day.date} className="hover:bg-bg-hover">
                               <td className="p-3 font-medium">{day.date}</td>
-                              <td className="p-3 text-right text-accent-primary font-mono">{formatUSD(day.cost_usd)}</td>
-                              <td className="p-3 text-right text-text-muted">{formatNumber(day.tokens_input)}</td>
-                              <td className="p-3 text-right text-text-muted">{day.requests}</td>
+                              <td className="p-3 text-right text-accent-primary font-mono">
+                                {formatUSD(day.cost_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(day.tokens_input)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {day.requests}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -531,7 +734,10 @@ export const ClientCosts = () => {
                 </h3>
                 {loadingDetails ? (
                   <div className="flex items-center justify-center py-8">
-                    <RefreshCw className="animate-spin text-text-muted" size={24} />
+                    <RefreshCw
+                      className="animate-spin text-text-muted"
+                      size={24}
+                    />
                   </div>
                 ) : clientDetails.length > 0 ? (
                   <div className="space-y-2">
@@ -542,12 +748,19 @@ export const ClientCosts = () => {
                       >
                         <div className="flex items-center gap-2 md:gap-3 min-w-0">
                           <div className="p-1.5 md:p-2 bg-bg-tertiary rounded-lg flex-shrink-0">
-                            <MessageSquare size={12} className="text-text-muted" />
+                            <MessageSquare
+                              size={12}
+                              className="text-text-muted"
+                            />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs md:text-sm font-medium text-text-primary truncate">{detail.contact_name}</p>
+                            <p className="text-xs md:text-sm font-medium text-text-primary truncate">
+                              {detail.contact_name}
+                            </p>
                             <div className="flex items-center gap-1.5">
-                              <p className="text-[10px] md:text-xs text-text-muted truncate">{detail.tipo_acao} via {detail.canal}</p>
+                              <p className="text-[10px] md:text-xs text-text-muted truncate">
+                                {detail.tipo_acao} via {detail.canal}
+                              </p>
                               {detail.workflow_id && (
                                 <a
                                   href={`${N8N_BASE_URL}/${detail.workflow_id}`}
@@ -564,14 +777,20 @@ export const ClientCosts = () => {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 ml-2">
-                          <p className="text-xs md:text-sm font-bold text-accent-primary font-mono">{formatUSD(detail.custo_usd)}</p>
-                          <p className="text-[10px] md:text-xs text-text-muted">{formatDate(detail.created_at)}</p>
+                          <p className="text-xs md:text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(detail.custo_usd)}
+                          </p>
+                          <p className="text-[10px] md:text-xs text-text-muted">
+                            {formatDate(detail.created_at)}
+                          </p>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-text-muted py-4 text-sm">Nenhuma atividade encontrada</p>
+                  <p className="text-center text-text-muted py-4 text-sm">
+                    Nenhuma atividade encontrada
+                  </p>
                 )}
               </div>
             </div>
@@ -580,7 +799,7 @@ export const ClientCosts = () => {
       )}
 
       {/* ===== TAB: POR CLIENTE ===== */}
-      {activeTab === 'clients' && (
+      {activeTab === "clients" && (
         <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
           <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
             <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
@@ -625,10 +844,13 @@ export const ClientCosts = () => {
                             </h3>
                             <div className="flex items-center gap-1 flex-wrap">
                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
-                                {client.models_used[0] || 'N/A'}
+                                {client.models_used[0] || "N/A"}
                               </span>
                               {client.canais_used?.map((canal) => (
-                                <span key={canal} className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                                <span
+                                  key={canal}
+                                  className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase"
+                                >
                                   {canal}
                                 </span>
                               ))}
@@ -657,7 +879,9 @@ export const ClientCosts = () => {
                       <div className="w-full bg-bg-tertiary rounded-full h-1.5">
                         <div
                           className="bg-accent-primary h-1.5 rounded-full transition-all"
-                          style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
+                          style={{
+                            width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -673,10 +897,13 @@ export const ClientCosts = () => {
                               {client.location_name}
                             </h3>
                             <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
-                              {client.models_used[0] || 'N/A'}
+                              {client.models_used[0] || "N/A"}
                             </span>
                             {client.canais_used?.map((canal) => (
-                              <span key={canal} className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase">
+                              <span
+                                key={canal}
+                                className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase"
+                              >
                                 {canal}
                               </span>
                             ))}
@@ -702,12 +929,16 @@ export const ClientCosts = () => {
                       <div className="flex items-center gap-6">
                         <div className="hidden md:block w-32">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] text-text-muted">{getPercentage(client.total_cost_usd).toFixed(1)}%</span>
+                            <span className="text-[10px] text-text-muted">
+                              {getPercentage(client.total_cost_usd).toFixed(1)}%
+                            </span>
                           </div>
                           <div className="w-full bg-bg-tertiary rounded-full h-1.5">
                             <div
                               className="bg-accent-primary h-1.5 rounded-full transition-all"
-                              style={{ width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%` }}
+                              style={{
+                                width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -719,7 +950,10 @@ export const ClientCosts = () => {
                             {formatUSD(client.avg_cost_per_request)}/req
                           </p>
                         </div>
-                        <ChevronRight size={20} className="text-text-muted group-hover:text-accent-primary transition-colors" />
+                        <ChevronRight
+                          size={20}
+                          className="text-text-muted group-hover:text-accent-primary transition-colors"
+                        />
                       </div>
                     </div>
                   )}
@@ -730,9 +964,12 @@ export const ClientCosts = () => {
                 <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
                   <DollarSign size={32} className="opacity-20" />
                 </div>
-                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">Nenhum custo registrado</h3>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                  Nenhum custo registrado
+                </h3>
                 <p className="text-xs md:text-sm text-text-muted max-w-xs">
-                  Os custos de IA aparecerão aqui conforme os agentes processam conversas.
+                  Os custos de IA aparecerão aqui conforme os agentes processam
+                  conversas.
                 </p>
               </div>
             )}
@@ -741,7 +978,7 @@ export const ClientCosts = () => {
       )}
 
       {/* ===== TAB: POR WORKFLOW ===== */}
-      {activeTab === 'workflows' && (
+      {activeTab === "workflows" && (
         <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
           <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
             <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
@@ -768,7 +1005,8 @@ export const ClientCosts = () => {
               ))
             ) : workflows.length > 0 ? (
               workflows.map((wf) => {
-                const wfPercentage = wfTotalCost > 0 ? (wf.total_cost_usd / wfTotalCost) * 100 : 0;
+                const wfPercentage =
+                  wfTotalCost > 0 ? (wf.total_cost_usd / wfTotalCost) * 100 : 0;
                 return (
                   <div
                     key={`${wf.workflow_name}-${wf.workflow_id}`}
@@ -788,12 +1026,16 @@ export const ClientCosts = () => {
                               </h3>
                               <div className="flex items-center gap-1 flex-wrap">
                                 {wf.models_used.slice(0, 2).map((model) => (
-                                  <span key={model} className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  <span
+                                    key={model}
+                                    className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase"
+                                  >
                                     {model}
                                   </span>
                                 ))}
                                 <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
-                                  {wf.total_clients} cliente{wf.total_clients !== 1 ? 's' : ''}
+                                  {wf.total_clients} cliente
+                                  {wf.total_clients !== 1 ? "s" : ""}
                                 </span>
                               </div>
                             </div>
@@ -836,12 +1078,16 @@ export const ClientCosts = () => {
                                 {wf.workflow_name}
                               </h3>
                               {wf.models_used.slice(0, 2).map((model) => (
-                                <span key={model} className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                <span
+                                  key={model}
+                                  className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase"
+                                >
                                   {model}
                                 </span>
                               ))}
                               <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
-                                {wf.total_clients} cliente{wf.total_clients !== 1 ? 's' : ''}
+                                {wf.total_clients} cliente
+                                {wf.total_clients !== 1 ? "s" : ""}
                               </span>
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
@@ -877,12 +1123,16 @@ export const ClientCosts = () => {
                         <div className="flex items-center gap-6">
                           <div className="hidden md:block w-32">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] text-text-muted">{wfPercentage.toFixed(1)}%</span>
+                              <span className="text-[10px] text-text-muted">
+                                {wfPercentage.toFixed(1)}%
+                              </span>
                             </div>
                             <div className="w-full bg-bg-tertiary rounded-full h-1.5">
                               <div
                                 className="bg-green-500 h-1.5 rounded-full transition-all"
-                                style={{ width: `${Math.min(wfPercentage, 100)}%` }}
+                                style={{
+                                  width: `${Math.min(wfPercentage, 100)}%`,
+                                }}
                               />
                             </div>
                           </div>
@@ -894,7 +1144,10 @@ export const ClientCosts = () => {
                               {formatUSD(wf.avg_cost_per_request)}/req
                             </p>
                           </div>
-                          <ChevronRight size={20} className="text-text-muted group-hover:text-accent-primary transition-colors" />
+                          <ChevronRight
+                            size={20}
+                            className="text-text-muted group-hover:text-accent-primary transition-colors"
+                          />
                         </div>
                       </div>
                     )}
@@ -906,9 +1159,12 @@ export const ClientCosts = () => {
                 <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
                   <GitBranch size={32} className="opacity-20" />
                 </div>
-                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">Nenhum workflow registrado</h3>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                  Nenhum workflow registrado
+                </h3>
                 <p className="text-xs md:text-sm text-text-muted max-w-xs">
-                  Os custos por workflow aparecerão aqui após a view ser criada no Supabase.
+                  Os custos por workflow aparecerão aqui após a view ser criada
+                  no Supabase.
                 </p>
               </div>
             )}
@@ -916,15 +1172,476 @@ export const ClientCosts = () => {
         </div>
       )}
 
+      {/* ===== TAB: ANALYTICS ===== */}
+      {activeTab === "analytics" && (
+        <div className="space-y-4 md:space-y-6">
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center py-20">
+              <RefreshCw className="animate-spin text-text-muted" size={24} />
+            </div>
+          ) : !hasAnalyticsData ? (
+            <div className="border border-border-default rounded-lg bg-bg-secondary p-8 md:p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                <BarChart3 size={32} className="opacity-20" />
+              </div>
+              <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                Dados de analytics em coleta
+              </h3>
+              <p className="text-xs md:text-sm text-text-muted max-w-sm">
+                Os campos agent_mode, agent_name, fase e ab_variant foram
+                adicionados ao tracking. Os dados aparecerao conforme novas
+                conversas forem processadas.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* By Agent Mode */}
+              {byAgentMode.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <MessageSquare size={16} />
+                      Custo por Modo do Agente
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      sdr_inbound, social_seller, followuper, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byAgentMode.map((item) => (
+                        <div
+                          key={`${item.agent_mode}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.agent_mode || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modo
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Tokens (I/O)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byAgentMode.map((item) => {
+                          const maxCost = Math.max(
+                            ...byAgentMode.map((m) => m.total_usd),
+                          );
+                          const barWidth =
+                            maxCost > 0 ? (item.total_usd / maxCost) * 100 : 0;
+                          return (
+                            <tr
+                              key={`${item.agent_mode}-${item.modelo_ia}`}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {item.agent_mode || "N/A"}
+                                  </span>
+                                  <div
+                                    className="h-1.5 rounded-full bg-accent-primary/30"
+                                    style={{
+                                      width: `${Math.min(barWidth, 60)}px`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  {item.modelo_ia}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.chamadas)}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                                {formatUSD(item.total_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted font-mono">
+                                {formatUSD(item.avg_usd_por_chamada)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted text-xs">
+                                {formatNumber(item.total_input)} /{" "}
+                                {formatNumber(item.total_output)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* By Agent Name */}
+              {byAgent.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Users size={16} />
+                      Custo por Agente
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      Marina, Rafael, Isabella, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byAgent.map((item) => (
+                        <div
+                          key={`${item.agent_name}-${item.location_name}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.agent_name || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-text-muted">
+                                {item.location_name}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Agente
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Cliente
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byAgent.map((item) => (
+                          <tr
+                            key={`${item.agent_name}-${item.location_name}`}
+                            className="hover:bg-bg-hover"
+                          >
+                            <td className="p-3 font-medium">
+                              {item.agent_name || "N/A"}
+                            </td>
+                            <td className="p-3 text-text-muted text-xs">
+                              {item.location_name}
+                            </td>
+                            <td className="p-3">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right text-text-muted">
+                              {formatNumber(item.chamadas)}
+                            </td>
+                            <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                              {formatUSD(item.total_usd)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted font-mono">
+                              {formatUSD(item.avg_usd)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* A/B Test */}
+              {abTest.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <TrendingUp size={16} />
+                      A/B Test — Pro vs Flash
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      Comparativo de custo entre variantes
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {abTest.map((item) => (
+                        <div
+                          key={`${item.ab_variant}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.ab_variant || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Variante
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg Tokens (I/O)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {abTest.map((item) => (
+                          <tr
+                            key={`${item.ab_variant}-${item.modelo_ia}`}
+                            className="hover:bg-bg-hover"
+                          >
+                            <td className="p-3">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-lg font-bold ${
+                                  item.ab_variant === "pro"
+                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                    : "bg-green-500/10 text-green-400 border border-green-500/20"
+                                }`}
+                              >
+                                {item.ab_variant || "N/A"}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right text-text-muted">
+                              {formatNumber(item.chamadas)}
+                            </td>
+                            <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                              {formatUSD(item.total_usd)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted font-mono">
+                              {formatUSD(item.avg_usd_por_chamada)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted text-xs">
+                              {formatNumber(item.avg_input_tokens)} /{" "}
+                              {formatNumber(item.avg_output_tokens)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* By Fase */}
+              {byFase.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Zap size={16} />
+                      Custo por Fase da Conversa
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      acolhimento, discovery, pitch, confirmacao, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byFase.map((item) => (
+                        <div
+                          key={`${item.fase_detectada}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.fase_detectada || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Fase
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg Prompt Chars
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byFase.map((item) => {
+                          const maxCost = Math.max(
+                            ...byFase.map((f) => f.total_usd),
+                          );
+                          const barWidth =
+                            maxCost > 0 ? (item.total_usd / maxCost) * 100 : 0;
+                          return (
+                            <tr
+                              key={`${item.fase_detectada}-${item.modelo_ia}`}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {item.fase_detectada || "N/A"}
+                                  </span>
+                                  <div
+                                    className="h-1.5 rounded-full bg-blue-500/30"
+                                    style={{
+                                      width: `${Math.min(barWidth, 60)}px`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  {item.modelo_ia}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.chamadas)}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                                {formatUSD(item.total_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted font-mono">
+                                {formatUSD(item.avg_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.avg_prompt_chars)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Workflow Detail Modal */}
       {selectedWorkflow && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
-          <div className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
-            isMobile ? 'h-full max-h-full rounded-none' : 'max-w-3xl max-h-[80vh]'
-          }`}>
+          <div
+            className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
+              isMobile
+                ? "h-full max-h-full rounded-none"
+                : "max-w-3xl max-h-[80vh]"
+            }`}
+          >
             <div className="p-4 md:p-6 border-b border-border-default flex items-center justify-between">
               <div className="min-w-0 flex-1 mr-4">
-                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">{selectedWorkflow.workflow_name}</h2>
+                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">
+                  {selectedWorkflow.workflow_name}
+                </h2>
                 <div className="flex items-center gap-2 mt-1">
                   {selectedWorkflow.workflow_id && (
                     <a
@@ -937,7 +1654,9 @@ export const ClientCosts = () => {
                       Abrir no n8n
                     </a>
                   )}
-                  <span className="text-[10px] md:text-xs text-text-muted font-mono">{selectedWorkflow.workflow_id}</span>
+                  <span className="text-[10px] md:text-xs text-text-muted font-mono">
+                    {selectedWorkflow.workflow_id}
+                  </span>
                 </div>
               </div>
               <button
@@ -948,24 +1667,42 @@ export const ClientCosts = () => {
               </button>
             </div>
 
-            <div className={`p-4 md:p-6 overflow-y-auto ${isMobile ? 'h-[calc(100%-80px)]' : 'max-h-[calc(80vh-120px)]'}`}>
+            <div
+              className={`p-4 md:p-6 overflow-y-auto ${isMobile ? "h-[calc(100%-80px)]" : "max-h-[calc(80vh-120px)]"}`}
+            >
               {/* Workflow Summary Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo Total</p>
-                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">{formatUSD(selectedWorkflow.total_cost_usd)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo Total
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">
+                    {formatUSD(selectedWorkflow.total_cost_usd)}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Requests</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{formatNumber(selectedWorkflow.total_requests)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Requests
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedWorkflow.total_requests)}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Clientes</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary">{selectedWorkflow.total_clients}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Clientes
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {selectedWorkflow.total_clients}
+                  </p>
                 </div>
                 <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] md:text-xs text-text-muted">Custo/Request</p>
-                  <p className="text-base md:text-xl font-bold text-text-primary truncate">{formatUSD(selectedWorkflow.avg_cost_per_request)}</p>
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Request
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {formatUSD(selectedWorkflow.avg_cost_per_request)}
+                  </p>
                 </div>
               </div>
 
@@ -977,7 +1714,10 @@ export const ClientCosts = () => {
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {selectedWorkflow.models_used.map((model) => (
-                    <span key={model} className="text-xs px-3 py-1.5 rounded-lg bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-medium">
+                    <span
+                      key={model}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-medium"
+                    >
                       {model}
                     </span>
                   ))}
@@ -992,21 +1732,35 @@ export const ClientCosts = () => {
                 </h3>
                 {loadingWfBreakdown ? (
                   <div className="flex items-center justify-center py-8">
-                    <RefreshCw className="animate-spin text-text-muted" size={24} />
+                    <RefreshCw
+                      className="animate-spin text-text-muted"
+                      size={24}
+                    />
                   </div>
                 ) : workflowClients.length > 0 ? (
                   isMobile ? (
                     <div className="space-y-2">
                       {workflowClients.map((client) => (
-                        <div key={client.location_name} className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between">
+                        <div
+                          key={client.location_name}
+                          className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between"
+                        >
                           <div>
-                            <p className="text-sm font-medium text-text-primary">{client.location_name}</p>
+                            <p className="text-sm font-medium text-text-primary">
+                              {client.location_name}
+                            </p>
                             <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
-                              <span>{formatNumber(client.total_requests)} req</span>
-                              <span>{formatNumber(client.total_tokens_input)} tokens</span>
+                              <span>
+                                {formatNumber(client.total_requests)} req
+                              </span>
+                              <span>
+                                {formatNumber(client.total_tokens_input)} tokens
+                              </span>
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-accent-primary font-mono">{formatUSD(client.total_cost_usd)}</p>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -1015,19 +1769,38 @@ export const ClientCosts = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-bg-tertiary">
                           <tr>
-                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">Cliente</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Custo</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Requests</th>
-                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">Tokens</th>
+                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                              Cliente
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Custo
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Requests
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Tokens
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border-default">
                           {workflowClients.map((client) => (
-                            <tr key={client.location_name} className="hover:bg-bg-hover">
-                              <td className="p-3 font-medium">{client.location_name}</td>
-                              <td className="p-3 text-right text-accent-primary font-mono">{formatUSD(client.total_cost_usd)}</td>
-                              <td className="p-3 text-right text-text-muted">{formatNumber(client.total_requests)}</td>
-                              <td className="p-3 text-right text-text-muted">{formatNumber(client.total_tokens_input)}</td>
+                            <tr
+                              key={client.location_name}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3 font-medium">
+                                {client.location_name}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono">
+                                {formatUSD(client.total_cost_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(client.total_requests)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(client.total_tokens_input)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1035,7 +1808,9 @@ export const ClientCosts = () => {
                     </div>
                   )
                 ) : (
-                  <p className="text-center text-text-muted py-4 text-sm">Nenhum dado de cliente encontrado</p>
+                  <p className="text-center text-text-muted py-4 text-sm">
+                    Nenhum dado de cliente encontrado
+                  </p>
                 )}
               </div>
             </div>
