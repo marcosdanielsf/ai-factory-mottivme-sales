@@ -36,9 +36,9 @@ Customer Journey Map v2.0 delivers full visibility into the MOTTIVME client jour
 
 1. Sending an identical GHL webhook payload twice inserts exactly one row in `cjm_events` (idempotency via unique constraint on `contact_id, stage_key, source_event_id`)
 2. A stage transition in any of the 4 GHL pipelines (Prospects, Pre-Vendas, Sales Farming, CS/Retencao) appears in `cjm_events` within 30 seconds
-3. Historical GHL pipeline data for all 6 clients exists in `cjm_events` after backfill completes (queryable by `client_id`)
+3. Historical GHL pipeline data for all 4 active clients (MOTTIVME, Dra. Gabriela, Instituto Amare, Dra. Carolina) exists in `cjm_events` after backfill completes (churned clients Alberto and Eline excluded — queryable by `location_id`)
 4. `SELECT business_hours_diff('2026-03-07 18:00:00+03', '2026-03-09 09:00:00+03')` returns the correct business-hours count excluding the weekend
-**Plans**: 2 plans
+   **Plans**: 2 plans
 
 Plans:
 
