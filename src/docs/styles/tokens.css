@@ -1,0 +1,74 @@
+/* 🎨 Design System Tokens - MOTTIVME AI Docs */
+/* Based on docs-ux-spec.md - oklch colors for modern displays */
+
+@theme {
+  /* === Base (Dark-First, Vercel/Linear inspired) === */
+  --color-docs-bg: oklch(0.13 0 0);           /* #1a1a1a */
+  --color-docs-fg: oklch(0.98 0 0);           /* #fafafa */
+  
+  /* === Card/Surface === */
+  --color-docs-card: oklch(0.17 0 0);         /* #252525 */
+  --color-docs-card-fg: oklch(0.98 0 0);
+  --color-docs-card-border: oklch(0.25 0 0);  /* #3a3a3a */
+  
+  /* === Primary (Roxo MOTTIVME) === */
+  --color-docs-primary: oklch(0.65 0.25 280);         /* purple-600 */
+  --color-docs-primary-fg: oklch(1 0 0);
+  --color-docs-primary-hover: oklch(0.58 0.25 280);   /* purple-700 */
+  
+  /* === Accent (Cyan/Teal para tech) === */
+  --color-docs-accent: oklch(0.75 0.15 195);          /* cyan-400 */
+  --color-docs-accent-fg: oklch(0.13 0 0);
+  
+  /* === Semantic === */
+  --color-docs-success: oklch(0.72 0.17 142);  /* green */
+  --color-docs-warning: oklch(0.75 0.18 70);   /* amber */
+  --color-docs-error: oklch(0.65 0.25 25);     /* red */
+  --color-docs-info: oklch(0.70 0.15 240);     /* blue */
+  
+  /* === Muted === */
+  --color-docs-muted: oklch(0.25 0 0);
+  --color-docs-muted-fg: oklch(0.63 0 0);
+  
+  /* === Border & Input === */
+  --color-docs-border: oklch(0.27 0 0);
+  --color-docs-input: oklch(0.20 0 0);
+  --color-docs-ring: oklch(0.65 0.25 280);     /* focus ring = primary */
+
+  /* === Category Colors (Skills/Badges) === */
+  --color-cat-automation: oklch(0.75 0.18 45);  /* Orange */
+  --color-cat-research: oklch(0.70 0.15 240);   /* Blue */
+  --color-cat-social: oklch(0.72 0.20 350);     /* Pink */
+  --color-cat-ai-prompt: oklch(0.65 0.25 280);  /* Purple */
+  --color-cat-integration: oklch(0.75 0.15 195); /* Cyan */
+  --color-cat-sales: oklch(0.72 0.17 142);      /* Green */
+  --color-cat-dev: oklch(0.55 0 0);             /* Gray */
+
+  /* === Radius === */
+  --radius-docs: 0.625rem;  /* 10px */
+  --radius-docs-lg: 1rem;   /* 16px */
+
+  /* === Shadows === */
+  --shadow-docs-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-docs-md: 0 4px 12px oklch(0 0 0 / 0.4);
+  --shadow-docs-glow: 0 0 20px oklch(0.65 0.25 280 / 0.3);
+
+  /* === Animation === */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Light Mode Override */
+[data-theme="light"] .docs-layout {
+  --color-docs-bg: oklch(0.99 0 0);
+  --color-docs-fg: oklch(0.13 0 0);
+  --color-docs-card: oklch(1 0 0);
+  --color-docs-card-border: oklch(0.92 0 0);
+  --color-docs-muted: oklch(0.96 0 0);
+  --color-docs-muted-fg: oklch(0.45 0 0);
+  --color-docs-border: oklch(0.90 0 0);
+}

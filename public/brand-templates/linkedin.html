@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1200" />
+  <title>Post LinkedIn</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --cor-primaria: #6B0F1A;
+      --cor-secundaria: #F4ECE0;
+      --cor-acento: #C9A96E;
+      --fonte-titulo: 'Playfair Display', Georgia, serif;
+      --fonte-corpo: 'Inter', sans-serif;
+      /* :root vars */
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1200px;
+      height: 627px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--fonte-corpo);
+      background: #1C1C24;
+      display: flex;
+      position: relative;
+    }
+
+    /* Painel esquerdo — foto e identidade */
+    .painel-esquerdo {
+      width: 340px;
+      height: 627px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .foto-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, var(--cor-primaria) 0%, #0D0D14 100%);
+    }
+
+    .foto-expert {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.55;
+      mix-blend-mode: luminosity;
+    }
+
+    /* Overlay gradiente para fundir foto com painel direito */
+    .foto-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, transparent 60%, #1C1C24 100%);
+    }
+
+    /* Barra de acento na esquerda do painel */
+    .barra-acento {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
+      background: var(--cor-acento);
+    }
+
+    /* Badge do expert */
+    .expert-badge {
+      position: absolute;
+      bottom: 36px;
+      left: 24px;
+      right: 24px;
+      z-index: 3;
+    }
+
+    .expert-name {
+      font-family: var(--fonte-titulo);
+      font-size: 22px;
+      font-weight: 600;
+      font-style: italic;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .expert-cargo {
+      font-family: var(--fonte-corpo);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--cor-acento);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Painel direito — conteudo */
+    .painel-direito {
+      flex: 1;
+      padding: 52px 60px 44px 52px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* Ornamento de fundo */
+    .painel-direito::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      border: 1px solid var(--cor-acento);
+      opacity: 0.08;
+    }
+
+    .painel-direito::after {
+      content: '';
+      position: absolute;
+      bottom: -40px;
+      right: 100px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: var(--cor-primaria);
+      opacity: 0.06;
+    }
+
+    /* Topo: tag de plataforma */
+    .topo {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .tag-linkedin {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border: 1px solid rgba(201, 169, 110, 0.3);
+      border-radius: 2px;
+    }
+
+    .tag-linkedin-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cor-acento);
+    }
+
+    .tag-linkedin-text {
+      font-family: var(--fonte-corpo);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cor-acento);
+    }
+
+    .separador-linha {
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Centro: titulo e corpo */
+    .centro {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px 0;
+      gap: 20px;
+    }
+
+    .titulo {
+      font-family: var(--fonte-titulo);
+      font-size: 46px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    .titulo .destaque {
+      color: var(--cor-acento);
+    }
+
+    .subtitulo {
+      font-family: var(--fonte-corpo);
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.6);
+      max-width: 640px;
+    }
+
+    .corpo {
+      font-family: var(--fonte-corpo);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.5);
+      max-width: 580px;
+    }
+
+    /* Rodape: CTA */
+    .rodape {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 32px;
+      background: var(--cor-primaria);
+      color: #ffffff;
+      font-family: var(--fonte-corpo);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 2px;
+    }
+
+    .cta-arrow {
+      width: 16px;
+      height: 16px;
+      border-top: 2px solid #ffffff;
+      border-right: 2px solid #ffffff;
+      transform: rotate(45deg);
+      opacity: 0.8;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    .logo-placeholder {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Painel esquerdo -->
+  <div class="painel-esquerdo">
+    <div class="foto-bg"></div>
+    <img class="foto-expert" src="{{foto_url}}" alt="{{expert_name}}" />
+    <div class="foto-overlay"></div>
+    <div class="barra-acento"></div>
+    <div class="expert-badge">
+      <div class="expert-name">{{expert_name}}</div>
+      <div class="expert-cargo">{{especialidade}}</div>
+    </div>
+  </div>
+
+  <!-- Painel direito -->
+  <div class="painel-direito">
+    <!-- Topo -->
+    <div class="topo">
+      <div class="tag-linkedin">
+        <div class="tag-linkedin-dot"></div>
+        <span class="tag-linkedin-text">LinkedIn</span>
+      </div>
+      <div class="separador-linha"></div>
+    </div>
+
+    <!-- Centro -->
+    <div class="centro">
+      <h1 class="titulo">{{titulo}}</h1>
+      <p class="subtitulo">{{subtitulo}}</p>
+      <p class="corpo">{{corpo}}</p>
+    </div>
+
+    <!-- Rodape -->
+    <div class="rodape">
+      <div class="cta-btn">
+        {{cta}}
+        <div class="cta-arrow"></div>
+      </div>
+      <div class="logo-area">
+        <img class="logo-img" src="{{logo_url}}" alt="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'" />
+        <div class="logo-placeholder" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

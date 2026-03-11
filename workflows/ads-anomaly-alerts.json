@@ -1,0 +1,195 @@
+{
+  "name": "Ads Anomaly Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT location_id, location_name, ad_name, ad_id, campaign_name, adset_name, spend, impressions, clicks, leads, cpl, cpl_avg, cpl_delta_pct, ctr, ctr_avg, ctr_delta_pct, is_anomaly, anomaly_reason, reference_date FROM vw_ads_anomaly_detection WHERE is_anomaly = true ORDER BY cpl_delta_pct DESC NULLS LAST",
+        "options": {
+          "queryReplacement": ""
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Query Anomalies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Has Anomalies",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Query Anomalies').all();\n\nif (items.length === 0) {\n  return [{ json: { message: 'Nenhuma anomalia detectada.' } }];\n}\n\n// Group by location\nconst byLocation = {};\nfor (const item of items) {\n  const loc = item.json.location_name || item.json.location_id || 'Desconhecido';\n  if (byLocation[loc] == null) {\n    byLocation[loc] = [];\n  }\n  byLocation[loc].push(item.json);\n}\n\nconst today = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nlet msg = '*Alerta de Anomalias nos Anuncios* - ' + today + '\\n';\nmsg += '━━━━━━━━━━━━━━━━━━━━━\\n\\n';\n\nfor (const [location, ads] of Object.entries(byLocation)) {\n  msg += '*' + location + '* (' + ads.length + ' anomalia' + (ads.length > 1 ? 's' : '') + ')\\n';\n  for (const ad of ads) {\n    const adName = ad.ad_name || 'Sem nome';\n    const cplDelta = ad.cpl_delta_pct != null ? (ad.cpl_delta_pct > 0 ? '+' : '') + Number(ad.cpl_delta_pct).toFixed(1) + '%' : 'N/A';\n    const ctrDelta = ad.ctr_delta_pct != null ? (ad.ctr_delta_pct > 0 ? '+' : '') + Number(ad.ctr_delta_pct).toFixed(1) + '%' : 'N/A';\n    const cplVal = ad.cpl != null ? 'R$ ' + Number(ad.cpl).toFixed(2) : 'N/A';\n    const reason = ad.anomaly_reason || '';\n\n    msg += '  • *' + adName + '*\\n';\n    msg += '    CPL: ' + cplVal + ' (delta: ' + cplDelta + ')\\n';\n    msg += '    CTR delta: ' + ctrDelta + '\\n';\n    if (reason) {\n      msg += '    Motivo: ' + reason + '\\n';\n    }\n  }\n  msg += '\\n';\n}\n\nmsg += '━━━━━━━━━━━━━━━━━━━━━\\n';\nmsg += '_Total: ' + items.length + ' anuncio(s) com anomalia_';\n\nreturn [{ json: { message: msg, anomaly_count: items.length, locations: Object.keys(byLocation).length } }];"
+      },
+      "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "name": "Format WhatsApp Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://developer.z-api.io/instances/{{$env.ZAPI_INSTANCE_ID}}/token/{{$env.ZAPI_TOKEN}}/send-text",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Client-Token",
+              "value": "={{$env.ZAPI_CLIENT_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone\": \"{{$env.MARCOS_WHATSAPP_NUMBER}}\",\n  \"message\": {{ JSON.stringify($('Format WhatsApp Message').first().json.message) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+      "name": "Send WhatsApp Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_schedule_tracking (field, unique_id, location_id, status, metadata, created_at) VALUES ('ads_anomaly_alert', 'daily_' || TO_CHAR(NOW(), 'YYYY-MM-DD'), NULL, 'no_anomalies', '{\"anomaly_count\": 0}'::jsonb, NOW()) ON CONFLICT (field, unique_id) DO UPDATE SET status = 'no_anomalies', updated_at = NOW()",
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+      "name": "Log No Anomalies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 400],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Mottivme"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Query Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Has Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Format WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

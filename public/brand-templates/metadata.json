@@ -1,0 +1,202 @@
+{
+  "post": {
+    "name": "Post Elegante",
+    "category": "social_media",
+    "platform": "instagram",
+    "description": "Post quadrado para feed — estilo especialista",
+    "width": 1080,
+    "height": 1080,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "foto_url",
+      "expert_name",
+      "cta",
+      "especialidade"
+    ],
+    "tags": ["instagram", "feed", "quadrado", "especialista"]
+  },
+  "reel": {
+    "name": "Capa de Reel",
+    "category": "social_media",
+    "platform": "instagram",
+    "description": "Cover vertical para reels e shorts",
+    "width": 1080,
+    "height": 1920,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "foto_url",
+      "expert_name",
+      "especialidade"
+    ],
+    "tags": ["instagram", "reel", "vertical", "cover"]
+  },
+  "carrossel": {
+    "name": "Slide de Carrossel",
+    "category": "social_media",
+    "platform": "instagram",
+    "description": "Slide numerado para carrossel educativo",
+    "width": 1080,
+    "height": 1080,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "fonte_titulo",
+      "titulo",
+      "corpo",
+      "expert_name",
+      "numero_slide",
+      "total_slides"
+    ],
+    "tags": ["instagram", "carrossel", "educativo", "numerado"]
+  },
+  "story": {
+    "name": "Story Impactante",
+    "category": "social_media",
+    "platform": "instagram",
+    "description": "Story vertical com CTA",
+    "width": 1080,
+    "height": 1920,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "cta",
+      "expert_name"
+    ],
+    "tags": ["instagram", "story", "vertical", "cta"]
+  },
+  "quote": {
+    "name": "Citacao de Autoridade",
+    "category": "social_media",
+    "platform": "instagram",
+    "description": "Post de citacao/insight do expert",
+    "width": 1080,
+    "height": 1080,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "fonte_titulo",
+      "citacao",
+      "expert_name",
+      "especialidade"
+    ],
+    "tags": ["instagram", "quote", "autoridade", "insight"]
+  },
+  "linkedin": {
+    "name": "Post LinkedIn",
+    "category": "social_media",
+    "platform": "linkedin",
+    "description": "Post horizontal para LinkedIn — autoridade profissional com foto e corpo de texto",
+    "width": 1200,
+    "height": 627,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "cor_acento",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "corpo",
+      "expert_name",
+      "especialidade",
+      "foto_url",
+      "logo_url",
+      "cta"
+    ],
+    "tags": ["linkedin", "profissional", "horizontal", "autoridade"]
+  },
+  "whatsapp": {
+    "name": "Status WhatsApp",
+    "category": "comunicacao",
+    "platform": "whatsapp",
+    "description": "Status vertical para WhatsApp — vertical com CTA e identidade de marca",
+    "width": 1080,
+    "height": 1920,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "cor_acento",
+      "fonte_titulo",
+      "titulo",
+      "corpo",
+      "cta",
+      "expert_name",
+      "logo_url"
+    ],
+    "tags": ["whatsapp", "status", "vertical", "cta", "stories"]
+  },
+  "email_header": {
+    "name": "Header de Email",
+    "category": "comunicacao",
+    "platform": "email",
+    "description": "Header compacto para newsletters e emails marketing — 600x200px",
+    "width": 600,
+    "height": 200,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "cor_acento",
+      "fonte_titulo",
+      "expert_name",
+      "subtitulo",
+      "especialidade",
+      "cta",
+      "logo_url"
+    ],
+    "tags": ["email", "newsletter", "header", "compacto", "marketing"]
+  },
+  "banner_ads": {
+    "name": "Banner Display Ads",
+    "category": "ads",
+    "platform": "meta",
+    "description": "Banner horizontal para anuncios display e Meta Ads — 1200x628px",
+    "width": 1200,
+    "height": 628,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "cor_acento",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "expert_name",
+      "especialidade",
+      "foto_url",
+      "cta"
+    ],
+    "tags": ["ads", "banner", "display", "meta", "facebook", "instagram", "horizontal"]
+  },
+  "apresentacao": {
+    "name": "Slide Apresentacao",
+    "category": "apresentacao",
+    "platform": null,
+    "description": "Slide widescreen 1920x1080 para apresentacoes profissionais — dark theme com foto do expert",
+    "width": 1920,
+    "height": 1080,
+    "variables": [
+      "cor_primaria",
+      "cor_secundaria",
+      "cor_acento",
+      "fonte_titulo",
+      "titulo",
+      "subtitulo",
+      "corpo",
+      "expert_name",
+      "especialidade",
+      "foto_url",
+      "logo_url",
+      "cta"
+    ],
+    "tags": ["slide", "apresentacao", "widescreen", "1080p", "powerpoint", "keynote"]
+  }
+}

@@ -1,0 +1,304 @@
+{
+  "name": "CAPI GHL Won → Meta + Supabase",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## CONFIGURAR ANTES DE ATIVAR\n\n**Node 'Lookup Pixel ID':** Preencher o objeto `PIXEL_MAP` com os `location_id` de cada cliente e seus respectivos `pixel_id` + `access_token` do Facebook.\n\nExemplo:\n```\n'abc123locationId': {\n  pixel_id: '1234567890',\n  token: 'EAAxxxxx...'\n}\n```\n\n**Webhook GHL:** Settings → Integrations → Webhooks → Adicionar:\n- Evento: `OpportunityStageChanged` ou `OpportunityStatusChanged`\n- URL: `{n8n-url}/webhook/capi-ghl-won`\n- Filtrar por status = Won no GHL ou no node IF deste workflow\n\n**Supabase:** Requer tabela `conversion_events` — rodar `sql/034_metrics_lab.sql`",
+        "height": 380,
+        "width": 440,
+        "color": 4
+      },
+      "id": "sticky01",
+      "name": "Sticky Note - Config",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [220, 40]
+    },
+    {
+      "parameters": {
+        "content": "## FLUXO\n\n1. GHL dispara webhook ao fechar oportunidade (Won)\n2. Extrair dados do contato e da oportunidade\n3. Hashear PII para conformidade LGPD/GDPR\n4. Buscar pixel_id pelo location_id\n5. Se pixel configurado → enviar evento Purchase para Meta CAPI\n6. Salvar tudo no Supabase (com ou sem CAPI)",
+        "height": 220,
+        "width": 340,
+        "color": 6
+      },
+      "id": "sticky02",
+      "name": "Sticky Note - Fluxo",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [680, 40]
+    },
+    {
+      "parameters": {
+        "content": "## SUPABASE\n\nTabela: `conversion_events`\n\nCampos utilizados:\n- `location_id` — ID da location GHL\n- `lead_id` — contact_id GHL\n- `source` — `ghl_opportunity`\n- `amount` — valor monetário da oportunidade\n- `currency` — BRL\n- `status` — `confirmed`\n- `source_id` — opportunity_id GHL\n- `pixel_id` — pixel FB (null se não configurado)\n- `capi_sent` — boolean\n- `capi_sent_at` — timestamp (null se não enviado)\n- `metadata` — JSONB com pipeline/stage/email\n- `converted_at` — NOW()",
+        "height": 380,
+        "width": 340,
+        "color": 5
+      },
+      "id": "sticky03",
+      "name": "Sticky Note - Supabase",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1660, 40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capi-ghl-won",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh01",
+      "name": "Webhook GHL Won",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 480],
+      "webhookId": "capi-ghl-won"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract relevant fields from GHL opportunity webhook\nconst opp = $input.first().json.body || $input.first().json;\n\nconst email = opp.contact?.email || opp.email || '';\nconst phone = opp.contact?.phone || opp.phone || '';\nconst firstName = opp.contact?.firstName || opp.contact?.first_name || '';\nconst lastName = opp.contact?.lastName || opp.contact?.last_name || '';\nconst value = parseFloat(opp.monetary_value || opp.monetaryValue || opp.value || '0');\nconst contactId = opp.contact?.id || opp.contactId || opp.contact_id || '';\nconst opportunityId = opp.id || opp.opportunity_id || '';\nconst locationId = opp.location_id || opp.locationId || '';\nconst pipelineName = opp.pipeline?.name || opp.pipelineName || '';\nconst stageName = opp.stage?.name || opp.stageName || 'Won';\n\nreturn [{\n  json: {\n    email,\n    phone,\n    firstName,\n    lastName,\n    value,\n    contactId,\n    opportunityId,\n    locationId,\n    pipelineName,\n    stageName,\n    currency: 'BRL',\n    timestamp: Math.floor(Date.now() / 1000)\n  }\n}];"
+      },
+      "id": "ex01",
+      "name": "Extract Contact Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 480],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst data = $input.first().json;\n\nconst hash = (val) => {\n  if (!val) return '';\n  return crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex');\n};\n\n// Clean phone: remove +, spaces, dashes, parentheses\nconst cleanPhone = (data.phone || '').replace(/[\\s\\-\\+\\(\\)]/g, '');\n// Add country code if not present\nconst phoneWithCode = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;\n\nreturn [{\n  json: {\n    ...data,\n    hashed_email: hash(data.email),\n    hashed_phone: hash(phoneWithCode),\n    hashed_fn: hash(data.firstName),\n    hashed_ln: hash(data.lastName),\n    phone_clean: phoneWithCode\n  }\n}];"
+      },
+      "id": "hash01",
+      "name": "SHA256 Hash PII",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 480],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CONFIGURAR: Mapear location_id → pixel_id + access_token do Facebook\n// Formato: 'ghl_location_id': { pixel_id: 'FB_PIXEL_ID', token: 'EAAxx...' }\nconst PIXEL_MAP = {\n  // Exemplo (substituir pelos dados reais de cada cliente):\n  // 'cd1uyzpJox6XPt4Vct8Y': { pixel_id: '123456789012345', token: 'EAAxxxxx' },\n  // 'abc123locationId':    { pixel_id: '987654321098765', token: 'EAAyyyyy' },\n};\n\nconst data = $input.first().json;\nconst config = PIXEL_MAP[data.locationId];\n\nif (!config) {\n  console.log('AVISO: Nenhum pixel configurado para location ' + data.locationId + '. Salvando no Supabase sem CAPI.');\n  return [{ json: { ...data, pixel_id: null, pixel_token: null, skip_capi: true } }];\n}\n\nreturn [{ json: { ...data, pixel_id: config.pixel_id, pixel_token: config.token, skip_capi: false } }];"
+      },
+      "id": "px01",
+      "name": "Lookup Pixel ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 480],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond01",
+              "leftValue": "={{ $json.skip_capi }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if01",
+      "name": "IF Has Pixel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.pixel_id }}/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ data: [{ event_name: 'Purchase', event_time: $json.timestamp, event_id: $json.opportunityId, user_data: { em: [$json.hashed_email], ph: [$json.hashed_phone], fn: [$json.hashed_fn], ln: [$json.hashed_ln], country: ['br'] }, custom_data: { value: $json.value, currency: $json.currency, content_name: ($json.pipelineName || '') + ' - ' + ($json.stageName || 'Won') }, action_source: 'system_generated' }], access_token: $json.pixel_token }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "capi01",
+      "name": "Meta CAPI Purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 360],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar dados de ambos os branches (com CAPI e sem CAPI)\n// $input pode vir do branch TRUE (apos Meta CAPI) ou FALSE (skip_capi=true)\nconst input = $input.first().json;\n\n// Detectar se CAPI foi enviado verificando presenca de pixel_id E ausencia de skip_capi\nconst capiSent = input.pixel_id !== null && input.skip_capi !== true;\n\nreturn [{\n  json: {\n    ...input,\n    capi_sent: capiSent,\n    capi_sent_at: capiSent ? new Date().toISOString() : null\n  }\n}];"
+      },
+      "id": "prep01",
+      "name": "Prep Supabase Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 480],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversion_events (\n  location_id,\n  lead_id,\n  ad_id,\n  source,\n  amount,\n  currency,\n  status,\n  source_id,\n  pixel_id,\n  capi_sent,\n  capi_sent_at,\n  metadata,\n  converted_at\n) VALUES (\n  '{{ $json.locationId }}',\n  '{{ $json.contactId }}',\n  NULL,\n  'ghl_opportunity',\n  {{ $json.value || 0 }},\n  '{{ $json.currency }}',\n  'confirmed',\n  '{{ $json.opportunityId }}',\n  {{ $json.pixel_id ? \"'\" + $json.pixel_id + \"'\" : 'NULL' }},\n  {{ $json.capi_sent === true ? 'true' : 'false' }},\n  {{ $json.capi_sent_at ? \"'\" + $json.capi_sent_at + \"'\" : 'NULL' }},\n  '{{ JSON.stringify({ pipeline: $json.pipelineName, stage: $json.stageName, contact_email: $json.email, opportunity_id: $json.opportunityId }) }}'::jsonb,\n  NOW()\n)\nON CONFLICT (source_id) DO UPDATE SET\n  capi_sent = EXCLUDED.capi_sent,\n  capi_sent_at = EXCLUDED.capi_sent_at,\n  metadata = EXCLUDED.metadata;",
+        "additionalFields": {}
+      },
+      "id": "sb01",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1760, 480],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, opportunity_id: $('Extract Contact Data').item.json.opportunityId, capi_sent: $json.capi_sent !== undefined ? $json.capi_sent : false, saved_supabase: true }) }}"
+      },
+      "id": "resp01",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1980, 480],
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Webhook GHL Won": {
+      "main": [
+        [
+          {
+            "node": "Extract Contact Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Contact Data": {
+      "main": [
+        [
+          {
+            "node": "SHA256 Hash PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SHA256 Hash PII": {
+      "main": [
+        [
+          {
+            "node": "Lookup Pixel ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Pixel ID": {
+      "main": [
+        [
+          {
+            "node": "IF Has Pixel?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Pixel?": {
+      "main": [
+        [
+          {
+            "node": "Meta CAPI Purchase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta CAPI Purchase": {
+      "main": [
+        [
+          {
+            "node": "Prep Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "instanceId": "fb-ads-to-supabase"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": {
+          "__rl": true,
+          "value": "fb_ads_performance",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ad_id": "={{ $json['Ad ID'] }}",
+            "ad_name": "={{ $json['Ad Name'] }}",
+            "campaign_name": "={{ $json['Campaign Name'] }}",
+            "adset_name": "={{ $json['AdSet Name'] }}",
+            "effective_status": "={{ $json['Active Status'] }}",
+            "impressions": "={{ $json.Impressions || 0 }}",
+            "clicks": "={{ $json.Clicks || 0 }}",
+            "spend": "={{ $json.Spend || 0 }}",
+            "cpc": "={{ $json.CPC || 0 }}",
+            "cpm": "={{ $json.CPM || 0 }}",
+            "conversions": "={{ $json.Conversions || 0 }}",
+            "conversion_value": "={{ $json['Conversion Value'] || 0 }}",
+            "conversas_iniciadas": "={{ $json['Conversas Iniciadas'] || 0 }}",
+            "custo_por_conversa": "={{ $json['Custo por Conversa'] || 0 }}",
+            "mensagens_profundidade_2": "={{ $json['Mensagens com Profundidade 2 (usuário enviou 2+ mensagens)'] || 0 }}",
+            "primeira_resposta": "={{ $json['Primeira Resposta (você respondeu)'] || 0 }}",
+            "custo_primeira_resposta": "={{ $json['Custo por Primeira Resposta'] || 0 }}",
+            "custo_msg_profundidade_2": "={{ $json['Custo por Mensagem Profundidade 2'] || 0 }}",
+            "video_id": "={{ $json['Video ID'] }}",
+            "data_relatorio": "={{ $json.Date }}",
+            "account_name": "={{ $json['Account Name'] }}"
+          },
+          "matchingColumns": ["ad_id", "data_relatorio"]
+        },
+        "options": {}
+      },
+      "id": "postgres-fb-ads",
+      "name": "Salvar no Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "CREDENCIAL_POSTGRES_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

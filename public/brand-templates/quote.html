@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080" />
+  <title>Citacao de Autoridade</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700&display=swap');
+
+    :root {
+      --cor-primaria: #6B0F1A;
+      --cor-secundaria: #F4ECE0;
+      --cor-acento: #C4953B;
+      --fonte-titulo: 'Playfair Display', Georgia, serif;
+      --fonte-corpo: 'Lato', sans-serif;
+      /* :root vars */
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1080px;
+      height: 1080px;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: var(--cor-primaria);
+      font-family: var(--fonte-corpo);
+      position: relative;
+    }
+
+    /* Aspas gigantes decorativas — posicionadas atras de tudo */
+    .aspas-decorativas {
+      position: absolute;
+      top: -80px;
+      left: -60px;
+      font-family: 'Georgia', serif;
+      font-size: 800px;
+      line-height: 1;
+      color: var(--cor-secundaria);
+      opacity: 0.08;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+    }
+
+    /* Ornamento de borda */
+    .ornamento-borda {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 300px;
+      height: 300px;
+      border-top: 1px solid var(--cor-acento);
+      border-left: 1px solid var(--cor-acento);
+      opacity: 0.15;
+      z-index: 0;
+    }
+
+    /* Conteudo principal */
+    .main {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 100px;
+      text-align: center;
+    }
+
+    /* Linha dourada topo */
+    .linha-topo {
+      width: 80px;
+      height: 4px;
+      background: var(--cor-acento);
+      border-radius: 2px;
+      margin-bottom: 56px;
+      flex-shrink: 0;
+    }
+
+    /* Citacao */
+    .citacao {
+      font-family: var(--fonte-titulo);
+      font-size: 52px;
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.4;
+      color: var(--cor-secundaria);
+      letter-spacing: -0.01em;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 860px;
+    }
+
+    /* Linha separadora */
+    .linha-separadora {
+      width: 100%;
+      max-width: 400px;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        var(--cor-acento),
+        transparent
+      );
+      margin: 52px 0 36px;
+      flex-shrink: 0;
+    }
+
+    /* Expert name */
+    .expert-name {
+      font-family: var(--fonte-corpo);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cor-secundaria);
+      opacity: 0.75;
+      flex-shrink: 0;
+    }
+
+    /* Especialidade */
+    .especialidade {
+      font-family: var(--fonte-corpo);
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: var(--cor-secundaria);
+      opacity: 0.5;
+      margin-top: 12px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Aspas decorativas de fundo -->
+  <div class="aspas-decorativas">"</div>
+
+  <!-- Ornamento de borda -->
+  <div class="ornamento-borda"></div>
+
+  <!-- Conteudo -->
+  <div class="main">
+    <div class="linha-topo"></div>
+
+    <blockquote class="citacao">
+      {{citacao}}
+    </blockquote>
+
+    <div class="linha-separadora"></div>
+
+    <div class="expert-name">{{expert_name}}</div>
+    <div class="especialidade">{{especialidade}}</div>
+  </div>
+</body>
+</html>

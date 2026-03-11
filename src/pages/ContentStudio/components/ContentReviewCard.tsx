@@ -1,0 +1,385 @@
+import { useState } from 'react';
+import {
+  Check, X, Calendar, Send, Edit3, Eye,
+  Instagram, Linkedin, Facebook, Mail, Video, Image as ImageIcon,
+  Hash, MessageSquare, Loader2, Film, History, ChevronDown, ChevronUp,
+} from 'lucide-react';
+import type { ContentPiece } from '../../../hooks/useContentPieces';
+import { useQualityGates } from '../../../hooks/useQualityGates';
+import { QualityGatesBadge } from './QualityGatesBadge';
+import { QualityGatesChecklist } from './QualityGatesChecklist';
+import { useContentJourneyLog } from '../../../hooks/useContentJourneyLog';
+import { JourneyTimeline } from './JourneyTimeline';
+import { JourneyInsights } from './JourneyInsights';
+
+interface ContentReviewCardProps {
+  piece: ContentPiece;
+  onApprove: (id: string) => Promise<boolean>;
+  onReject: (id: string) => Promise<boolean>;
+  onSchedule: (id: string, date: string) => Promise<boolean>;
+  onEdit: (id: string, updates: Partial<ContentPiece>) => Promise<ContentPiece | null>;
+  onPublish?: (id: string, platform: string, scheduleDate?: string) => Promise<boolean>;
+  onGenerateVideo?: (id: string) => Promise<boolean>;
+  publishingId?: string | null;
+  generatingVideoId?: string | null;
+}
+
+const PLATFORM_ICONS: Record<string, typeof Instagram> = {
+  instagram: Instagram,
+  linkedin: Linkedin,
+  facebook: Facebook,
+  email: Mail,
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  post: 'bg-blue-500/20 text-blue-400',
+  reel: 'bg-purple-500/20 text-purple-400',
+  email: 'bg-green-500/20 text-green-400',
+  ad: 'bg-orange-500/20 text-orange-400',
+  story: 'bg-pink-500/20 text-pink-400',
+  carousel: 'bg-cyan-500/20 text-cyan-400',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-yellow-500/20 text-yellow-400',
+  approved: 'bg-green-500/20 text-green-400',
+  rejected: 'bg-red-500/20 text-red-400',
+  scheduled: 'bg-blue-500/20 text-blue-400',
+  published: 'bg-emerald-500/20 text-emerald-400',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendente',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  scheduled: 'Agendado',
+  published: 'Publicado',
+};
+
+const PUBLISH_PLATFORMS = [
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'facebook', label: 'Facebook', icon: Facebook },
+  { value: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+];
+
+export function ContentReviewCard({
+  piece, onApprove, onReject, onSchedule, onEdit,
+  onPublish, onGenerateVideo, publishingId, generatingVideoId,
+}: ContentReviewCardProps) {
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(piece.body);
+  const [expanded, setExpanded] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [showPublishMenu, setShowPublishMenu] = useState(false);
+  const [videoRequested, setVideoRequested] = useState(false);
+  const [showQualityGates, setShowQualityGates] = useState(false);
+  const [showJourney, setShowJourney] = useState(false);
+
+  const qualityResult = useQualityGates(piece);
+  const { entries: journeyEntries, loading: journeyLoading, insights: journeyInsights } =
+    useContentJourneyLog(showJourney ? piece.id : null);
+
+  const PlatformIcon = piece.platform ? PLATFORM_ICONS[piece.platform] || MessageSquare : MessageSquare;
+  const isPending = piece.approval_status === 'pending';
+  const isApproved = piece.approval_status === 'approved';
+  const isPublishing = publishingId === piece.id;
+  const isGeneratingVideo = generatingVideoId === piece.id;
+  const isVideoType = piece.type === 'reel' || piece.type === 'story';
+
+  const handleSaveEdit = async () => {
+    if (editBody.trim() !== piece.body) {
+      await onEdit(piece.id, { body: editBody.trim() });
+    }
+    setEditing(false);
+  };
+
+  const handleSchedule = async () => {
+    if (scheduleDate) {
+      await onSchedule(piece.id, scheduleDate);
+      setShowSchedule(false);
+    }
+  };
+
+  const handlePublish = async (platform: string) => {
+    setShowPublishMenu(false);
+    if (onPublish) {
+      await onPublish(piece.id, platform);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (onGenerateVideo) {
+      setVideoRequested(true);
+      await onGenerateVideo(piece.id);
+    }
+  };
+
+  const truncatedBody = piece.body.length > 200 && !expanded
+    ? piece.body.slice(0, 200) + '...'
+    : piece.body;
+
+  return (
+    <div className="bg-bg-secondary border border-border-default rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+        <div className="flex items-center gap-2 flex-wrap">
+          <PlatformIcon className="w-4 h-4 text-text-muted" />
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[piece.type] || ''}`}>
+            {piece.type.toUpperCase()}
+          </span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[piece.approval_status] || ''}`}>
+            {STATUS_LABELS[piece.approval_status] || piece.approval_status}
+          </span>
+          <QualityGatesBadge
+            result={qualityResult}
+            onClick={() => setShowQualityGates(v => !v)}
+          />
+        </div>
+        {piece.platform && (
+          <span className="text-xs text-text-muted capitalize">{piece.platform}</span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        {piece.title && (
+          <h3 className="text-sm font-medium text-text-primary">{piece.title}</h3>
+        )}
+
+        {piece.hook && (
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-text-muted uppercase tracking-wide mt-0.5">Hook:</span>
+            <p className="text-sm text-accent-primary font-medium">{piece.hook}</p>
+          </div>
+        )}
+
+        {editing ? (
+          <textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={6}
+            className="w-full px-3 py-2 text-sm bg-bg-primary border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-primary resize-none"
+          />
+        ) : (
+          <p className="text-sm text-text-secondary whitespace-pre-wrap leading-relaxed">
+            {truncatedBody}
+          </p>
+        )}
+
+        {piece.body.length > 200 && !editing && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-accent-primary hover:underline"
+          >
+            {expanded ? 'Ver menos' : 'Ver mais'}
+          </button>
+        )}
+
+        {/* Quality Gates Checklist */}
+        {showQualityGates && (
+          <QualityGatesChecklist result={qualityResult} defaultExpanded />
+        )}
+
+        {piece.cta && (
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-text-muted uppercase tracking-wide mt-0.5">CTA:</span>
+            <p className="text-sm text-text-primary font-medium">{piece.cta}</p>
+          </div>
+        )}
+
+        {piece.subject && (
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-text-muted uppercase tracking-wide mt-0.5">Subject:</span>
+            <p className="text-sm text-text-primary">{piece.subject}</p>
+          </div>
+        )}
+
+        {piece.hashtags && piece.hashtags.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            <Hash className="w-3 h-3 text-text-muted" />
+            {piece.hashtags.map((tag, i) => (
+              <span key={i} className="text-xs text-accent-primary">#{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {piece.media_url && (
+          <div className="flex items-center gap-2 text-xs text-text-muted">
+            {piece.media_type === 'video' ? <Video className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
+            <span>Media anexada</span>
+          </div>
+        )}
+
+        {/* Video generating indicator */}
+        {(isGeneratingVideo || videoRequested) && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+            <span className="text-xs text-purple-400">Gerando video (~4min)...</span>
+          </div>
+        )}
+
+        {/* Schedule picker */}
+        {showSchedule && (
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="datetime-local"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-sm bg-bg-primary border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-primary"
+            />
+            <button
+              onClick={handleSchedule}
+              disabled={!scheduleDate}
+              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50"
+            >
+              Agendar
+            </button>
+            <button
+              onClick={() => setShowSchedule(false)}
+              className="px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-lg hover:bg-bg-hover"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* Publish platform picker */}
+        {showPublishMenu && (
+          <div className="flex items-center gap-2 pt-2">
+            {PUBLISH_PLATFORMS.map(p => {
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.value}
+                  onClick={() => handlePublish(p.value)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary rounded-lg hover:bg-bg-hover"
+                >
+                  <Icon className="w-3.5 h-3.5" /> {p.label}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setShowPublishMenu(false)}
+              className="px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-lg hover:bg-bg-hover"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 px-4 py-3 border-t border-border-default bg-bg-primary/50 flex-wrap">
+        {editing ? (
+          <>
+            <button
+              onClick={handleSaveEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-500"
+            >
+              <Check className="w-3 h-3" /> Salvar
+            </button>
+            <button
+              onClick={() => { setEditing(false); setEditBody(piece.body); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover"
+            >
+              <X className="w-3 h-3" /> Cancelar
+            </button>
+          </>
+        ) : (
+          <>
+            {isPending && (
+              <>
+                <button
+                  onClick={() => qualityResult.canApprove && onApprove(piece.id)}
+                  disabled={!qualityResult.canApprove}
+                  title={!qualityResult.canApprove ? `${qualityResult.blockers} bloqueio(s) impedem aprovacao` : 'Aprovar conteudo'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Check className="w-3 h-3" /> Aprovar
+                </button>
+                <button
+                  onClick={() => onReject(piece.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600/80 text-white rounded-md hover:bg-red-500"
+                >
+                  <X className="w-3 h-3" /> Rejeitar
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary rounded-md hover:bg-bg-hover"
+            >
+              <Edit3 className="w-3 h-3" /> Editar
+            </button>
+            {(isPending || isApproved) && (
+              <button
+                onClick={() => setShowSchedule(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-secondary rounded-md hover:bg-bg-hover"
+              >
+                <Calendar className="w-3 h-3" /> Agendar
+              </button>
+            )}
+
+            {/* Generate Video — only for reels/stories without media */}
+            {isVideoType && !piece.media_url && !videoRequested && !isGeneratingVideo && onGenerateVideo && (
+              <button
+                onClick={handleGenerateVideo}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-500"
+              >
+                <Film className="w-3 h-3" /> Gerar Video
+              </button>
+            )}
+
+            {/* Publish to GHL — only for approved pieces */}
+            {isApproved && onPublish && (
+              <button
+                onClick={() => setShowPublishMenu(true)}
+                disabled={isPublishing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-accent-primary text-white rounded-md hover:opacity-90 ml-auto disabled:opacity-50"
+              >
+                {isPublishing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Send className="w-3 h-3" />
+                )}
+                {isPublishing ? 'Publicando...' : 'Publicar'}
+              </button>
+            )}
+
+            {!isApproved && !expanded && piece.body.length <= 200 && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover ml-auto"
+              >
+                <Eye className="w-3 h-3" /> Preview
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowJourney(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover"
+              title="Historico de acoes"
+            >
+              <History className="w-3 h-3" />
+              {showJourney ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Journey Log */}
+      {showJourney && (
+        <div className="px-4 py-3 border-t border-border-default bg-bg-primary/30 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
+              Historico de Acoes
+            </span>
+          </div>
+          <JourneyInsights insights={journeyInsights} />
+          <JourneyTimeline entries={journeyEntries} loading={journeyLoading} collapsible />
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,2171 @@
+import React, { useState, useMemo } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Treemap,
+} from "recharts";
+import {
+  DollarSign,
+  Users,
+  Cpu,
+  TrendingUp,
+  RefreshCw,
+  ChevronRight,
+  Calendar,
+  X,
+  Clock,
+  Zap,
+  MessageSquare,
+  BarChart3,
+  AlertCircle,
+  Filter,
+  Eye,
+  EyeOff,
+  Search,
+  ExternalLink,
+  GitBranch,
+} from "lucide-react";
+import { useToast } from "../hooks/useToast";
+import {
+  useClientCosts,
+  useClientCostDetails,
+  useGlobalCostSummary,
+  ClientCostSummary,
+} from "../hooks/useClientCosts";
+import {
+  useWorkflowCosts,
+  useWorkflowClientBreakdown,
+  WorkflowCostSummary,
+} from "../hooks/useWorkflowCosts";
+import { useCostAnalytics } from "../hooks/useCostAnalytics";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { DateRangePicker, DateRange } from "../components/DateRangePicker";
+
+export const ClientCosts = () => {
+  const { showToast } = useToast();
+  const isMobile = useIsMobile();
+
+  // Date range state - null = usa view agregada (rapido), com datas = pagina llm_costs (lento)
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+  });
+
+  const [selectedClient, setSelectedClient] =
+    useState<ClientCostSummary | null>(null);
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<
+    "clients" | "workflows" | "analytics"
+  >("clients");
+
+  // Workflow state
+  const [selectedWorkflow, setSelectedWorkflow] =
+    useState<WorkflowCostSummary | null>(null);
+
+  // Novos filtros
+  const [clientFilter, setClientFilter] = useState<string>(""); // Filtro por cliente específico
+  const [canalFilter, setCanalFilter] = useState<string>(""); // Filtro por canal
+  const [workflowFilter, setWorkflowFilter] = useState<string>(""); // Filtro por workflow
+  const [showInactive, setShowInactive] = useState<boolean>(false); // Mostrar inativos
+  const [showFilters, setShowFilters] = useState<boolean>(false); // Toggle painel de filtros
+
+  const N8N_BASE_URL = "https://cliente-a1.mentorfy.io/workflow";
+
+  // Hooks de dados
+  const {
+    clients,
+    allClients,
+    allCanais,
+    allWorkflows,
+    totalCost,
+    totalRequests,
+    loading,
+    error,
+    refetch,
+  } = useClientCosts({
+    dateRange,
+    clientName: clientFilter || undefined,
+    canalFilter: canalFilter || undefined,
+    workflowFilter: workflowFilter || undefined,
+    showInactive,
+    inactiveDays: 30,
+  });
+  const { summary, loading: loadingSummary } = useGlobalCostSummary();
+  const {
+    costs: clientDetails,
+    dailyCosts,
+    loading: loadingDetails,
+  } = useClientCostDetails(selectedClient?.location_name || null, {
+    dateRange,
+  });
+
+  // Workflow hooks
+  const {
+    workflows,
+    totalCost: wfTotalCost,
+    totalRequests: wfTotalRequests,
+    loading: loadingWorkflows,
+    refetch: refetchWorkflows,
+  } = useWorkflowCosts({ dateRange });
+  const { clients: workflowClients, loading: loadingWfBreakdown } =
+    useWorkflowClientBreakdown(
+      selectedWorkflow?.workflow_name || null,
+      dateRange,
+    );
+
+  // Analytics hooks
+  const {
+    byAgentMode,
+    byAgent,
+    abTest,
+    byFase,
+    daily,
+    loading: loadingAnalytics,
+    hasData: hasAnalyticsData,
+  } = useCostAnalytics();
+
+  // Chart data: daily costs aggregated by date
+  const dailyChartData = useMemo(() => {
+    const map = new Map<string, number>();
+    daily.forEach((d) => {
+      map.set(d.dia, (map.get(d.dia) || 0) + d.total_usd);
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dia, total]) => ({
+        dia: new Date(dia).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        total,
+      }));
+  }, [daily]);
+
+  // Chart data: treemap by agent (aggregate by agent_name)
+  const agentTreemapData = useMemo(() => {
+    const map = new Map<
+      string,
+      { cost: number; calls: number; client: string }
+    >();
+    byAgent.forEach((a) => {
+      const key = a.agent_name || "N/A";
+      const prev = map.get(key) || { cost: 0, calls: 0, client: "" };
+      map.set(key, {
+        cost: prev.cost + a.total_usd,
+        calls: prev.calls + a.chamadas,
+        client: a.location_name,
+      });
+    });
+    return Array.from(map.entries())
+      .map(([name, d]) => ({
+        name,
+        size: d.cost,
+        calls: d.calls,
+        client: d.client,
+      }))
+      .sort((a, b) => b.size - a.size);
+  }, [byAgent]);
+
+  // Chart data: donut A/B (aggregate by variant)
+  const abDonutData = useMemo(() => {
+    const map = new Map<string, { cost: number; calls: number }>();
+    abTest.forEach((a) => {
+      const key = a.ab_variant || "N/A";
+      const prev = map.get(key) || { cost: 0, calls: 0 };
+      map.set(key, {
+        cost: prev.cost + a.total_usd,
+        calls: prev.calls + a.chamadas,
+      });
+    });
+    return Array.from(map.entries()).map(([name, d]) => ({
+      name,
+      value: d.cost,
+      calls: d.calls,
+    }));
+  }, [abTest]);
+
+  const CHART_COLORS = [
+    "#8b5cf6",
+    "#22c55e",
+    "#3b82f6",
+    "#f59e0b",
+    "#ef4444",
+    "#06b6d4",
+    "#ec4899",
+    "#84cc16",
+  ];
+
+  const handleRefresh = async () => {
+    await Promise.all([refetch(), refetchWorkflows()]);
+    showToast("Dados de custos atualizados", "info");
+  };
+
+  // Formatar valor em USD
+  const formatUSD = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    }).format(value);
+  };
+
+  // Formatar numeros grandes
+  const formatNumber = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(2)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value.toFixed(0);
+  };
+
+  // Formatar data
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Calcular percentual do total
+  const getPercentage = (value: number) => {
+    if (totalCost === 0) return 0;
+    return (value / totalCost) * 100;
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 border-b border-border-default pb-4 md:pb-6">
+        <div>
+          <div className="flex items-center gap-2 md:gap-3 mb-1">
+            <DollarSign
+              size={isMobile ? 24 : 28}
+              className="text-accent-primary"
+            />
+            <h1 className="text-xl md:text-3xl font-semibold">Custos de IA</h1>
+          </div>
+          <p className="text-text-secondary text-sm md:text-base">
+            Monitore o consumo de IA e custos por cliente.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap w-full md:w-auto">
+          {/* Date Range Picker */}
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 border rounded-lg transition-all ${
+                showFilters ||
+                clientFilter ||
+                canalFilter ||
+                workflowFilter ||
+                showInactive
+                  ? "text-accent-primary bg-accent-primary/10 border-accent-primary/30"
+                  : "text-text-muted hover:text-text-primary hover:bg-bg-secondary border-border-default"
+              }`}
+              title="Filtros avançados"
+            >
+              <Filter size={18} />
+            </button>
+
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all disabled:opacity-50"
+              title="Atualizar dados"
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Painel de Filtros Avançados */}
+      {showFilters && (
+        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-4 space-y-3 md:space-y-0 md:flex md:flex-wrap md:items-center md:gap-4">
+          <div className="flex items-center gap-2">
+            <Search size={16} className="text-text-muted" />
+            <span className="text-xs font-bold text-text-muted uppercase">
+              Filtros:
+            </span>
+          </div>
+
+          {/* Dropdown de Cliente */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted hidden md:inline">
+              Cliente:
+            </label>
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[180px]"
+            >
+              <option value="">Todos os clientes</option>
+              {allClients.map((client) => (
+                <option key={client.location_name} value={client.location_name}>
+                  {client.location_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown de Canal */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted hidden md:inline">
+              Canal:
+            </label>
+            <select
+              value={canalFilter}
+              onChange={(e) => setCanalFilter(e.target.value)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[140px]"
+            >
+              <option value="">Todos os canais</option>
+              {allCanais.map((canal) => (
+                <option key={canal} value={canal}>
+                  {canal}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown de Workflow */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted hidden md:inline">
+              Workflow:
+            </label>
+            <select
+              value={workflowFilter}
+              onChange={(e) => setWorkflowFilter(e.target.value)}
+              disabled={loading}
+              className="flex-1 md:flex-none px-3 py-1.5 text-xs font-medium rounded-lg border border-border-default bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary disabled:opacity-50 w-full md:min-w-[180px]"
+            >
+              <option value="">Todos os workflows</option>
+              {allWorkflows.map((wf) => (
+                <option key={wf} value={wf}>
+                  {wf}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Toggle Mostrar Inativos */}
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              disabled={loading}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                showInactive
+                  ? "bg-accent-primary/10 border-accent-primary/30 text-accent-primary"
+                  : "bg-bg-primary border-border-default text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {showInactive ? <Eye size={14} /> : <EyeOff size={14} />}
+              <span className="hidden md:inline">
+                {showInactive ? "Mostrando inativos" : "Mostrar inativos"}
+              </span>
+              <span className="md:hidden">Inativos</span>
+            </button>
+
+            {/* Limpar Filtros */}
+            {(clientFilter ||
+              canalFilter ||
+              workflowFilter ||
+              showInactive) && (
+              <button
+                onClick={() => {
+                  setClientFilter("");
+                  setCanalFilter("");
+                  setWorkflowFilter("");
+                  setShowInactive(false);
+                }}
+                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Info de inativos - escondido no mobile */}
+          <div className="hidden md:block md:ml-auto text-xs text-text-muted">
+            {!showInactive && (
+              <span>
+                Mostrando apenas clientes com atividade nos últimos 30 dias
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-bg-secondary border border-border-default rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab("clients")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === "clients"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <Users size={16} />
+          Por Cliente
+        </button>
+        <button
+          onClick={() => setActiveTab("workflows")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === "workflows"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <GitBranch size={16} />
+          Por Workflow
+        </button>
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center ${
+            activeTab === "analytics"
+              ? "bg-accent-primary text-white shadow-sm"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <BarChart3 size={16} />
+          Analytics
+        </button>
+      </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="text-red-500" size={20} />
+          <div>
+            <p className="text-red-500 font-medium">Erro ao carregar custos</p>
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="ml-auto text-red-500 hover:underline text-sm"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      {(() => {
+        const isWf = activeTab === "workflows";
+        const isAnalytics = activeTab === "analytics";
+        const analyticsTotalCost = byAgentMode.reduce(
+          (s, r) => s + r.total_usd,
+          0,
+        );
+        const analyticsTotalCalls = byAgentMode.reduce(
+          (s, r) => s + r.chamadas,
+          0,
+        );
+        const currentLoading = isAnalytics
+          ? loadingAnalytics
+          : isWf
+            ? loadingWorkflows
+            : loading;
+        const currentTotalCost = isAnalytics
+          ? analyticsTotalCost
+          : isWf
+            ? wfTotalCost
+            : totalCost;
+        const currentTotalRequests = isAnalytics
+          ? analyticsTotalCalls
+          : isWf
+            ? wfTotalRequests
+            : totalRequests;
+        const currentCount = isAnalytics
+          ? byAgentMode.length
+          : isWf
+            ? workflows.length
+            : clients.length;
+        const countLabel = isAnalytics
+          ? "Modos"
+          : isWf
+            ? "Workflows"
+            : "Clientes";
+        const countSublabel = isAnalytics
+          ? "Agent modes rastreados"
+          : isWf
+            ? "Com consumo registrado"
+            : "Locations com consumo";
+
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Custo Total
+                </span>
+                <div className="p-1.5 md:p-2 bg-accent-primary/10 rounded-lg">
+                  <DollarSign size={14} className="text-accent-primary" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
+                {currentLoading ? "..." : formatUSD(currentTotalCost)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Periodo:{" "}
+                {dateRange.startDate && dateRange.endDate
+                  ? `${dateRange.startDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${dateRange.endDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+                  : "Selecione um período"}
+              </p>
+            </div>
+
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  {countLabel}
+                </span>
+                <div className="p-1.5 md:p-2 bg-blue-500/10 rounded-lg">
+                  {isWf ? (
+                    <GitBranch size={14} className="text-blue-500" />
+                  ) : (
+                    <Users size={14} className="text-blue-500" />
+                  )}
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary">
+                {currentLoading ? "..." : currentCount}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                {countSublabel}
+              </p>
+            </div>
+
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Requests
+                </span>
+                <div className="p-1.5 md:p-2 bg-green-500/10 rounded-lg">
+                  <Zap size={14} className="text-green-500" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary">
+                {currentLoading ? "..." : formatNumber(currentTotalRequests)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Chamadas de IA
+              </p>
+            </div>
+
+            <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Custo Médio
+                </span>
+                <div className="p-1.5 md:p-2 bg-purple-500/10 rounded-lg">
+                  <TrendingUp size={14} className="text-purple-500" />
+                </div>
+              </div>
+              <div className="text-lg md:text-2xl font-bold text-text-primary truncate">
+                {currentLoading || currentTotalRequests === 0
+                  ? "..."
+                  : formatUSD(currentTotalCost / currentTotalRequests)}
+              </div>
+              <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                Por requisicao
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Global Summary */}
+      {!loadingSummary && (
+        <div className="bg-gradient-to-r from-accent-primary/5 to-blue-500/5 border border-accent-primary/20 rounded-xl p-3 md:p-5">
+          <div className="flex items-center gap-2 mb-2 md:mb-3">
+            <BarChart3 size={14} className="text-accent-primary" />
+            <span className="text-[10px] md:text-xs font-bold text-accent-primary uppercase tracking-wider">
+              Resumo Global
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <div>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Total Gasto
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {formatUSD(summary.total_cost_usd)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Total Tokens
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary">
+                {formatNumber(summary.total_tokens)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Média/Cliente
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {formatUSD(summary.avg_cost_per_client)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] md:text-xs text-text-muted">
+                Top Model
+              </p>
+              <p className="text-sm md:text-lg font-bold text-text-primary truncate">
+                {summary.top_model}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Details Modal */}
+      {selectedClient && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
+          <div
+            className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
+              isMobile
+                ? "h-full max-h-full rounded-none"
+                : "max-w-4xl max-h-[90vh]"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="p-4 md:p-6 border-b border-border-default flex items-center justify-between">
+              <div className="min-w-0 flex-1 mr-4">
+                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">
+                  {selectedClient.location_name}
+                </h2>
+                <p className="text-[10px] md:text-xs text-text-muted font-mono mt-1 truncate">
+                  {selectedClient.location_ids?.length > 1
+                    ? `${selectedClient.location_ids.length} location IDs`
+                    : selectedClient.location_id}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedClient(null)}
+                className="p-2 hover:bg-bg-tertiary rounded-full transition-colors flex-shrink-0"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div
+              className={`p-4 md:p-6 overflow-y-auto ${isMobile ? "h-[calc(100%-80px)]" : "max-h-[calc(90vh-120px)]"}`}
+            >
+              {/* Client Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo Total
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">
+                    {formatUSD(selectedClient.total_cost_usd)}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Conversas
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedClient.total_conversations)}
+                  </p>
+                  <p className="text-[9px] text-text-muted mt-0.5">
+                    contatos unicos
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Requisicoes
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedClient.total_requests)}
+                  </p>
+                  <p className="text-[9px] text-text-muted mt-0.5">
+                    {selectedClient.total_conversations > 0
+                      ? `~${(selectedClient.total_requests / selectedClient.total_conversations).toFixed(1)} req/conversa`
+                      : ""}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Tokens
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(
+                      selectedClient.total_tokens_input +
+                        selectedClient.total_tokens_output,
+                    )}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Conversa
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {selectedClient.total_conversations > 0
+                      ? formatUSD(
+                          selectedClient.total_cost_usd /
+                            selectedClient.total_conversations,
+                        )
+                      : "$0.00"}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Request
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {formatUSD(selectedClient.avg_cost_per_request)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Daily Costs */}
+              {dailyCosts.length > 0 && (
+                <div className="mb-4 md:mb-6">
+                  <h3 className="text-sm font-bold text-text-primary mb-2 md:mb-3 flex items-center gap-2">
+                    <Calendar size={14} />
+                    Custos por Dia
+                  </h3>
+                  {isMobile ? (
+                    /* VERSÃO MOBILE - Cards */
+                    <div className="space-y-2">
+                      {dailyCosts.slice(0, 5).map((day) => (
+                        <div
+                          key={day.date}
+                          className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {day.date}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
+                              <span>
+                                {formatNumber(day.tokens_input)} tokens
+                              </span>
+                              <span>{day.requests} req</span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(day.cost_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* VERSÃO DESKTOP - Tabela */
+                    <div className="bg-bg-primary border border-border-default rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-bg-tertiary">
+                          <tr>
+                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                              Data
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Custo
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Tokens
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Requests
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-default">
+                          {dailyCosts.slice(0, 7).map((day) => (
+                            <tr key={day.date} className="hover:bg-bg-hover">
+                              <td className="p-3 font-medium">{day.date}</td>
+                              <td className="p-3 text-right text-accent-primary font-mono">
+                                {formatUSD(day.cost_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(day.tokens_input)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {day.requests}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Recent Activity */}
+              <div>
+                <h3 className="text-sm font-bold text-text-primary mb-2 md:mb-3 flex items-center gap-2">
+                  <Clock size={14} />
+                  Atividade Recente
+                </h3>
+                {loadingDetails ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw
+                      className="animate-spin text-text-muted"
+                      size={24}
+                    />
+                  </div>
+                ) : clientDetails.length > 0 ? (
+                  <div className="space-y-2">
+                    {clientDetails.slice(0, isMobile ? 5 : 10).map((detail) => (
+                      <div
+                        key={detail.id}
+                        className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between hover:border-accent-primary/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                          <div className="p-1.5 md:p-2 bg-bg-tertiary rounded-lg flex-shrink-0">
+                            <MessageSquare
+                              size={12}
+                              className="text-text-muted"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs md:text-sm font-medium text-text-primary truncate">
+                              {detail.contact_name}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-[10px] md:text-xs text-text-muted truncate">
+                                {detail.tipo_acao} via {detail.canal}
+                              </p>
+                              {detail.workflow_id && (
+                                <a
+                                  href={`${N8N_BASE_URL}/${detail.workflow_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-accent-primary hover:text-accent-primary/80 flex-shrink-0"
+                                  title="Abrir workflow no n8n"
+                                >
+                                  <ExternalLink size={10} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="text-xs md:text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(detail.custo_usd)}
+                          </p>
+                          <p className="text-[10px] md:text-xs text-text-muted">
+                            {formatDate(detail.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-text-muted py-4 text-sm">
+                    Nenhuma atividade encontrada
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: POR CLIENTE ===== */}
+      {activeTab === "clients" && (
+        <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+          <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+            <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+              <Users size={16} />
+              Custos por Cliente
+            </h2>
+          </div>
+
+          <div className="divide-y divide-border-default">
+            {loading ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="p-4 md:p-5 animate-pulse">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-bg-tertiary flex-shrink-0"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-bg-tertiary rounded w-24 md:w-32"></div>
+                        <div className="h-3 bg-bg-tertiary rounded w-16 md:w-24"></div>
+                      </div>
+                    </div>
+                    <div className="h-6 bg-bg-tertiary rounded w-16 md:w-20"></div>
+                  </div>
+                </div>
+              ))
+            ) : clients.length > 0 ? (
+              clients.map((client) => (
+                <div
+                  key={client.location_name}
+                  onClick={() => setSelectedClient(client)}
+                  className="p-4 md:p-5 hover:bg-bg-hover active:bg-bg-hover transition-all cursor-pointer group"
+                >
+                  {isMobile ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-sm font-bold text-accent-primary flex-shrink-0">
+                            {client.location_name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-text-primary text-sm truncate">
+                              {client.location_name}
+                            </h3>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {client.models_used[0] || "N/A"}
+                              </span>
+                              {client.canais_used?.map((canal) => (
+                                <span
+                                  key={canal}
+                                  className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase"
+                                >
+                                  {canal}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-base font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-text-muted">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1">
+                            <Zap size={10} />
+                            {formatNumber(client.total_requests)} req
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Cpu size={10} />
+                            {formatNumber(client.total_tokens_input)} tokens
+                          </span>
+                        </div>
+                        <ChevronRight size={16} className="text-text-muted" />
+                      </div>
+                      <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                        <div
+                          className="bg-accent-primary h-1.5 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-primary/20 to-blue-500/20 border border-accent-primary/20 flex items-center justify-center text-lg font-bold text-accent-primary group-hover:border-accent-primary/40 transition-colors">
+                          {client.location_name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
+                              {client.location_name}
+                            </h3>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                              {client.models_used[0] || "N/A"}
+                            </span>
+                            {client.canais_used?.map((canal) => (
+                              <span
+                                key={canal}
+                                className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase"
+                              >
+                                {canal}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                            <span className="flex items-center gap-1">
+                              <Zap size={10} />
+                              {formatNumber(client.total_requests)} requests
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Cpu size={10} />
+                              {formatNumber(client.total_tokens_input)} tokens
+                            </span>
+                            {client.last_activity && (
+                              <span className="flex items-center gap-1">
+                                <Clock size={10} />
+                                {formatDate(client.last_activity)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="hidden md:block w-32">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-text-muted">
+                              {getPercentage(client.total_cost_usd).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                            <div
+                              className="bg-accent-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(getPercentage(client.total_cost_usd), 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-right min-w-[100px]">
+                          <p className="text-lg font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
+                          <p className="text-[10px] text-text-muted">
+                            {formatUSD(client.avg_cost_per_request)}/req
+                          </p>
+                        </div>
+                        <ChevronRight
+                          size={20}
+                          className="text-text-muted group-hover:text-accent-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-4">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                  <DollarSign size={32} className="opacity-20" />
+                </div>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                  Nenhum custo registrado
+                </h3>
+                <p className="text-xs md:text-sm text-text-muted max-w-xs">
+                  Os custos de IA aparecerão aqui conforme os agentes processam
+                  conversas.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: POR WORKFLOW ===== */}
+      {activeTab === "workflows" && (
+        <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+          <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+            <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+              <GitBranch size={16} />
+              Custos por Workflow
+            </h2>
+          </div>
+
+          <div className="divide-y divide-border-default">
+            {loadingWorkflows ? (
+              [...Array(5)].map((_, i) => (
+                <div key={i} className="p-4 md:p-5 animate-pulse">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-bg-tertiary flex-shrink-0"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-bg-tertiary rounded w-32 md:w-48"></div>
+                        <div className="h-3 bg-bg-tertiary rounded w-20 md:w-32"></div>
+                      </div>
+                    </div>
+                    <div className="h-6 bg-bg-tertiary rounded w-16 md:w-20"></div>
+                  </div>
+                </div>
+              ))
+            ) : workflows.length > 0 ? (
+              workflows.map((wf) => {
+                const wfPercentage =
+                  wfTotalCost > 0 ? (wf.total_cost_usd / wfTotalCost) * 100 : 0;
+                return (
+                  <div
+                    key={`${wf.workflow_name}-${wf.workflow_id}`}
+                    onClick={() => setSelectedWorkflow(wf)}
+                    className="p-4 md:p-5 hover:bg-bg-hover active:bg-bg-hover transition-all cursor-pointer group"
+                  >
+                    {isMobile ? (
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-blue-500/20 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+                              <GitBranch size={16} className="text-green-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-text-primary text-sm truncate">
+                                {wf.workflow_name}
+                              </h3>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {wf.models_used.slice(0, 2).map((model) => (
+                                  <span
+                                    key={model}
+                                    className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase"
+                                  >
+                                    {model}
+                                  </span>
+                                ))}
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                                  {wf.total_clients} cliente
+                                  {wf.total_clients !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-base font-bold text-accent-primary font-mono">
+                              {formatUSD(wf.total_cost_usd)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-text-muted">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <Zap size={10} />
+                              {formatNumber(wf.total_requests)} req
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Cpu size={10} />
+                              {formatNumber(wf.total_tokens_input)} tokens
+                            </span>
+                          </div>
+                          <ChevronRight size={16} className="text-text-muted" />
+                        </div>
+                        <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                          <div
+                            className="bg-green-500 h-1.5 rounded-full transition-all"
+                            style={{ width: `${Math.min(wfPercentage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-blue-500/20 border border-green-500/20 flex items-center justify-center group-hover:border-green-500/40 transition-colors">
+                            <GitBranch size={20} className="text-green-500" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-text-primary group-hover:text-accent-primary transition-colors">
+                                {wf.workflow_name}
+                              </h3>
+                              {wf.models_used.slice(0, 2).map((model) => (
+                                <span
+                                  key={model}
+                                  className="text-[9px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase"
+                                >
+                                  {model}
+                                </span>
+                              ))}
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                                {wf.total_clients} cliente
+                                {wf.total_clients !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                              <span className="flex items-center gap-1">
+                                <Zap size={10} />
+                                {formatNumber(wf.total_requests)} requests
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Cpu size={10} />
+                                {formatNumber(wf.total_tokens_input)} tokens
+                              </span>
+                              {wf.last_activity && (
+                                <span className="flex items-center gap-1">
+                                  <Clock size={10} />
+                                  {formatDate(wf.last_activity)}
+                                </span>
+                              )}
+                              {wf.workflow_id && (
+                                <a
+                                  href={`${N8N_BASE_URL}/${wf.workflow_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 text-accent-primary hover:text-accent-primary/80"
+                                >
+                                  <ExternalLink size={10} />
+                                  n8n
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="hidden md:block w-32">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] text-text-muted">
+                                {wfPercentage.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-bg-tertiary rounded-full h-1.5">
+                              <div
+                                className="bg-green-500 h-1.5 rounded-full transition-all"
+                                style={{
+                                  width: `${Math.min(wfPercentage, 100)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-right min-w-[100px]">
+                            <p className="text-lg font-bold text-accent-primary font-mono">
+                              {formatUSD(wf.total_cost_usd)}
+                            </p>
+                            <p className="text-[10px] text-text-muted">
+                              {formatUSD(wf.avg_cost_per_request)}/req
+                            </p>
+                          </div>
+                          <ChevronRight
+                            size={20}
+                            className="text-text-muted group-hover:text-accent-primary transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-4">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                  <GitBranch size={32} className="opacity-20" />
+                </div>
+                <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                  Nenhum workflow registrado
+                </h3>
+                <p className="text-xs md:text-sm text-text-muted max-w-xs">
+                  Os custos por workflow aparecerão aqui após a view ser criada
+                  no Supabase.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: ANALYTICS ===== */}
+      {activeTab === "analytics" && (
+        <div className="space-y-4 md:space-y-6">
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center py-20">
+              <RefreshCw className="animate-spin text-text-muted" size={24} />
+            </div>
+          ) : !hasAnalyticsData ? (
+            <div className="border border-border-default rounded-lg bg-bg-secondary p-8 md:p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-bg-tertiary rounded-full flex items-center justify-center text-text-muted mb-4">
+                <BarChart3 size={32} className="opacity-20" />
+              </div>
+              <h3 className="text-base md:text-lg font-medium text-text-primary mb-1">
+                Dados de analytics em coleta
+              </h3>
+              <p className="text-xs md:text-sm text-text-muted max-w-sm">
+                Os campos agent_mode, agent_name, fase e ab_variant foram
+                adicionados ao tracking. Os dados aparecerao conforme novas
+                conversas forem processadas.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* ===== CHARTS ROW ===== */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {/* 1. Daily Cost Trend — AreaChart */}
+                {dailyChartData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm lg:col-span-2">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <TrendingUp size={16} />
+                        Custo Diario
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Tendencia de gasto por dia (ultimos 60 dias)
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4"
+                      style={{ height: isMobile ? 200 : 280 }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={dailyChartData}
+                          margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id="costGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#8b5cf6"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#8b5cf6"
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="rgba(255,255,255,0.06)"
+                          />
+                          <XAxis
+                            dataKey="dia"
+                            tick={{
+                              fontSize: 10,
+                              fill: "rgba(255,255,255,0.4)",
+                            }}
+                            tickLine={false}
+                            axisLine={false}
+                            interval={isMobile ? 6 : 3}
+                          />
+                          <YAxis
+                            tick={{
+                              fontSize: 10,
+                              fill: "rgba(255,255,255,0.4)",
+                            }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+                            width={55}
+                          />
+                          <ReTooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(20,20,30,0.95)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: 8,
+                              fontSize: 12,
+                            }}
+                            formatter={(value: number) => [
+                              `$${value.toFixed(4)}`,
+                              "Custo",
+                            ]}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="total"
+                            stroke="#8b5cf6"
+                            strokeWidth={2}
+                            fill="url(#costGradient)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Treemap — Custo por Agente */}
+                {agentTreemapData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Users size={16} />
+                        Custo por Agente
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Tamanho proporcional ao custo total
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4"
+                      style={{ height: isMobile ? 220 : 300 }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                          data={agentTreemapData}
+                          dataKey="size"
+                          aspectRatio={4 / 3}
+                          stroke="rgba(0,0,0,0.3)"
+                          content={({
+                            x,
+                            y,
+                            width,
+                            height,
+                            name,
+                            index,
+                          }: {
+                            x: number;
+                            y: number;
+                            width: number;
+                            height: number;
+                            name?: string;
+                            index?: number;
+                          }) => {
+                            const color =
+                              CHART_COLORS[(index ?? 0) % CHART_COLORS.length];
+                            const item = agentTreemapData.find(
+                              (d) => d.name === name,
+                            );
+                            const showLabel = width > 50 && height > 35;
+                            return (
+                              <g>
+                                <rect
+                                  x={x}
+                                  y={y}
+                                  width={width}
+                                  height={height}
+                                  fill={color}
+                                  fillOpacity={0.7}
+                                  rx={4}
+                                  stroke="rgba(0,0,0,0.4)"
+                                  strokeWidth={1}
+                                />
+                                {showLabel && (
+                                  <>
+                                    <text
+                                      x={x + width / 2}
+                                      y={y + height / 2 - 6}
+                                      textAnchor="middle"
+                                      fill="#fff"
+                                      fontSize={11}
+                                      fontWeight="bold"
+                                    >
+                                      {name}
+                                    </text>
+                                    <text
+                                      x={x + width / 2}
+                                      y={y + height / 2 + 10}
+                                      textAnchor="middle"
+                                      fill="rgba(255,255,255,0.7)"
+                                      fontSize={10}
+                                    >
+                                      ${item?.size.toFixed(2)}
+                                    </text>
+                                  </>
+                                )}
+                              </g>
+                            );
+                          }}
+                        />
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Donut — A/B Test */}
+                {abDonutData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Zap size={16} />
+                        A/B Test — Pro vs Flash
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Distribuicao de custo entre variantes
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4 flex items-center justify-center"
+                      style={{ height: isMobile ? 220 : 300 }}
+                    >
+                      <div className="w-full flex items-center justify-center gap-6">
+                        <ResponsiveContainer
+                          width="60%"
+                          height={isMobile ? 180 : 240}
+                        >
+                          <PieChart>
+                            <Pie
+                              data={abDonutData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={isMobile ? 40 : 60}
+                              outerRadius={isMobile ? 70 : 95}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {abDonutData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={i === 0 ? "#8b5cf6" : "#22c55e"}
+                                />
+                              ))}
+                            </Pie>
+                            <ReTooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(20,20,30,0.95)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                              formatter={(value: number) => [
+                                `$${value.toFixed(4)}`,
+                                "Custo",
+                              ]}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="space-y-3">
+                          {abDonutData.map((d, i) => (
+                            <div
+                              key={d.name}
+                              className="flex items-center gap-2"
+                            >
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    i === 0 ? "#8b5cf6" : "#22c55e",
+                                }}
+                              />
+                              <div>
+                                <p className="text-xs font-bold text-text-primary uppercase">
+                                  {d.name}
+                                </p>
+                                <p className="text-[10px] text-text-muted">
+                                  ${d.value.toFixed(4)} ·{" "}
+                                  {formatNumber(d.calls)} chamadas
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* By Agent Mode */}
+              {byAgentMode.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <MessageSquare size={16} />
+                      Custo por Modo do Agente
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      sdr_inbound, social_seller, followuper, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byAgentMode.map((item) => (
+                        <div
+                          key={`${item.agent_mode}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.agent_mode || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modo
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Tokens (I/O)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byAgentMode.map((item) => {
+                          const maxCost = Math.max(
+                            ...byAgentMode.map((m) => m.total_usd),
+                          );
+                          const barWidth =
+                            maxCost > 0 ? (item.total_usd / maxCost) * 100 : 0;
+                          return (
+                            <tr
+                              key={`${item.agent_mode}-${item.modelo_ia}`}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {item.agent_mode || "N/A"}
+                                  </span>
+                                  <div
+                                    className="h-1.5 rounded-full bg-accent-primary/30"
+                                    style={{
+                                      width: `${Math.min(barWidth, 60)}px`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  {item.modelo_ia}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.chamadas)}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                                {formatUSD(item.total_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted font-mono">
+                                {formatUSD(item.avg_usd_por_chamada)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted text-xs">
+                                {formatNumber(item.total_input)} /{" "}
+                                {formatNumber(item.total_output)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* By Agent Name */}
+              {byAgent.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Users size={16} />
+                      Custo por Agente
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      Marina, Rafael, Isabella, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byAgent.map((item) => (
+                        <div
+                          key={`${item.agent_name}-${item.location_name}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.agent_name || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-text-muted">
+                                {item.location_name}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Agente
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Cliente
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byAgent.map((item) => (
+                          <tr
+                            key={`${item.agent_name}-${item.location_name}`}
+                            className="hover:bg-bg-hover"
+                          >
+                            <td className="p-3 font-medium">
+                              {item.agent_name || "N/A"}
+                            </td>
+                            <td className="p-3 text-text-muted text-xs">
+                              {item.location_name}
+                            </td>
+                            <td className="p-3">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right text-text-muted">
+                              {formatNumber(item.chamadas)}
+                            </td>
+                            <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                              {formatUSD(item.total_usd)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted font-mono">
+                              {formatUSD(item.avg_usd)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* A/B Test */}
+              {abTest.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <TrendingUp size={16} />
+                      A/B Test — Pro vs Flash
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      Comparativo de custo entre variantes
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {abTest.map((item) => (
+                        <div
+                          key={`${item.ab_variant}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.ab_variant || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Variante
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg Tokens (I/O)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {abTest.map((item) => (
+                          <tr
+                            key={`${item.ab_variant}-${item.modelo_ia}`}
+                            className="hover:bg-bg-hover"
+                          >
+                            <td className="p-3">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-lg font-bold ${
+                                  item.ab_variant === "pro"
+                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                    : "bg-green-500/10 text-green-400 border border-green-500/20"
+                                }`}
+                              >
+                                {item.ab_variant || "N/A"}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right text-text-muted">
+                              {formatNumber(item.chamadas)}
+                            </td>
+                            <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                              {formatUSD(item.total_usd)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted font-mono">
+                              {formatUSD(item.avg_usd_por_chamada)}
+                            </td>
+                            <td className="p-3 text-right text-text-muted text-xs">
+                              {formatNumber(item.avg_input_tokens)} /{" "}
+                              {formatNumber(item.avg_output_tokens)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* By Fase */}
+              {byFase.length > 0 && (
+                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Zap size={16} />
+                      Custo por Fase da Conversa
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                      acolhimento, discovery, pitch, confirmacao, etc.
+                    </p>
+                  </div>
+                  {isMobile ? (
+                    <div className="divide-y divide-border-default">
+                      {byFase.map((item) => (
+                        <div
+                          key={`${item.fase_detectada}-${item.modelo_ia}`}
+                          className="p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {item.fase_detectada || "N/A"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                {item.modelo_ia}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {formatNumber(item.chamadas)} chamadas
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(item.total_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-bg-tertiary">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Fase
+                          </th>
+                          <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                            Modelo
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Chamadas
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Custo Total
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg/Chamada
+                          </th>
+                          <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                            Avg Prompt Chars
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-default">
+                        {byFase.map((item) => {
+                          const maxCost = Math.max(
+                            ...byFase.map((f) => f.total_usd),
+                          );
+                          const barWidth =
+                            maxCost > 0 ? (item.total_usd / maxCost) * 100 : 0;
+                          return (
+                            <tr
+                              key={`${item.fase_detectada}-${item.modelo_ia}`}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {item.fase_detectada || "N/A"}
+                                  </span>
+                                  <div
+                                    className="h-1.5 rounded-full bg-blue-500/30"
+                                    style={{
+                                      width: `${Math.min(barWidth, 60)}px`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-bold uppercase">
+                                  {item.modelo_ia}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.chamadas)}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono font-bold">
+                                {formatUSD(item.total_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted font-mono">
+                                {formatUSD(item.avg_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(item.avg_prompt_chars)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Workflow Detail Modal */}
+      {selectedWorkflow && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
+          <div
+            className={`bg-bg-secondary border border-border-default rounded-2xl w-full overflow-hidden shadow-2xl ${
+              isMobile
+                ? "h-full max-h-full rounded-none"
+                : "max-w-3xl max-h-[80vh]"
+            }`}
+          >
+            <div className="p-4 md:p-6 border-b border-border-default flex items-center justify-between">
+              <div className="min-w-0 flex-1 mr-4">
+                <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">
+                  {selectedWorkflow.workflow_name}
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedWorkflow.workflow_id && (
+                    <a
+                      href={`${N8N_BASE_URL}/${selectedWorkflow.workflow_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] md:text-xs text-accent-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink size={10} />
+                      Abrir no n8n
+                    </a>
+                  )}
+                  <span className="text-[10px] md:text-xs text-text-muted font-mono">
+                    {selectedWorkflow.workflow_id}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedWorkflow(null)}
+                className="p-2 hover:bg-bg-tertiary rounded-full transition-colors flex-shrink-0"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div
+              className={`p-4 md:p-6 overflow-y-auto ${isMobile ? "h-[calc(100%-80px)]" : "max-h-[calc(80vh-120px)]"}`}
+            >
+              {/* Workflow Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo Total
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-accent-primary truncate">
+                    {formatUSD(selectedWorkflow.total_cost_usd)}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Requests
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {formatNumber(selectedWorkflow.total_requests)}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Clientes
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary">
+                    {selectedWorkflow.total_clients}
+                  </p>
+                </div>
+                <div className="bg-bg-primary border border-border-default rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] md:text-xs text-text-muted">
+                    Custo/Request
+                  </p>
+                  <p className="text-base md:text-xl font-bold text-text-primary truncate">
+                    {formatUSD(selectedWorkflow.avg_cost_per_request)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Models Used */}
+              <div className="mb-4 md:mb-6">
+                <h3 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
+                  <Cpu size={14} />
+                  Modelos Utilizados
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedWorkflow.models_used.map((model) => (
+                    <span
+                      key={model}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-medium"
+                    >
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Client Breakdown */}
+              <div>
+                <h3 className="text-sm font-bold text-text-primary mb-2 md:mb-3 flex items-center gap-2">
+                  <Users size={14} />
+                  Breakdown por Cliente
+                </h3>
+                {loadingWfBreakdown ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw
+                      className="animate-spin text-text-muted"
+                      size={24}
+                    />
+                  </div>
+                ) : workflowClients.length > 0 ? (
+                  isMobile ? (
+                    <div className="space-y-2">
+                      {workflowClients.map((client) => (
+                        <div
+                          key={client.location_name}
+                          className="bg-bg-primary border border-border-default rounded-lg p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {client.location_name}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1 text-[10px] text-text-muted">
+                              <span>
+                                {formatNumber(client.total_requests)} req
+                              </span>
+                              <span>
+                                {formatNumber(client.total_tokens_input)} tokens
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-accent-primary font-mono">
+                            {formatUSD(client.total_cost_usd)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-bg-primary border border-border-default rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-bg-tertiary">
+                          <tr>
+                            <th className="text-left p-3 text-xs font-bold text-text-muted uppercase">
+                              Cliente
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Custo
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Requests
+                            </th>
+                            <th className="text-right p-3 text-xs font-bold text-text-muted uppercase">
+                              Tokens
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-default">
+                          {workflowClients.map((client) => (
+                            <tr
+                              key={client.location_name}
+                              className="hover:bg-bg-hover"
+                            >
+                              <td className="p-3 font-medium">
+                                {client.location_name}
+                              </td>
+                              <td className="p-3 text-right text-accent-primary font-mono">
+                                {formatUSD(client.total_cost_usd)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(client.total_requests)}
+                              </td>
+                              <td className="p-3 text-right text-text-muted">
+                                {formatNumber(client.total_tokens_input)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  <p className="text-center text-text-muted py-4 text-sm">
+                    Nenhum dado de cliente encontrado
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

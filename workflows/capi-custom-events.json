@@ -1,0 +1,429 @@
+{
+  "name": "Meta CAPI Custom Events - GHL Server-Side",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Meta CAPI Custom Events\n\n**Objetivo:** Enviar eventos server-side para a Meta Conversions API que o GHL nao envia nativamente.\n\n**Eventos mapeados:**\n- Pipeline stage `Qualificado` → `LeadQualified`\n- Appointment booked → `Schedule`\n- Appointment attended/completed → `CompleteRegistration`\n- Opportunity won → `Purchase` (inclui monetary_value)\n\n**Fluxo:**\n1. Webhook recebe evento do GHL\n2. Identify Event mapeia para evento Meta\n3. Busca config do dataset no Supabase\n4. Faz hash SHA-256 dos dados do usuario (LGPD)\n5. POST para Meta CAPI\n6. Loga resultado no Supabase\n\n**Webhook URL:** `/webhook/capi-events`\n\n**Tabela de log:** `capi_events_log`",
+        "height": 480,
+        "width": 520,
+        "color": 4
+      },
+      "id": "sticky-info",
+      "name": "Sticky Note - Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "content": "## SQL - Criar tabela de log\n\n```sql\nCREATE TABLE IF NOT EXISTS capi_events_log (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  location_id TEXT,\n  contact_id TEXT,\n  event_name TEXT,\n  event_id TEXT,\n  event_time BIGINT,\n  event_data JSONB,\n  meta_response JSONB,\n  fbtrace_id TEXT,\n  success BOOLEAN DEFAULT false,\n  error_message TEXT,\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_capi_log_location\n  ON capi_events_log(location_id);\nCREATE INDEX IF NOT EXISTS idx_capi_log_event_name\n  ON capi_events_log(event_name);\nCREATE INDEX IF NOT EXISTS idx_capi_log_created_at\n  ON capi_events_log(created_at DESC);\n```\n\n**brand_configs (adicionar colunas se nao existirem):**\n```sql\nALTER TABLE brand_configs\nADD COLUMN IF NOT EXISTS meta_dataset_id TEXT,\nADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;\n```",
+        "height": 520,
+        "width": 480,
+        "color": 6
+      },
+      "id": "sticky-sql",
+      "name": "Sticky Note - SQL",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [540, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Gotchas importantes\n\n- Postgres node NAO suporta $1/$2 parametrizados — valores inline\n- Apos Postgres node usar `$('NodeName').first().json`\n- alwaysOutputData: true em nodes que podem retornar vazio\n- NUNCA usar `!` inline em expressions — quebra no bash\n- Event dedup ID baseado em contactId + eventName + timestamp\n- Hashing SHA-256 obrigatorio para LGPD compliance\n- Meta CAPI v21.0 requer action_source: system_generated para eventos server-side",
+        "height": 340,
+        "width": 420,
+        "color": 5
+      },
+      "id": "sticky-gotchas",
+      "name": "Sticky Note - Gotchas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1040, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capi-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [120, 560],
+      "webhookId": "capi-events-ghl"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapeia eventos do GHL para eventos Meta CAPI\nconst body = $input.item.json.body || $input.item.json;\n\n// Extrair dados do payload GHL\nconst locationId = body.location_id || body.locationId || body.location?.id || '';\nconst contactId = body.contact_id || body.contactId || body.contact?.id || '';\nconst email = body.email || body.contact?.email || '';\nconst phone = body.phone || body.contact?.phone || '';\nconst firstName = body.first_name || body.firstName || body.contact?.firstName || '';\nconst lastName = body.last_name || body.lastName || body.contact?.lastName || '';\nconst monetaryValue = body.monetary_value || body.monetaryValue || body.opportunity?.monetaryValue || 0;\n\n// Detectar tipo de evento\nconst eventType = body.type || body.event_type || '';\nconst pipelineStage = body.pipeline_stage || body.pipelineStage || body.opportunity?.pipelineStageId || '';\nconst stageName = body.stage_name || body.stageName || body.opportunity?.stageName || '';\n\nlet eventName = null;\nlet customData = {};\n\n// Mapeamento de eventos\nif (stageName === 'Qualificado' || pipelineStage === 'Qualificado') {\n  eventName = 'LeadQualified';\n  customData = { stage: 'Qualificado' };\n} else if (eventType === 'appointment.booked' || eventType === 'AppointmentBooked') {\n  eventName = 'Schedule';\n  customData = {\n    appointment_id: body.appointment_id || body.appointmentId || '',\n    calendar_id: body.calendar_id || body.calendarId || ''\n  };\n} else if (eventType === 'appointment.attended' || eventType === 'appointment.completed' || eventType === 'AppointmentAttended') {\n  eventName = 'CompleteRegistration';\n  customData = {\n    appointment_id: body.appointment_id || body.appointmentId || '',\n    status: 'attended'\n  };\n} else if (eventType === 'opportunity.won' || eventType === 'OpportunityWon' || stageName === 'Won') {\n  eventName = 'Purchase';\n  customData = {\n    currency: 'BRL',\n    value: parseFloat(monetaryValue) || 0\n  };\n}\n\n// Se nao mapeou nenhum evento, retornar sem processar\nif (!eventName) {\n  return {\n    skip: true,\n    reason: 'Event type not mapped: ' + eventType + ' | stage: ' + stageName,\n    locationId,\n    contactId\n  };\n}\n\nreturn {\n  skip: false,\n  eventName,\n  locationId,\n  contactId,\n  email,\n  phone,\n  firstName,\n  lastName,\n  customData,\n  rawPayload: body\n};"
+      },
+      "id": "node-identify-event",
+      "name": "Identify Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [360, 560]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-has-event",
+      "name": "Has Mapped Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 560]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT meta_dataset_id, meta_capi_access_token, location_id FROM brand_configs WHERE location_id = '{{ $json.locationId }}' AND meta_dataset_id IS NOT NULL LIMIT 1",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "node-fetch-dataset",
+      "name": "Fetch Dataset Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [840, 460],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-dataset",
+              "leftValue": "={{ $json.meta_dataset_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-has-dataset",
+      "name": "Has Dataset?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1080, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Funcao de hash SHA-256\nconst hashValue = (val) => {\n  if (!val) return null;\n  return crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex');\n};\n\n// Dados do evento (vem do Identify Event)\nconst identifyData = $('Identify Event').first().json;\n\n// Dados do dataset config\nconst datasetConfig = $('Fetch Dataset Config').first().json;\n\n// Montar user_data com hash\nconst userData = {};\n\nif (identifyData.email) {\n  userData.em = [hashValue(identifyData.email)];\n}\n\nif (identifyData.phone) {\n  const phoneClean = identifyData.phone.replace(/\\D/g, '');\n  userData.ph = [hashValue(phoneClean)];\n}\n\nif (identifyData.firstName) {\n  userData.fn = [hashValue(identifyData.firstName)];\n}\n\nif (identifyData.lastName) {\n  userData.ln = [hashValue(identifyData.lastName)];\n}\n\n// Gerar event dedup ID\nconst eventId = crypto.createHash('sha256')\n  .update(identifyData.contactId + '_' + identifyData.eventName + '_' + Date.now().toString())\n  .digest('hex')\n  .substring(0, 32);\n\nreturn {\n  eventName: identifyData.eventName,\n  eventTime: Math.floor(Date.now() / 1000),\n  eventId,\n  userData,\n  customData: identifyData.customData || {},\n  datasetId: datasetConfig.meta_dataset_id,\n  accessToken: datasetConfig.meta_capi_access_token,\n  locationId: identifyData.locationId,\n  contactId: identifyData.contactId\n};"
+      },
+      "id": "node-hash-user-data",
+      "name": "Hash User Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.datasetId }}/events",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "data": [
+            {
+              "event_name": "={{ $json.eventName }}",
+              "event_time": "={{ $json.eventTime }}",
+              "event_id": "={{ $json.eventId }}",
+              "action_source": "system_generated",
+              "user_data": "={{ $json.userData }}",
+              "custom_data": "={{ $json.customData }}"
+            }
+          ],
+          "access_token": "={{ $json.accessToken }}"
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-post-capi",
+      "name": "POST to Meta CAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 360],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO capi_events_log (location_id, contact_id, event_name, event_id, event_time, event_data, meta_response, fbtrace_id, success) VALUES ('{{ $('Hash User Data').first().json.locationId }}', '{{ $('Hash User Data').first().json.contactId }}', '{{ $('Hash User Data').first().json.eventName }}', '{{ $('Hash User Data').first().json.eventId }}', {{ $('Hash User Data').first().json.eventTime }}, '{{ JSON.stringify($('Hash User Data').first().json) }}'::jsonb, '{{ JSON.stringify($json.body || $json) }}'::jsonb, '{{ ($json.body || $json).events_received !== undefined ? (($json.body || $json).fbtrace_id || '') : '' }}', true)",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "node-log-success",
+      "name": "Log to Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1800, 260],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO capi_events_log (location_id, contact_id, event_name, event_id, event_time, event_data, meta_response, success, error_message) VALUES ('{{ $('Hash User Data').first().json.locationId }}', '{{ $('Hash User Data').first().json.contactId }}', '{{ $('Hash User Data').first().json.eventName }}', '{{ $('Hash User Data').first().json.eventId }}', {{ $('Hash User Data').first().json.eventTime }}, '{{ JSON.stringify($('Hash User Data').first().json) }}'::jsonb, '{{ JSON.stringify($json) }}'::jsonb, false, '{{ $json.error || $json.message || \"Meta CAPI request failed\" }}')",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "node-log-error",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1800, 480],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO capi_events_log (location_id, contact_id, event_name, event_id, event_time, event_data, success, error_message) VALUES ('{{ $('Identify Event').first().json.locationId }}', '{{ $('Identify Event').first().json.contactId }}', '{{ $('Identify Event').first().json.eventName }}', 'no-dataset', {{ Math.floor(Date.now() / 1000) }}, '{{ JSON.stringify($('Identify Event').first().json) }}'::jsonb, false, 'No Meta dataset configured for location: ' || '{{ $('Identify Event').first().json.locationId }}')",
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "node-log-no-dataset",
+      "name": "Log No Dataset",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1320, 580],
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"received\": true, \"skipped\": true, \"reason\": \"{{ $('Identify Event').first().json.reason }}\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-skip",
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 680]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"received\": true, \"status\": \"ok\", \"eventName\": \"{{ $('Hash User Data').first().json.eventName }}\", \"eventId\": \"{{ $('Hash User Data').first().json.eventId }}\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2060, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"received\": true, \"status\": \"error\", \"message\": \"Meta CAPI request failed — logged to capi_events_log\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2060, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Identify Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Event": {
+      "main": [
+        [
+          {
+            "node": "Has Mapped Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Mapped Event?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Dataset Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Dataset Config": {
+      "main": [
+        [
+          {
+            "node": "Has Dataset?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Dataset?": {
+      "main": [
+        [
+          {
+            "node": "Hash User Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash User Data": {
+      "main": [
+        [
+          {
+            "node": "POST to Meta CAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to Meta CAPI": {
+      "main": [
+        [
+          {
+            "node": "Log to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "pinData": {}
+}

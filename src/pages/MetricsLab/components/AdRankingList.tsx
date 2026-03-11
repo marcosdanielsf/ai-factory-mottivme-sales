@@ -1,0 +1,180 @@
+import React, { useState } from 'react';
+import { TrendingUp, Users, DollarSign, Target, Film } from 'lucide-react';
+import { formatCurrency, formatNumber, getPotencialConfig, getScoreBgClass } from '../helpers';
+import type { LeadScoreRow, FunnelAd } from '../types';
+
+type SortKey = 'score' | 'leads' | 'gasto' | 'cpl' | 'roas';
+
+interface AdRankingListProps {
+  rows: LeadScoreRow[];
+  selectedAdId: string;
+  onSelect: (adId: string) => void;
+  funnelAds?: FunnelAd[];
+}
+
+const SORT_OPTIONS: { key: SortKey; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
+  { key: 'score', label: 'Score', icon: Target },
+  { key: 'leads', label: 'Leads', icon: Users },
+  { key: 'gasto', label: 'Gasto', icon: DollarSign },
+  { key: 'cpl', label: 'CPL', icon: TrendingUp },
+  { key: 'roas', label: 'ROAS', icon: TrendingUp },
+];
+
+export const AdRankingList: React.FC<AdRankingListProps> = ({ rows, selectedAdId, onSelect, funnelAds = [] }) => {
+  const [sortBy, setSortBy] = useState<SortKey>('score');
+
+  // Build a map for O(1) lookup of won_value per ad
+  const funnelMap = React.useMemo(() => {
+    const m = new Map<string, FunnelAd>();
+    for (const f of funnelAds) m.set(f.ad_id, f);
+    return m;
+  }, [funnelAds]);
+
+  const sorted = [...rows].sort((a, b) => {
+    switch (sortBy) {
+      case 'score': return b.score - a.score;
+      case 'leads': return b.leads - a.leads;
+      case 'gasto': return b.gasto - a.gasto;
+      case 'cpl': return (a.cpl || Infinity) - (b.cpl || Infinity);
+      case 'roas': {
+        const roasA = a.gasto > 0 ? (funnelMap.get(a.ad_id)?.won_value ?? 0) / a.gasto : 0;
+        const roasB = b.gasto > 0 ? (funnelMap.get(b.ad_id)?.won_value ?? 0) / b.gasto : 0;
+        return roasB - roasA;
+      }
+      default: return 0;
+    }
+  });
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Sort toggle bar */}
+      <div className="flex items-center gap-0.5 p-1 bg-white/[0.03] rounded-xl mb-3">
+        {SORT_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSortBy(opt.key)}
+            className={`flex items-center justify-center gap-1.5 flex-1 px-2 py-1.5 text-[11px] font-medium rounded-lg transition-all duration-200 ${
+              sortBy === opt.key
+                ? 'bg-violet-500/15 text-violet-300 shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/[0.04]'
+            }`}
+          >
+            <opt.icon size={12} />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Count */}
+      <div className="text-[11px] text-[var(--text-secondary)] mb-2 px-1">
+        <span className="font-semibold text-[var(--text-primary)]">{rows.length}</span> anuncios
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0">
+        {sorted.map((row, i) => {
+          const isSelected = row.ad_id === selectedAdId;
+          const potConfig = getPotencialConfig(row.potencial);
+          const scoreBg = getScoreBgClass(row.score);
+
+          const funnel = funnelMap.get(row.ad_id);
+          const wonValue = funnel?.won_value ?? 0;
+          const roas = row.gasto > 0 && wonValue > 0 ? wonValue / row.gasto : 0;
+
+          return (
+            <button
+              key={row.ad_id}
+              onClick={() => onSelect(row.ad_id)}
+              className={`group w-full text-left rounded-xl transition-all duration-200 ${
+                isSelected
+                  ? 'bg-violet-500/[0.08] ring-1 ring-violet-500/25'
+                  : 'bg-white/[0.02] hover:bg-white/[0.05]'
+              }`}
+              style={{
+                animationDelay: `${Math.min(i * 25, 300)}ms`,
+                animation: 'fadeIn 0.3s ease-out both',
+              }}
+            >
+              <div className="flex items-start gap-3 p-3">
+                {/* Thumbnail + Rank badge overlay */}
+                <div className="relative flex-shrink-0">
+                  {row.thumbnail_url ? (
+                    <img
+                      src={row.thumbnail_url}
+                      alt=""
+                      className="w-11 h-11 rounded-lg object-cover bg-white/[0.04]"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-lg bg-white/[0.04] flex items-center justify-center">
+                      <Film size={16} className="text-[var(--text-secondary)] opacity-40" />
+                    </div>
+                  )}
+                  <div className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ring-1 ring-black/30 ${
+                    i === 0 ? 'bg-amber-400/90 text-black'
+                    : i === 1 ? 'bg-slate-300/80 text-black'
+                    : i === 2 ? 'bg-orange-400/80 text-black'
+                    : 'bg-white/10 text-[var(--text-secondary)]'
+                  }`}>
+                    {i + 1}
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Ad name + score */}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate flex-1 leading-tight">
+                      {row.ad_name}
+                    </span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${scoreBg}`}>
+                      {row.score}
+                    </span>
+                  </div>
+
+                  {/* Campaign */}
+                  <p className="text-[11px] text-[var(--text-secondary)] truncate mb-2">
+                    {row.campaign_name}
+                  </p>
+
+                  {/* Metrics + potencial */}
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="text-[var(--text-primary)] font-medium tabular-nums">
+                      {formatNumber(row.leads)} <span className="text-[var(--text-secondary)] font-normal">leads</span>
+                    </span>
+                    <span className="text-white/10">|</span>
+                    <span className="text-[var(--text-primary)] font-medium tabular-nums">
+                      {row.cpl > 0 ? formatCurrency(row.cpl) : '—'} <span className="text-[var(--text-secondary)] font-normal">CPL</span>
+                    </span>
+                    <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${potConfig.bgClass} ${potConfig.textClass}`}>
+                      {potConfig.label}
+                    </span>
+                  </div>
+
+                  {/* GHL wins row — only when real data exists */}
+                  {wonValue > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-white/[0.04] text-[11px]">
+                      <span className="text-emerald-400 font-semibold tabular-nums">
+                        {formatCurrency(wonValue)}
+                      </span>
+                      <span className="text-[var(--text-secondary)]">receita</span>
+                      {roas > 0 && (
+                        <>
+                          <span className="text-white/10">|</span>
+                          <span className={`font-bold tabular-nums ${roas >= 3 ? 'text-emerald-400' : roas >= 1 ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {roas.toFixed(1)}x
+                          </span>
+                          <span className="text-[var(--text-secondary)]">ROAS</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
