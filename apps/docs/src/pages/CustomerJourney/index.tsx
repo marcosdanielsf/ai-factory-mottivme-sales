@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useCjmPipelineMap } from "../../hooks/useCjmPipelineMap";
 import { useCjmClientPositions } from "../../hooks/useCjmClientPositions";
+import { useCjmHealthScores } from "../../hooks/useCjmHealthScores";
 import { useCjmStageConfig } from "../../hooks/useCjmStageConfig";
 import { useCjmRealtime } from "../../hooks/useCjmRealtime";
 import type {
@@ -45,6 +46,8 @@ const CustomerJourney = () => {
   } = useCjmClientPositions(null);
 
   const { stageConfigs, updateStageConfig } = useCjmStageConfig(null);
+
+  const { scores: healthScores } = useCjmHealthScores(null);
 
   // Combined refetch for realtime
   const refetchAll = useCallback(() => {
@@ -198,6 +201,7 @@ const CustomerJourney = () => {
                 pipelines={pipelinesWithClients}
                 onConfigClick={setSelectedStageKey}
                 onClientClick={(id, name) => setSelectedClient({ id, name })}
+                healthScores={healthScores}
               />
             </div>
           )}
@@ -215,7 +219,11 @@ const CustomerJourney = () => {
         />
       )}
       {activeTab === "editor" && (
-        <EditorTab stageConfigs={stageConfigs} onEdit={setSelectedStageKey} />
+        <EditorTab
+          stageConfigs={stageConfigs}
+          onEdit={setSelectedStageKey}
+          onUpdate={updateStageConfig}
+        />
       )}
 
       {/* Stage Config Panel */}

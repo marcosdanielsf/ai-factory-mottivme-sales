@@ -9,6 +9,8 @@ import {
   Cell,
 } from "recharts";
 import type { PipelineMapData } from "../../../types/cjm";
+import SankeyFlow from "./SankeyFlow";
+import DropOffChart from "./DropOffChart";
 
 const formatHours = (h: number) => {
   if (h < 1) return `${Math.round(h * 60)}m`;
@@ -162,6 +164,22 @@ const AnalyticsTab = ({ pipelines }: AnalyticsTabProps) => {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Funil de Conversao */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">
+          Funil de Conversao — {selectedPipeline?.pipeline_name}
+        </p>
+        <SankeyFlow pipelineId={selectedPipelineId} />
+      </div>
+
+      {/* Taxa de Abandono */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">
+          Taxa de Abandono — {selectedPipeline?.pipeline_name}
+        </p>
+        <DropOffChart pipelineId={selectedPipelineId} />
+      </div>
 
       {/* Stage table */}
       <div className="rounded-lg bg-bg-secondary overflow-hidden">

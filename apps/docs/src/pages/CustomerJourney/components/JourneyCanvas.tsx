@@ -7,12 +7,14 @@ interface JourneyCanvasProps {
   pipelines: PipelineMapData[];
   onConfigClick: (stageKey: string) => void;
   onClientClick?: (contactId: string, contactName: string) => void;
+  healthScores?: Map<string, number>;
 }
 
 const JourneyCanvas = ({
   pipelines,
   onConfigClick,
   onClientClick,
+  healthScores,
 }: JourneyCanvasProps) => {
   const [selectedPipeline, setSelectedPipeline] = useState(0);
   const [metricsPopover, setMetricsPopover] = useState<{
@@ -85,6 +87,7 @@ const JourneyCanvas = ({
           onMetricsHover={handleMetricsHover}
           onMetricsLeave={handleMetricsLeave}
           onClientClick={onClientClick}
+          healthScores={healthScores}
         />
       )}
 

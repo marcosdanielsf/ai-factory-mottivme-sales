@@ -8,6 +8,7 @@ interface PipelineLaneProps {
   onMetricsHover: (stage: CjmPipelineFlowRow, rect: DOMRect) => void;
   onMetricsLeave: () => void;
   onClientClick?: (contactId: string, contactName: string) => void;
+  healthScores?: Map<string, number>;
 }
 
 const PipelineLane = ({
@@ -16,6 +17,7 @@ const PipelineLane = ({
   onMetricsHover,
   onMetricsLeave,
   onClientClick,
+  healthScores,
 }: PipelineLaneProps) => {
   const sortedStages = [...pipeline.stages].sort(
     (a, b) => a.stage_order - b.stage_order,
@@ -31,6 +33,7 @@ const PipelineLane = ({
             onMetricsHover={onMetricsHover}
             onMetricsLeave={onMetricsLeave}
             onClientClick={onClientClick}
+            healthScores={healthScores}
           />
           {index < sortedStages.length - 1 && (
             <div className="flex items-center self-center px-1 text-text-muted">

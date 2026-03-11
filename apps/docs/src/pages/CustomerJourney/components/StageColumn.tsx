@@ -9,6 +9,7 @@ interface StageColumnProps {
   onMetricsHover: (stage: CjmPipelineFlowRow, rect: DOMRect) => void;
   onMetricsLeave: () => void;
   onClientClick?: (contactId: string, contactName: string) => void;
+  healthScores?: Map<string, number>;
 }
 
 const StageColumn = ({
@@ -17,6 +18,7 @@ const StageColumn = ({
   onMetricsHover,
   onMetricsLeave,
   onClientClick,
+  healthScores,
 }: StageColumnProps) => {
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +73,7 @@ const StageColumn = ({
                   ? () => onClientClick(client.contact_id, client.contact_name)
                   : undefined
               }
+              healthScore={healthScores?.get(client.contact_id) ?? null}
             />
           ))
         )}

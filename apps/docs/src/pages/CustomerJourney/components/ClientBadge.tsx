@@ -1,11 +1,13 @@
 import type { CjmSlaStatus } from "../../../types/cjm";
 import SlaIndicator from "./SlaIndicator";
+import HealthScoreBadge from "./HealthScoreBadge";
 
 interface ClientBadgeProps {
   contactName: string;
   hoursInStage: number;
   slaHours: number | null;
   onClick?: () => void;
+  healthScore?: number | null;
 }
 
 function computeSlaStatus(
@@ -29,6 +31,7 @@ const ClientBadge = ({
   hoursInStage,
   slaHours,
   onClick,
+  healthScore,
 }: ClientBadgeProps) => {
   const slaStatus = computeSlaStatus(hoursInStage, slaHours);
 
@@ -44,6 +47,9 @@ const ClientBadge = ({
       <span className="text-text-muted text-xs ml-auto flex-shrink-0">
         {formatDuration(hoursInStage)}
       </span>
+      {healthScore !== undefined && (
+        <HealthScoreBadge score={healthScore ?? null} />
+      )}
     </div>
   );
 };
