@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { useAccountData } from "./useAccountData";
+import { DateRange } from "../components/DateRangePicker";
 
 // ============================================================================
 // TIPOS EXPORTADOS
@@ -60,6 +61,9 @@ const STAGE_ORDER = [
   "lost",
 ];
 
+// Helper: extrair "YYYY-MM" de uma Date
+const toYearMonth = (d: Date): string => d.toISOString().slice(0, 7);
+
 // ============================================================================
 // HOOK: useIGProspectorData
 // Agrega dados das 3 views Supabase do Instagram Prospector para o dashboard.
@@ -68,10 +72,18 @@ const STAGE_ORDER = [
 //
 // IMPORTANTE: vw_lead_funnel_e2e retorna 1 linha por lead (nao agregada).
 // O hook agrega em contagens por funnel_stage no frontend.
+//
+// Parametros opcionais (retroativamente compativel):
+//   locationIdOverride — sobrescreve o activeLocationId do contexto
+//   dateRange — filtra dados por periodo (FILT-02)
+//   stageFilter — filtra funnelStages por stage especifico (FILT-03)
+//   Polling automatico 30s sem interacao do usuario (DASH-03)
 // ============================================================================
 
 export function useIGProspectorData(
   locationIdOverride?: string | null,
+  dateRange?: DateRange | null,
+  stageFilter?: string | null,
 ): IGProspectorData {
   const { activeLocationId } = useAccountData();
 
@@ -104,20 +116,53 @@ export function useIGProspectorData(
     if (effectiveLocationId) {
       funnelQuery = funnelQuery.eq("location_id", effectiveLocationId);
     }
+    // Aplicar filtro de data em vw_lead_funnel_e2e (coluna first_contact_at)
+    if (dateRange?.startDate) {
+      funnelQuery = funnelQuery.gte(
+        "first_contact_at",
+        dateRange.startDate.toISOString(),
+      );
+    }
+    if (dateRange?.endDate) {
+      funnelQuery = funnelQuery.lte(
+        "first_contact_at",
+        dateRange.endDate.toISOString(),
+      );
+    }
 
-    const replyRateQuery = effectiveLocationId
+    // Montar replyRateQuery com suporte a filtro de data (coluna month)
+    let replyRateQuery = effectiveLocationId
       ? supabase
           .from("vw_reply_rate_by_account")
           .select("*")
           .eq("location_id", effectiveLocationId)
       : supabase.from("vw_reply_rate_by_account").select("*");
+    if (dateRange?.startDate) {
+      replyRateQuery = replyRateQuery.gte(
+        "month",
+        toYearMonth(dateRange.startDate),
+      );
+    }
+    if (dateRange?.endDate) {
+      replyRateQuery = replyRateQuery.lte(
+        "month",
+        toYearMonth(dateRange.endDate),
+      );
+    }
 
-    const costQuery = effectiveLocationId
+    // Montar costQuery com suporte a filtro de data (coluna month)
+    let costQuery = effectiveLocationId
       ? supabase
           .from("vw_cost_per_lead")
           .select("*")
           .eq("location_id", effectiveLocationId)
       : supabase.from("vw_cost_per_lead").select("*");
+    if (dateRange?.startDate) {
+      costQuery = costQuery.gte("month", toYearMonth(dateRange.startDate));
+    }
+    if (dateRange?.endDate) {
+      costQuery = costQuery.lte("month", toYearMonth(dateRange.endDate));
+    }
 
     // Executar 3 queries em paralelo — falha parcial nao bloqueia as demais
     const [funnelResult, replyRateResult, costResult] =
@@ -148,7 +193,11 @@ export function useIGProspectorData(
             return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
           })
           .map(([stage, count]) => ({ stage, count }));
-        setFunnelStages(mapped);
+        // Aplicar stageFilter (FILT-03) — filtra stages exibidos no frontend
+        const filtered = stageFilter
+          ? mapped.filter((s) => s.stage === stageFilter)
+          : mapped;
+        setFunnelStages(filtered);
       }
     } else {
       console.error(
@@ -232,10 +281,18 @@ export function useIGProspectorData(
     }
 
     setLoading(false);
-  }, [effectiveLocationId]);
+  }, [effectiveLocationId, dateRange, stageFilter]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Polling automatico a cada 30s — DASH-03
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   return {
