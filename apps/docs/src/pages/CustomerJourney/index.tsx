@@ -1,8 +1,15 @@
 import { useState, useCallback, useMemo } from "react";
 import { useCjmPipelineMap } from "../../hooks/useCjmPipelineMap";
 import { useCjmClientPositions } from "../../hooks/useCjmClientPositions";
+import { useCjmStageConfig } from "../../hooks/useCjmStageConfig";
 import { useCjmRealtime } from "../../hooks/useCjmRealtime";
-import type { CjmTab, CjmBroadcastPayload } from "../../types/cjm";
+import type {
+  CjmTab,
+  CjmBroadcastPayload,
+  PipelineMapData,
+} from "../../types/cjm";
+import JourneyCanvas from "./components/JourneyCanvas";
+import StageConfigPanel from "./components/StageConfigPanel";
 
 const TABS: { key: CjmTab; label: string }[] = [
   { key: "map", label: "Mapa" },
@@ -13,6 +20,7 @@ const TABS: { key: CjmTab; label: string }[] = [
 
 const CustomerJourney = () => {
   const [activeTab, setActiveTab] = useState<CjmTab>("map");
+  const [selectedStageKey, setSelectedStageKey] = useState<string | null>(null);
 
   // Data hooks — locationId null = all locations
   const {
@@ -27,6 +35,8 @@ const CustomerJourney = () => {
     loading: positionsLoading,
     refetch: refetchPositions,
   } = useCjmClientPositions(null);
+
+  const { stageConfigs, updateStageConfig } = useCjmStageConfig(null);
 
   // Combined refetch for realtime
   const refetchAll = useCallback(() => {
@@ -44,11 +54,40 @@ const CustomerJourney = () => {
 
   const { isSubscribed } = useCjmRealtime(handleStageChange, refetchAll);
 
+  // Merge client positions into pipeline stages
+  const pipelinesWithClients: PipelineMapData[] = useMemo(() => {
+    return pipelines.map((pipeline) => ({
+      ...pipeline,
+      stages: pipeline.stages.map((stage) => ({
+        ...stage,
+        clients: positions.filter(
+          (p) =>
+            p.pipeline_id === pipeline.pipeline_id &&
+            p.current_stage === stage.current_stage,
+        ),
+      })),
+    }));
+  }, [pipelines, positions]);
+
   // Summary stats
   const totalClients = useMemo(() => positions.length, [positions]);
   const totalPipelines = pipelines.length;
 
   const loading = pipelinesLoading || positionsLoading;
+
+  // Stage config panel
+  const selectedConfig = useMemo(() => {
+    if (!selectedStageKey) return null;
+    return stageConfigs.find((c) => c.stage_id === selectedStageKey) || null;
+  }, [selectedStageKey, stageConfigs]);
+
+  const handleConfigSave = useCallback(
+    async (id: string, changes: Record<string, unknown>) => {
+      await updateStageConfig(id, changes);
+      setSelectedStageKey(null);
+    },
+    [updateStageConfig],
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -118,6 +157,7 @@ const CustomerJourney = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Summary cards */}
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div className="p-4 rounded-lg bg-bg-secondary">
                   <p className="text-xs text-text-muted">Pipelines</p>
@@ -145,40 +185,11 @@ const CustomerJourney = () => {
                 </div>
               </div>
 
-              {/* Pipeline list placeholder — visual components in Plan 10-02 */}
-              {pipelines.map((pipeline) => (
-                <div
-                  key={pipeline.pipeline_id}
-                  className="p-4 rounded-lg bg-bg-secondary border border-border-default"
-                >
-                  <h3 className="font-medium text-text-primary">
-                    {pipeline.pipeline_name}
-                  </h3>
-                  <p className="text-sm text-text-muted mt-1">
-                    {pipeline.stages.length} etapas |{" "}
-                    {pipeline.stages.reduce(
-                      (sum, s) => sum + s.contact_count,
-                      0,
-                    )}{" "}
-                    contatos
-                  </p>
-                  <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
-                    {pipeline.stages.map((stage) => (
-                      <div
-                        key={stage.current_stage}
-                        className="flex-shrink-0 px-3 py-2 rounded bg-bg-tertiary text-xs"
-                      >
-                        <span className="text-text-primary">
-                          {stage.stage_name}
-                        </span>
-                        <span className="text-text-muted ml-2">
-                          ({stage.contact_count})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              {/* Journey Map Canvas */}
+              <JourneyCanvas
+                pipelines={pipelinesWithClients}
+                onConfigClick={setSelectedStageKey}
+              />
             </div>
           )}
         </div>
@@ -187,6 +198,13 @@ const CustomerJourney = () => {
       {activeTab !== "map" && (
         <div className="p-8 text-text-muted">Em breve</div>
       )}
+
+      {/* Stage Config Panel */}
+      <StageConfigPanel
+        stageConfig={selectedConfig}
+        onClose={() => setSelectedStageKey(null)}
+        onSave={handleConfigSave}
+      />
     </div>
   );
 };
