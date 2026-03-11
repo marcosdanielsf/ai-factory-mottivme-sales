@@ -10,6 +10,9 @@ import type {
 } from "../../types/cjm";
 import JourneyCanvas from "./components/JourneyCanvas";
 import StageConfigPanel from "./components/StageConfigPanel";
+import AnalyticsTab from "./components/AnalyticsTab";
+import SlaTab from "./components/SlaTab";
+import EditorTab from "./components/EditorTab";
 
 const TABS: { key: CjmTab; label: string }[] = [
   { key: "map", label: "Mapa" },
@@ -195,8 +198,12 @@ const CustomerJourney = () => {
         </div>
       )}
 
-      {activeTab !== "map" && (
-        <div className="p-8 text-text-muted">Em breve</div>
+      {activeTab === "analytics" && (
+        <AnalyticsTab pipelines={pipelinesWithClients} />
+      )}
+      {activeTab === "sla" && <SlaTab />}
+      {activeTab === "editor" && (
+        <EditorTab stageConfigs={stageConfigs} onEdit={setSelectedStageKey} />
       )}
 
       {/* Stage Config Panel */}
