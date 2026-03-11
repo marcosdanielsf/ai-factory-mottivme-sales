@@ -1,0 +1,10 @@
+{
+    "actorSpecification": 1,
+    "name": "mottivme-instagram-scraper",
+    "title": "MOTTIVME Instagram Profile Scraper",
+    "description": "Simple Instagram profile data extractor",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile"
+}

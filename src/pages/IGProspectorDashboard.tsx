@@ -48,6 +48,7 @@ const STAGE_LABELS: Record<string, string> = {
   warm: "Aquecido",
   dm_ready: "Pronto p/ DM",
   first_contact: "Contatado",
+  contacted: "Contatado",
   replied: "Respondeu",
   won: "Agendado",
   already_active: "Ja Ativo",
@@ -60,6 +61,7 @@ const STAGE_COLORS: Record<string, string> = {
   warm: "#d29922",
   dm_ready: "#58a6ff",
   first_contact: "#58a6ff",
+  contacted: "#58a6ff",
   replied: "#3fb950",
   won: "#3fb950",
   already_active: "#8b949e",
@@ -74,7 +76,11 @@ const FUNNEL_BUCKETS = [
   { key: "sync", label: "Sincronizados", stages: ["prospected"] },
   { key: "warming", label: "Aquecendo", stages: ["warming", "warm"] },
   { key: "dm_ready", label: "Prontos p/ DM", stages: ["dm_ready"] },
-  { key: "contacted", label: "Contatados", stages: ["first_contact"] },
+  {
+    key: "contacted",
+    label: "Contatados",
+    stages: ["first_contact", "contacted"],
+  },
   { key: "replied", label: "Responderam", stages: ["replied"] },
   { key: "won", label: "Agendados", stages: ["won"] },
 ];
@@ -88,6 +94,7 @@ const STAGE_OPTIONS = [
   { value: "warming", label: "Aquecendo" },
   { value: "dm_ready", label: "Pronto p/ DM" },
   { value: "first_contact", label: "Contatado" },
+  { value: "contacted", label: "Contatado (v2)" },
   { value: "replied", label: "Respondeu" },
   { value: "won", label: "Agendado" },
 ];

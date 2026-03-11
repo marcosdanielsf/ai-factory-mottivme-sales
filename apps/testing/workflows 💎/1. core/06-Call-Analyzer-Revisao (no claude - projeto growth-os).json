@@ -1,0 +1,759 @@
+{
+  "name": "Call Analyzer Revisao",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/1LmK9R3bNvX8qP2wZ5yT6uI7oA4sD1fGh",
+          "mode": "url"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "id": "trigger-revisao",
+      "name": "Google Drive Trigger - Revisao",
+      "notes": "Monitora pasta /7. Calls/3. Revisao/ para arquivos de acompanhamento (usando URL da pasta)",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-google-doc",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "application/vnd.google-apps.document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [520, 300],
+      "id": "filtrar-google-docs",
+      "name": "E Google Doc?",
+      "notes": "Filtra para processar APENAS Google Docs (ignora videos MP4, imagens, etc)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [520, 500],
+      "id": "skip-nao-doc",
+      "name": "Skip - Nao e Google Doc"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, l.api_key as location_api_key, l.association_id FROM call_recordings cr LEFT JOIN locations l ON cr.location_id = l.location_id WHERE cr.gdrive_file_id = '{{ $json.id }}' AND cr.status = 'movido' LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 300],
+      "id": "buscar-call-supabase",
+      "name": "Buscar Call no Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-call-exists",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 300],
+      "id": "call-existe",
+      "name": "Call Existe?"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Google Drive Trigger - Revisao').item.json.id }}/export",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "mimeType",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "id": "export-google-doc",
+      "name": "Export Google Doc como Texto",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1200, 400],
+      "id": "skip-call",
+      "name": "Skip - Call nao encontrada"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "location-id",
+              "name": "location_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.location_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ghl-api",
+              "name": "ghl_api_key",
+              "value": "={{ $('Buscar Call no Supabase').item.json.location_api_key }}",
+              "type": "string"
+            },
+            {
+              "id": "association-id",
+              "name": "association_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.association_id }}",
+              "type": "string"
+            },
+            {
+              "id": "contact-id",
+              "name": "contact_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "call-id",
+              "name": "call_recording_id",
+              "value": "={{ $('Buscar Call no Supabase').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "nome-lead",
+              "name": "nome_lead",
+              "value": "={{ $('Buscar Call no Supabase').item.json.nome_lead }}",
+              "type": "string"
+            },
+            {
+              "id": "telefone-lead",
+              "name": "telefone_lead",
+              "value": "={{ $('Buscar Call no Supabase').item.json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "gdrive-url",
+              "name": "gdrive_url",
+              "value": "={{ $('Buscar Call no Supabase').item.json.gdrive_url }}",
+              "type": "string"
+            },
+            {
+              "id": "texto-transcricao",
+              "name": "texto",
+              "value": "={{ $('Export Google Doc como Texto').item.json.data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1440, 200],
+      "id": "config-dados",
+      "name": "Config GHL + Dados Supabase"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT av.id as agent_version_id, av.versao, av.system_prompt, av.tools_config, av.compliance_rules, av.personality_config, av.deployed_at, c.id as client_id, c.ghl_contact_id, c.nome as client_nome FROM agent_versions av JOIN clients c ON av.client_id = c.id WHERE c.ghl_contact_id = '{{ $json.contact_id }}' AND av.is_active = TRUE LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1680, 200],
+      "id": "buscar-agente-ativo",
+      "name": "Buscar Agente Ativo",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-agente-existe",
+              "leftValue": "={{ $json.agent_version_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1920, 200],
+      "id": "agente-existe",
+      "name": "Agente Existe?",
+      "notes": "Verifica se o cliente tem um agente ativo para comparar"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar todos os dados antes de enviar para IA\nconst configDados = $('Config GHL + Dados Supabase').first().json;\nconst agenteDB = $('Buscar Agente Ativo').first().json;\n\nconst agenteExiste = agenteDB.agent_version_id !== null && agenteDB.agent_version_id !== undefined;\n\nreturn [{\n  json: {\n    // Dados da call\n    call_recording_id: configDados.call_recording_id,\n    location_id: configDados.location_id,\n    ghl_api_key: configDados.ghl_api_key,\n    association_id: configDados.association_id,\n    contact_id: configDados.contact_id,\n    nome_lead: configDados.nome_lead,\n    telefone_lead: configDados.telefone_lead,\n    gdrive_url: configDados.gdrive_url,\n    transcricao: configDados.texto,\n    \n    // Dados do cliente\n    cliente_db: {\n      encontrado: agenteExiste,\n      id: agenteDB.client_id,\n      ghl_contact_id: agenteDB.ghl_contact_id,\n      nome: agenteDB.client_nome || configDados.nome_lead\n    },\n    \n    // Dados do agente atual\n    agente_atual: {\n      existe: agenteExiste,\n      id: agenteDB.agent_version_id,\n      versao: agenteDB.versao || 'v1.0',\n      system_prompt: agenteDB.system_prompt,\n      tools_config: agenteDB.tools_config,\n      compliance_rules: agenteDB.compliance_rules,\n      personality_config: agenteDB.personality_config,\n      deployed_at: agenteDB.deployed_at\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 100],
+      "id": "consolidar-dados",
+      "name": "Consolidar Dados"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2160, 300],
+      "id": "skip-sem-agente",
+      "name": "Skip - Sem Agente Ativo",
+      "notes": "Cliente ainda nao tem agente configurado"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise a transcricao de call de ACOMPANHAMENTO (revisao) abaixo e compare com a configuracao ATUAL do agente para identificar mudancas necessarias.\n\n## TRANSCRICAO DA CALL DE ACOMPANHAMENTO:\n{{ $json.transcricao }}\n\n## CONFIGURACAO ATUAL DO AGENTE (versao {{ $json.agente_atual.versao }}):\n\n### System Prompt Atual:\n{{ $json.agente_atual.system_prompt || 'Nao disponivel' }}\n\n### Tools Config Atual:\n{{ JSON.stringify($json.agente_atual.tools_config) || 'Nao disponivel' }}\n\n### Compliance Rules Atual:\n{{ JSON.stringify($json.agente_atual.compliance_rules) || 'Nao disponivel' }}\n\n### Personality Config Atual:\n{{ JSON.stringify($json.agente_atual.personality_config) || 'Nao disponivel' }}\n\n## DADOS DO CLIENTE:\n- Nome: {{ $json.cliente_db.nome }}\n- Telefone: {{ $json.telefone_lead }}",
+        "options": {
+          "systemMessage": "Voce e um especialista em otimizacao de agentes de IA usando o framework PDCA (Plan-Do-Check-Act).\n\nSua tarefa e analisar a transcricao de uma call de ACOMPANHAMENTO (revisao mensal) e comparar com a configuracao ATUAL do agente para identificar:\n1. O que esta funcionando bem (MANTER)\n2. O que precisa ser ajustado (MUDAR)\n3. O que esta faltando (ADICIONAR)\n4. O que deve ser removido (REMOVER)\n\n## FRAMEWORK PDCA PARA ANALISE:\n\n### PLAN (O que foi planejado)\n- Qual era o objetivo do agente?\n- Quais eram as expectativas?\n\n### DO (O que foi executado)\n- Como o agente tem se comportado?\n- Quais interacoes o cliente menciona?\n\n### CHECK (Verificar resultados)\n- O que o cliente ELOGIOU?\n- O que o cliente RECLAMOU?\n- O que o cliente PEDIU que fosse diferente?\n- Houve algum problema especifico?\n\n### ACT (Ajustar para melhorar)\n- Quais mudancas sao necessarias no prompt?\n- Quais tools devem ser adicionados/removidos?\n- Quais regras de compliance devem mudar?\n- Como a personalidade deve ser ajustada?\n\n## OUTPUT ESPERADO (JSON):\n\n```json\n{\n  \"analise_pdca\": {\n    \"plan\": {\n      \"objetivo_original\": \"string\",\n      \"expectativas\": [\"lista\"]\n    },\n    \"do\": {\n      \"comportamento_observado\": \"string\",\n      \"interacoes_mencionadas\": [\"lista\"]\n    },\n    \"check\": {\n      \"elogios\": [\"lista do que cliente elogiou\"],\n      \"reclamacoes\": [\"lista do que cliente reclamou\"],\n      \"pedidos_mudanca\": [\"lista do que cliente pediu diferente\"],\n      \"problemas_especificos\": [\"lista\"]\n    },\n    \"act\": {\n      \"mudancas_prompt\": [\"lista de mudancas no system prompt\"],\n      \"mudancas_tools\": [\"lista de mudancas em tools\"],\n      \"mudancas_compliance\": [\"lista de mudancas em compliance\"],\n      \"mudancas_personalidade\": [\"lista de mudancas em personalidade\"]\n    }\n  },\n  \"diff_proposto\": {\n    \"system_prompt\": {\n      \"manter\": [\"partes a manter\"],\n      \"adicionar\": [\"partes a adicionar\"],\n      \"remover\": [\"partes a remover\"],\n      \"modificar\": [\n        {\n          \"de\": \"texto original\",\n          \"para\": \"texto novo\",\n          \"motivo\": \"por que mudar\"\n        }\n      ]\n    },\n    \"tools_config\": {\n      \"adicionar\": [\"tools a adicionar\"],\n      \"remover\": [\"tools a remover\"],\n      \"modificar\": [\"tools a modificar configuracao\"]\n    },\n    \"compliance_rules\": {\n      \"adicionar\": [\"regras a adicionar\"],\n      \"remover\": [\"regras a remover\"],\n      \"modificar\": [\"regras a modificar\"]\n    },\n    \"personality_config\": {\n      \"manter\": [\"caracteristicas a manter\"],\n      \"ajustar\": [\"caracteristicas a ajustar\"],\n      \"adicionar\": [\"caracteristicas a adicionar\"]\n    }\n  },\n  \"novo_system_prompt\": \"system prompt completo com as mudancas aplicadas\",\n  \"nova_versao\": \"v1.X (incrementar minor version)\",\n  \"impacto_estimado\": {\n    \"nivel\": \"baixo|medio|alto\",\n    \"areas_afetadas\": [\"lista de areas\"],\n    \"riscos\": [\"lista de riscos potenciais\"]\n  },\n  \"recomendacao\": {\n    \"acao\": \"ATUALIZAR|MANTER|RECRIAR\",\n    \"urgencia\": \"imediata|proxima_semana|quando_possivel\",\n    \"motivo\": \"string\"\n  },\n  \"resumo_executivo\": \"2-3 frases resumindo as mudancas propostas\",\n  \"citacoes_cliente\": [\n    {\n      \"texto\": \"citacao exata do cliente\",\n      \"tipo\": \"elogio|reclamacao|pedido|feedback\",\n      \"acao_derivada\": \"o que fazer com esse feedback\"\n    }\n  ]\n}\n```\n\n## REGRAS:\n1. Seja conservador - so proponha mudancas que foram EXPLICITAMENTE solicitadas ou que sao claramente necessarias\n2. Se o cliente nao reclamou de algo, NAO mude\n3. Incremente a versao: v1.0 -> v1.1, v1.1 -> v1.2, etc.\n4. O novo_system_prompt deve ser COMPLETO e funcional, nao apenas um diff\n5. Cite exatamente o que o cliente disse para justificar mudancas\n6. Se nao houver mudancas necessarias, recomende MANTER\n7. Retorne APENAS o JSON valido, sem markdown"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [2400, 100],
+      "id": "ai-agent-revisao",
+      "name": "AI Agent - Analisar Acompanhamento PDCA"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [2472, 324],
+      "id": "groq-model",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "WVbQ0d3w6cnLwPtX",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta da IA e preparar nova versao\nconst dadosAnteriores = $('Consolidar Dados').first().json;\nconst respostaIA = $input.first().json;\n\n// Funcoes de parse\nfunction cleanFences(s) {\n  if (typeof s !== 'string') s = String(s ?? '');\n  let r = s.trim();\n  r = r.replace(/^\\s*```[a-z]*\\s*/i, '');\n  r = r.replace(/\\s*```$/, '');\n  return r;\n}\n\nfunction findBalancedEnd(s, start) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = start; i < s.length; i++) {\n    const ch = s[i];\n    if (inStr) {\n      if (esc) { esc = false; }\n      else if (ch === '\\\\') { esc = true; }\n      else if (ch === '\"') { inStr = false; }\n    } else {\n      if (ch === '\"') inStr = true;\n      else if (ch === '{') depth++;\n      else if (ch === '}') { depth--; if (depth === 0) return i; }\n    }\n  }\n  return -1;\n}\n\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch {}\n  const raw = cleanFences(str);\n  try { return JSON.parse(raw); } catch {}\n  const start = raw.indexOf('{');\n  const end = start >= 0 ? findBalancedEnd(raw, start) : -1;\n  if (start >= 0 && end >= 0) {\n    const jsonStr = raw.slice(start, end + 1);\n    try { return JSON.parse(jsonStr); } catch {}\n  }\n  return null;\n}\n\n// Parse da resposta\nlet analise;\nconst rawVal = respostaIA.output ?? respostaIA.text;\nconst outputStr = typeof rawVal === 'string' ? rawVal : String(rawVal ?? '');\nanalise = typeof rawVal === 'object' && rawVal ? rawVal : tryParse(outputStr);\n\nif (!analise) {\n  return [{\n    json: {\n      ...dadosAnteriores,\n      erro_parse: true,\n      motivo: 'Resposta do agente incompleta ou JSON invalido.',\n      raw_snippet: cleanFences(outputStr).slice(0, 1000)\n    }\n  }];\n}\n\n// Determinar se precisa criar nova versao\nconst precisaAtualizar = analise.recomendacao?.acao === 'ATUALIZAR' || analise.recomendacao?.acao === 'RECRIAR';\n\n// Calcular nova versao\nconst versaoAtual = dadosAnteriores.agente_atual.versao || 'v1.0';\nconst versionParts = versaoAtual.replace('v', '').split('.');\nconst major = parseInt(versionParts[0]) || 1;\nconst minor = parseInt(versionParts[1]) || 0;\nconst novaVersao = precisaAtualizar ? `v${major}.${minor + 1}` : versaoAtual;\n\n// Preparar novo system prompt (se houver)\nconst novoSystemPrompt = analise.novo_system_prompt || dadosAnteriores.agente_atual.system_prompt;\n\n// Preparar mudancas em tools_config\nlet novoToolsConfig = JSON.parse(JSON.stringify(dadosAnteriores.agente_atual.tools_config || {}));\nif (analise.diff_proposto?.tools_config) {\n  const toolsDiff = analise.diff_proposto.tools_config;\n  if (toolsDiff.adicionar && toolsDiff.adicionar.length > 0) {\n    novoToolsConfig.tools_enabled = [...(novoToolsConfig.tools_enabled || []), ...toolsDiff.adicionar];\n  }\n  if (toolsDiff.remover && toolsDiff.remover.length > 0) {\n    novoToolsConfig.tools_enabled = (novoToolsConfig.tools_enabled || []).filter(t => !toolsDiff.remover.includes(t));\n  }\n}\n\n// Preparar mudancas em compliance_rules\nlet novoComplianceRules = JSON.parse(JSON.stringify(dadosAnteriores.agente_atual.compliance_rules || {}));\nif (analise.diff_proposto?.compliance_rules) {\n  const compDiff = analise.diff_proposto.compliance_rules;\n  if (compDiff.adicionar && compDiff.adicionar.length > 0) {\n    novoComplianceRules.prohibited_actions = [...(novoComplianceRules.prohibited_actions || []), ...compDiff.adicionar];\n  }\n  if (compDiff.remover && compDiff.remover.length > 0) {\n    novoComplianceRules.prohibited_actions = (novoComplianceRules.prohibited_actions || []).filter(r => !compDiff.remover.includes(r));\n  }\n}\n\n// Preparar mudancas em personality_config\nlet novoPersonalityConfig = JSON.parse(JSON.stringify(dadosAnteriores.agente_atual.personality_config || {}));\nif (analise.diff_proposto?.personality_config) {\n  const persDiff = analise.diff_proposto.personality_config;\n  if (persDiff.adicionar && persDiff.adicionar.length > 0) {\n    novoPersonalityConfig.characteristics = [...(novoPersonalityConfig.characteristics || []), ...persDiff.adicionar];\n  }\n}\n\nreturn [{\n  json: {\n    ...dadosAnteriores,\n    analise_revisao: analise,\n    precisa_atualizar: precisaAtualizar,\n    nova_versao: {\n      versao: novaVersao,\n      versao_anterior: versaoAtual,\n      system_prompt: novoSystemPrompt,\n      tools_config: novoToolsConfig,\n      compliance_rules: novoComplianceRules,\n      personality_config: novoPersonalityConfig\n    },\n    metadata: {\n      impacto: analise.impacto_estimado?.nivel || 'baixo',\n      urgencia: analise.recomendacao?.urgencia || 'quando_possivel',\n      resumo: analise.resumo_executivo || 'Analise de acompanhamento processada',\n      acao: analise.recomendacao?.acao || 'MANTER',\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 100],
+      "id": "processar-analise",
+      "name": "Processar Analise e Preparar Nova Versao"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-atualizar",
+              "leftValue": "={{ $json.precisa_atualizar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2880, 100],
+      "id": "check-precisa-atualizar",
+      "name": "Precisa Atualizar?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_versions (\n  client_id,\n  contact_id,\n  location_id,\n  versao,\n  system_prompt,\n  tools_config,\n  compliance_rules,\n  personality_config,\n  is_active,\n  status,\n  previous_version_id,\n  created_from_call_id\n) VALUES (\n  '{{ $json.cliente_db.id }}',\n  '{{ $json.contact_id }}',\n  '{{ $json.location_id }}',\n  '{{ $json.nova_versao.versao }}',\n  $1,\n  $2,\n  $3,\n  $4,\n  FALSE,\n  'pending_approval',\n  '{{ $json.agente_atual.id }}',\n  '{{ $json.call_recording_id }}'\n)\nRETURNING id, versao, created_at;",
+        "options": {
+          "queryParams": "={{ [\n  $json.nova_versao.system_prompt,\n  JSON.stringify($json.nova_versao.tools_config),\n  JSON.stringify($json.nova_versao.compliance_rules),\n  JSON.stringify($json.nova_versao.personality_config)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3120, 0],
+      "id": "criar-nova-versao",
+      "name": "Criar Nova Versao (pending_approval)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE call_recordings SET status = 'analisado', processed_at = NOW(), analise_json = $1::jsonb WHERE id = '{{ $('Processar Analise e Preparar Nova Versao').first().json.call_recording_id }}'",
+        "options": {
+          "queryParams": "={{ [JSON.stringify($('Processar Analise e Preparar Nova Versao').first().json.analise_revisao)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3360, 0],
+      "id": "atualizar-call-recording",
+      "name": "Atualizar Call Recording",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Processar Analise e Preparar Nova Versao').first().json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"Ql1qBRN8GTemuG0BlM0F\",\n  \"message\": \"🔄 *NOVA VERSAO DO AGENTE - APROVACAO NECESSARIA*\\n\\n📋 *Cliente:* {{ $('Processar Analise e Preparar Nova Versao').first().json.cliente_db.nome }}\\n\\n📊 *Versao:* {{ $('Processar Analise e Preparar Nova Versao').first().json.agente_atual.versao }} → {{ $('Processar Analise e Preparar Nova Versao').first().json.nova_versao.versao }}\\n\\n⚡ *Impacto:* {{ $('Processar Analise e Preparar Nova Versao').first().json.metadata.impacto }}\\n⏰ *Urgencia:* {{ $('Processar Analise e Preparar Nova Versao').first().json.metadata.urgencia }}\\n\\n📝 *Resumo:*\\n{{ $('Processar Analise e Preparar Nova Versao').first().json.metadata.resumo }}\\n\\n🔗 {{ $('Processar Analise e Preparar Nova Versao').first().json.gdrive_url }}\\n\\n✅ Responda APROVAR {{ $('Criar Nova Versao (pending_approval)').first().json.id }} para ativar\\n❌ Responda REJEITAR {{ $('Criar Nova Versao (pending_approval)').first().json.id }} + motivo\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3600, 0],
+      "id": "notificar-cs-atualizar",
+      "name": "Notificar CS - Nova Versao"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE call_recordings SET status = 'analisado', processed_at = NOW(), analise_json = $1::jsonb WHERE id = '{{ $json.call_recording_id }}'",
+        "options": {
+          "queryParams": "={{ [JSON.stringify($json.analise_revisao)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3120, 200],
+      "id": "atualizar-call-sem-mudanca",
+      "name": "Atualizar Call (Sem Mudanca)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.ghl_api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"WhatsApp\",\n  \"contactId\": \"Ql1qBRN8GTemuG0BlM0F\",\n  \"message\": \"✅ *ACOMPANHAMENTO ANALISADO - SEM MUDANCAS*\\n\\n📋 *Cliente:* {{ $json.cliente_db.nome }}\\n\\n📊 *Versao Atual:* {{ $json.agente_atual.versao }}\\n\\n📝 *Resumo:*\\n{{ $json.metadata.resumo }}\\n\\n🔗 {{ $json.gdrive_url }}\\n\\n✨ Agente funcionando bem! Proxima revisao em 30 dias.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3360, 200],
+      "id": "notificar-cs-sem-mudanca",
+      "name": "Notificar CS - Sem Mudanca"
+    },
+    {
+      "parameters": {
+        "content": "## Call Analyzer Revisao v2.0\n\n**Funcao**: Analisa calls de ACOMPANHAMENTO (revisao mensal) usando framework PDCA para identificar mudancas necessarias no agente.\n\n### Correcoes aplicadas (v2.0):\n- [x] Usar HTTP Request export (nao Download + Extract)\n- [x] Folder trigger com URL/ID (nao nome)\n- [x] Multi-tenant via JOIN com locations\n- [x] Sintaxe $() correta (nao $items())\n- [x] **FILTRO MIMETYPE** - Ignora videos/MP4!\n- [x] Busca agente ativo por ghl_contact_id\n- [x] Cria nova versao com status=pending_approval\n- [x] Notificacao com ID da versao para aprovacao\n\n### Fluxo:\n1. Detecta arquivo em /7. Calls/3. Revisao/\n2. **FILTRO: So processa Google Docs**\n3. Busca call no Supabase + JOIN locations\n4. Exporta texto via Google API\n5. Busca agente ATIVO do cliente\n6. IA analisa com PDCA comparando config atual\n7. Se precisa atualizar:\n   - Cria nova versao (pending_approval)\n   - Notifica CS com ID para aprovar\n8. Se nao precisa:\n   - Atualiza call_recording\n   - Notifica CS que esta tudo ok\n\n### Status: PRONTO PARA TESTE (v2.0)\n\n### IMPORTANTE: URL da Pasta\nATUALIZAR a URL no trigger para a pasta\ncorreta de /7. Calls/3. Revisao/ do cliente!",
+        "height": 640,
+        "width": 380,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 100],
+      "id": "sticky-instrucoes",
+      "name": "Instrucoes"
+    },
+    {
+      "parameters": {
+        "content": "## Fluxo de Aprovacao\n\nApos CS receber notificacao:\n\n1. Responde \"APROVAR {id}\":\n   - Workflow separado processa\n   - UPDATE agent_versions SET is_active=true, status='active'\n   - Trigger desativa versao anterior\n\n2. Responde \"REJEITAR {id} motivo\":\n   - UPDATE agent_versions SET status='rejected'\n   - Log do motivo\n\n**Workflow de aprovacao**:\n`Aprovar-Versao-Agente.json` (a criar)",
+        "height": 280,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 700],
+      "id": "sticky-aprovacao",
+      "name": "Aprovacao"
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger - Revisao": {
+      "main": [
+        [
+          {
+            "node": "E Google Doc?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E Google Doc?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Call no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Nao e Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Call no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Call Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Existe?": {
+      "main": [
+        [
+          {
+            "node": "Export Google Doc como Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Call nao encontrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Doc como Texto": {
+      "main": [
+        [
+          {
+            "node": "Config GHL + Dados Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config GHL + Dados Supabase": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agente Ativo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agente Ativo": {
+      "main": [
+        [
+          {
+            "node": "Agente Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Existe?": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Sem Agente Ativo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Dados": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Analisar Acompanhamento PDCA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Analisar Acompanhamento PDCA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Analisar Acompanhamento PDCA": {
+      "main": [
+        [
+          {
+            "node": "Processar Analise e Preparar Nova Versao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Analise e Preparar Nova Versao": {
+      "main": [
+        [
+          {
+            "node": "Precisa Atualizar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa Atualizar?": {
+      "main": [
+        [
+          {
+            "node": "Criar Nova Versao (pending_approval)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Call (Sem Mudanca)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Nova Versao (pending_approval)": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Call Recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Call Recording": {
+      "main": [
+        [
+          {
+            "node": "Notificar CS - Nova Versao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Call (Sem Mudanca)": {
+      "main": [
+        [
+          {
+            "node": "Notificar CS - Sem Mudanca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "WnRF9AdjFBkEW9Ma"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "pinData": {},
+  "versionId": "2.0.0",
+  "triggerCount": 1,
+  "tags": [
+    {
+      "name": "AI Factory",
+      "createdAt": "2025-12-17T00:00:00.000Z",
+      "updatedAt": "2025-12-17T00:00:00.000Z"
+    },
+    {
+      "name": "Revisao",
+      "createdAt": "2025-12-17T00:00:00.000Z",
+      "updatedAt": "2025-12-17T00:00:00.000Z"
+    }
+  ]
+}

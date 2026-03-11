@@ -1,130 +1,159 @@
 #!/usr/bin/env node
 /**
- * Mega Brain Extract DNA — Extrai 6 camadas de DNA de especialistas via GPT-4o-mini
- * philosophy, mental_models, heuristics, frameworks, methodologies, dilemmas
+ * mega-brain-extract-dna.mjs
+ * Extrai DNA intelectual de experts (6 camadas) usando GPT-4o-mini.
  *
- * Usage:
+ * Uso:
  *   node scripts/mega-brain-extract-dna.mjs --entity-id UUID
+ *   node scripts/mega-brain-extract-dna.mjs --all
  */
 
 import { parseArgs } from 'node:util';
 
-// ─── Configuração ──────────────────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
+// ============================================================
+// CONFIG — env vars (setar antes de rodar)
+// ============================================================
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.MEGA_BRAIN_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.MEGA_BRAIN_SUPABASE_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY || process.env.MEGA_BRAIN_OPENAI_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
-  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_KEY, OPENAI_API_KEY');
+  console.error('Env vars obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY');
   process.exit(1);
 }
 
 const MIN_MENTION_COUNT = 5;
-const MAX_CONTEXT_CHARS = 6000;
+const LLM_SLEEP_MS = 1200;
+const MAX_CONTEXT_CHARS = 18000;
 
-const DNA_LAYERS = {
-  philosophy: (name) => `Quais são as crenças fundamentais, valores e visão de mundo de ${name}? O que ele/ela acredita sobre pessoas, negócios, vida e impacto? Seja específico com evidências do texto.`,
-  mental_models: (name) => `Quais modelos mentais ${name} usa recorrentemente para tomar decisões e entender o mundo? (ex: Pareto, First Principles, inversão, etc.) Liste os mais relevantes com exemplos.`,
-  heuristics: (name) => `Quais regras de bolso e atalhos decisórios ${name} aplica? Que "quando X, então Y" ou "nunca faça Z" ele/ela usa no dia a dia?`,
-  frameworks: (name) => `Quais frameworks estruturados ${name} criou ou usa sistematicamente? Para cada um: nome, passos/componentes, quando usar, exemplo de aplicação.`,
-  methodologies: (name) => `Quais processos passo-a-passo ${name} segue para atingir resultados? Descreva os processos mais relevantes com etapas claras.`,
-  dilemmas: (name) => `Quais trade-offs e tensões ${name} enfrenta recorrentemente? Quais dilemas ele/ela resolve de forma particular? Quais decisões difíceis são recorrentes?`,
+const supaHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
 };
 
-// ─── Args parsing ──────────────────────────────────────────────────────────────
+// ============================================================
+// 6 CAMADAS DE DNA
+// ============================================================
+const DNA_LAYERS = [
+  {
+    layer: 'philosophy',
+    label: 'Filosofia',
+    prompt: (name) => `Quais sao as crencas fundamentais, valores e visao de mundo de ${name}? Baseado nos textos abaixo, extraia cada crenca como um item separado.
 
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Nome da crenca", "description": "Explicacao detalhada", "evidence": ["trecho 1", "trecho 2"], "confidence": 0.8}]}
+
+Confidence de 0 a 1 baseado na forca da evidencia. Minimo 3, maximo 10 items.`,
+  },
+  {
+    layer: 'mental_models',
+    label: 'Modelos Mentais',
+    prompt: (name) => `Quais modelos mentais ${name} usa recorrentemente para pensar e tomar decisoes? (ex: Pareto, First Principles, Inversion, Second-order thinking...)
+
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Nome do modelo", "description": "Como ${name} aplica este modelo", "evidence": ["trecho 1"], "confidence": 0.7}]}
+
+Minimo 2, maximo 8 items.`,
+  },
+  {
+    layer: 'heuristics',
+    label: 'Heuristicas',
+    prompt: (name) => `Quais regras de bolso, atalhos decisorios e principios praticos ${name} aplica? (frases como "sempre faca X", "nunca faca Y", "quando Z, entao W")
+
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Regra curta e memoravel", "description": "Contexto e como aplicar", "evidence": ["trecho 1"], "confidence": 0.75}]}
+
+Minimo 3, maximo 10 items.`,
+  },
+  {
+    layer: 'frameworks',
+    label: 'Frameworks',
+    prompt: (name) => `Quais frameworks estruturados ${name} criou ou usa consistentemente? Extraia o nome, os passos/componentes e quando usar cada um.
+
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Nome do Framework", "steps": ["passo 1", "passo 2"], "when_to_use": "situacoes de uso", "evidence": ["trecho 1"], "confidence": 0.8}]}
+
+Minimo 1, maximo 6 items. Se nao houver frameworks claros, retorne {"items": []}.`,
+  },
+  {
+    layer: 'methodologies',
+    label: 'Metodologias',
+    prompt: (name) => `Quais processos passo-a-passo ${name} segue para resolver problemas ou executar tarefas? (rotinas, processos, sistemas recorrentes)
+
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Nome do processo", "steps": ["passo 1", "passo 2"], "description": "Quando e como usar", "evidence": ["trecho 1"], "confidence": 0.7}]}
+
+Minimo 1, maximo 6 items.`,
+  },
+  {
+    layer: 'dilemmas',
+    label: 'Dilemas',
+    prompt: (name) => `Quais trade-offs, tensoes e dilemas ${name} enfrenta ou discute recorrentemente? (escolhas dificeis, paradoxos, tensoes entre valores opostos)
+
+Retorne APENAS JSON valido no formato:
+{"items": [{"title": "Nome do dilema", "description": "Contexto do trade-off", "tension": ["lado A", "lado B"], "evidence": ["trecho 1"], "confidence": 0.65}]}
+
+Minimo 1, maximo 5 items. Se nao houver dilemas claros, retorne {"items": []}.`,
+  },
+];
+
+// ============================================================
+// CLI
+// ============================================================
 const { values: args } = parseArgs({
   options: {
-    'entity-id': { type: 'string' },
-    help:        { type: 'boolean', default: false },
+    'entity-id':    { type: 'string' },
+    all:            { type: 'boolean', default: false },
+    'min-mentions': { type: 'string', default: String(MIN_MENTION_COUNT) },
+    layer:          { type: 'string' }, // processar apenas uma camada especifica
+    help:           { type: 'boolean', short: 'h', default: false },
   },
-  allowPositionals: false,
+  strict: false,
 });
 
-if (args.help || !args['entity-id']) {
+if (args.help || (!args['entity-id'] && !args.all)) {
   console.log(`
-Mega Brain Extract DNA — Extração de 6 camadas de DNA de especialistas
-
 Uso:
   node scripts/mega-brain-extract-dna.mjs --entity-id UUID
+  node scripts/mega-brain-extract-dna.mjs --all
 
-Opções:
-  --entity-id UUID  UUID da entidade (pessoa com mention_count >= ${MIN_MENTION_COUNT})
-  --help            Mostrar esta ajuda
+Opcoes:
+  --entity-id UUID      Processar apenas esta entidade
+  --all                 Processar todas pessoas com mention_count >= N
+  --min-mentions N      Minimo de mencoes (default: ${MIN_MENTION_COUNT})
+  --layer NOME          Processar apenas esta camada de DNA
+  --help, -h            Exibir ajuda
 
-Camadas DNA extraídas:
-  philosophy     → Crenças fundamentais e visão de mundo
-  mental_models  → Modelos mentais utilizados
-  heuristics     → Regras de bolso e atalhos decisórios
-  frameworks     → Frameworks estruturados criados ou utilizados
-  methodologies  → Processos passo-a-passo
-  dilemmas       → Trade-offs e tensões recorrentes
+Camadas disponíveis: ${DNA_LAYERS.map(l => l.layer).join(', ')}
 `);
   process.exit(0);
 }
 
-// ─── Supabase helpers ──────────────────────────────────────────────────────────
+const minMentions = parseInt(args['min-mentions'] || String(MIN_MENTION_COUNT), 10);
+const targetLayer = args.layer;
 
-function sbHeaders() {
-  return {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-  };
+// ============================================================
+// HELPERS
+// ============================================================
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function sbGet(path) {
+async function supaFetch(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: sbHeaders(),
+    headers: { ...supaHeaders, ...(opts.headers || {}) },
+    ...opts,
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase GET ${path}: ${res.status} ${err.slice(0, 200)}`);
+    const body = await res.text();
+    throw new Error(`Supabase ${opts.method || 'GET'} ${path} -> ${res.status}: ${body}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-async function sbPost(path, body, prefer = 'return=representation') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'POST',
-    headers: { ...sbHeaders(), 'Prefer': prefer },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase POST ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-  return prefer === 'return=minimal' ? null : res.json();
-}
-
-async function sbPatch(path, body) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'PATCH',
-    headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase PATCH ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-}
-
-// ─── OpenAI GPT-4o-mini ───────────────────────────────────────────────────────
-
-async function extractDnaLayer(personName, layerKey, layerPrompt, context) {
-  const prompt = `${layerPrompt}
-
-Baseado EXCLUSIVAMENTE no seguinte contexto sobre ${personName}:
-${context}
-
-Retorne um JSON object com a chave "items" contendo um array de objetos. Cada objeto DEVE ter: "title" (string curta), "description" (string detalhada), "evidence" (array de trechos do texto), "confidence" (float 0.0 a 1.0).
-
-Formato OBRIGATORIO:
-{"items": [{"title": "Nome do item", "description": "Descrição detalhada com contexto", "evidence": ["trecho relevante do texto original"], "confidence": 0.8}]}
-
-Se não houver evidências suficientes: {"items": []}`;
-
+async function callOpenAI(systemPrompt, userPrompt) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -133,177 +162,214 @@ Se não houver evidências suficientes: {"items": []}`;
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 3000,
       response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
     }),
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OpenAI ${res.status}: ${err.slice(0, 200)}`);
+    const body = await res.text();
+    throw new Error(`OpenAI API -> ${res.status}: ${body}`);
   }
 
   const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '[]';
+  const content = data.choices?.[0]?.message?.content || '{"items":[]}';
 
   try {
-    // Pode retornar {items: [...]} ou [...] diretamente
-    const parsed = JSON.parse(text);
-    let rawItems;
-    if (Array.isArray(parsed)) rawItems = parsed;
-    else if (parsed.items && Array.isArray(parsed.items)) rawItems = parsed.items;
-    else {
-      const firstArray = Object.values(parsed).find(v => Array.isArray(v));
-      rawItems = firstArray || [];
-    }
-    // Normalizar: se string, converter em objeto estruturado
-    return rawItems.map(item => {
-      if (typeof item === 'string') {
-        return { title: item.slice(0, 80), description: item, evidence: [], confidence: 0.5 };
-      }
-      return item;
-    });
+    return JSON.parse(content);
   } catch {
-    return [];
+    return { items: [] };
   }
 }
 
-// ─── Upsert DNA layer ──────────────────────────────────────────────────────────
+async function upsertDnaLayer(entityId, layer, content) {
+  const avgConfidence = content.items?.length > 0
+    ? content.items.reduce((acc, item) => acc + (item.confidence || 0.5), 0) / content.items.length
+    : 0;
 
-async function upsertDnaLayer(entityId, layer, items) {
-  // Tentar UPSERT via POST com ON CONFLICT
-  try {
-    const avgConfidence = items.length > 0
-      ? items.reduce((sum, i) => sum + (i.confidence || 0.5), 0) / items.length
-      : 0;
-    await sbPost('expert_dna', {
-      entity_id: entityId,
-      layer,
-      content: items,
-      confidence: Math.round(avgConfidence * 100) / 100,
-    }, 'return=minimal');
-  } catch (err) {
-    // Se já existe (unique constraint), fazer PATCH
-    if (err.message.includes('duplicate') || err.message.includes('unique') || err.message.includes('23505')) {
-      await sbPatch(`expert_dna?entity_id=eq.${entityId}&layer=eq.${layer}`, {
-        content: items,
-        updated_at: new Date().toISOString(),
-      });
-    } else {
-      throw err;
-    }
-  }
-}
-
-// ─── Busca de contexto ────────────────────────────────────────────────────────
-
-async function getEntityContext(entityId) {
-  const [entity] = await sbGet(
-    `knowledge_entities?id=eq.${entityId}&select=id,canonical_name,entity_type,mention_count,dossier_text`
+  // Verificar se ja existe
+  const existing = await supaFetch(
+    `expert_dna?entity_id=eq.${entityId}&layer=eq.${layer}&select=id,content`
   );
 
-  if (!entity) throw new Error(`Entidade ${entityId} não encontrada`);
+  if (existing && existing.length > 0) {
+    // Merge: combinar items existentes com novos (sem duplicar por title)
+    const existingItems = existing[0].content?.items || [];
+    const newItems = content.items || [];
+    const mergedItems = [...existingItems];
 
-  if (entity.entity_type !== 'person') {
-    throw new Error(`Entidade ${entity.canonical_name} não é uma pessoa (tipo: ${entity.entity_type}). DNA só é extraído de pessoas.`);
+    for (const newItem of newItems) {
+      const isDuplicate = existingItems.some(ei =>
+        ei.title?.toLowerCase() === newItem.title?.toLowerCase()
+      );
+      if (!isDuplicate) {
+        mergedItems.push(newItem);
+      }
+    }
+
+    await supaFetch(`expert_dna?id=eq.${existing[0].id}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        content: { ...content, items: mergedItems },
+        confidence_avg: avgConfidence,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+
+    return { action: 'merged', itemCount: mergedItems.length };
+  } else {
+    await supaFetch('expert_dna', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        entity_id: entityId,
+        layer,
+        content,
+        confidence_avg: avgConfidence,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+
+    return { action: 'created', itemCount: content.items?.length || 0 };
   }
-
-  if ((entity.mention_count || 0) < MIN_MENTION_COUNT) {
-    throw new Error(`Entidade ${entity.canonical_name} tem apenas ${entity.mention_count} menções (mínimo: ${MIN_MENTION_COUNT})`);
-  }
-
-  // Usar dossiê se disponível, senão buscar chunks
-  let context = entity.dossier_text || '';
-
-  if (!context || context.length < 200) {
-    // Buscar chunks via entity_mentions
-    const mentions = await sbGet(
-      `entity_mentions?entity_id=eq.${entityId}&select=knowledge_chunks(content)&limit=50`
-    );
-    const chunks = mentions
-      .map(m => m.knowledge_chunks?.content)
-      .filter(Boolean)
-      .join('\n\n---\n\n');
-    context = chunks;
-  }
-
-  if (context.length > MAX_CONTEXT_CHARS) {
-    context = context.slice(0, MAX_CONTEXT_CHARS) + '\n\n[... truncado ...]';
-  }
-
-  return { entity, context };
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+async function processEntityDna(entityId) {
+  // Buscar entidade
+  const entities = await supaFetch(`knowledge_entities?id=eq.${entityId}&select=*`);
+  if (!entities || entities.length === 0) {
+    throw new Error(`Entidade ${entityId} nao encontrada`);
+  }
+  const entity = entities[0];
+  console.log(`  Entidade: ${entity.canonical_name} (${entity.entity_type})`);
 
-async function main() {
-  const entityId = args['entity-id'];
+  // Buscar todos os chunks onde entidade e mencionada via entity_mentions
+  let chunks = [];
+  try {
+    const mentions = await supaFetch(
+      `entity_mentions?entity_id=eq.${entityId}&select=chunk_id&limit=200`
+    );
+    const chunkIds = [...new Set((mentions || []).map(m => m.chunk_id).filter(Boolean))];
 
-  console.log('='.repeat(60));
-  console.log('MEGA BRAIN EXTRACT DNA');
-  console.log('='.repeat(60));
-  console.log(`Entity ID: ${entityId}`);
+    if (chunkIds.length > 0) {
+      const chunkIdList = chunkIds.slice(0, 100).map(id => `"${id}"`).join(',');
+      chunks = await supaFetch(
+        `knowledge_chunks?id=in.(${chunkIdList})&select=id,content&limit=100`
+      );
+    }
+  } catch (_) {
+    console.warn('  [warn] entity_mentions nao disponivel, buscando chunks por entity_id...');
+  }
 
-  const { entity, context } = await getEntityContext(entityId);
+  // Fallback: buscar chunks diretamente se disponivel
+  if (!chunks || chunks.length === 0) {
+    try {
+      chunks = await supaFetch(
+        `knowledge_chunks?select=id,content&limit=100&order=created_at.asc`
+      );
+    } catch (_) {
+      console.warn('  [warn] Nao foi possivel buscar chunks');
+    }
+  }
 
-  console.log(`\nEntidade: ${entity.canonical_name} (${entity.entity_type})`);
-  console.log(`Menções:  ${entity.mention_count}`);
-  console.log(`Contexto: ${context.length} chars`);
-  console.log(`\nExtraindo 6 camadas DNA...`);
+  if (!chunks || chunks.length === 0) {
+    console.log('  Sem chunks para processar DNA');
+    return;
+  }
 
-  const results = {};
-  let layerIndex = 0;
+  const contextText = chunks
+    .map(c => c.content)
+    .join('\n\n---\n\n')
+    .slice(0, MAX_CONTEXT_CHARS);
 
-  for (const [layerKey, promptFn] of Object.entries(DNA_LAYERS)) {
-    layerIndex++;
-    process.stdout.write(`\r[${layerIndex}/6] Extraindo: ${layerKey}...                    `);
+  console.log(`  ${chunks.length} chunks de contexto (${contextText.length} chars)`);
+
+  // Processar cada camada
+  const layersToProcess = targetLayer
+    ? DNA_LAYERS.filter(l => l.layer === targetLayer)
+    : DNA_LAYERS;
+
+  if (layersToProcess.length === 0) {
+    throw new Error(`Camada "${targetLayer}" nao encontrada. Opcoes: ${DNA_LAYERS.map(l => l.layer).join(', ')}`);
+  }
+
+  for (const dnaLayer of layersToProcess) {
+    console.log(`  Extraindo: ${dnaLayer.label}...`);
+
+    const systemPrompt = `Voce e um analista especializado em extrair padroes de pensamento de experts. Analise os textos fornecidos sobre "${entity.canonical_name}" e extraia informacoes estruturadas. Retorne APENAS JSON valido, sem markdown.`;
+
+    const userPrompt = `${dnaLayer.prompt(entity.canonical_name)}
+
+TEXTOS SOBRE ${entity.canonical_name.toUpperCase()}:
+${contextText}`;
+
+    let dnaContent = { items: [] };
+    try {
+      dnaContent = await callOpenAI(systemPrompt, userPrompt);
+    } catch (err) {
+      console.error(`    [erro] LLM falhou para camada ${dnaLayer.layer}: ${err.message}`);
+      await sleep(LLM_SLEEP_MS * 2);
+      continue;
+    }
+
+    if (!dnaContent.items) dnaContent = { items: [] };
 
     try {
-      const items = await extractDnaLayer(
-        entity.canonical_name,
-        layerKey,
-        promptFn(entity.canonical_name),
-        context
-      );
-
-      await upsertDnaLayer(entityId, layerKey, items);
-      results[layerKey] = items.length;
-
-      process.stdout.write(`\r[${layerIndex}/6] ${layerKey}: ${items.length} itens extraídos          \n`);
+      const result = await upsertDnaLayer(entityId, dnaLayer.layer, dnaContent);
+      console.log(`    ${result.action}: ${result.itemCount} items`);
     } catch (err) {
-      console.error(`\n[ERRO] Camada ${layerKey}: ${err.message}`);
-      results[layerKey] = 0;
+      console.error(`    [erro] Falha ao salvar camada ${dnaLayer.layer}: ${err.message}`);
     }
 
-    // Rate limit entre camadas
-    if (layerIndex < 6) {
-      await new Promise(r => setTimeout(r, 300));
+    await sleep(LLM_SLEEP_MS);
+  }
+
+  console.log(`  DNA extraido com sucesso`);
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+async function main() {
+  console.log('=== Mega Brain: Extract DNA ===');
+
+  if (args['entity-id']) {
+    await processEntityDna(args['entity-id']);
+  } else if (args.all) {
+    // Buscar persons com mention_count suficiente
+    const entities = await supaFetch(
+      `knowledge_entities?entity_type=eq.person&mention_count=gte.${minMentions}&select=id,canonical_name,mention_count&order=mention_count.desc`
+    );
+
+    if (!entities || entities.length === 0) {
+      console.log(`Nenhuma pessoa com >= ${minMentions} mencoes encontrada.`);
+      return;
+    }
+
+    console.log(`${entities.length} experts para processar`);
+
+    for (const entity of entities) {
+      console.log(`\n[${entities.indexOf(entity) + 1}/${entities.length}] ${entity.canonical_name} (${entity.mention_count} mencoes)`);
+      try {
+        await processEntityDna(entity.id);
+      } catch (err) {
+        console.error(`  [erro]: ${err.message}`);
+      }
+      await sleep(LLM_SLEEP_MS * 2);
     }
   }
 
-  // Marcar entidade como tendo DNA extraído
-  try {
-    await sbPatch(`knowledge_entities?id=eq.${entityId}`, {
-      last_seen_at: new Date().toISOString(),
-    });
-  } catch {
-    // Campo pode não existir — ignorar
-  }
-
-  console.log('\n' + '='.repeat(60));
-  console.log('DNA EXTRAÍDO');
-  console.log('='.repeat(60));
-  console.log(`Entidade: ${entity.canonical_name}`);
-  for (const [layer, count] of Object.entries(results)) {
-    console.log(`  ${layer.padEnd(16)}: ${count} itens`);
-  }
-  const total = Object.values(results).reduce((a, b) => a + b, 0);
-  console.log(`Total: ${total} itens em 6 camadas`);
+  console.log('\nConcluido!');
 }
 
 main().catch(err => {
-  console.error('[ERRO CRÍTICO]', err.message);
+  console.error('[FATAL]', err);
   process.exit(1);
 });

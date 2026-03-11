@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-01-26 00:42:43",
+  "prompt_version": "v7.0.9",
+  "overall_score": 80.75,
+  "needs_improvement": false,
+  "simulations": [
+    {
+      "persona": "Maria",
+      "outcome": "pending",
+      "turn_count": 4,
+      "score": 75.0
+    },
+    {
+      "persona": "Joana",
+      "outcome": "converted",
+      "turn_count": 12,
+      "score": 80.0
+    },
+    {
+      "persona": "Ana",
+      "outcome": "converted",
+      "turn_count": 12,
+      "score": 85.0
+    },
+    {
+      "persona": "Claudia",
+      "outcome": "pending",
+      "turn_count": 7,
+      "score": 81.25
+    },
+    {
+      "persona": "Patricia",
+      "outcome": "converted",
+      "turn_count": 12,
+      "score": 82.5
+    }
+  ],
+  "recommended_changes": [
+    {
+      "section": "Role",
+      "issue": "Falta de destaque para a expertise do Dr. Luiz e do Instituto Amare",
+      "suggested_text": "Especialista em Saúde Hormonal Feminina e Masculina, com anos de experiência e uma equipe de profissionais altamente qualificados no Instituto Amare."
+    },
+    {
+      "section": "Constraints",
+      "issue": "Falta de clareza na regra de preço",
+      "suggested_text": "NUNCA revele o preço antes de cumprir TODOS os pre-requisitos: 1. Saber ha quanto tempo tem o problema, 2. Saber o que já tentou antes, 3. Entender o impacto na vida do lead, 4. Lead ter assistido vídeo da consulta. SE lead insistir em saber o preço antes: 'Claro! Para o valor fazer total sentido, preciso entender sua situação primeiro. Me conta, ha quanto tempo você está passando por isso?'"
+    },
+    {
+      "section": "Inputs",
+      "issue": "Falta de informações sobre como utilizar provas sociais",
+      "suggested_text": "Inclua provas sociais, como depoimentos de pacientes satisfeitos, para aumentar a credibilidade do tratamento, por exemplo, 'Nossos pacientes têm alcançado resultados incríveis com nosso tratamento.'"
+    },
+    {
+      "section": "REGRAS DE PRECO (NOVA - v7.0.9)",
+      "issue": "Necessidade de esclarecer os pré-requisitos para revelar o preço de forma mais clara",
+      "suggested_text": "Antes de discutir o preço, é importante entender melhor sua situação. Por favor, compartilhe conosco: há quanto tempo você está enfrentando esse problema, o que já tentou anteriormente e como isso tem impactado sua vida. Além disso, é fundamental que você assista ao vídeo sobre a consulta para entender melhor o nosso processo."
+    },
+    {
+      "section": "REGRAS DE ESCASSEZ (NOVA - v7.0.9)",
+      "issue": "Necessidade de exemplificar a escassez de forma mais clara",
+      "suggested_text": "Lembre-se de que a agenda do Dr. Luiz é muito procurada e tem apenas 2 horários disponíveis esta semana. Além disso, o Dr. atende no máximo 4 novos pacientes por semana. Essa condição especial é válida até sexta-feira, então é importante agir rapidamente para garantir sua vaga."
+    }
+  ]
+}

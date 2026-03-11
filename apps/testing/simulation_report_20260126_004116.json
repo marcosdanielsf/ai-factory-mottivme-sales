@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-01-26 00:40:35",
+  "prompt_version": "v7.0.9",
+  "overall_score": 80.0,
+  "needs_improvement": false,
+  "simulations": [
+    {
+      "persona": "Maria",
+      "outcome": "lost",
+      "turn_count": 12,
+      "score": 80.0
+    }
+  ],
+  "recommended_changes": [
+    {
+      "section": "REGRAS DE PRECO (NOVA - v7.0.9)",
+      "issue": "Revelar o preço antes de cumprir todos os pré-requisitos",
+      "suggested_text": "Antes de discutir o preço, é importante entender melhor sua situação. Pode me contar um pouco sobre o que você está passando e o que o motiva a buscar o Dr. Luiz?"
+    },
+    {
+      "section": "REGRAS DE ESCASSEZ (NOVA - v7.0.9)",
+      "issue": "Não utilizar a regra de escassez de forma eficaz",
+      "suggested_text": "A agenda do Dr. Luiz está muito concorrida, temos apenas 2 vagas disponíveis esta semana. É importante agendar o mais rápido possível para garantir uma consulta."
+    },
+    {
+      "section": "REGRAS DE FLUXO (CRITICO)",
+      "issue": "Não oferecer opções de pagamento claras",
+      "suggested_text": "Nossa consulta com o Dr. Luiz custa R$ 1.800, e oferecemos opções de pagamento flexíveis, como parcelamento em até 3 vezes. Qual é a sua preferência?"
+    },
+    {
+      "section": "Personalidade",
+      "issue": "Não utilizar histórias de sucesso e emoção",
+      "suggested_text": "Muitos de nossos pacientes já alcançaram resultados incríveis com o Dr. Luiz. Por exemplo, um de nossos pacientes recentes conseguiu melhorar significativamente sua saúde hormonal após apenas algumas consultas. Eu gostaria de entender melhor sua situação para ver como podemos ajudá-lo da mesma forma."
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Task",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": []
+  },
+  "agents": {
+    "coordinator": {
+      "enabled": true,
+      "model": "opus",
+      "autoTrigger": false
+    },
+    "database-engineer": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true
+    },
+    "n8n-workflow-builder": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true
+    },
+    "python-developer": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true
+    },
+    "qa-tester": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true
+    },
+    "documentation-writer": {
+      "enabled": true,
+      "model": "haiku",
+      "autoTrigger": true
+    },
+    "supabase-analyst": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true,
+      "description": "Analisa schema Supabase ANTES de qualquer implementacao"
+    },
+    "frontend-validator": {
+      "enabled": true,
+      "model": "sonnet",
+      "autoTrigger": true,
+      "description": "Valida tipos TypeScript e componentes React"
+    },
+    "integration-coordinator": {
+      "enabled": true,
+      "model": "opus",
+      "autoTrigger": true,
+      "description": "Coordena integracao Backend-Frontend"
+    }
+  },
+  "skills": {
+    "supabase-schema-analyzer": {
+      "path": "skills/supabase-schema-analyzer.md",
+      "description": "Schema completo do Supabase com todas as tabelas"
+    },
+    "frontend-analyzer": {
+      "path": "skills/frontend-analyzer.md",
+      "description": "Analise do frontend React/TypeScript"
+    },
+    "backend-frontend-mapping": {
+      "path": "skills/backend-frontend-mapping.md",
+      "description": "Mapeamento detalhado Backend <-> Frontend"
+    }
+  },
+  "project": {
+    "name": "AI Factory Self-Improving System",
+    "description": "Sistema de auto-melhoramento de agentes de IA",
+    "version": "4.0.0"
+  }
+}

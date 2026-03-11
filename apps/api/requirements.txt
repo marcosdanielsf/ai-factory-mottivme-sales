@@ -1,0 +1,45 @@
+# AI Factory Testing Framework - Python Dependencies
+# ===================================================
+# Updated: 2025-12-31 12:25 BRT - Railway Deploy v2.1
+# CRITICAL: supabase==2.9.1 required for proxy support
+
+# Core
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+pyyaml==6.0.1
+
+# Supabase
+supabase==2.9.1
+# postgrest version is managed by supabase dependency
+
+# Async PostgreSQL (Connection Pooling)
+asyncpg==0.29.0
+
+# Anthropic Claude
+anthropic==0.39.0
+
+# FastAPI + Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+gunicorn==22.0.0
+python-multipart==0.0.6
+
+# Templates + Reports
+jinja2==3.1.3
+markdown==3.5.2
+
+# Utils
+httpx>=0.26,<0.28
+aiofiles==23.2.1
+tenacity==8.2.3  # Retry logic
+slowapi==0.1.9  # Rate limiting
+redis==5.0.0  # Optional: Redis backend for rate limiting
+psutil==5.9.8  # System metrics
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+
+# Optional: Dashboard dependencies
+# streamlit==1.30.0  # Se quiser dashboard Streamlit local

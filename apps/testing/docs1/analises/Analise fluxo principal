@@ -1,0 +1,185 @@
+Deixa eu ver as partes que foram truncadas para ter a visão completa:Perfeito! Agora tenho a visão completa. Aqui está a **Análise Geral do Fluxo SDR - GHL - Mottivme - EUA**:
+
+---
+
+# 📊 MAPA COMPLETO DO FLUXO SDR
+
+## 🏗️ ARQUITETURA GERAL
+
+```
+ENTRADA → NORMALIZAÇÃO → CONTROLE → PROCESSAMENTO → AI → ENVIO → RASTREIO
+```
+
+---
+
+## 📍 FASE 1: ENTRADA E NORMALIZAÇÃO
+
+| Nó | Função |
+|-----|--------|
+| **Mensagem recebida** | Webhook POST que recebe eventos do GHL |
+| **Contexto UTM** | Detecta tipo de lead (CARREIRA/CONSULTORIA) via UTM |
+| **Normalizar Nome1** | Limpa e formata nome do lead (remove números, capitaliza) |
+| **Normalizar Dados1** | Define `objetivo_do_lead`, `agente_ia`, `ativar_ia` baseado em tags/UTM |
+| **Execution Data5** | Registra metadados da execução |
+| **Code1** | Processamento adicional |
+| **Classificar Tipo Mensagem** | Identifica se é texto/áudio/imagem |
+| **Info** | Node SET principal com ~50 campos normalizados |
+
+---
+
+## 📍 FASE 2: CONTROLES E GATES
+
+| Nó | Função |
+|-----|--------|
+| **IA Ativa?** | Gate: só passa se `ativar_ia=sim` OU tag `assistente-admin` |
+| **Tipo de mensagem** | Switch 6 saídas: texto, primeira_msg, enfileirar, imagem, áudio, outro |
+| **Conversa Ativa** | Consulta `n8n_active_conversation` no Postgres |
+| **Ação Planejada** | Switch 3 saídas: Iniciar Conversa / Ignorar / Aguardar |
+| **Permitido AI?** | Valida se pode processar (não está em disparo, msg != "ok") |
+
+---
+
+## 📍 FASE 3: PROCESSAMENTO DE MÍDIA
+
+| Nó | Função |
+|-----|--------|
+| **Download áudio** | Baixa arquivo de áudio |
+| **Extract from File** | Extrai binário |
+| **Convert to File** | Converte para formato processável |
+| **Transcrever audio** | OpenAI Whisper (PT) |
+| **Analyze image** | Processa imagens recebidas |
+
+---
+
+## 📍 FASE 4: FILA E CONCORRÊNCIA
+
+| Nó | Função |
+|-----|--------|
+| **Enfileirar mensagem.** | INSERT em `ops_fila_mensagens` |
+| **Esperar** | Wait node |
+| **Buscar mensagens** | Recupera fila |
+| **Form Mensagem** | Compara `last_db_message` vs `current_message` |
+| **Mensagem encavalada?** | Detecta se lead mandou msg enquanto IA pensava |
+| **Salvar Espera** | UPSERT com `waiting_process_id` + `retries` |
+
+---
+
+## 📍 FASE 5: MEMÓRIA E HISTÓRICO
+
+| Nó | Função |
+|-----|--------|
+| **Salvar Inicio IA** | UPSERT em `n8n_active_conversation` |
+| **Mensagem anteriores** | SELECT histórico de `n8n_historico_mensagens` |
+| **Preparar Mensagem** | Formata histórico como string |
+| **Memoria Lead** | INSERT mensagem human |
+| **Memoria IA** | INSERT resposta IA |
+| **Deduplica Mensagens** | Remove duplicatas |
+| **Set mensagens** | Consolida `mensagem`, `output_preview`, `mensagens_antigas` |
+
+---
+
+## 📍 FASE 6: SELEÇÃO DE AGENTE
+
+| Nó | Rotas |
+|-----|-------|
+| **Tipo de IA** | `Milton` / `Padrão` / `Agente Versionado` |
+| **Switch2** | `followuper` / `sdrcarreira` / `sdrconsultoria` |
+| **Switch** | `followuper` / `sdrcarreira` / `reagendar` / `concierge` / `customer_success` |
+
+---
+
+## 📍 FASE 7: PROMPTS ESPECIALIZADOS
+
+| Prompt | Uso |
+|--------|-----|
+| **Prompt F2 - Funil Tráfego Carreira** | Lead novo de tráfego → qualifica work permit → agenda |
+| **Prompt F3 - followuper** | Leads frios que já receberam abertura → reativa |
+| **Prompt Reagendamento - No Show** | Lead deu no-show → recupera empático |
+| **Prompt Consultoria** | Sem work permit → consultoria financeira |
+| **Concierge** | Suporte geral |
+| **Customer Success** | Pós-venda |
+
+---
+
+## 📍 FASE 8: AI AGENTS
+
+| Nó | Config |
+|-----|--------|
+| **SDR** | Agent LangChain + Gemini + GPT-5 fallback |
+| **SDR Milton** | Agent customizado (disabled) |
+| **AI Agent - Modular** | Agent versionado via banco |
+
+**Tools Conectadas:**
+- `Think1` - Raciocínio interno
+- `Busca_disponibilidade` - API GHL calendário
+- `Agendar_reuniao` - Criar agendamento
+- `Atualizar_work_permit` - Salvar work permit
+- `Atualizar_estado` - Salvar estado
+- `Atualizar_profissao` - Salvar profissão
+- `Adicionar_tag_perdido` - Desqualificar
+- `Busca_historias` - Histórias do responsável
+
+---
+
+## 📍 FASE 9: PÓS-PROCESSAMENTO
+
+| Nó | Função |
+|-----|--------|
+| **Tudo certo?3/4** | Valida output (não contém `<ctrl`, não vazio) |
+| **Filter** | `output.length > 2` |
+| **Code in JavaScript2** | Estima tokens |
+| **Parser Chain** | LLM formata msg para WhatsApp/IG (remove #, **, quebras) |
+| **Structured Output Parser** | JSON `{messages: [...]}` |
+| **If1** | Valida que não contém "parsed", "split", "properties", "type" |
+
+---
+
+## 📍 FASE 10: ENVIO
+
+| Nó | Função |
+|-----|--------|
+| **Canal** | Switch WhatsApp vs Instagram |
+| **Whatsapp** | POST `/conversations/messages` type=SMS |
+| **Instagram** | POST `/conversations/messages` type=IG |
+| **Loop Over Items3** | Split em batches |
+| **1.5s** | Wait entre msgs |
+| **Execution Data1** | Salva `a_lead_response` |
+| **Memoria IA** | Persiste resposta no histórico |
+
+---
+
+## 📍 FASE 11: RASTREIO E CUSTO
+
+| Nó | Função |
+|-----|--------|
+| **Calcular Custo LLM** | Estima tokens Gemini 2.5 Pro |
+| **Call Track AI Cost** | Workflow externo para registrar custo |
+| **Postgres** (execution_metrics) | INSERT métricas de execução |
+
+---
+
+## 📍 FASE AUXILIAR: OBJETIVO INDEFINIDO
+
+| Nó | Função |
+|-----|--------|
+| **1️⃣ Listar campos customizados** | GET custom fields do GHL |
+| **2️⃣ Buscar Conversa** | GET conversation |
+| **3️⃣ Detectar Objetivo** | LLM classifica carreira/consultoria/indefinido |
+| **4️⃣ Switch Objetivo** | Roteia |
+| **5️⃣ Atualizar → Carreira/Consultoria** | PUT contact customFields |
+| **5️⃣ Perguntar Objetivo** | Envia mensagem perguntando objetivo |
+
+---
+
+## 🔄 TABELAS POSTGRES
+
+| Tabela | Uso |
+|--------|-----|
+| `n8n_active_conversation` | Controle de concorrência |
+| `n8n_historico_mensagens` | Memória conversacional |
+| `ops_fila_mensagens` | Fila de mensagens pendentes |
+| `execution_metrics` | Telemetria |
+
+---
+
+Pronto! Tenho a **visão 360°** do fluxo. Pode contextualizar agora! 🎯

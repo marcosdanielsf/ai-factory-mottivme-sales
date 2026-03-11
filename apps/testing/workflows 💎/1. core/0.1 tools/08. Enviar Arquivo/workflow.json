@@ -1,0 +1,126 @@
+{
+  "name": "08. Enviar Arquivo (node extraído)",
+  "source": "0.1 - Fluxo Principal de Conversasão - GHL - Versionado",
+  "type": "node_group",
+  "nodes": [
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Utilize essa ferramenta para listar os arquivos disponíveis para envio para o usuário.",
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "18mSZn8rMAt_9hFpj5oITD1wRLMKHqk0s",
+            "mode": "list",
+            "cachedResultName": "Arquivos da Secretária v3",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/18mSZn8rMAt_9hFpj5oITD1wRLMKHqk0s"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        38176,
+        28144
+      ],
+      "id": "a6a1c572-f2fa-4f6d-a783-7236fb233c2f",
+      "name": "Listar arquivos",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "huUvmVlBHgVbw2p1",
+          "name": "drive marcos - supabase - supercérebro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Utilize essa ferramenta para enviar um arquivo do Google Drive para o usuário.\n",
+        "workflowId": {
+          "__rl": true,
+          "value": "si0lxAyvbgKOoO0g",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/si0lxAyvbgKOoO0g",
+          "cachedResultName": "02. Baixar e enviar arquivo do Google Drive"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_id', ``, 'string') }}",
+            "id_conversa": "={{ $('Edit Fields').first().json.conversationId }}",
+            "source": "={{ $('Info').first().json.source }}",
+            "contact_id": "={{ $('Edit Fields').first().json.contactId }}",
+            "api_key": "={{ $('Info').first().json.api_key }}"
+          },
+          "matchingColumns": [
+            "file_id"
+          ],
+          "schema": [
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "id_conversa",
+              "displayName": "id_conversa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "api_key",
+              "displayName": "api_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        38432,
+        28144
+      ],
+      "id": "db6e99b9-4471-4223-9732-be3660964b40",
+      "name": "Enviar arquivo"
+    }
+  ]
+}

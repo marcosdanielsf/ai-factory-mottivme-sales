@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-01-26 01:05:47",
+  "prompt_version": "v8.0.0",
+  "overall_score": 82.5,
+  "needs_improvement": false,
+  "simulations": [
+    {
+      "persona": "Maria",
+      "outcome": "lost",
+      "turn_count": 7,
+      "score": 77.5
+    },
+    {
+      "persona": "Joana",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 85.0
+    },
+    {
+      "persona": "Ana",
+      "outcome": "lost",
+      "turn_count": 12,
+      "score": 83.75
+    },
+    {
+      "persona": "Claudia",
+      "outcome": "pending",
+      "turn_count": 12,
+      "score": 81.25
+    },
+    {
+      "persona": "Patricia",
+      "outcome": "converted",
+      "turn_count": 11,
+      "score": 85.0
+    }
+  ],
+  "recommended_changes": [
+    {
+      "section": "LINGUAGEM SENSORIAL (NOVA - v8.0.0)",
+      "issue": "Falta de exemplos de linguagem hipnótica para reforçar a conexão emocional",
+      "suggested_text": "Adicionar exemplos de linguagem hipnótica, como: 'Imagine-se livre dos sintomas', 'Visualize a melhoria em sua saúde', 'Sinta a energia e a vitalidade retornando'."
+    },
+    {
+      "section": "REGRAS DE FORMATACAO",
+      "issue": "Limitação de linhas por mensagem",
+      "suggested_text": "Aumentar o limite de linhas por mensagem para 5, permitindo uma comunicação mais detalhada e personalizada."
+    },
+    {
+      "section": "SCRIPT QUANDO LEAD PEDIR PRECO ANTES",
+      "issue": "Falta de clareza na resposta ao lead quando pede o preço antes",
+      "suggested_text": "Adicionar uma resposta mais detalhada e personalizada, como: 'Entendo sua curiosidade, [LEAD]. Antes de falar sobre o valor, me conta: o que você espera alcançar com a consulta? Quero entender seu caso para te passar a informação mais completa e personalizada.'"
+    },
+    {
+      "section": "REGRA DE GARANTIA (NOVA - v8.0.0)",
+      "issue": "Falta de clareza na explicação da garantia",
+      "suggested_text": "Adicionar uma explicação mais detalhada sobre a garantia, como: 'Nossa garantia é baseada na satisfação do paciente. Se você não estiver satisfeito com o resultado, podemos oferecer uma reconsulta ou um plano de ação personalizado para atender às suas necessidades.'"
+    },
+    {
+      "section": "REGRAS DE FLUXO (CRITICO)",
+      "issue": "Falta de clareza na transição entre a apresentação do valor e o fechamento",
+      "suggested_text": "SEMPRE combinar empatia + solucao personalizada + fechamento suave, utilizando frases como: 'Agora que entendemos melhor seu caso, gostaria de agendar uma consulta para discutir como podemos ajudá-lo a alcançar seus objetivos de saúde?'"
+    }
+  ]
+}

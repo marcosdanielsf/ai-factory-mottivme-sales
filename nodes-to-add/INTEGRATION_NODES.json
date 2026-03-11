@@ -1,0 +1,112 @@
+{
+  "description": "NODOS PARA ADICIONAR AO FLUXO PRINCIPAL - Integração com Self-Improving AI",
+  "instructions": [
+    "1. Importe estes nós no fluxo 'GHL - Mottivme - EUA Versionado'",
+    "2. Conecte 'Upsert Conversation' após o nó 'Info' (em paralelo)",
+    "3. Conecte 'Insert Lead Message' após 'historico_mensagens_leads' (em paralelo)",
+    "4. Conecte 'Insert AI Message' após 'Memoria IA' (em paralelo)",
+    "5. Conecte 'Update Conversation Outcome' após mudanças de etapa do funil"
+  ],
+
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Criar/Atualizar conversa quando nova mensagem chega\nINSERT INTO agent_conversations (\n  id,\n  agent_version_id,\n  contact_id,\n  conversation_id,\n  channel,\n  status,\n  started_at,\n  mensagens_total,\n  qa_analyzed\n)\nSELECT\n  gen_random_uuid(),\n  av.id,\n  '{{ $('Info').first().json.lead_id }}',\n  '{{ $('Info').first().json.lead_id }}',\n  '{{ $('Info').first().json.source }}',\n  'active',\n  NOW(),\n  1,\n  false\nFROM agent_versions av\nWHERE av.location_id = '{{ $('Info').first().json.location_id }}'\n  AND av.is_active = true\nLIMIT 1\nON CONFLICT (contact_id) DO UPDATE SET\n  mensagens_total = agent_conversations.mensagens_total + 1,\n  updated_at = NOW();\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1900, -400],
+      "id": "integration-upsert-conversation",
+      "name": "Upsert Conversation (Self-Improving)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notes": "Cria ou atualiza a conversa na tabela agent_conversations para o Self-Improving AI analisar",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Inserir mensagem do LEAD\nINSERT INTO agent_conversation_messages (\n  id,\n  conversation_id,\n  message_text,\n  is_from_lead,\n  message_type,\n  created_at\n)\nSELECT\n  gen_random_uuid(),\n  ac.id,\n  '{{ $json.mensagem }}',\n  true,\n  '{{ $('Info').first().json.tipo_mensagem_original }}',\n  NOW()\nFROM agent_conversations ac\nWHERE ac.contact_id = '{{ $('Info').first().json.lead_id }}'\nLIMIT 1;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2024, -224],
+      "id": "integration-insert-lead-message",
+      "name": "Insert Lead Message (Self-Improving)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notes": "Insere mensagem do lead na tabela agent_conversation_messages",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Inserir mensagem da IA\nINSERT INTO agent_conversation_messages (\n  id,\n  conversation_id,\n  message_text,\n  is_from_lead,\n  message_type,\n  created_at\n)\nSELECT\n  gen_random_uuid(),\n  ac.id,\n  '{{ $('Parser  Chain').first().json.output.messages.join(\"\") }}',\n  false,\n  'text',\n  NOW()\nFROM agent_conversations ac\nWHERE ac.contact_id = '{{ $('Info').first().json.lead_id }}'\nLIMIT 1;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2400, 500],
+      "id": "integration-insert-ai-message",
+      "name": "Insert AI Message (Self-Improving)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notes": "Insere resposta da IA na tabela agent_conversation_messages",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Atualizar outcome da conversa quando muda etapa do funil\nUPDATE agent_conversations\nSET\n  outcome = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Agendamento Marcado', 'Reagendado') THEN 'scheduled'\n    WHEN '{{ $json.etapa_funil }}' IN ('Perdido', 'No-Show') THEN 'lost'\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Reunião Realizada') THEN 'converted'\n    WHEN '{{ $json.etapa_funil }}' IN ('Qualificado', 'Em Follow-Up') THEN 'warmed'\n    ELSE 'in_progress'\n  END,\n  status = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Perdido') THEN 'completed'\n    ELSE 'active'\n  END,\n  ended_at = CASE\n    WHEN '{{ $json.etapa_funil }}' IN ('Cliente Ativo', 'Perdido') THEN NOW()\n    ELSE NULL\n  END,\n  updated_at = NOW()\nWHERE contact_id = '{{ $('Info').first().json.lead_id }}';\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2600, -400],
+      "id": "integration-update-outcome",
+      "name": "Update Conversation Outcome (Self-Improving)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "notes": "Atualiza o outcome da conversa quando a etapa do funil muda",
+      "onError": "continueRegularOutput"
+    }
+  ],
+
+  "mapping_fields": {
+    "agent_conversations": {
+      "agent_version_id": "Buscado automaticamente pelo location_id",
+      "contact_id": "$('Info').first().json.lead_id",
+      "conversation_id": "$('Info').first().json.lead_id (mesmo que contact_id)",
+      "channel": "$('Info').first().json.source (whatsapp, instagram, etc)",
+      "status": "active -> completed",
+      "outcome": "in_progress -> scheduled/lost/converted/warmed",
+      "mensagens_total": "Incrementado automaticamente",
+      "qa_analyzed": "false (Reflection Loop atualiza para true após análise)"
+    },
+    "agent_conversation_messages": {
+      "conversation_id": "FK para agent_conversations.id",
+      "message_text": "Conteúdo da mensagem",
+      "is_from_lead": "true = mensagem do lead, false = mensagem da IA",
+      "message_type": "text, audio, imagem"
+    }
+  }
+}

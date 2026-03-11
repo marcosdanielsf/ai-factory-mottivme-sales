@@ -1,0 +1,269 @@
+{
+  "name": "20-Improver-Semanal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * 0" }]
+        }
+      },
+      "id": "cron-domingo",
+      "name": "1.0 Cron Domingo 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "improver-trigger",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-trigger",
+      "name": "1.1 Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "improver-trigger"
+    },
+    {
+      "parameters": {},
+      "id": "merge-triggers",
+      "name": "1.2 Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM agent_versions \nWHERE location_id = '{{ $env.DEFAULT_LOCATION_ID || 'I0LCuaH8lRKFMfvfxpDe' }}'\n  AND status = 'active'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "db-get-version",
+      "name": "2.0 Get Versao Ativa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": { "id": "postgres-supabase", "name": "Postgres Marcos Daniels" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare 3 lead profiles for simulation\nconst version = $input.first().json;\n\nconst leads = [\n  {\n    id: 'cetica',\n    nome: 'Fernanda',\n    idade: 42,\n    cidade: 'Cuiaba-MT',\n    contexto: 'ja gastou muito sem resultado',\n    opener: 'Ola, tenho visto seus stories sobre metabolismo lento. Ja passei por varios nutricionistas sem resultados. Estou desconfiada.'\n  },\n  {\n    id: 'apressada',\n    nome: 'Mariana',\n    idade: 35,\n    cidade: 'Sao Paulo',\n    contexto: 'pouco tempo, executiva',\n    opener: 'Oi! Vi o perfil da Dra. e me interessei. Sou bem objetiva, quanto custa e como funciona?'\n  },\n  {\n    id: 'indecisa',\n    nome: 'Amanda',\n    idade: 32,\n    cidade: 'Porto Alegre',\n    contexto: 'interessada mas precisa pensar',\n    opener: 'Ola! Uma amiga indicou. Estou pesquisando opcoes para emagrecer de forma saudavel. Podem me contar mais?'\n  }\n];\n\nreturn leads.map(lead => ({\n  json: {\n    version_id: version.id,\n    version_number: version.version,\n    system_prompt: version.system_prompt,\n    sdr_prompt: version.prompts_by_mode?.sdr_inbound || '',\n    lead\n  }\n}));"
+      },
+      "id": "prepare-leads",
+      "name": "2.1 Preparar 3 Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "id": "loop-simulations",
+      "name": "3.0 Loop Simulacoes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5\",\n  \"messages\": [\n    {\"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt + '\\n\\n' + $json.sdr_prompt) }}},\n    {\"role\": \"user\", \"content\": \"Simule uma conversa completa entre Isabella (assistente) e {{ $json.lead.nome }} (lead).\\n\\nPERFIL DO LEAD:\\n- Nome: {{ $json.lead.nome }}\\n- Idade: {{ $json.lead.idade }} anos\\n- Cidade: {{ $json.lead.cidade }}\\n- Contexto: {{ $json.lead.contexto }}\\n\\nMENSAGEM INICIAL DO LEAD:\\n{{ $json.lead.opener }}\\n\\nSimule a conversa COMPLETA ate o fechamento (ou perda). Use formato:\\nLEAD: mensagem\\nISABELLA: resposta\\n\\nMáximo 14 mensagens.\"}\n  ],\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.7, \"num_predict\": 2000 }\n}",
+        "options": { "timeout": 180000 }
+      },
+      "id": "ollama-simulate",
+      "name": "3.1 Simular Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prev = $('3.0 Loop Simulacoes').first().json;\n\nreturn {\n  json: {\n    lead_id: prev.lead.id,\n    lead_name: prev.lead.nome,\n    version_id: prev.version_id,\n    version_number: prev.version_number,\n    conversation: response.message?.content || response.response || 'ERROR'\n  }\n};"
+      },
+      "id": "parse-simulation",
+      "name": "3.2 Parse Simulacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {},
+      "id": "collect-simulations",
+      "name": "3.3 Coletar Simulacoes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare specialist evaluations\nconst sims = $input.all().map(i => i.json);\nconst allConvs = sims.map(s => `--- LEAD ${s.lead_name} ---\\n${s.conversation}`).join('\\n\\n');\n\nconst specialists = [\n  {\n    type: 'pnl',\n    prompt: `Voce e especialista em PNL.\\n\\nCONVERSAS:\\n${allConvs}\\n\\nAVALIE (0-10): Yes Set, Pressuposicoes, VAC, Rapport, Naturalidade\\n\\nJSON: {\"score_total\": X, \"criterios\": {...}, \"sugestoes\": [...]}`\n  },\n  {\n    type: 'neurovendas',\n    prompt: `Voce e especialista em Neurovendas.\\n\\nCONVERSAS:\\n${allConvs}\\n\\nAVALIE (0-10): 3 Cerebros, Escassez, Autoridade, Prova Social, Reframe Preco\\n\\nJSON: {\"score_total\": X, \"criterios\": {...}, \"sugestoes\": [...]}`\n  },\n  {\n    type: 'pessoas',\n    prompt: `Voce e especialista em Comunicacao.\\n\\nCONVERSAS:\\n${allConvs}\\n\\nAVALIE (0-10): Empatia, Fluidez, Nome, Respostas, Fechamento\\n\\nJSON: {\"score_total\": X, \"criterios\": {...}, \"sugestoes\": [...]}`\n  }\n];\n\nreturn specialists.map(s => ({\n  json: { ...s, version_id: sims[0]?.version_id, version_number: sims[0]?.version_number }\n}));"
+      },
+      "id": "prepare-specialists",
+      "name": "4.0 Preparar Especialistas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "id": "loop-specialists",
+      "name": "4.1 Loop Especialistas",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2220, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"glm4\",\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.3 }\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "ollama-evaluate",
+      "name": "4.2 Avaliar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.response || '';\nconst prev = $('4.1 Loop Especialistas').first().json;\n\ntry {\n  const match = response.match(/\\{[\\s\\S]*\\}/);\n  if (match) {\n    const eval_ = JSON.parse(match[0]);\n    return { json: { type: prev.type, score: eval_.score_total, sugestoes: eval_.sugestoes || [], version_id: prev.version_id } };\n  }\n} catch (e) {}\n\nreturn { json: { type: prev.type, score: 70, sugestoes: [], error: 'parse failed' } };"
+      },
+      "id": "parse-evaluation",
+      "name": "4.3 Parse Avaliacao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 400]
+    },
+    {
+      "parameters": {},
+      "id": "collect-evaluations",
+      "name": "4.4 Coletar Avaliacoes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2880, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const evals = $input.all().map(i => i.json);\nconst pnl = evals.find(e => e.type === 'pnl') || { score: 0 };\nconst neuro = evals.find(e => e.type === 'neurovendas') || { score: 0 };\nconst pessoas = evals.find(e => e.type === 'pessoas') || { score: 0 };\n\nconst media = Math.round((pnl.score + neuro.score + pessoas.score) / 3);\nconst sugestoes = [...(pnl.sugestoes || []), ...(neuro.sugestoes || []), ...(pessoas.sugestoes || [])];\n\nreturn {\n  json: {\n    version_id: pnl.version_id,\n    scores: { pnl: pnl.score, neurovendas: neuro.score, pessoas: pessoas.score, media },\n    sugestoes,\n    needs_improvement: media < 85,\n    summary: media >= 85 ? `✅ Score ${media}/100 - OK!` : `⚠️ Score ${media}/100 - Melhorando...`\n  }\n};"
+      },
+      "id": "synthesize",
+      "name": "5.0 Sintetizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "needs-improve", "leftValue": "={{ $json.needs_improvement }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "if-needs-improvement",
+      "name": "5.1 Score < 85?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3320, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 4000,\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"Otimize este prompt de agente SDR.\\n\\nSCORES ATUAIS:\\nPNL: {{ $json.scores.pnl }}, Neurovendas: {{ $json.scores.neurovendas }}, Pessoas: {{ $json.scores.pessoas }}\\nMedia: {{ $json.scores.media }}/100\\n\\nSUGESTOES:\\n{{ $json.sugestoes.slice(0,10).join('\\\\n') }}\\n\\nGere melhorias especificas. Retorne JSON:\\n{\\\"melhorias\\\": [{\\\"tipo\\\": \\\"...\\\", \\\"descricao\\\": \\\"...\\\"}], \\\"nova_versao\\\": \\\"X.X.X\\\", \\\"resumo\\\": \\\"...\\\"}\"\n  }]\n}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "claude-improve",
+      "name": "5.2 Claude Melhorar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst prev = $('5.0 Sintetizar').first().json;\n\ntry {\n  const content = resp.content?.[0]?.text || '';\n  const match = content.match(/\\{[\\s\\S]*\\}/);\n  if (match) {\n    const imp = JSON.parse(match[0]);\n    return { json: { improvements: imp.melhorias, new_version: imp.nova_versao, summary: imp.resumo, scores: prev.scores } };\n  }\n} catch (e) {}\n\nreturn { json: { error: 'parse failed', scores: prev.scores } };"
+      },
+      "id": "parse-improvements",
+      "name": "5.3 Parse Melhorias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3760, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "Bearer {{ $env.WHATSAPP_TOKEN }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.NOTIFY_PHONE }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"🚀 *IMPROVER - Ciclo Completo*\\n\\n📊 Scores:\\n• PNL: {{ $('5.0 Sintetizar').first().json.scores.pnl }}/100\\n• Neurovendas: {{ $('5.0 Sintetizar').first().json.scores.neurovendas }}/100\\n• Pessoas: {{ $('5.0 Sintetizar').first().json.scores.pessoas }}/100\\n• *Media: {{ $('5.0 Sintetizar').first().json.scores.media }}/100*\\n\\n{{ $('5.0 Sintetizar').first().json.needs_improvement ? '🔧 Melhorias geradas!' : '✅ Versao aprovada!' }}\"\n  }\n}"
+      },
+      "id": "whatsapp-notify",
+      "name": "6.0 WhatsApp Final",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3980, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_improvement_logs (\n  location_id, trigger_type, score_pnl, score_neurovendas, score_pessoas, score_media,\n  issues_found, improvements_applied, version_improved\n) VALUES (\n  '{{ $env.DEFAULT_LOCATION_ID || 'I0LCuaH8lRKFMfvfxpDe' }}',\n  'weekly',\n  {{ $('5.0 Sintetizar').first().json.scores.pnl }},\n  {{ $('5.0 Sintetizar').first().json.scores.neurovendas }},\n  {{ $('5.0 Sintetizar').first().json.scores.pessoas }},\n  {{ $('5.0 Sintetizar').first().json.scores.media }},\n  '{{ JSON.stringify($('5.0 Sintetizar').first().json.sugestoes || []) }}',\n  '{{ $json.improvements ? JSON.stringify($json.improvements) : '[]' }}',\n  {{ $('5.0 Sintetizar').first().json.needs_improvement }}\n);",
+        "options": {}
+      },
+      "id": "db-save-log",
+      "name": "6.1 Salvar Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [4200, 400],
+      "credentials": {
+        "postgres": { "id": "postgres-supabase", "name": "Postgres Marcos Daniels" }
+      }
+    }
+  ],
+  "connections": {
+    "1.0 Cron Domingo 8h": { "main": [[{ "node": "1.2 Merge Triggers", "type": "main", "index": 0 }]] },
+    "1.1 Webhook Trigger": { "main": [[{ "node": "1.2 Merge Triggers", "type": "main", "index": 1 }]] },
+    "1.2 Merge Triggers": { "main": [[{ "node": "2.0 Get Versao Ativa", "type": "main", "index": 0 }]] },
+    "2.0 Get Versao Ativa": { "main": [[{ "node": "2.1 Preparar 3 Leads", "type": "main", "index": 0 }]] },
+    "2.1 Preparar 3 Leads": { "main": [[{ "node": "3.0 Loop Simulacoes", "type": "main", "index": 0 }]] },
+    "3.0 Loop Simulacoes": { "main": [[{ "node": "3.1 Simular Conversa", "type": "main", "index": 0 }], [{ "node": "3.3 Coletar Simulacoes", "type": "main", "index": 0 }]] },
+    "3.1 Simular Conversa": { "main": [[{ "node": "3.2 Parse Simulacao", "type": "main", "index": 0 }]] },
+    "3.2 Parse Simulacao": { "main": [[{ "node": "3.0 Loop Simulacoes", "type": "main", "index": 0 }]] },
+    "3.3 Coletar Simulacoes": { "main": [[{ "node": "4.0 Preparar Especialistas", "type": "main", "index": 0 }]] },
+    "4.0 Preparar Especialistas": { "main": [[{ "node": "4.1 Loop Especialistas", "type": "main", "index": 0 }]] },
+    "4.1 Loop Especialistas": { "main": [[{ "node": "4.2 Avaliar", "type": "main", "index": 0 }], [{ "node": "4.4 Coletar Avaliacoes", "type": "main", "index": 0 }]] },
+    "4.2 Avaliar": { "main": [[{ "node": "4.3 Parse Avaliacao", "type": "main", "index": 0 }]] },
+    "4.3 Parse Avaliacao": { "main": [[{ "node": "4.1 Loop Especialistas", "type": "main", "index": 0 }]] },
+    "4.4 Coletar Avaliacoes": { "main": [[{ "node": "5.0 Sintetizar", "type": "main", "index": 0 }]] },
+    "5.0 Sintetizar": { "main": [[{ "node": "5.1 Score < 85?", "type": "main", "index": 0 }]] },
+    "5.1 Score < 85?": { "main": [[{ "node": "5.2 Claude Melhorar", "type": "main", "index": 0 }], [{ "node": "6.0 WhatsApp Final", "type": "main", "index": 0 }]] },
+    "5.2 Claude Melhorar": { "main": [[{ "node": "5.3 Parse Melhorias", "type": "main", "index": 0 }]] },
+    "5.3 Parse Melhorias": { "main": [[{ "node": "6.0 WhatsApp Final", "type": "main", "index": 0 }]] },
+    "6.0 WhatsApp Final": { "main": [[{ "node": "6.1 Salvar Log", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "id": "auto-improve", "name": "Auto-Improve" }],
+  "triggerCount": 2,
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "ai-factory-mottivme" }
+}

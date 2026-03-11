@@ -1,0 +1,119 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT try_acquire_processing_lock(\n  $1::text,\n  $2::text,\n  $3::text,\n  5\n) as lock_acquired;",
+        "options": {
+          "queryReplacement": "={{ [$json.contact?.id || $json.contactId || $json.unique_id, $execution.id, $json.message?.id || $json.messageId || 'no-msg-id'].join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [620, 300],
+      "id": "a1b2c3d4-lock-acquire",
+      "name": "🔒 Acquire Lock",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Tenta adquirir lock. Se false = duplicata."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-lock",
+              "leftValue": "={{ $json.lock_acquired }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [840, 300],
+      "id": "a1b2c3d4-lock-check",
+      "name": "🔒 Lock OK?",
+      "notesInFlow": true,
+      "notes": "TRUE=processar | FALSE=duplicata"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Duplicata detectada - logar e parar\nconst input = $input.first().json;\n\nconsole.log('[ANTIDUPLICATE] Bloqueado:', {\n  contact: input.contact?.id || input.contactId || input.unique_id,\n  message: input.message?.id || input.messageId,\n  execution: $execution.id,\n  time: new Date().toISOString()\n});\n\nreturn [{ \n  json: { \n    status: 'DUPLICATE_BLOCKED',\n    reason: 'Lock não adquirido - mensagem duplicada',\n    blocked_at: new Date().toISOString()\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 460],
+      "id": "a1b2c3d4-log-duplicate",
+      "name": "📛 Duplicata Bloqueada",
+      "notesInFlow": true,
+      "notes": "Loga e PARA execução"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT release_processing_lock($1::text, $2::text) as released;",
+        "options": {
+          "queryReplacement": "={{ [$json.contact?.id || $json.contactId || $json.unique_id, $execution.id].join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1500, 300],
+      "id": "a1b2c3d4-lock-release",
+      "name": "🔓 Release Lock",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "Libera lock após processar"
+    }
+  ],
+  "connections": {
+    "🔒 Acquire Lock": {
+      "main": [
+        [
+          {
+            "node": "🔒 Lock OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔒 Lock OK?": {
+      "main": [
+        [
+          {
+            "node": "📛 Duplicata Bloqueada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  }
+}

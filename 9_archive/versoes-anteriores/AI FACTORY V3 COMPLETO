@@ -1,0 +1,101 @@
+Vou gerar o **workflow completo** que integra tudo: GHL Architect V2 + Hiperpersonalização + Validação.Pronto! Criei o **workflow completo** da AI Factory v3.
+
+---
+
+## 🏭 AI FACTORY v3.0 - RESUMO
+
+### O QUE ESTÁ INCLUÍDO
+
+| Fase | Nós | Função |
+|------|-----|--------|
+| **FASE 1** | 1.1 → 1.7 | Análise de Kickoff com GHL Architect V2 |
+| **FASE 2** | 2.1 → 2.3 | Geração do Agente + Hiperpersonalização |
+| **FASE 3** | 3.1 → 3.7 | Validação + Auto-Aprovação/Notificação |
+
+---
+
+### 📋 PROMPT DE ANÁLISE (Nó 1.7)
+
+Implementa o **GHL Architect V2 completo**:
+
+```
+✅ BLOCO 1: Persona e Contexto
+✅ BLOCO 2: Objetivo Primário (Prime Directive)
+✅ BLOCO 3: Protocolo de Condução (Chain of Thought)
+✅ BLOCO 4: Guardrails (instruções afirmativas)
+✅ BLOCO 5: Few-Shot Training (5+ exemplos)
+```
+
+---
+
+### 🎯 HIPERPERSONALIZAÇÃO (Nó 2.1)
+
+**3 Camadas implementadas:**
+
+| Camada | Dados | Uso |
+|--------|-------|-----|
+| **Geográfica** | DDD → Cidade | "São Paulo, o coração empresarial!" |
+| **Empresarial** | Setor → Analogias | "reforço para o time", "diagnóstico preciso" |
+| **Porte/Cargo** | Funcionários/Cargo | Tom executivo vs casual |
+
+**DDDs incluídos:** 11, 12, 19, 21, 22, 31, 32, 41, 47, 51, 61, 62, 71, 81, 85, 91, 92
+
+**Setores com analogias:** saúde, tech, jurídico, educação, varejo, imobiliário, financeiro, esporte
+
+---
+
+### ✅ VALIDAÇÃO (Nó 3.2)
+
+**8 cenários base** + cenários específicos por setor:
+
+- Saudação inicial
+- Demonstração de interesse
+- Objeção de preço
+- Objeção de tempo
+- Pergunta fora do escopo
+- Pedido de escalação
+- Pedido de agendamento
+- Resposta monossilábica (prevenção de loop)
+
+**Cenários extras por setor:**
+- Saúde: Pedido de diagnóstico (BLOQUEIO), Valor de tratamento
+- Jurídico: Pedido de parecer (BLOQUEIO)
+- Financeiro: Garantia de retorno (BLOQUEIO)
+
+---
+
+### 📊 FLUXO DE APROVAÇÃO
+
+```
+APROVADO (≥8.0)          → Auto-ativa + Notifica CS ✅
+APROVADO_COM_RESTRIÇÕES  → Notifica CS para decisão ⚠️
+BLOQUEADO (<6.0)         → Não ativa + Notifica CS 🚫
+```
+
+---
+
+### 🔧 ANTES DE USAR
+
+1. **Atualizar credenciais:**
+   - Google Drive OAuth
+   - Postgres (Supabase)
+   - Groq API
+   - Anthropic API (Claude)
+   - GHL API Token
+
+2. **Atualizar IDs:**
+   - Folder ID do Google Drive (nó 1.1)
+   - Contact ID para notificações WhatsApp
+
+3. **Rodar migration SQL** (se ainda não existir):
+```sql
+ALTER TABLE agent_versions
+ADD COLUMN IF NOT EXISTS validation_status VARCHAR(50),
+ADD COLUMN IF NOT EXISTS validation_result JSONB,
+ADD COLUMN IF NOT EXISTS validation_score NUMERIC(4,2),
+ADD COLUMN IF NOT EXISTS validated_at TIMESTAMP WITH TIME ZONE;
+```
+
+---
+
+Quer que eu também gere o **arquivo CLAUDE.md** com todo o framework pra adicionar no projeto do VS Code?

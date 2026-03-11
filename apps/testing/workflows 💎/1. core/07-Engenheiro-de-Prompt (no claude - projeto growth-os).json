@@ -1,0 +1,607 @@
+{
+  "name": "Engenheiro de Prompt",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "engenheiro-prompt",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [400, 300],
+      "id": "webhook-trigger",
+      "name": "Webhook - Engenheiro de Prompt",
+      "webhookId": "engenheiro-prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse do comando recebido\nconst body = $input.first().json.body || $input.first().json;\n\nlet comando = body.comando || '';\nlet cliente = body.cliente || '';\nlet instrucao = body.instrucao || '';\nlet versao = body.versao || '';\nlet versionId = body.version_id || '';\nlet suggestionId = body.suggestion_id || '';\nlet motivo = body.motivo || '';\nlet locationId = body.location_id || 'cd1uyzpJox6XPt4Vct8Y';\n\n// Parse de comando via texto\nif (body.message && typeof body.message === 'string') {\n  const msg = body.message.trim();\n  \n  if (msg.startsWith('/prompt ')) {\n    const parts = msg.substring(8).split(' ');\n    comando = parts[0]?.toLowerCase() || '';\n    \n    if (comando === 'listar') {\n      // /prompt listar\n    } else if (comando === 'ver' || comando === 'historico') {\n      cliente = parts.slice(1).join(' ').replace(/\"/g, '').trim();\n    } else if (comando === 'editar') {\n      const match = msg.match(/editar\\s+[\"']?([^\"']+)[\"']?\\s+[\"']?(.+)[\"']?$/i);\n      if (match) {\n        cliente = match[1].trim();\n        instrucao = match[2].trim();\n      }\n    } else if (comando === 'rollback') {\n      const match = msg.match(/rollback\\s+[\"']?([^\"']+)[\"']?\\s+(v\\d+\\.\\d+)/i);\n      if (match) {\n        cliente = match[1].trim();\n        versao = match[2];\n      }\n    } else if (comando === 'aprovar') {\n      suggestionId = parts[1] || '';\n      versionId = parts[1] || '';\n    } else if (comando === 'rejeitar') {\n      suggestionId = parts[1] || '';\n      versionId = parts[1] || '';\n      motivo = parts.slice(2).join(' ') || 'Rejeitado pelo operador';\n    } else if (comando === 'sugestoes') {\n      cliente = parts.slice(1).join(' ').replace(/\"/g, '').trim();\n    } else if (comando === 'diff') {\n      suggestionId = parts[1] || '';\n    }\n  }\n}\n\nconst comandosValidos = ['listar', 'ver', 'editar', 'historico', 'rollback', 'aprovar', 'rejeitar', 'sugestoes', 'diff'];\nif (!comandosValidos.includes(comando.toLowerCase())) {\n  comando = 'ajuda';\n}\n\nreturn [{\n  json: {\n    comando: comando.toLowerCase(),\n    cliente,\n    instrucao,\n    versao,\n    version_id: versionId,\n    suggestion_id: suggestionId,\n    motivo,\n    location_id: locationId,\n    raw_body: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300],
+      "id": "parse-comando",
+      "name": "Parse Comando"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-listar",
+              "leftValue": "={{ $json.comando }}",
+              "rightValue": "listar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 100],
+      "id": "check-listar",
+      "name": "Comando Listar?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-ver",
+              "leftValue": "={{ $json.comando }}",
+              "rightValue": "ver",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300],
+      "id": "check-ver",
+      "name": "Comando Ver?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-editar",
+              "leftValue": "={{ $json.comando }}",
+              "rightValue": "editar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 500],
+      "id": "check-editar",
+      "name": "Comando Editar?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-aprovar",
+              "leftValue": "={{ $json.comando }}",
+              "rightValue": "aprovar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 700],
+      "id": "check-aprovar",
+      "name": "Comando Aprovar?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.id, av.versao, av.is_active, av.status, av.created_at, c.nome as cliente_nome, c.ghl_contact_id FROM agent_versions av JOIN clients c ON av.client_id = c.id WHERE av.is_active = TRUE ORDER BY c.nome",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1120, 0],
+      "id": "listar-agentes",
+      "name": "Listar Agentes Ativos",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.*, c.nome as cliente_nome FROM agent_versions av JOIN clients c ON av.client_id = c.id WHERE c.nome ILIKE '%{{ $('Parse Comando').item.json.cliente }}%' AND av.is_active = TRUE LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1120, 200],
+      "id": "ver-agente",
+      "name": "Ver Agente",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT av.*, c.nome as cliente_nome, c.id as client_id FROM agent_versions av JOIN clients c ON av.client_id = c.id WHERE c.nome ILIKE '%{{ $('Parse Comando').item.json.cliente }}%' AND av.is_active = TRUE LIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1120, 400],
+      "id": "buscar-agente-editar",
+      "name": "Buscar Agente para Editar",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE agent_versions SET is_active = TRUE, status = 'active', approved_by = 'Engenheiro de Prompt', approved_at = NOW() WHERE id = '{{ $('Parse Comando').item.json.version_id }}' RETURNING id, versao, client_id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1120, 600],
+      "id": "aprovar-versao",
+      "name": "Aprovar Versao",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gerar mensagem de ajuda\nreturn [{\n  json: {\n    success: true,\n    message: '*ENGENHEIRO DE PROMPT v2.0*\\n\\n*Comandos Basicos:*\\n/prompt listar\\n/prompt ver \"Nome\"\\n/prompt editar \"Nome\" \"instrucao\"\\n/prompt aprovar {id}\\n/prompt rejeitar {id} \"motivo\"\\n\\n*Self-Improving:*\\n/prompt sugestoes\\n/prompt diff {id}\\n\\n*Integracao com 11-Reflection-Loop e 12-Prompt-Improver*',\n    comando: 'ajuda'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 800],
+      "id": "gerar-ajuda",
+      "name": "Gerar Ajuda"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar lista de agentes\nconst agentes = $input.all().map(item => item.json);\n\nif (agentes.length === 0) {\n  return [{ json: { success: true, message: 'Nenhum agente ativo encontrado.', data: [] } }];\n}\n\nconst lista = agentes.map(a => \n  `- ${a.cliente_nome}: ${a.versao} (${a.status})`\n).join('\\n');\n\nreturn [{\n  json: {\n    success: true,\n    message: `*AGENTES ATIVOS (${agentes.length})*\\n\\n${lista}`,\n    data: agentes,\n    comando: 'listar'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 0],
+      "id": "formatar-lista",
+      "name": "Formatar Lista"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar detalhes do agente\nconst agente = $input.first().json;\n\nif (!agente || !agente.id) {\n  return [{ json: { success: false, message: 'Agente nao encontrado.', data: null } }];\n}\n\nconst promptResumo = (agente.system_prompt || '').substring(0, 500) + '...';\n\nreturn [{\n  json: {\n    success: true,\n    message: `*AGENTE: ${agente.cliente_nome}*\\n\\n*Versao:* ${agente.versao}\\n*Status:* ${agente.status}\\n\\n*Prompt (resumo):*\\n${promptResumo}`,\n    data: agente,\n    comando: 'ver'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 200],
+      "id": "formatar-detalhes",
+      "name": "Formatar Detalhes"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Voce e um especialista em engenharia de prompts. Aplique a mudanca solicitada no prompt, mantendo a estrutura. Retorne JSON: {novo_system_prompt, mudancas_aplicadas, impacto, resumo}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"PROMPT ATUAL:\\n{{ $('Buscar Agente para Editar').item.json.system_prompt }}\\n\\nINSTRUCAO:\\n{{ $('Parse Comando').item.json.instrucao }}\\n\\nRetorne APENAS JSON valido.\"\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 4000\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 400],
+      "id": "ai-aplicar-mudanca",
+      "name": "AI - Aplicar Mudanca (Groq)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "groq-api-key",
+          "name": "Groq API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta da IA\nconst agenteAtual = $('Buscar Agente para Editar').first().json;\nconst respostaIA = $input.first().json;\nconst dadosComando = $('Parse Comando').first().json;\n\nlet mudanca;\ntry {\n  let output = respostaIA.choices?.[0]?.message?.content || '';\n  output = output.replace(/^```json\\s*/i, '').replace(/```$/g, '').trim();\n  mudanca = JSON.parse(output);\n} catch (e) {\n  return [{\n    json: {\n      success: false,\n      message: 'Erro ao processar mudanca.',\n      erro: e.message\n    }\n  }];\n}\n\nconst versaoAtual = agenteAtual.versao || 'v1.0';\nconst [major, minor] = versaoAtual.replace('v', '').split('.').map(Number);\nconst novaVersao = `v${major}.${minor + 1}`;\n\nreturn [{\n  json: {\n    agente_atual: agenteAtual,\n    nova_versao: {\n      versao: novaVersao,\n      system_prompt: mudanca.novo_system_prompt,\n      tools_config: agenteAtual.tools_config,\n      compliance_rules: agenteAtual.compliance_rules,\n      personality_config: agenteAtual.personality_config\n    },\n    mudanca: mudanca,\n    instrucao_original: dadosComando.instrucao\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 400],
+      "id": "processar-mudanca",
+      "name": "Processar Mudanca"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO agent_versions (\n  client_id,\n  versao,\n  system_prompt,\n  tools_config,\n  compliance_rules,\n  personality_config,\n  is_active,\n  status,\n  previous_version_id\n) VALUES (\n  '{{ $json.agente_atual.client_id }}',\n  '{{ $json.nova_versao.versao }}',\n  $1,\n  $2,\n  $3,\n  $4,\n  FALSE,\n  'pending_approval',\n  '{{ $json.agente_atual.id }}'\n)\nRETURNING id, versao, created_at;",
+        "options": {
+          "queryParams": "={{ [\n  $json.nova_versao.system_prompt,\n  JSON.stringify($json.nova_versao.tools_config || {}),\n  JSON.stringify($json.nova_versao.compliance_rules || {}),\n  JSON.stringify($json.nova_versao.personality_config || {})\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1840, 400],
+      "id": "criar-versao-editar",
+      "name": "Criar Nova Versao",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de edicao\nconst versaoCriada = $input.first().json;\nconst dadosMudanca = $('Processar Mudanca').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    message: `*MUDANCA PROPOSTA*\\n\\n*Cliente:* ${dadosMudanca.agente_atual.cliente_nome}\\n*Versao:* ${dadosMudanca.agente_atual.versao} -> ${versaoCriada.versao}\\n*Status:* pending_approval\\n\\n*ID para aprovar:*\\n${versaoCriada.id}\\n\\n/prompt aprovar ${versaoCriada.id}`,\n    data: {\n      version_id: versaoCriada.id,\n      versao: versaoCriada.versao\n    },\n    comando: 'editar'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 400],
+      "id": "formatar-edicao",
+      "name": "Formatar Resposta Edicao"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de aprovacao\nconst resultado = $input.first().json;\n\nif (!resultado || !resultado.id) {\n  return [{ json: { success: false, message: 'Versao nao encontrada ou ja aprovada.', comando: 'aprovar' } }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    message: `*VERSAO APROVADA*\\n\\n*ID:* ${resultado.id}\\n*Versao:* ${resultado.versao}\\n\\nAgente atualizado!`,\n    data: resultado,\n    comando: 'aprovar'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 600],
+      "id": "formatar-aprovacao",
+      "name": "Formatar Aprovacao"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar resposta\nconst resposta = $input.first().json;\n\nreturn [{\n  json: {\n    ...resposta,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2320, 300],
+      "id": "consolidar-resposta",
+      "name": "Consolidar Resposta"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2560, 300],
+      "id": "responder-webhook",
+      "name": "Responder Webhook"
+    },
+    {
+      "parameters": {
+        "content": "## Engenheiro de Prompt v2.0\n\n**Funcao**: Ajustes e gestao de prompts de agentes.\n\n### Comandos Basicos:\n- listar - Lista agentes ativos\n- ver \"Cliente\" - Mostra config atual\n- editar \"Cliente\" \"instrucao\" - Propoe mudanca\n- aprovar {id} - Aprova versao/sugestao\n- rejeitar {id} \"motivo\" - Rejeita\n\n### Comandos Self-Improving:\n- sugestoes - Lista sugestoes pendentes\n- diff {id} - Mostra diferenca entre versoes\n\n### Webhook:\nPOST /webhook/engenheiro-prompt\n\n### Integracao:\n- 12-Prompt-Improver.json (gera sugestoes)\n- 11-Reflection-Loop.json (triggers)",
+        "height": 400,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [80, 100],
+      "id": "sticky-instrucoes",
+      "name": "Instrucoes"
+    }
+  ],
+  "connections": {
+    "Webhook - Engenheiro de Prompt": {
+      "main": [
+        [
+          {
+            "node": "Parse Comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Comando": {
+      "main": [
+        [
+          {
+            "node": "Comando Listar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando Listar?": {
+      "main": [
+        [
+          {
+            "node": "Listar Agentes Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comando Ver?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando Ver?": {
+      "main": [
+        [
+          {
+            "node": "Ver Agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comando Editar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando Editar?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Agente para Editar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comando Aprovar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando Aprovar?": {
+      "main": [
+        [
+          {
+            "node": "Aprovar Versao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar Ajuda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Agentes Ativos": {
+      "main": [
+        [
+          {
+            "node": "Formatar Lista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ver Agente": {
+      "main": [
+        [
+          {
+            "node": "Formatar Detalhes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Agente para Editar": {
+      "main": [
+        [
+          {
+            "node": "AI - Aplicar Mudanca (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Aplicar Mudanca (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Processar Mudanca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Mudanca": {
+      "main": [
+        [
+          {
+            "node": "Criar Nova Versao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Nova Versao": {
+      "main": [
+        [
+          {
+            "node": "Formatar Resposta Edicao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aprovar Versao": {
+      "main": [
+        [
+          {
+            "node": "Formatar Aprovacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Lista": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Detalhes": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Resposta Edicao": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Aprovacao": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Ajuda": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,223 @@
+{
+  "ativacao": {
+    "script_type": "audio_followup",
+    "target_stage": "ativacao",
+    "duration_seconds": 25,
+    "duration_range": "20-30s",
+    "script": {
+      "hook": "{{nome}}, aqui é o João da Growth OS",
+      "body": [
+        "[tom direto] Vi que você trabalha com vendas e queria te mostrar algo que pode revolucionar seus resultados",
+        "[pausa breve] Temos 19 agentes de IA que automatizam TODO o processo comercial",
+        "[tom técnico mas acessível] SDR, closer, follow-up... tudo rodando 24/7 sem você precisar gerenciar",
+        "[curiosidade] Posso te mostrar como funciona na prática?"
+      ],
+      "cta": "Me chama aqui que eu te explico em 3 minutos"
+    },
+    "full_script": "{{nome}}, aqui é o João da Growth OS. Vi que você trabalha com vendas e queria te mostrar algo que pode revolucionar seus resultados. Temos 19 agentes de IA que automatizam TODO o processo comercial - SDR, closer, follow-up... tudo rodando 24/7 sem você precisar gerenciar. Posso te mostrar como funciona na prática? Me chama aqui que eu te explico em 3 minutos.",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Curiosidade",
+        "where": "revolucionar seus resultados",
+        "why": "Gera interesse sem revelar tudo de imediato"
+      },
+      {
+        "trigger": "Especificidade",
+        "where": "19 agentes de IA",
+        "why": "Número específico cria credibilidade técnica"
+      },
+      {
+        "trigger": "Conveniência",
+        "where": "24/7 sem você precisar gerenciar",
+        "why": "Apela para a dor de ter que gerenciar processos"
+      },
+      {
+        "trigger": "Prova prática",
+        "where": "como funciona na prática",
+        "why": "Oferece demonstração concreta, não teoria"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para personalização",
+        "example": "Carlos"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Profissional mas próximo, como consultor técnico confiável",
+      "pace": "Ritmo médio-rápido, sem pressa mas sem enrolação",
+      "emphasis": [
+        "TODO",
+        "19 agentes",
+        "24/7",
+        "3 minutos"
+      ],
+      "pauses": [
+        "Após apresentação",
+        "Antes do CTA final"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead for de agência",
+        "script": "{{nome}}, aqui é o João da Growth OS. Vi que você tem agência e queria te mostrar algo que pode escalar seus resultados sem contratar mais gente. Temos 19 agentes de IA que automatizam TODO o processo comercial - prospecção, qualificação, fechamento... tudo rodando 24/7. Posso te mostrar como funciona na prática? Me chama aqui que eu te explico em 3 minutos."
+      },
+      {
+        "scenario": "Se lead for clínica médica",
+        "script": "{{nome}}, aqui é o João da Growth OS. Vi que você trabalha com clínica e queria te mostrar algo que pode aumentar sua captação de pacientes automaticamente. Temos 19 agentes de IA que cuidam de TODO o processo comercial - desde o primeiro contato até o agendamento. Posso te mostrar como funciona na prática? Me chama aqui que eu te explico em 3 minutos."
+      },
+      {
+        "scenario": "Se lead for mentor/coach",
+        "script": "{{nome}}, aqui é o João da Growth OS. Vi que você trabalha com mentoria e queria te mostrar algo que pode automatizar sua geração de leads qualificados. Temos 19 agentes de IA que cuidam de TODO o processo comercial - da prospecção ao fechamento high ticket. Posso te mostrar como funciona na prática? Me chama aqui que eu te explico em 3 minutos."
+      }
+    ]
+  },
+  "qualificacao": {
+    "script_type": "audio_followup",
+    "target_stage": "qualificacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "{{nome}}, aqui é do Growth OS, vi que você demonstrou interesse no nosso sistema",
+      "body": [
+        "[tom direto] Olha, antes de qualquer coisa, preciso entender uma coisa:",
+        "[pausa estratégica] Qual é o MAIOR gargalo no seu processo de vendas hoje?",
+        "[tom consultivo] É prospecção? Qualificação? Follow-up? Ou fechamento?",
+        "[tom empático] Porque dependendo da sua dor, posso te mostrar exatamente como nossos 19 agentes resolvem isso"
+      ],
+      "cta": "Me responde aqui no áudio mesmo, quero entender seu cenário antes de te apresentar qualquer coisa"
+    },
+    "full_script": "{{nome}}, aqui é do Growth OS, vi que você demonstrou interesse no nosso sistema. [tom direto] Olha, antes de qualquer coisa, preciso entender uma coisa: [pausa estratégica] Qual é o MAIOR gargalo no seu processo de vendas hoje? [tom consultivo] É prospecção? Qualificação? Follow-up? Ou fechamento? [tom empático] Porque dependendo da sua dor, posso te mostrar exatamente como nossos 19 agentes resolvem isso. Me responde aqui no áudio mesmo, quero entender seu cenário antes de te apresentar qualquer coisa.",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Validação",
+        "where": "Reconhecimento do interesse demonstrado",
+        "why": "Cria conexão inicial e valida a ação do lead"
+      },
+      {
+        "trigger": "Curiosidade",
+        "where": "Pergunta sobre o maior gargalo",
+        "why": "Gera reflexão e engajamento ativo do lead"
+      },
+      {
+        "trigger": "Especificidade",
+        "where": "Lista das 4 áreas principais de dor",
+        "why": "Facilita identificação e mostra conhecimento técnico"
+      },
+      {
+        "trigger": "Consultoria",
+        "where": "Abordagem diagnóstica antes da apresentação",
+        "why": "Posiciona como consultor, não vendedor"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para personalização inicial",
+        "example": "Carlos"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Consultivo e direto, como um especialista fazendo diagnóstico",
+      "pace": "Moderado, com pausa estratégica na pergunta principal",
+      "emphasis": [
+        "MAIOR gargalo",
+        "19 agentes",
+        "exatamente como"
+      ],
+      "pauses": [
+        "Após 'preciso entender uma coisa'",
+        "Após cada opção de gargalo"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Para leads de clínicas médicas especificamente",
+        "script": "{{nome}}, aqui é do Growth OS, vi que você demonstrou interesse no nosso sistema para clínicas. [tom direto] Olha, antes de qualquer coisa, preciso entender: [pausa] Sua maior dificuldade é captar novos pacientes, fazer follow-up pós-consulta, ou converter leads em agendamentos? [tom empático] Porque dependendo da sua dor específica na área médica, posso te mostrar exatamente qual dos nossos 19 agentes vai resolver isso. Me responde aqui no áudio mesmo, quero entender seu cenário antes de te apresentar qualquer coisa."
+      },
+      {
+        "scenario": "Para mentores/consultores high ticket",
+        "script": "{{nome}}, aqui é do Growth OS, vi que você demonstrou interesse no nosso sistema. [tom direto] Olha, no mercado de mentoria high ticket, preciso entender uma coisa: [pausa] Sua maior dificuldade é qualificar leads de alto valor, fazer follow-up sem ser invasivo, ou converter prospects em calls de fechamento? [tom empático] Porque dependendo da sua dor específica com vendas consultivas, posso te mostrar exatamente como nossos 19 agentes otimizam isso. Me responde aqui no áudio mesmo, quero entender seu processo atual."
+      },
+      {
+        "scenario": "Se lead não responder ao primeiro áudio",
+        "script": "{{nome}}, mandei um áudio ontem perguntando sobre seu maior gargalo em vendas. [tom direto] Olha, sei que você está ocupado, mas essa informação é crucial: [pausa] Em 30 segundos você consegue me dizer se sua dor é mais em prospecção, qualificação ou fechamento? [tom prático] Com essa resposta, posso te mandar um exemplo específico de como o Growth OS resolve exatamente isso no seu segmento. Responde aí quando tiver um minutinho."
+      }
+    ]
+  },
+  "recuperacao": {
+    "script_type": "audio_followup",
+    "target_stage": "recuperacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "{{nome}}, aqui é o João do Growth OS...",
+      "body": [
+        "[tom empático] Percebi que você sumiu nos últimos dias e queria entender o que aconteceu.",
+        "[pausa] Olha, sei que decisões sobre IA para vendas não são simples...",
+        "[tom consultivo] especialmente quando você tem uma operação que já funciona.",
+        "[tom direto] Mas deixa eu te fazer uma pergunta rápida:"
+      ],
+      "cta": "O que te fez hesitar? Responde aí que eu quero entender sua situação real."
+    },
+    "full_script": "{{nome}}, aqui é o João do Growth OS... [empático] Percebi que você sumiu nos últimos dias e queria entender o que aconteceu. [pausa] Olha, sei que decisões sobre IA para vendas não são simples... [consultivo] especialmente quando você tem uma operação que já funciona. [direto] Mas deixa eu te fazer uma pergunta rápida: O que te fez hesitar? Responde aí que eu quero entender sua situação real.",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Empatia",
+        "where": "Reconhecimento do sumiço sem julgamento",
+        "why": "Reduz defensividade e cria conexão emocional"
+      },
+      {
+        "trigger": "Validação",
+        "where": "Reconhecer que decisões sobre IA são complexas",
+        "why": "Valida a hesitação como normal e inteligente"
+      },
+      {
+        "trigger": "Segunda Chance",
+        "where": "Tom de recomeço sem pressão",
+        "why": "Oferece nova oportunidade sem culpa"
+      },
+      {
+        "trigger": "Curiosidade",
+        "where": "Pergunta direta sobre a hesitação",
+        "why": "Gera reflexão e possível resposta"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para personalização inicial",
+        "example": "Carlos"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Conversacional, como um consultor experiente que se importa genuinamente",
+      "pace": "Moderado no início, mais lento na pergunta final para dar peso",
+      "emphasis": [
+        "sumiu",
+        "entender",
+        "hesitar",
+        "situação real"
+      ],
+      "pauses": [
+        "após 'o que aconteceu'",
+        "antes da pergunta final"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead tinha objeção de preço anteriormente",
+        "script": "{{nome}}, aqui é o João do Growth OS... [empático] Vi que você ficou em dúvida sobre o investimento e queria bater um papo real contigo. [pausa] Olha, entendo que R$ X por mês não é pouco... [consultivo] especialmente quando você não tem certeza do retorno. [direto] Mas me responde uma coisa: qual o custo de continuar perdendo leads que poderiam virar clientes? Vamos conversar sobre isso?"
+      },
+      {
+        "scenario": "Se lead tinha objeção de tempo/implementação",
+        "script": "{{nome}}, aqui é o João do Growth OS... [empático] Lembrei que você ficou preocupado com o tempo de implementação. [pausa] Sei que sua agenda já está lotada... [consultivo] e a última coisa que você quer é mais uma dor de cabeça. [direto] Mas me tira uma dúvida: quanto tempo você perde por semana fazendo follow-up manual? Responde aí que quero te mostrar algo."
+      },
+      {
+        "scenario": "Para perfil mais técnico (SaaS/Agências)",
+        "script": "{{nome}}, João aqui do Growth OS... [técnico] Notei que você parou de responder e imagino que deve estar avaliando outras soluções. [pausa] Normal, decisões de stack tecnológico exigem análise... [consultivo] especialmente quando impactam toda a operação comercial. [direto] Mas deixa eu perguntar: encontrou algo que integre 19 agentes especializados? Conta aí sua pesquisa."
+      }
+    ]
+  }
+}

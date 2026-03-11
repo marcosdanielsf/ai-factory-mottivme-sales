@@ -1,0 +1,91 @@
+name: Supabase Daily Backup
+
+on:
+  schedule:
+    # Roda todo dia às 3h da manhã (horário de Brasília = 6h UTC)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Permite rodar manualmente pelo GitHub
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Create backup directory
+        run: mkdir -p backups
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "date=$(date +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
+
+      - name: Backup Schema (estrutura)
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --schema-only \
+            --no-owner \
+            --no-privileges \
+            -f backups/schema_${{ steps.timestamp.outputs.date }}.sql
+        continue-on-error: false
+
+      - name: Backup Data (dados)
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --data-only \
+            --no-owner \
+            --no-privileges \
+            -f backups/data_${{ steps.timestamp.outputs.date }}.sql
+        continue-on-error: false
+
+      - name: Backup Full (schema + data)
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --no-owner \
+            --no-privileges \
+            -f backups/full_${{ steps.timestamp.outputs.date }}.sql
+        continue-on-error: true
+
+      - name: Compress backups
+        run: |
+          cd backups
+          tar -czvf backup_${{ steps.timestamp.outputs.date }}.tar.gz *.sql
+          rm -f *.sql
+
+      - name: Keep only last 30 backups
+        run: |
+          cd backups
+          ls -t *.tar.gz 2>/dev/null | tail -n +31 | xargs -r rm -f
+
+      - name: Commit and push backup
+        run: |
+          git config user.name "Backup Bot"
+          git config user.email "backup@mottivme.com"
+          git add backups/
+          git commit -m "backup: Supabase ${{ steps.timestamp.outputs.date }}" || echo "No changes to commit"
+          git push
+
+      - name: Backup Summary
+        run: |
+          echo "## Backup Completed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ steps.timestamp.outputs.date }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Files created:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`backup_${{ steps.timestamp.outputs.date }}.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Contains:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Schema (estrutura das tabelas)" >> $GITHUB_STEP_SUMMARY
+          echo "- Data (todos os dados)" >> $GITHUB_STEP_SUMMARY
+          echo "- Full (backup completo)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls -lh backups/*.tar.gz | tail -5 >> $GITHUB_STEP_SUMMARY

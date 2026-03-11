@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "templateName": "Prompt Dinâmico - Sistema de Versionamento",
+    "description": "Template de 3 nós para substituir prompts hardcoded por busca dinâmica no Supabase",
+    "version": "1.0.0",
+    "author": "AI Factory V4 - MOTTIVME",
+    "createdAt": "2026-01-01"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// NÓ 2.0 - BUSCAR PROMPT ATIVO DO SUPABASE\n// =====================================================\n\n// CONFIGURAÇÃO - Altere a chave do prompt\nconst PROMPT_KEY = 'head-vendas-bposs';\n\n// Supabase config\nconst SUPABASE_URL = $env?.SUPABASE_URL || 'https://your-project.supabase.co';\nconst SUPABASE_KEY = $env?.SUPABASE_ANON_KEY || '';\n\nasync function buscarPromptAtivo(promptKey) {\n  try {\n    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_prompt_with_variables`, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'apikey': SUPABASE_KEY,\n        'Authorization': `Bearer ${SUPABASE_KEY}`\n      },\n      body: JSON.stringify({ p_prompt_key: promptKey })\n    });\n\n    if (!response.ok) throw new Error(`HTTP ${response.status}`);\n    const data = await response.json();\n    if (data.error) throw new Error(data.error);\n\n    const promptData = data.prompt || {};\n    return {\n      success: true,\n      prompt_key: promptData.prompt_key || promptKey,\n      prompt_content: promptData.prompt_content || '',\n      version: promptData.version || 1,\n      version_id: promptData.version_id,\n      prompt_id: promptData.prompt_id,\n      model_config: promptData.model_config || {},\n      variables: data.variables || [],\n      catalog: data.catalog || {},\n      _start_time: Date.now()\n    };\n  } catch (error) {\n    console.error('Erro ao buscar prompt:', error.message);\n    return { success: false, error: error.message, prompt_key: promptKey };\n  }\n}\n\nconst resultado = await buscarPromptAtivo(PROMPT_KEY);\nreturn [{ json: { ...resultado, dados_anteriores: $input.first()?.json || {} } }];"
+      },
+      "id": "node-buscar-prompt",
+      "name": "2.0 Buscar Prompt Ativo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "Busca prompt do Supabase.\nAltere PROMPT_KEY conforme necessário."
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// NÓ 2.1 - RESOLVER VARIÁVEIS NO PROMPT\n// =====================================================\n\n// Nomes dos nós (ajuste se necessário)\nconst NO_PROMPT = '2.0 Buscar Prompt Ativo';\nconst NO_DADOS = '1.6 Preparar Dados';\n\n// Obter dados\nconst promptData = $node[NO_PROMPT]?.json || $input.first()?.json || {};\nconst promptTemplate = promptData.prompt_content || '';\nlet dadosContexto = {};\ntry {\n  dadosContexto = $node[NO_DADOS]?.json || promptData.dados_anteriores || {};\n} catch (e) {\n  dadosContexto = promptData.dados_anteriores || {};\n}\n\n// Mapeamento de variáveis\nconst variaveis = {\n  'transcricao_processada': dadosContexto.texto_transcricao || dadosContexto.transcricao_processada || '',\n  'nome_lead': dadosContexto.nome_lead || dadosContexto.contact_name || '',\n  'tipo_call': dadosContexto.tipo_call || 'diagnostico',\n  'nome_empresa': dadosContexto.nome_empresa || dadosContexto.empresa || '',\n  'icp_segmento': dadosContexto.icp?.segmento || '',\n  'tickets': JSON.stringify(dadosContexto.tickets || []),\n  'red_flags_criticos': (dadosContexto.red_flags_criticos || []).join('\\n- '),\n  'objecoes': JSON.stringify(dadosContexto.objecoes || []),\n  'location_id': dadosContexto.location_id || '',\n  'contact_id': dadosContexto.contact_id || '',\n  'data_atual': new Date().toLocaleDateString('pt-BR'),\n  'timestamp': new Date().toISOString()\n};\n\n// Resolver variáveis\nlet promptFinal = promptTemplate;\nfor (const [key, value] of Object.entries(variaveis)) {\n  const regex = new RegExp(`\\\\{\\\\{\\\\s*${key}\\\\s*\\\\}\\\\}`, 'gi');\n  promptFinal = promptFinal.replace(regex, value === null || value === undefined ? '' : String(value));\n}\n\nconst placeholdersRestantes = promptFinal.match(/\\{\\{[^}]+\\}\\}/g) || [];\nif (placeholdersRestantes.length > 0) console.warn('Placeholders não resolvidos:', placeholdersRestantes);\n\nreturn [{\n  json: {\n    prompt_final: promptFinal,\n    prompt_metadata: {\n      prompt_key: promptData.prompt_key,\n      version: promptData.version,\n      version_id: promptData.version_id,\n      prompt_id: promptData.prompt_id,\n      _start_time: promptData._start_time\n    },\n    model_config: promptData.model_config || {},\n    variaveis_resolvidas: Object.fromEntries(Object.entries(variaveis).filter(([k, v]) => v !== '')),\n    placeholders_nao_resolvidos: placeholdersRestantes,\n    success: promptData.success !== false,\n    resolved_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-resolver-variaveis",
+      "name": "2.1 Resolver Variáveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "Substitui {{placeholders}} por valores reais.\nAdicione mais variáveis conforme necessário."
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================\n// NÓ 2.2 - REGISTRAR USO (ANALYTICS)\n// =====================================================\n\nconst NO_VARIAVEIS = '2.1 Resolver Variáveis';\nconst SUPABASE_URL = $env?.SUPABASE_URL || '';\nconst SUPABASE_KEY = $env?.SUPABASE_ANON_KEY || '';\n\nlet promptMetadata = {};\ntry {\n  promptMetadata = $node[NO_VARIAVEIS]?.json?.prompt_metadata || {};\n} catch (e) {\n  promptMetadata = $input.first()?.json?.prompt_metadata || {};\n}\n\nconst aiResult = $input.first()?.json || {};\nconst startTime = promptMetadata._start_time || Date.now() - 5000;\nconst executionTimeMs = Date.now() - startTime;\nconst isSuccess = !aiResult.error && (aiResult.output || aiResult.text);\n\nasync function registrarExecucao() {\n  if (!SUPABASE_URL || !SUPABASE_KEY) return { success: false, error: 'Supabase not configured' };\n  try {\n    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/log_prompt_execution`, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'apikey': SUPABASE_KEY,\n        'Authorization': `Bearer ${SUPABASE_KEY}`\n      },\n      body: JSON.stringify({\n        p_prompt_key: promptMetadata.prompt_key || 'unknown',\n        p_workflow_key: $workflow?.name || 'unknown',\n        p_success: isSuccess,\n        p_execution_time_ms: executionTimeMs,\n        p_workflow_execution_id: $execution?.id || null\n      })\n    });\n    return response.ok ? await response.json() : { success: false };\n  } catch (e) {\n    console.error('Log error:', e.message);\n    return { success: false, error: e.message };\n  }\n}\n\nconst logResult = await registrarExecucao();\n\nreturn [{\n  json: {\n    ...aiResult,\n    _prompt_analytics: {\n      logged: logResult.success || false,\n      prompt_key: promptMetadata.prompt_key,\n      execution_time_ms: executionTimeMs,\n      success: isSuccess\n    }\n  }\n}];"
+      },
+      "id": "node-registrar-uso",
+      "name": "2.2 Registrar Uso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1350,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "Registra execução para analytics.\nColoque APÓS o AI Agent."
+    }
+  ],
+  "connections": {
+    "2.0 Buscar Prompt Ativo": {
+      "main": [
+        [
+          {
+            "node": "2.1 Resolver Variáveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "instructions": {
+    "howToUse": [
+      "1. Copie os 3 nós para seu fluxo",
+      "2. Conecte seu nó de 'Preparar Dados' ANTES de '2.0 Buscar Prompt'",
+      "3. Altere PROMPT_KEY no nó 2.0 para a chave correta do Supabase",
+      "4. Configure o AI Agent para usar: {{ $('2.1 Resolver Variáveis').item.json.prompt_final }}",
+      "5. Conecte o AI Agent ao nó '2.2 Registrar Uso'",
+      "6. Configure variáveis de ambiente SUPABASE_URL e SUPABASE_ANON_KEY no n8n"
+    ],
+    "requirements": [
+      "Supabase com migrations 008 e 010 executadas",
+      "Prompt registrado em prompt_registry com is_current = true",
+      "Variáveis de ambiente configuradas no n8n"
+    ],
+    "flowDiagram": "[Preparar Dados] -> [2.0 Buscar Prompt] -> [2.1 Resolver Vars] -> [AI Agent] -> [2.2 Registrar Uso]"
+  }
+}

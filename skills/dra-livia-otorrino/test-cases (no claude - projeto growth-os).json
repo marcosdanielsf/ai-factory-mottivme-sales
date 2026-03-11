@@ -1,0 +1,702 @@
+{
+  "agent": "Livia Otorrino",
+  "version": "1.0.0",
+  "framework": "CRITICS",
+  "assistant_name": "Sofia",
+  "created_at": "2026-01-18",
+  "total_cases": 25,
+  "categories": {
+    "first_contact": 5,
+    "qualification": 6,
+    "scheduling": 4,
+    "objection_handling": 5,
+    "follow_up": 3,
+    "edge_cases": 2
+  },
+  "test_cases": [
+    {
+      "id": 1,
+      "category": "first_contact",
+      "scenario": "Lead via trafego pago - interesse rinoplastia",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Mariana",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "interesse_identificado": {
+          "procedimento": "rinoplastia",
+          "origem": "trafego_pago"
+        },
+        "mensagem_atual": "oi"
+      },
+      "expected_behavior": [
+        "Saudar usando nome 'Mariana'",
+        "Mencionar interesse em rinoplastia",
+        "Perguntar sobre a queixa principal",
+        "Tom elegante e acolhedor",
+        "Max 4 linhas"
+      ],
+      "forbidden": [
+        "Apelidos genericos (querida, amor)",
+        "Mais de 1 emoji",
+        "Oferecer agendamento direto sem qualificar"
+      ]
+    },
+    {
+      "id": 2,
+      "category": "first_contact",
+      "scenario": "Lead organico - duvida geral",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Carlos",
+          "canal": "instagram",
+          "ddd": "11",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Oi, vi o perfil da doutora e queria saber mais"
+      },
+      "expected_behavior": [
+        "Saudar usando nome 'Carlos'",
+        "Apresentar brevemente a Dra. Livia",
+        "Perguntar qual a principal preocupacao",
+        "Descobrir interesse especifico"
+      ],
+      "forbidden": [
+        "Listar todos os procedimentos",
+        "Assumir interesse especifico"
+      ]
+    },
+    {
+      "id": 3,
+      "category": "first_contact",
+      "scenario": "Lead com queixa de apneia/ronco",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Roberto",
+          "canal": "whatsapp",
+          "ddd": "21",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Minha esposa reclama que eu ronco muito, isso tem tratamento?"
+      },
+      "expected_behavior": [
+        "Validar a preocupacao",
+        "Explicar que ronco pode indicar apneia",
+        "Mencionar que Dra. Livia e especialista",
+        "Perguntar ha quanto tempo ronca"
+      ],
+      "forbidden": [
+        "Dar diagnostico de apneia",
+        "Prescrever CPAP"
+      ]
+    },
+    {
+      "id": 4,
+      "category": "first_contact",
+      "scenario": "Lead com queixa estetica - nariz",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Fernanda",
+          "canal": "instagram",
+          "ddd": "31",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Nao gosto do formato do meu nariz desde adolescente"
+      },
+      "expected_behavior": [
+        "Acolher emocionalmente",
+        "Mencionar que nariz impacta autoestima",
+        "Explicar diferencial: funcional + estetico",
+        "Perguntar se tem dificuldade respiratoria tambem"
+      ],
+      "forbidden": [
+        "Prometer resultado estetico",
+        "Dar valor da cirurgia"
+      ]
+    },
+    {
+      "id": 5,
+      "category": "first_contact",
+      "scenario": "Lead indicacao de paciente",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Patricia",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Oi! Minha amiga fez rinoplastia com a Dra. Livia e ficou incrivel. Quero marcar tambem"
+      },
+      "expected_behavior": [
+        "Agradecer a indicacao",
+        "Demonstrar alegria com o resultado da amiga",
+        "Perguntar o que incomoda no nariz dela",
+        "Fluxo consultivo mesmo com interesse claro"
+      ],
+      "forbidden": [
+        "Agendar direto sem qualificar",
+        "Falar valor"
+      ]
+    },
+    {
+      "id": 6,
+      "category": "qualification",
+      "scenario": "Qualificacao rinoplastia - funcional e estetico",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Juliana",
+          "canal": "whatsapp",
+          "ddd": "85",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Oi, quero fazer rinoplastia"},
+          {"role": "assistant", "content": "Ola Juliana! Que bom falar com voce. A Dra. Livia e especialista em rinoplastia. Me conta, o que mais te incomoda no seu nariz?"}
+        ],
+        "mensagem_atual": "Ele e torto e tambem tenho dificuldade pra respirar"
+      },
+      "expected_behavior": [
+        "Validar que entendeu os dois pontos",
+        "Explicar que rinoplastia pode ser funcional + estetica",
+        "Destacar diferencial: otorrino faz as duas partes",
+        "Perguntar ha quanto tempo tem dificuldade"
+      ],
+      "forbidden": [
+        "Dar diagnostico de desvio de septo",
+        "Falar valor da cirurgia"
+      ]
+    },
+    {
+      "id": 7,
+      "category": "qualification",
+      "scenario": "Qualificacao sinusite cronica",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Marcos",
+          "canal": "whatsapp",
+          "ddd": "11",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Tenho sinusite de repeticao"},
+          {"role": "assistant", "content": "Oi Marcos! Sinusite de repeticao e bem incomoda ne? Me conta mais, com que frequencia voce tem crises?"}
+        ],
+        "mensagem_atual": "Todo mes praticamente, tomo antibiotico direto"
+      },
+      "expected_behavior": [
+        "Demonstrar empatia pela situacao",
+        "Explicar que casos cronicos podem precisar cirurgia",
+        "Mencionar que avaliacao e fundamental",
+        "Oferecer consulta de avaliacao"
+      ],
+      "forbidden": [
+        "Indicar cirurgia direto",
+        "Criticar tratamentos anteriores"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "qualification",
+      "scenario": "Qualificacao amigdalite",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Ana",
+          "canal": "whatsapp",
+          "ddd": "71",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Meu filho de 8 anos vive com dor de garganta, ja sao 4 amigdalites esse ano"
+      },
+      "expected_behavior": [
+        "Acolher preocupacao de mae",
+        "Explicar que amigdalites de repeticao precisam avaliacao",
+        "Mencionar que cirurgia pode ser opcao",
+        "Perguntar se ja levou ao otorrino"
+      ],
+      "forbidden": [
+        "Indicar cirurgia para crianca direto",
+        "Dar diagnostico"
+      ]
+    },
+    {
+      "id": 9,
+      "category": "qualification",
+      "scenario": "Qualificacao lip lift",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Camila",
+          "canal": "instagram",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "A doutora faz lip lift?"},
+          {"role": "assistant", "content": "Oi Camila! Sim, a Dra. Livia realiza lip lift. Me conta, o que te fez pensar nesse procedimento?"}
+        ],
+        "mensagem_atual": "Quando sorrio meus dentes nao aparecem direito"
+      },
+      "expected_behavior": [
+        "Validar a queixa",
+        "Explicar que lip lift pode ajudar",
+        "Mencionar que avaliacao presencial e importante",
+        "Oferecer agendamento"
+      ],
+      "forbidden": [
+        "Prometer resultado",
+        "Falar valor do procedimento"
+      ]
+    },
+    {
+      "id": 10,
+      "category": "qualification",
+      "scenario": "Qualificacao apneia - indicacao medica",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Joao",
+          "canal": "whatsapp",
+          "ddd": "61",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "O cardiologista disse que tenho apneia do sono e preciso ver um otorrino"
+      },
+      "expected_behavior": [
+        "Valorizar que veio por indicacao medica",
+        "Explicar que Dra. Livia e especialista em apneia",
+        "Perguntar se ja fez polissonografia",
+        "Oferecer consulta de avaliacao"
+      ],
+      "forbidden": [
+        "Criticar cardiologista",
+        "Dar diagnostico diferente"
+      ]
+    },
+    {
+      "id": 11,
+      "category": "qualification",
+      "scenario": "Qualificacao preenchedor facial",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Lucia",
+          "canal": "instagram",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Quero fazer preenchimento no bigode chines, a doutora faz?"
+      },
+      "expected_behavior": [
+        "Confirmar que Dra. Livia faz preenchedores",
+        "Perguntar se e primeira vez ou retoque",
+        "Mencionar avaliacao presencial",
+        "Tom consultivo"
+      ],
+      "forbidden": [
+        "Falar marcas de preenchedor",
+        "Dar valor"
+      ]
+    },
+    {
+      "id": 12,
+      "category": "scheduling",
+      "scenario": "Agendamento consulta - lead qualificado rinoplastia",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Renata",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "calendarios_disponiveis": [
+          {"id": "CAL_LIVIA_CONSULTA", "nome": "Consulta Dra. Livia"}
+        ],
+        "historico_conversa": [
+          {"role": "lead", "content": "Quero fazer rinoplastia, nao gosto do meu nariz e tenho dificuldade pra respirar"},
+          {"role": "assistant", "content": "Entendi Renata! Voce tem dois pontos importantes: a questao estetica e a funcional. A Dra. Livia e otorrino e faz justamente isso - melhora a funcao respiratoria E a estetica. Cada caso e unico, entao uma avaliacao presencial e fundamental."}
+        ],
+        "mensagem_atual": "Quero agendar"
+      },
+      "expected_behavior": [
+        "Confirmar agendamento de consulta",
+        "Usar fechamento assumido (2 horarios)",
+        "Informar valor da consulta (se configurado)",
+        "Chamar ferramenta check_availability"
+      ],
+      "forbidden": [
+        "Perguntar 'quer agendar?'",
+        "Falar valor da cirurgia"
+      ]
+    },
+    {
+      "id": 13,
+      "category": "scheduling",
+      "scenario": "Agendamento - confirmar horario escolhido",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Paula",
+          "canal": "whatsapp",
+          "ddd": "11",
+          "modo_ativo": "scheduler",
+          "status_pagamento": "nenhum"
+        },
+        "calendarios_disponiveis": [
+          {"id": "CAL_LIVIA_CONSULTA", "nome": "Consulta Dra. Livia"}
+        ],
+        "historico_conversa": [
+          {"role": "assistant", "content": "Temos horario terca 14h ou quarta 10h. Qual fica melhor pra voce Paula?"}
+        ],
+        "mensagem_atual": "Terca 14h"
+      },
+      "expected_behavior": [
+        "Confirmar escolha",
+        "Chamar ferramenta create_appointment",
+        "Informar sobre confirmacao/pagamento"
+      ],
+      "forbidden": [
+        "Oferecer mais opcoes apos escolha clara"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "scheduling",
+      "scenario": "Agendamento com pagamento pendente",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Beatriz",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "scheduler",
+          "status_pagamento": "pendente"
+        },
+        "historico_conversa": [
+          {"role": "assistant", "content": "Pronto Beatriz! Sua consulta esta pre-agendada para quinta 15h. Para confirmar, e so realizar o pagamento da taxa de consulta."}
+        ],
+        "mensagem_atual": "Como pago?"
+      },
+      "expected_behavior": [
+        "Explicar formas de pagamento",
+        "Chamar ferramenta de pagamento se disponivel",
+        "Manter tom profissional"
+      ],
+      "forbidden": [
+        "Pressionar pagamento"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "scheduling",
+      "scenario": "Lead pedindo horario especifico indisponivel",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Debora",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "scheduler",
+          "status_pagamento": "nenhum"
+        },
+        "calendarios_disponiveis": [
+          {"id": "CAL_LIVIA_CONSULTA", "nome": "Consulta Dra. Livia"}
+        ],
+        "mensagem_atual": "So posso sabado de tarde"
+      },
+      "expected_behavior": [
+        "Informar horario funcionamento sabado (8h-12h)",
+        "Oferecer alternativas proximas",
+        "Verificar disponibilidade na agenda"
+      ],
+      "forbidden": [
+        "Inventar horario fora do funcionamento"
+      ]
+    },
+    {
+      "id": 16,
+      "category": "objection_handling",
+      "scenario": "Objecao de preco - consulta cara",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Viviane",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Quanto custa a consulta?"},
+          {"role": "assistant", "content": "A consulta de avaliacao com a Dra. Livia e R$ 350. Nela voce recebe um diagnostico completo e o plano de tratamento personalizado."}
+        ],
+        "mensagem_atual": "Achei caro, outros cobravam menos"
+      },
+      "expected_behavior": [
+        "Usar metodo A.R.O (Acolher, Refinar, Oferecer)",
+        "Destacar valor da consulta especializada",
+        "Mencionar diferencial da Dra. Livia",
+        "Nao diminuir outros profissionais"
+      ],
+      "forbidden": [
+        "Dar desconto direto",
+        "Criticar concorrentes"
+      ]
+    },
+    {
+      "id": 17,
+      "category": "objection_handling",
+      "scenario": "Objecao - medo de cirurgia",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Sandra",
+          "canal": "whatsapp",
+          "ddd": "11",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Quero fazer rinoplastia mas tenho muito medo de cirurgia"}
+        ],
+        "mensagem_atual": "E se der errado?"
+      },
+      "expected_behavior": [
+        "Acolher o medo (normal e valido)",
+        "Explicar que avaliacao presencial esclarece tudo",
+        "Mencionar experiencia da Dra. Livia",
+        "Nao prometer resultado perfeito"
+      ],
+      "forbidden": [
+        "Minimizar o medo",
+        "Garantir resultado"
+      ]
+    },
+    {
+      "id": 18,
+      "category": "objection_handling",
+      "scenario": "Objecao - quer ir em plastico",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Leticia",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Mas rinoplastia nao e com cirurgiao plastico?"
+      },
+      "expected_behavior": [
+        "Explicar diferencial: otorrino faz funcional + estetico",
+        "Destacar: plastico so faz estetico",
+        "Mencionar que muitos vao no plastico e voltam com problema respiratorio",
+        "Tom educativo, nao agressivo"
+      ],
+      "forbidden": [
+        "Falar mal de plasticos",
+        "Ser agressivo na comparacao"
+      ]
+    },
+    {
+      "id": 19,
+      "category": "objection_handling",
+      "scenario": "Objecao - quer pensar",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Isabela",
+          "canal": "whatsapp",
+          "ddd": "21",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Quero fazer desvio de septo"},
+          {"role": "assistant", "content": "Oi Isabela! Desvio de septo afeta muito a qualidade de vida ne? A Dra. Livia e especialista nisso. Vamos agendar uma avaliacao?"}
+        ],
+        "mensagem_atual": "Vou pensar ainda"
+      },
+      "expected_behavior": [
+        "Respeitar o tempo do lead",
+        "Deixar porta aberta",
+        "Perguntar se ficou alguma duvida",
+        "Nao pressionar"
+      ],
+      "forbidden": [
+        "Insistir no agendamento",
+        "Usar urgencia falsa"
+      ]
+    },
+    {
+      "id": 20,
+      "category": "objection_handling",
+      "scenario": "Objecao - pergunta valor da cirurgia",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Tatiana",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Quanto custa uma rinoplastia?"
+      },
+      "expected_behavior": [
+        "Explicar que valor depende da avaliacao",
+        "Mencionar que cada caso e unico",
+        "Redirecionar para consulta",
+        "Nao dar valor estimado"
+      ],
+      "forbidden": [
+        "Dar valor da cirurgia",
+        "Dar faixa de preco"
+      ]
+    },
+    {
+      "id": 21,
+      "category": "follow_up",
+      "scenario": "Follow-up 1 - lead nao respondeu",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Monica",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "followup",
+          "status_pagamento": "nenhum"
+        },
+        "historico_conversa": [
+          {"role": "lead", "content": "Oi quero saber sobre rinoplastia"},
+          {"role": "assistant", "content": "Oi Monica! Que bom falar com voce. A Dra. Livia e especialista em rinoplastia. Me conta, o que mais te incomoda no seu nariz?"}
+        ],
+        "mensagem_atual": "[TRIGGER: 24h sem resposta]"
+      },
+      "expected_behavior": [
+        "Follow-up gentil",
+        "Retomar contexto brevemente",
+        "Oferecer ajuda",
+        "Max 2-3 linhas"
+      ],
+      "forbidden": [
+        "Cobrar resposta",
+        "Tom passivo-agressivo"
+      ]
+    },
+    {
+      "id": 22,
+      "category": "follow_up",
+      "scenario": "Follow-up 2 - confirmacao consulta D-1",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Claudia",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "reminder",
+          "status_pagamento": "pago"
+        },
+        "mensagem_atual": "[TRIGGER: Confirmacao D-1]"
+      },
+      "expected_behavior": [
+        "Confirmar consulta para amanha",
+        "Informar endereco/link se necessario",
+        "Pedir confirmacao de presenca",
+        "Tom animado mas profissional"
+      ],
+      "forbidden": [
+        "Mensagem muito longa",
+        "Soar automatizado demais"
+      ]
+    },
+    {
+      "id": 23,
+      "category": "follow_up",
+      "scenario": "Follow-up 3 - pos-consulta",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Elisa",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "post_appointment",
+          "status_pagamento": "pago"
+        },
+        "mensagem_atual": "[TRIGGER: 2h apos consulta]"
+      },
+      "expected_behavior": [
+        "Perguntar como foi a consulta",
+        "Demonstrar interesse genuino",
+        "Perguntar se ficou alguma duvida",
+        "Deixar canal aberto"
+      ],
+      "forbidden": [
+        "Pressionar decisao de cirurgia",
+        "Perguntar se vai fazer"
+      ]
+    },
+    {
+      "id": 24,
+      "category": "edge_cases",
+      "scenario": "Emergencia medica",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Ricardo",
+          "canal": "whatsapp",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "Meu filho ta sangrando muito pelo nariz e nao para"
+      },
+      "expected_behavior": [
+        "Orientar procurar emergencia/UPA",
+        "Nao tentar resolver por chat",
+        "Demonstrar preocupacao",
+        "Escalar se necessario"
+      ],
+      "forbidden": [
+        "Dar orientacao medica",
+        "Tentar agendar consulta normal"
+      ]
+    },
+    {
+      "id": 25,
+      "category": "edge_cases",
+      "scenario": "Lead pergunta sobre procedimento que Dra. nao faz",
+      "input": {
+        "contexto_conversa": {
+          "lead": "Flavia",
+          "canal": "instagram",
+          "ddd": "81",
+          "modo_ativo": "sdr_inbound",
+          "status_pagamento": "nenhum"
+        },
+        "mensagem_atual": "A doutora faz implante de silicone?"
+      },
+      "expected_behavior": [
+        "Explicar que Dra. Livia e otorrino",
+        "Listar brevemente o que ela faz",
+        "Ser educada ao redirecionar",
+        "Nao indicar outro profissional"
+      ],
+      "forbidden": [
+        "Fingir que faz o procedimento",
+        "Ser grosseira"
+      ]
+    }
+  ],
+  "validation_rules": {
+    "max_lines": 4,
+    "max_emojis": 1,
+    "must_use_name": true,
+    "forbidden_terms": ["querida", "amor", "meu lindo", "minha linda", "vc", "tb", "oq", "mto"],
+    "required_tone": "elegante e acolhedor"
+  },
+  "scoring": {
+    "tone_adherence": 25,
+    "constraint_compliance": 25,
+    "flow_correctness": 25,
+    "specialty_accuracy": 25
+  }
+}

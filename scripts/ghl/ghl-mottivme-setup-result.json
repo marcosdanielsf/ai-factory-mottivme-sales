@@ -1,0 +1,378 @@
+{
+  "customFields": {
+    "contact": [
+      {
+        "name": "lead_score",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "classificacao_ia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "origem_lead",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "utm_source",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "utm_medium",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "utm_campaign",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "utm_content",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "primeira_mensagem",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "data_primeira_interacao",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "budget_range",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "authority_nivel",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "need_principal",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "timeline_urgencia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "competitor_atual",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "pain_point",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "ativar_ia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "agente_ia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "data_ativacao_ia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "ultimo_contato",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "motivo_perda",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "reaquecimento_data",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      }
+    ],
+    "opportunity": [
+      {
+        "name": "produto_interesse",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "recorrencia",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "desconto_aplicado",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "data_fechamento_prevista",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      },
+      {
+        "name": "probabilidade_fechamento",
+        "status": "error",
+        "error": [
+          "property locationId should not exist"
+        ]
+      }
+    ]
+  },
+  "tags": [
+    {
+      "name": "origem-inbound-site",
+      "id": "aqtXSB7EOztqczB1JCb8",
+      "status": "success"
+    },
+    {
+      "name": "origem-inbound-social",
+      "id": "xWmTMVcYKJAXFjLOSjFi",
+      "status": "success"
+    },
+    {
+      "name": "origem-outbound-instagram",
+      "id": "sNKiw5Y3gR9I4K5ztw3K",
+      "status": "success"
+    },
+    {
+      "name": "origem-outbound-email",
+      "id": "d1TxtYRg8laajEUGrDTU",
+      "status": "success"
+    },
+    {
+      "name": "origem-outbound-linkedin",
+      "id": "p10iK8xmAemUJpiKzbFO",
+      "status": "success"
+    },
+    {
+      "name": "origem-indicacao",
+      "id": "mHNDjqBLxXTm0BAGYPXg",
+      "status": "success"
+    },
+    {
+      "name": "lead-prospectado-ia",
+      "id": "LhakTvf7U43ooTKiUcjP",
+      "status": "success"
+    },
+    {
+      "name": "lead-classificado-ia",
+      "id": "eSdm4jLzkqUyQwP5jwtJ",
+      "status": "success"
+    },
+    {
+      "name": "mql",
+      "id": "e79hupMPapDa4KGEm3hk",
+      "status": "success"
+    },
+    {
+      "name": "sql",
+      "id": "nb8la2D2q8eI3VU5nW2Q",
+      "status": "success"
+    },
+    {
+      "name": "perdido",
+      "id": "RBVbUJueSeifQfRsB2oL",
+      "status": "success"
+    },
+    {
+      "name": "temperatura-quente",
+      "id": "IEF6Tsmqt2BTIjVtKbya",
+      "status": "success"
+    },
+    {
+      "name": "temperatura-morna",
+      "id": "ju1gPMKBCmOoLMyNGQOx",
+      "status": "success"
+    },
+    {
+      "name": "temperatura-fria",
+      "id": "UoPpI0OpwizLR3VrgK9E",
+      "status": "success"
+    },
+    {
+      "name": "interesse-marketing-digital",
+      "id": "GCvbKcKTF9428y31Vzsb",
+      "status": "success"
+    },
+    {
+      "name": "interesse-automacao",
+      "id": "zioLqIMbJEOs6ToN6KW8",
+      "status": "success"
+    },
+    {
+      "name": "interesse-ia",
+      "id": "1fc6FyAXW3MWrWLynT1K",
+      "status": "success"
+    },
+    {
+      "name": "interesse-crm",
+      "id": "mTWjOd7wCvsgjnb8J0Aj",
+      "status": "success"
+    },
+    {
+      "name": "interesse-consultoria",
+      "id": "MWcvcWQj68z5izqwkbHs",
+      "status": "success"
+    },
+    {
+      "name": "ia-ativada",
+      "id": "R66hjS5xg7mJJ3NuFsyV",
+      "status": "success"
+    },
+    {
+      "name": "transicao-closer",
+      "id": "yfQyBF0K4WYQcUkF8EIu",
+      "status": "success"
+    },
+    {
+      "name": "follow-up-pendente",
+      "id": "HIVS64QKuuaGY1VP7HGo",
+      "status": "success"
+    },
+    {
+      "name": "reuniao-marcada",
+      "id": "0OeOsufDnd9q3sS3XCsB",
+      "status": "success"
+    },
+    {
+      "name": "proposta-enviada",
+      "id": "9JRpTATFUzhCGDp5WbRb",
+      "status": "success"
+    },
+    {
+      "name": "contrato-assinado",
+      "id": "x370G3uInFMdfJgQoRU1",
+      "status": "success"
+    },
+    {
+      "name": "reaquecimento",
+      "id": "j8THhxuGrbviriyBlKpC",
+      "status": "success"
+    },
+    {
+      "name": "novo-lead",
+      "id": "rdy6HWU0v3y76tIUt5Mt",
+      "status": "success"
+    },
+    {
+      "name": "em-qualificacao",
+      "id": "a0j6AsSWQOogPFVh78TO",
+      "status": "success"
+    },
+    {
+      "name": "qualificado",
+      "id": "yJe5tKIhUZEpZLz1XJBi",
+      "status": "success"
+    },
+    {
+      "name": "negociacao",
+      "id": "X8C42m1nJOx99wJV2xuI",
+      "status": "success"
+    },
+    {
+      "name": "fechado-ganho",
+      "id": "kRmVdMYRSGfsnyuBiBd7",
+      "status": "success"
+    },
+    {
+      "name": "fechado-perdido",
+      "id": "5un66axnK3jIfe1S0lD6",
+      "status": "success"
+    }
+  ],
+  "pipeline": {
+    "status": "error",
+    "error": "This route is not yet supported by the IAM Service. Please update your IAM config."
+  },
+  "webhooks": [
+    {
+      "name": "Novo Lead Inbound",
+      "triggerType": "contact_created",
+      "url": "https://cliente-a1.mentorfy.io/webhook/novo-lead-inbound"
+    },
+    {
+      "name": "Mensagem Recebida",
+      "triggerType": "inbound_message",
+      "url": "https://cliente-a1.mentorfy.io/webhook/ghl-mensagem-recebida"
+    },
+    {
+      "name": "Reuniao Agendada",
+      "triggerType": "appointment_created",
+      "url": "https://cliente-a1.mentorfy.io/webhook/reuniao-agendada"
+    },
+    {
+      "name": "Oportunidade Atualizada",
+      "triggerType": "opportunity_status_update",
+      "url": "https://cliente-a1.mentorfy.io/webhook/oportunidade-atualizada"
+    }
+  ]
+}

@@ -1,0 +1,349 @@
+{
+  "name": "19-Vigilante-Diario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "1.0 Cron Diario 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  c.id as conversation_id,\n  c.location_id,\n  c.contact_id,\n  c.contact_name,\n  json_agg(\n    json_build_object(\n      'role', m.direction,\n      'content', m.body,\n      'timestamp', m.date_added\n    ) ORDER BY m.date_added\n  ) as messages\nFROM agent_conversations c\nJOIN agent_conversation_messages m ON m.conversation_id = c.id\nWHERE c.location_id = '{{ $json.location_id }}'\n  AND c.date_added > NOW() - INTERVAL '24 hours'\n  AND c.qa_analyzed = false\nGROUP BY c.id, c.location_id, c.contact_id, c.contact_name\nLIMIT 50;",
+        "options": {}
+      },
+      "id": "db-get-conversations",
+      "name": "2.0 Buscar Conversas 24h",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-supabase",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare context for analysis\nconst locationId = $env.DEFAULT_LOCATION_ID || 'I0LCuaH8lRKFMfvfxpDe';\n\nreturn {\n  json: {\n    location_id: locationId,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "setup-context",
+      "name": "1.1 Setup Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-conversations",
+      "name": "2.1 Tem Conversas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-conversations",
+      "name": "3.0 Loop Conversas",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5\",\n  \"prompt\": \"Voce e um auditor de qualidade de atendimento.\\n\\nANALISE ESTA CONVERSA:\\n{{ JSON.stringify($json.messages) }}\\n\\nREGRAS DO AGENTE:\\n1. Max 3-4 linhas por mensagem\\n2. Usar nome correto do cliente\\n3. Nao repetir frases\\n4. Responder perguntas diretas\\n5. Ordem: Qualificar -> Gerar Valor -> Preco -> Fechar\\n6. Nunca falar preco antes de gerar valor\\n\\nTIPOS DE ERRO:\\n- nome_errado: Chamou cliente pelo nome errado\\n- msg_longa: Mensagem > 4 linhas\\n- repeticao: Mesma frase repetida\\n- pergunta_sem_resposta: Pergunta sem resposta clara\\n- pulou_etapa: Preco antes de valor\\n- perdeu_lead: Sem agendamento\\n\\nRETORNE APENAS JSON:\\n{\\\"erros_criticos\\\": [{\\\"tipo\\\": \\\"...\\\", \\\"descricao\\\": \\\"...\\\"}], \\\"erros_warning\\\": [], \\\"nota_geral\\\": 0-100, \\\"recomendacoes\\\": []}\",\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.3 }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "ollama-analyze",
+      "name": "3.1 Ollama Analisar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Ollama response\nconst response = $input.first().json.response || '';\nconst prevData = $('3.0 Loop Conversas').first().json;\n\ntry {\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    const analysis = JSON.parse(jsonMatch[0]);\n    return {\n      json: {\n        conversation_id: prevData.conversation_id,\n        location_id: prevData.location_id,\n        contact_name: prevData.contact_name,\n        erros_criticos: analysis.erros_criticos || [],\n        erros_warning: analysis.erros_warning || [],\n        nota_geral: analysis.nota_geral || 0,\n        recomendacoes: analysis.recomendacoes || [],\n        has_critical: (analysis.erros_criticos?.length || 0) > 0\n      }\n    };\n  }\n} catch (e) {\n  return {\n    json: {\n      conversation_id: prevData.conversation_id,\n      error: 'Parse failed: ' + e.message,\n      nota_geral: 50,\n      has_critical: false\n    }\n  };\n}\n\nreturn { json: { error: 'No JSON found', nota_geral: 50, has_critical: false } };"
+      },
+      "id": "parse-analysis",
+      "name": "3.2 Parse Analise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-critical",
+              "leftValue": "={{ $json.has_critical }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-critical",
+      "name": "3.3 Erro Critico?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_errors_detected (\n  location_id,\n  conversation_id,\n  error_type,\n  severity,\n  details\n) VALUES (\n  '{{ $json.location_id }}',\n  '{{ $json.conversation_id }}',\n  '{{ $json.erros_criticos[0]?.tipo || \"unknown\" }}',\n  'critical',\n  '{{ JSON.stringify($json.erros_criticos) }}'\n);",
+        "options": {}
+      },
+      "id": "db-save-error",
+      "name": "3.4 Salvar Erro",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1780, 200],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-supabase",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE agent_conversations \nSET qa_analyzed = true, \n    qa_score = {{ $json.nota_geral }},\n    qa_notes = '{{ JSON.stringify($json.recomendacoes).replace(/'/g, \"''\") }}'\nWHERE id = '{{ $json.conversation_id }}';",
+        "options": {}
+      },
+      "id": "db-mark-analyzed",
+      "name": "3.5 Marcar Analisado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1780, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-supabase",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all results\nconst items = $input.all();\nconst criticalCount = items.filter(i => i.json.has_critical).length;\nconst warningCount = items.reduce((acc, i) => acc + (i.json.erros_warning?.length || 0), 0);\nconst avgScore = items.length > 0 \n  ? Math.round(items.reduce((acc, i) => acc + (i.json.nota_geral || 0), 0) / items.length)\n  : 0;\n\nconst shouldTrigger = criticalCount > 0 || avgScore < 70;\n\nreturn {\n  json: {\n    total_conversations: items.length,\n    critical_errors: criticalCount,\n    warning_errors: warningCount,\n    average_score: avgScore,\n    should_trigger_improver: shouldTrigger,\n    summary: criticalCount > 0 \n      ? `⚠️ ${criticalCount} erro(s) critico(s) detectado(s)!`\n      : `✅ Nenhum erro critico. Score medio: ${avgScore}/100`\n  }\n};"
+      },
+      "id": "aggregate-results",
+      "name": "4.0 Agregar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should-trigger",
+              "leftValue": "={{ $json.should_trigger_improver }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-trigger-improver",
+      "name": "4.1 Trigger Improver?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $env.IMPROVER_WORKFLOW_ID }}",
+        "options": {}
+      },
+      "id": "execute-improver",
+      "name": "4.2 Executar Improver",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2660, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.WHATSAPP_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.NOTIFY_PHONE }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"🔍 *VIGILANTE - Relatorio Diario*\\n\\n{{ $json.summary }}\\n\\n📊 Conversas: {{ $json.total_conversations }}\\n⚠️ Criticos: {{ $json.critical_errors }}\\n⚡ Warnings: {{ $json.warning_errors }}\\n📈 Score: {{ $json.average_score }}/100{{ $json.should_trigger_improver ? '\\n\\n🚀 Improver iniciado!' : '' }}\"\n  }\n}"
+      },
+      "id": "whatsapp-notify",
+      "name": "5.0 WhatsApp Notificar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_improvement_logs (\n  location_id,\n  trigger_type,\n  score_media,\n  issues_found,\n  conversations_analyzed\n) VALUES (\n  '{{ $('1.1 Setup Context').first().json.location_id }}',\n  'vigilante',\n  {{ $json.average_score }},\n  '{{ JSON.stringify({ critical: $json.critical_errors, warning: $json.warning_errors }) }}',\n  {{ $json.total_conversations }}\n);",
+        "options": {}
+      },
+      "id": "db-save-log",
+      "name": "5.1 Salvar Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3100, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-supabase",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// No conversations to analyze\nreturn {\n  json: {\n    message: 'Nenhuma conversa nova para analisar',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "no-conversations",
+      "name": "2.2 Sem Conversas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "1.0 Cron Diario 6h": {
+      "main": [[{ "node": "1.1 Setup Context", "type": "main", "index": 0 }]]
+    },
+    "1.1 Setup Context": {
+      "main": [[{ "node": "2.0 Buscar Conversas 24h", "type": "main", "index": 0 }]]
+    },
+    "2.0 Buscar Conversas 24h": {
+      "main": [[{ "node": "2.1 Tem Conversas?", "type": "main", "index": 0 }]]
+    },
+    "2.1 Tem Conversas?": {
+      "main": [
+        [{ "node": "3.0 Loop Conversas", "type": "main", "index": 0 }],
+        [{ "node": "2.2 Sem Conversas", "type": "main", "index": 0 }]
+      ]
+    },
+    "3.0 Loop Conversas": {
+      "main": [
+        [{ "node": "3.1 Ollama Analisar", "type": "main", "index": 0 }],
+        [{ "node": "4.0 Agregar Resultados", "type": "main", "index": 0 }]
+      ]
+    },
+    "3.1 Ollama Analisar": {
+      "main": [[{ "node": "3.2 Parse Analise", "type": "main", "index": 0 }]]
+    },
+    "3.2 Parse Analise": {
+      "main": [[{ "node": "3.3 Erro Critico?", "type": "main", "index": 0 }]]
+    },
+    "3.3 Erro Critico?": {
+      "main": [
+        [{ "node": "3.4 Salvar Erro", "type": "main", "index": 0 }],
+        [{ "node": "3.5 Marcar Analisado", "type": "main", "index": 0 }]
+      ]
+    },
+    "3.4 Salvar Erro": {
+      "main": [[{ "node": "3.5 Marcar Analisado", "type": "main", "index": 0 }]]
+    },
+    "3.5 Marcar Analisado": {
+      "main": [[{ "node": "3.0 Loop Conversas", "type": "main", "index": 0 }]]
+    },
+    "4.0 Agregar Resultados": {
+      "main": [[{ "node": "4.1 Trigger Improver?", "type": "main", "index": 0 }]]
+    },
+    "4.1 Trigger Improver?": {
+      "main": [
+        [{ "node": "4.2 Executar Improver", "type": "main", "index": 0 }],
+        [{ "node": "5.0 WhatsApp Notificar", "type": "main", "index": 0 }]
+      ]
+    },
+    "4.2 Executar Improver": {
+      "main": [[{ "node": "5.0 WhatsApp Notificar", "type": "main", "index": 0 }]]
+    },
+    "5.0 WhatsApp Notificar": {
+      "main": [[{ "node": "5.1 Salvar Log", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{ "id": "auto-improve", "name": "Auto-Improve" }],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ai-factory-mottivme"
+  }
+}

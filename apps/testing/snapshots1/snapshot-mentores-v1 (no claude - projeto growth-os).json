@@ -1,0 +1,170 @@
+{
+  "snapshot": {
+    "name": "MOTTIVME - Mentores High Ticket",
+    "version": "1.0.0",
+    "subnicho": "mentores",
+    "createdAt": "2026-01-03",
+    "createdBy": "MOTTIVME"
+  },
+
+  "customFields": [
+    {
+      "name": "Área de Interesse",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Qual área de mentoria?",
+      "picklistOptions": ["Negócios", "Marketing", "Vendas", "Finanças", "Carreira", "Lifestyle"],
+      "position": 0
+    },
+    {
+      "name": "Nível Atual",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Nível do mentorado",
+      "picklistOptions": ["Iniciante", "Intermediário", "Avançado", "Expert"],
+      "position": 1
+    },
+    {
+      "name": "Faturamento Atual",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Faixa de faturamento",
+      "picklistOptions": ["Até 10k/mês", "10k-50k/mês", "50k-100k/mês", "100k-500k/mês", "500k+/mês"],
+      "position": 2
+    },
+    {
+      "name": "Meta de Faturamento",
+      "dataType": "MONETARY",
+      "model": "contact",
+      "placeholder": "Objetivo financeiro",
+      "position": 3
+    },
+    {
+      "name": "Urgência",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Nível de urgência",
+      "picklistOptions": ["Urgente", "Alta", "Média", "Baixa"],
+      "position": 4
+    },
+    {
+      "name": "Lead Score",
+      "dataType": "NUMBER",
+      "model": "contact",
+      "placeholder": "Pontuação 0-100 (calculado por IA)",
+      "position": 5
+    },
+    {
+      "name": "Desafios Principais",
+      "dataType": "CHECKBOX",
+      "model": "contact",
+      "placeholder": "Selecione os desafios",
+      "picklistOptions": ["Captação de clientes", "Precificação", "Escala", "Time", "Processos", "Mindset"],
+      "position": 6
+    },
+    {
+      "name": "Objeção Atual",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Objeção identificada",
+      "picklistOptions": ["Nenhuma", "Preço", "Tempo", "Já tentei", "Preciso pensar"],
+      "position": 7
+    },
+    {
+      "name": "Ativar IA",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "IA pode responder?",
+      "picklistOptions": ["Sim", "Não"],
+      "position": 8
+    },
+    {
+      "name": "Classificação IA",
+      "dataType": "SINGLE_OPTIONS",
+      "model": "contact",
+      "placeholder": "Classificação automática",
+      "picklistOptions": ["LEAD_HOT", "LEAD_WARM", "LEAD_COLD", "PESSOAL", "SPAM"],
+      "position": 9
+    }
+  ],
+
+  "pipelines": [
+    {
+      "name": "Vendas - Mentoria",
+      "stages": [
+        { "name": "New Lead", "position": 0 },
+        { "name": "Contacted", "position": 1 },
+        { "name": "Qualified", "position": 2 },
+        { "name": "Application", "position": 3 },
+        { "name": "Call Booked", "position": 4 },
+        { "name": "Call Done", "position": 5 },
+        { "name": "Proposal", "position": 6 },
+        { "name": "Closed Won", "position": 7 },
+        { "name": "Closed Lost", "position": 8 }
+      ]
+    },
+    {
+      "name": "Entrega - Mentoria",
+      "stages": [
+        { "name": "Onboarding", "position": 0 },
+        { "name": "Mês 1", "position": 1 },
+        { "name": "Mês 2", "position": 2 },
+        { "name": "Mês 3", "position": 3 },
+        { "name": "Renovação", "position": 4 },
+        { "name": "Concluído", "position": 5 },
+        { "name": "Churned", "position": 6 }
+      ]
+    }
+  ],
+
+  "tags": [
+    "origem_instagram_dm",
+    "origem_webinar",
+    "origem_vsl",
+    "origem_youtube",
+    "origem_indicacao",
+    "origem_organico",
+    "interesse_negocios",
+    "interesse_marketing",
+    "interesse_vendas",
+    "qualificado_bant",
+    "hot_lead",
+    "cliente_ativo",
+    "objecao_preco",
+    "objecao_tempo",
+    "objecao_ja_tentei"
+  ],
+
+  "workflows": [
+    {
+      "name": "Classificação de Lead (IA)",
+      "trigger": "Nova mensagem recebida",
+      "description": "Classifica lead automaticamente via API Socialfy"
+    },
+    {
+      "name": "Resposta Rápida (< 5 min)",
+      "trigger": "Novo lead criado",
+      "description": "Alerta equipe se não responder em 5 min"
+    },
+    {
+      "name": "Sequência de Aplicação",
+      "trigger": "Lead qualificado sem application",
+      "description": "Incentiva preenchimento do formulário de aplicação"
+    },
+    {
+      "name": "Confirmação de Call",
+      "trigger": "Call agendada",
+      "description": "Confirmação + lembretes pré-call"
+    },
+    {
+      "name": "No-Show Recovery",
+      "trigger": "Call não realizada",
+      "description": "Recuperação de leads que faltaram"
+    },
+    {
+      "name": "Pós-Call Follow-up",
+      "trigger": "Call realizada sem fechamento",
+      "description": "Sequência de fechamento"
+    }
+  ]
+}

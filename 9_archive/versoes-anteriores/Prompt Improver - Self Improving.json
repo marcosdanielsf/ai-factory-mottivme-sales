@@ -1,0 +1,705 @@
+{
+  "name": "Prompt Improver - Self Improving",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prompt-improver",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        304
+      ],
+      "id": "webhook-trigger",
+      "name": "Webhook - Prompt Improver",
+      "webhookId": "prompt-improver"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse dados do Reflection Loop\nconst body = $input.first().json.body || $input.first().json;\n\nconst reflectionLogId = body.reflection_log_id || '';\nconst agentVersionId = body.agent_version_id || '';\nconst agentName = body.agent_name || '';\nconst clientId = body.client_id || '';\nconst clienteName = body.cliente_nome || '';\nconst actionRequired = body.action_required || 'suggestion';\nconst pontosFortes = body.pontos_fortes || [];\nconst pontosFracos = body.pontos_fracos || [];\nconst mediaScore = body.media_score || 0;\nconst sugestoes = body.sugestoes || [];\nconst urgencia = body.urgencia || 'media';\nconst currentPrompt = body.current_prompt || '';\n\n// Validacao basica\nif (!agentVersionId) {\n  throw new Error('agent_version_id é obrigatório');\n}\n\nreturn [{\n  json: {\n    reflection_log_id: reflectionLogId,\n    agent_version_id: agentVersionId,\n    agent_name: agentName,\n    client_id: clientId,\n    cliente_nome: clienteName,\n    action_required: actionRequired,\n    pontos_fortes: pontosFortes,\n    pontos_fracos: pontosFracos,\n    media_score: mediaScore,\n    sugestoes: sugestoes,\n    urgencia: urgencia,\n    current_prompt: currentPrompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        304
+      ],
+      "id": "parse-input",
+      "name": "Parse Input Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  sp.id,\n  sp.prompt_name,\n  sp.content as current_content,\n  sp.version,\n  sp.is_active,\n  sp.performance_score,\n  sp.metadata,\n  av.agent_name,\n  av.system_prompt,\n  c.nome as cliente_nome\nFROM system_prompts sp\nJOIN agent_versions av ON sp.agent_id = av.id\nJOIN clients c ON av.client_id = c.id\nWHERE av.id = '{{ $json.agent_version_id }}'\n  AND sp.is_active = TRUE\nORDER BY sp.created_at DESC\nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        304
+      ],
+      "id": "buscar-prompt-atual",
+      "name": "Buscar Prompt Atual",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-prompt",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        304
+      ],
+      "id": "tem-prompt",
+      "name": "Tem Prompt Ativo?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Se nao tem prompt ativo, usar system_prompt do agent_version\nconst inputData = $('Parse Input Data').first().json;\nconst currentPrompt = inputData.current_prompt || 'Prompt nao encontrado';\n\nreturn [{\n  json: {\n    ...inputData,\n    prompt_id: null,\n    prompt_name: inputData.agent_name + ' - Base',\n    current_content: currentPrompt,\n    version: 'v0.0',\n    using_base_prompt: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        512
+      ],
+      "id": "usar-prompt-base",
+      "name": "Usar Prompt Base do Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge dados do prompt encontrado com input original\nconst inputData = $('Parse Input Data').first().json;\nconst promptData = $input.first().json;\n\nreturn [{\n  json: {\n    ...inputData,\n    prompt_id: promptData.id,\n    prompt_name: promptData.prompt_name,\n    current_content: promptData.current_content || promptData.system_prompt,\n    version: promptData.version,\n    performance_score: promptData.performance_score,\n    using_base_prompt: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        304
+      ],
+      "id": "merge-prompt-data",
+      "name": "Merge Prompt Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge simples dos dados\nconst items = $input.all();\nif (items.length > 0) {\n  return items;\n}\nreturn [{ json: { error: 'No input data' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        400
+      ],
+      "id": "merge-flows",
+      "name": "Merge Flows"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1840,
+        400
+      ],
+      "id": "ai-prompt-engineer",
+      "name": "AI - Prompt Engineer",
+      "credentials": {
+        "anthropicApi": {
+          "id": "qbknxAVhLOmjSkhy",
+          "name": "Anthropic - Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse resposta da IA e validar\nconst aiResponse = $input.first().json.message?.content || $input.first().json.text || '';\nconst inputData = $('Merge Flows').first().json;\n\nlet parsedResponse;\ntry {\n  // Tenta extrair JSON da resposta\n  const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    parsedResponse = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('JSON nao encontrado na resposta');\n  }\n} catch (e) {\n  parsedResponse = {\n    improved_prompt: inputData.current_content,\n    changes_summary: ['Erro ao processar: ' + e.message],\n    expected_improvements: [],\n    risk_assessment: 'alto',\n    confidence_score: 0,\n    rollback_reason: 'Falha no processamento da IA'\n  };\n}\n\n// Validacoes de seguranca\nconst originalLength = inputData.current_content?.length || 0;\nconst newLength = parsedResponse.improved_prompt?.length || 0;\nconst changePct = Math.abs(newLength - originalLength) / originalLength;\n\nlet validationErrors = [];\n\nif (changePct > 0.30) {\n  validationErrors.push(`Mudanca muito grande: ${(changePct * 100).toFixed(1)}% (max 30%)`);\n}\n\nif (!parsedResponse.improved_prompt || parsedResponse.improved_prompt.length < 100) {\n  validationErrors.push('Prompt melhorado invalido ou muito curto');\n}\n\nif (parsedResponse.risk_assessment === 'alto' && inputData.action_required !== 'escalate') {\n  validationErrors.push('Risco alto detectado - requer aprovacao manual');\n}\n\nconst isValid = validationErrors.length === 0;\nconst requiresApproval = !isValid || \n                         inputData.action_required === 'suggestion' || \n                         parsedResponse.confidence_score < 0.7;\n\n// Calcular nova versao\nconst currentVersion = inputData.version || 'v1.0';\nconst versionMatch = currentVersion.match(/v?(\\d+)\\.(\\d+)/);\nlet newVersion = 'v1.1';\nif (versionMatch) {\n  const major = parseInt(versionMatch[1]);\n  const minor = parseInt(versionMatch[2]) + 1;\n  newVersion = `v${major}.${minor}`;\n}\n\nreturn [{\n  json: {\n    // Dados originais\n    reflection_log_id: inputData.reflection_log_id,\n    agent_version_id: inputData.agent_version_id,\n    agent_name: inputData.agent_name,\n    client_id: inputData.client_id,\n    cliente_nome: inputData.cliente_nome,\n    prompt_id: inputData.prompt_id,\n    \n    // Versoes\n    current_version: inputData.version,\n    new_version: newVersion,\n    current_content: inputData.current_content,\n    \n    // Resultado da IA\n    improved_prompt: parsedResponse.improved_prompt,\n    changes_summary: parsedResponse.changes_summary,\n    expected_improvements: parsedResponse.expected_improvements,\n    risk_assessment: parsedResponse.risk_assessment,\n    confidence_score: parsedResponse.confidence_score,\n    rollback_reason: parsedResponse.rollback_reason,\n    \n    // Validacao\n    is_valid: isValid,\n    validation_errors: validationErrors,\n    requires_approval: requiresApproval,\n    action_type: inputData.action_required,\n    change_percentage: (changePct * 100).toFixed(1) + '%',\n    \n    // Metadados\n    generated_at: new Date().toISOString(),\n    source: 'self-improving-system'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        400
+      ],
+      "id": "validar-resultado",
+      "name": "Validar e Processar Resultado"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "auto-apply",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "auto_update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "is-valid",
+                    "leftValue": "={{ $json.is_valid }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "high-confidence",
+                    "leftValue": "={{ $json.confidence_score }}",
+                    "rightValue": "0.7",
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "auto_apply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "needs-approval",
+                    "leftValue": "={{ $json.requires_approval }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "needs_approval"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "escalate",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "escalate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "escalate"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2320,
+        400
+      ],
+      "id": "decision-framework",
+      "name": "Decision Framework"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Criar nova versao do prompt (auto-aplicada)\nINSERT INTO system_prompts (\n  prompt_name,\n  content,\n  version,\n  agent_id,\n  is_active,\n  performance_score,\n  metadata\n) VALUES (\n  '{{ $json.agent_name }} - Auto Improved',\n  $1,\n  '{{ $json.new_version }}',\n  '{{ $json.agent_version_id }}',\n  TRUE,\n  NULL,\n  jsonb_build_object(\n    'source', 'self-improving-system',\n    'previous_version', '{{ $json.current_version }}',\n    'changes_summary', '{{ JSON.stringify($json.changes_summary).replace(/'/g, \"''\") }}',\n    'confidence_score', {{ $json.confidence_score }},\n    'reflection_log_id', '{{ $json.reflection_log_id }}',\n    'auto_applied', true,\n    'applied_at', '{{ $json.generated_at }}'\n  )\n) RETURNING id, version;\n\n-- Desativar versao anterior\nUPDATE system_prompts \nSET is_active = FALSE \nWHERE agent_id = '{{ $json.agent_version_id }}' \n  AND version != '{{ $json.new_version }}'\n  AND is_active = TRUE;",
+        "options": {
+          "queryReplacement": "={{ $json.improved_prompt }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2560,
+        208
+      ],
+      "id": "auto-apply-prompt",
+      "name": "Auto Apply - Criar Nova Versao",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Registrar no log de melhorias\nINSERT INTO improvement_suggestions (\n  agent_id,\n  reflection_log_id,\n  suggestion_type,\n  original_content,\n  suggested_content,\n  changes_description,\n  confidence_score,\n  status,\n  metadata\n) VALUES (\n  '{{ $json.agent_version_id }}',\n  {{ $json.reflection_log_id ? \"'\" + $json.reflection_log_id + \"'\" : 'NULL' }},\n  'prompt_improvement',\n  $1,\n  $2,\n  '{{ JSON.stringify($json.changes_summary).replace(/'/g, \"''\") }}',\n  {{ $json.confidence_score }},\n  'auto_applied',\n  jsonb_build_object(\n    'new_version', '{{ $json.new_version }}',\n    'risk_assessment', '{{ $json.risk_assessment }}',\n    'expected_improvements', '{{ JSON.stringify($json.expected_improvements).replace(/'/g, \"''\") }}',\n    'change_percentage', '{{ $json.change_percentage }}'\n  )\n) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.current_content, $json.improved_prompt] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2800,
+        208
+      ],
+      "id": "log-auto-applied",
+      "name": "Log Melhoria Auto-Aplicada",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Criar sugestao pendente de aprovacao\nINSERT INTO improvement_suggestions (\n  agent_id,\n  reflection_log_id,\n  suggestion_type,\n  original_content,\n  suggested_content,\n  changes_description,\n  confidence_score,\n  status,\n  metadata\n) VALUES (\n  '{{ $json.agent_version_id }}',\n  {{ $json.reflection_log_id ? \"'\" + $json.reflection_log_id + \"'\" : 'NULL' }},\n  'prompt_improvement',\n  $1,\n  $2,\n  '{{ JSON.stringify($json.changes_summary).replace(/'/g, \"''\") }}',\n  {{ $json.confidence_score }},\n  'pending',\n  jsonb_build_object(\n    'proposed_version', '{{ $json.new_version }}',\n    'risk_assessment', '{{ $json.risk_assessment }}',\n    'expected_improvements', '{{ JSON.stringify($json.expected_improvements).replace(/'/g, \"''\") }}',\n    'validation_errors', '{{ JSON.stringify($json.validation_errors).replace(/'/g, \"''\") }}',\n    'change_percentage', '{{ $json.change_percentage }}',\n    'rollback_reason', '{{ $json.rollback_reason }}'\n  )\n) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.current_content, $json.improved_prompt] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2560,
+        400
+      ],
+      "id": "create-suggestion",
+      "name": "Criar Sugestao Pendente",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/hooks/{{ $('Parse Input Data').first().json.location_id || 'cd1uyzpJox6XPt4Vct8Y' }}/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"prompt_suggestion\",\n  \"agent_name\": \"{{ $json.agent_name }}\",\n  \"cliente\": \"{{ $json.cliente_nome }}\",\n  \"suggestion_id\": \"{{ $('Criar Sugestao Pendente').first().json.id }}\",\n  \"changes_summary\": {{ JSON.stringify($json.changes_summary) }},\n  \"confidence_score\": {{ $json.confidence_score }},\n  \"risk_assessment\": \"{{ $json.risk_assessment }}\",\n  \"action_required\": \"approval\",\n  \"message\": \"Nova sugestao de melhoria para {{ $json.agent_name }} ({{ $json.cliente_nome }}). Score: {{ $json.confidence_score }}. Risco: {{ $json.risk_assessment }}. Use /prompt aprovar {{ $('Criar Sugestao Pendente').first().json.id }} para aplicar.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2800,
+        400
+      ],
+      "id": "notify-approval-needed",
+      "name": "Notificar - Aprovacao Necessaria"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Criar registro de escalacao urgente\nINSERT INTO improvement_suggestions (\n  agent_id,\n  reflection_log_id,\n  suggestion_type,\n  original_content,\n  suggested_content,\n  changes_description,\n  confidence_score,\n  status,\n  metadata\n) VALUES (\n  '{{ $json.agent_version_id }}',\n  {{ $json.reflection_log_id ? \"'\" + $json.reflection_log_id + \"'\" : 'NULL' }},\n  'urgent_escalation',\n  $1,\n  $2,\n  '{{ JSON.stringify($json.changes_summary).replace(/'/g, \"''\") }}',\n  {{ $json.confidence_score }},\n  'escalated',\n  jsonb_build_object(\n    'urgency', 'critical',\n    'risk_assessment', '{{ $json.risk_assessment }}',\n    'validation_errors', '{{ JSON.stringify($json.validation_errors).replace(/'/g, \"''\") }}',\n    'requires_human_review', true,\n    'escalated_at', '{{ $json.generated_at }}'\n  )\n) RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.current_content, $json.improved_prompt] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2560,
+        608
+      ],
+      "id": "create-escalation",
+      "name": "Criar Escalacao",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/hooks/{{ $('Parse Input Data').first().json.location_id || 'cd1uyzpJox6XPt4Vct8Y' }}/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"urgent_escalation\",\n  \"agent_name\": \"{{ $json.agent_name }}\",\n  \"cliente\": \"{{ $json.cliente_nome }}\",\n  \"escalation_id\": \"{{ $('Criar Escalacao').first().json.id }}\",\n  \"risk_assessment\": \"{{ $json.risk_assessment }}\",\n  \"validation_errors\": {{ JSON.stringify($json.validation_errors) }},\n  \"action_required\": \"urgent_review\",\n  \"message\": \"URGENTE: Agente {{ $json.agent_name }} ({{ $json.cliente_nome }}) requer revisao manual imediata. Score: {{ $('Parse Input Data').first().json.media_score }}/5.0. Erros de validacao detectados.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2800,
+        608
+      ],
+      "id": "notify-escalation",
+      "name": "Notificar - Escalacao Urgente"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar resposta final\nconst validatedData = $('Validar e Processar Resultado').first().json;\nconst inputData = $('Parse Input Data').first().json;\n\nlet result = {\n  success: true,\n  action_taken: validatedData.action_type,\n  agent_name: validatedData.agent_name,\n  cliente_nome: validatedData.cliente_nome,\n  new_version: validatedData.new_version,\n  confidence_score: validatedData.confidence_score,\n  risk_assessment: validatedData.risk_assessment,\n  requires_approval: validatedData.requires_approval,\n  changes_summary: validatedData.changes_summary\n};\n\n// Adicionar ID especifico baseado no caminho\nconst lastNode = $input.first().$nodeId || '';\n\nif (lastNode.includes('auto-apply') || lastNode.includes('log-auto')) {\n  result.applied = true;\n  result.message = `Prompt atualizado automaticamente para ${validatedData.new_version}`;\n} else if (lastNode.includes('suggestion') || lastNode.includes('approval')) {\n  result.applied = false;\n  result.suggestion_created = true;\n  result.message = 'Sugestao criada aguardando aprovacao';\n} else if (lastNode.includes('escalat')) {\n  result.applied = false;\n  result.escalated = true;\n  result.message = 'Caso escalado para revisao manual urgente';\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        400
+      ],
+      "id": "prepare-response",
+      "name": "Preparar Resposta Final"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3280,
+        400
+      ],
+      "id": "respond-webhook",
+      "name": "Responder Webhook"
+    },
+    {
+      "parameters": {
+        "content": "## 12-Prompt-Improver.json\n\n### Funcao\nRecebe dados do Reflection Loop e gera prompts melhorados usando IA.\n\n### Fluxo:\n1. **Webhook** - Recebe reflection_log_id + dados de analise\n2. **Buscar Prompt** - Carrega versao atual do Supabase\n3. **AI Engineer** - Claude Sonnet gera versao melhorada\n4. **Validacao** - Verifica limites de mudanca e seguranca\n5. **Decision Framework**:\n   - `auto_apply` → Aplica direto + log\n   - `needs_approval` → Cria sugestao + notifica\n   - `escalate` → Urgente + notifica\n\n### Guardrails:\n- Max 30% de mudanca no conteudo\n- Confidence score minimo 0.7 para auto-apply\n- Rollback reason obrigatorio\n- Versionamento automatico (v1.0 → v1.1)",
+        "height": 380,
+        "width": 340,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        160
+      ],
+      "id": "sticky-info",
+      "name": "Sticky Note - Info"
+    },
+    {
+      "parameters": {
+        "content": "### Webhook Payload Esperado\n```json\n{\n  \"reflection_log_id\": \"uuid\",\n  \"agent_version_id\": \"uuid\",\n  \"agent_name\": \"SDR Bot\",\n  \"client_id\": \"uuid\",\n  \"cliente_nome\": \"Mottivme\",\n  \"action_required\": \"suggestion|auto_update|escalate\",\n  \"pontos_fortes\": [...],\n  \"pontos_fracos\": [...],\n  \"media_score\": 3.2,\n  \"sugestoes\": [...],\n  \"current_prompt\": \"...\"\n}\n```",
+        "height": 320,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        560
+      ],
+      "id": "sticky-payload",
+      "name": "Sticky Note - Payload"
+    },
+    {
+      "parameters": {
+        "content": "### Tabelas Utilizadas\n\n- `system_prompts` - Versoes de prompts\n- `improvement_suggestions` - Sugestoes/logs\n- `agent_versions` - Agentes ativos\n- `clients` - Dados do cliente\n\n### Dependencias\n- 11-Reflection-Loop.json (trigger)\n- 07-Engenheiro-de-Prompt.json (aprovar/rejeitar)",
+        "height": 240,
+        "width": 300,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3040,
+        160
+      ],
+      "id": "sticky-tables",
+      "name": "Sticky Note - Tables"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Prompt Improver": {
+      "main": [
+        [
+          {
+            "node": "Parse Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input Data": {
+      "main": [
+        [
+          {
+            "node": "Buscar Prompt Atual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Prompt Atual": {
+      "main": [
+        [
+          {
+            "node": "Tem Prompt Ativo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Prompt Ativo?": {
+      "main": [
+        [
+          {
+            "node": "Merge Prompt Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Usar Prompt Base do Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usar Prompt Base do Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Flows",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Prompt Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Flows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Flows": {
+      "main": [
+        [
+          {
+            "node": "AI - Prompt Engineer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Prompt Engineer": {
+      "main": [
+        [
+          {
+            "node": "Validar e Processar Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar e Processar Resultado": {
+      "main": [
+        [
+          {
+            "node": "Decision Framework",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Framework": {
+      "main": [
+        [
+          {
+            "node": "Auto Apply - Criar Nova Versao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar Sugestao Pendente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar Escalacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto Apply - Criar Nova Versao": {
+      "main": [
+        [
+          {
+            "node": "Log Melhoria Auto-Aplicada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Melhoria Auto-Aplicada": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resposta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Sugestao Pendente": {
+      "main": [
+        [
+          {
+            "node": "Notificar - Aprovacao Necessaria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar - Aprovacao Necessaria": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resposta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Escalacao": {
+      "main": [
+        [
+          {
+            "node": "Notificar - Escalacao Urgente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar - Escalacao Urgente": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resposta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resposta Final": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "cd747d96-7acc-4e82-832c-7c40fdc226c6",
+  "meta": {
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "zO8pOo81MVG6zfr3",
+  "tags": []
+}

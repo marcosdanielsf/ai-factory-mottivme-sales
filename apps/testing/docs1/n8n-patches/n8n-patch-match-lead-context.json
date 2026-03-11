@@ -1,0 +1,106 @@
+{
+  "instruction": "COMO ADICIONAR O NODE MATCH LEAD CONTEXT AO WORKFLOW",
+
+  "step_1": "Copiar e colar este node no workflow (Ctrl+V ou Cmd+V após copiar)",
+
+  "node_to_add": {
+    "parameters": {
+      "method": "POST",
+      "url": "https://agenticoskevsacademy-production.up.railway.app/api/match-lead-context",
+      "sendHeaders": true,
+      "headerParameters": {
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "sendBody": true,
+      "specifyBody": "json",
+      "jsonBody": "={\n  \"phone\": \"{{ $('Info').first().json.telefone || '' }}\",\n  \"email\": \"{{ $('Info').first().json.email || '' }}\",\n  \"ig_id\": \"{{ $('Mensagem recebida').first().json.body?.contact?.attributionSource?.igSid || '' }}\",\n  \"ghl_contact_id\": \"{{ $('Info').first().json.lead_id || '' }}\",\n  \"location_id\": \"{{ $('Info').first().json.location_id || '' }}\",\n  \"ig_handle\": \"{{ $('Info').first().json.instagram || '' }}\"\n}",
+      "options": {
+        "response": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      }
+    },
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [560, 400],
+    "id": "match-lead-context-agenticos",
+    "name": "Match Lead Context",
+    "notesInFlow": true,
+    "notes": "Busca dados enriquecidos do lead no AgenticOS",
+    "onError": "continueRegularOutput"
+  },
+
+  "step_2": "Posicionar o node entre 'Info' (pos 320,400) e os próximos nodes",
+
+  "step_3": "Conectar Info → Match Lead Context",
+
+  "step_4": "No AI Agent, usar os placeholders assim:",
+
+  "placeholders_usage": {
+    "no_prompt_do_agente": "Adicione estas variáveis ao contexto do prompt:",
+    "exemplo": "CONTEXTO DO LEAD (dados enriquecidos do AgenticOS):\n- Nome: {{ $('Match Lead Context').first().json.placeholders['{{nome}}'] || $('Info').first().json.first_name }}\n- Cargo: {{ $('Match Lead Context').first().json.placeholders['{{cargo}}'] || 'Não informado' }}\n- Empresa: {{ $('Match Lead Context').first().json.placeholders['{{empresa}}'] || 'Não informada' }}\n- ICP Score: {{ $('Match Lead Context').first().json.placeholders['{{icp_score}}'] || 'N/A' }}\n- ICP Tier: {{ $('Match Lead Context').first().json.placeholders['{{icp_tier}}'] || 'Novo Lead' }}\n- Contexto de Prospecção: {{ $('Match Lead Context').first().json.placeholders['{{contexto_prospeccao}}'] || 'Lead não prospectado anteriormente' }}"
+  },
+
+  "step_5_optional": "Adicionar IF node para lógica condicional",
+
+  "if_node_config": {
+    "parameters": {
+      "conditions": {
+        "options": {
+          "caseSensitive": true,
+          "leftValue": "",
+          "typeValidation": "loose",
+          "version": 2
+        },
+        "conditions": [
+          {
+            "id": "check-matched",
+            "leftValue": "={{ $('Match Lead Context').first().json.matched }}",
+            "rightValue": true,
+            "operator": {
+              "type": "boolean",
+              "operation": "equals"
+            }
+          }
+        ],
+        "combinator": "and"
+      }
+    },
+    "type": "n8n-nodes-base.if",
+    "name": "Lead Prospectado?"
+  },
+
+  "response_example": {
+    "when_matched": {
+      "matched": true,
+      "source": "agenticos_prospecting",
+      "lead_data": {
+        "full_name": "Ricardo Silva",
+        "cargo": "CEO",
+        "empresa": "TechVentures",
+        "icp_score": 85,
+        "icp_tier": "HOT"
+      },
+      "placeholders": {
+        "{{nome}}": "Ricardo",
+        "{{cargo}}": "CEO",
+        "{{empresa}}": "TechVentures",
+        "{{icp_tier}}": "HOT",
+        "{{contexto_prospeccao}}": "Lead prospectado em 02/01 via Instagram DM."
+      }
+    },
+    "when_not_matched": {
+      "matched": false,
+      "source": "unknown",
+      "lead_data": null,
+      "action_required": "scrape_profile"
+    }
+  }
+}

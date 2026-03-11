@@ -1,0 +1,1187 @@
+#!/usr/bin/env python3
+"""
+🔍 INSTAGRAM API SCRAPER (Método Bruno Fraga)
+=============================================
+Extrai dados ocultos do Instagram usando Session ID + API interna.
+
+Dados extraídos:
+- User ID (estático, nunca muda)
+- FB ID (conexão com Facebook)
+- Bio completa
+- Seguidores/Seguindo
+- Pista de email (ofuscado)
+- Pista de telefone (ofuscado)
+- WhatsApp vinculado
+- Data de criação
+- Se é conta business
+- Categoria da conta
+- Links externos
+- E muito mais...
+
+Uso:
+    from instagram_api_scraper import InstagramAPIScraper
+
+    scraper = InstagramAPIScraper(session_id="seu_session_id")
+    profile = scraper.get_profile("username")
+    print(profile)
+"""
+
+import os
+import json
+import time
+import requests
+import logging
+from datetime import datetime
+from typing import Dict, Optional, List
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+# Proxy Manager para usar proxy residential
+_proxy_config = None
+
+def _get_proxy_config():
+    """Lazy load do proxy config via env vars"""
+    global _proxy_config
+    if _proxy_config is None:
+        host = os.getenv("PROXY_HOST")
+        port = os.getenv("PROXY_PORT")
+        user = os.getenv("PROXY_USER")
+        password = os.getenv("PROXY_PASS")
+
+        if host and port:
+            auth = f"{user}:{password}@" if user and password else ""
+            proxy_url = f"http://{auth}{host}:{port}"
+            _proxy_config = {
+                "http": proxy_url,
+                "https": proxy_url
+            }
+            logger.warning(f"🌐 PROXY ATIVADO: {host}:{port}")
+        else:
+            _proxy_config = {}  # Sem proxy
+            logger.warning("⚠️ PROXY DESATIVADO (PROXY_HOST/PROXY_PORT ausentes)")
+    return _proxy_config
+
+# Import SessionPool (lazy para evitar circular import)
+_session_pool = None
+
+def _get_session_pool():
+    """Lazy import do SessionPool"""
+    global _session_pool
+    if _session_pool is None:
+        try:
+            from instagram_session_pool import get_session_pool
+            _session_pool = get_session_pool()
+        except ImportError:
+            logger.warning("SessionPool não disponível, usando session única")
+    return _session_pool
+
+
+class InstagramAPIScraper:
+    """
+    Scraper do Instagram usando API interna + Session ID.
+    Método baseado nas técnicas do Bruno Fraga.
+    """
+
+    # Endpoints da API interna do Instagram
+    BASE_URL = "https://i.instagram.com/api/v1"
+    GRAPH_URL = "https://www.instagram.com/api/v1"
+    WEB_URL = "https://www.instagram.com"
+
+    def __init__(self, session_id: str = None, use_pool: bool = True):
+        """
+        Inicializa o scraper.
+
+        Args:
+            session_id: O sessionid do cookie do Instagram (opcional se usar pool)
+            use_pool: Se True, usa o SessionPool para rotacionar sessions (default: True)
+        """
+        self.use_pool = use_pool
+        self._pool_session = None  # Session object do pool
+        self._pool_session_uuid = None  # UUID para reportar resultados
+
+        # Se session_id fornecido explicitamente, usar ele
+        if session_id:
+            self.session_id = session_id
+            self.use_pool = False
+        else:
+            # Tentar usar o pool
+            if use_pool:
+                pool = _get_session_pool()
+                if pool:
+                    self._pool_session = pool.get_session()
+                    if self._pool_session:
+                        self.session_id = self._pool_session.session_id
+                        self._pool_session_uuid = self._pool_session.id
+                        logger.info(f"Usando session do pool: @{self._pool_session.username}")
+
+            # Fallback para env var
+            if not hasattr(self, 'session_id') or not self.session_id:
+                self.session_id = os.getenv("INSTAGRAM_SESSION_ID")
+
+            # Fallback para arquivo de sessão
+            if not self.session_id:
+                session_path = Path(__file__).parent.parent / "sessions" / "instagram_session.json"
+                if session_path.exists():
+                    try:
+                        session_data = json.loads(session_path.read_text())
+                        cookies = session_data.get("cookies", [])
+                        for cookie in cookies:
+                            if cookie.get("name") == "sessionid":
+                                self.session_id = cookie.get("value")
+                                break
+                    except Exception as e:
+                        logger.warning(f"Erro ao carregar sessão: {e}")
+
+        if not self.session_id:
+            raise ValueError(
+                "Session ID não encontrado. Configure INSTAGRAM_SESSION_ID no .env, "
+                "adicione sessions ao pool, ou passe como parâmetro."
+            )
+
+        # Headers que imitam o app do Instagram
+        self.headers = {
+            "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate",
+            "X-IG-App-ID": "936619743392459",
+            "X-IG-Device-ID": "android-1234567890",
+            "X-IG-Connection-Type": "WIFI",
+            "X-IG-Capabilities": "3brTvx0=",
+            "X-IG-App-Locale": "en_US",
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Cookie": f"sessionid={self.session_id}",
+        }
+
+        # Headers para requisições web
+        self.web_headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cookie": f"sessionid={self.session_id}",
+            "X-IG-App-ID": "936619743392459",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+
+        self.session = requests.Session()
+
+        # Configurar proxy se disponível
+        proxy = _get_proxy_config()
+        if proxy:
+            self.session.proxies.update(proxy)
+            logger.warning("🌐 Proxy aplicado à sessão HTTP")
+
+        logger.info("InstagramAPIScraper inicializado")
+
+    def _report_to_pool(
+        self,
+        operation: str,
+        target_username: str = None,
+        success: bool = True,
+        response_status: int = None,
+        error_message: str = None,
+        duration_ms: int = None
+    ):
+        """Reporta resultado da operação ao pool de sessions"""
+        if not self.use_pool or not self._pool_session_uuid:
+            return
+
+        pool = _get_session_pool()
+        if pool:
+            pool.report_result(
+                session_id=self._pool_session_uuid,
+                operation=operation,
+                target_username=target_username,
+                success=success,
+                response_status=response_status,
+                error_message=error_message,
+                duration_ms=duration_ms
+            )
+
+    def rotate_session(self):
+        """
+        Força rotação para próxima session do pool.
+
+        Útil quando detecta rate limit ou erro na session atual.
+        """
+        if not self.use_pool:
+            logger.warning("Rotação não disponível - não está usando pool")
+            return False
+
+        pool = _get_session_pool()
+        if not pool:
+            return False
+
+        # Reportar problema na session atual
+        if self._pool_session_uuid:
+            self._report_to_pool(
+                operation="rotation_requested",
+                success=False,
+                error_message="Manual rotation requested"
+            )
+
+        # Pegar nova session
+        self._pool_session = pool.get_session()
+        if self._pool_session:
+            self.session_id = self._pool_session.session_id
+            self._pool_session_uuid = self._pool_session.id
+
+            # Atualizar headers com nova session
+            self.headers["Cookie"] = f"sessionid={self.session_id}"
+            self.web_headers["Cookie"] = f"sessionid={self.session_id}"
+
+            logger.info(f"Rotacionado para session: @{self._pool_session.username}")
+            return True
+
+        logger.error("Não há sessions disponíveis no pool")
+        return False
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """
+        Obtém informações do usuário a partir do User ID.
+        Útil quando recebemos apenas o ig_id (igSid) do webhook.
+
+        Args:
+            user_id: O ID numérico do usuário do Instagram
+
+        Returns:
+            Dict com username e outras infos, ou None se não encontrar
+        """
+        try:
+            # Limpar o user_id (pode vir com prefixos)
+            clean_id = str(user_id).split("_")[0] if "_" in str(user_id) else str(user_id)
+
+            # API endpoint para buscar user por ID
+            url = f"{self.BASE_URL}/users/{clean_id}/info/"
+            response = self.session.get(url, headers=self.headers, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("user", {})
+
+                if user:
+                    logger.info(f"Usuário encontrado via ID {clean_id}: @{user.get('username')}")
+                    return {
+                        "user_id": clean_id,
+                        "username": user.get("username"),
+                        "full_name": user.get("full_name"),
+                        "is_private": user.get("is_private", False),
+                        "is_verified": user.get("is_verified", False),
+                        "profile_pic_url": user.get("profile_pic_url")
+                    }
+
+            logger.warning(f"Não foi possível buscar usuário com ID {clean_id}: {response.status_code}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar usuário por ID {user_id}: {e}")
+            return None
+
+    def get_user_id(self, username: str) -> Optional[str]:
+        """
+        Obtém o User ID a partir do username.
+        O User ID é estático e nunca muda, mesmo se o username mudar.
+        """
+        try:
+            # Método 1: Via web profile
+            url = f"{self.WEB_URL}/api/v1/users/web_profile_info/?username={username}"
+            response = self.session.get(url, headers=self.web_headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                user_data = data.get("data", {}).get("user", {})
+                return user_data.get("id")
+
+            # Método 2: Via search
+            url = f"{self.WEB_URL}/web/search/topsearch/?query={username}"
+            response = self.session.get(url, headers=self.web_headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                users = data.get("users", [])
+                for user in users:
+                    if user.get("user", {}).get("username", "").lower() == username.lower():
+                        return user.get("user", {}).get("pk")
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Erro ao obter User ID para {username}: {e}")
+            return None
+
+    def get_profile(self, username: str) -> Dict:
+        """
+        Extrai dados completos do perfil via API.
+
+        Retorna dados ocultos que não aparecem na interface visual:
+        - user_id (estático)
+        - fb_id (Facebook ID)
+        - email_hint (pista do email)
+        - phone_hint (pista do telefone)
+        - whatsapp_number
+        - account_created
+        - is_business
+        - category
+        - E muito mais...
+        """
+        result = {
+            "success": False,
+            "username": username,
+            "scraped_at": datetime.now().isoformat(),
+            "method": "api",
+            "error": None
+        }
+
+        start_time = time.time()
+
+        try:
+            # Método 1: API Mobile (i.instagram.com) - mais confiável
+            url = f"{self.BASE_URL}/users/web_profile_info/?username={username}"
+            response = self.session.get(url, headers=self.headers, timeout=15)
+            logger.warning(f"[SCRAPE DEBUG] Method 1 (mobile_api): status={response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("data", {}).get("user", {})
+
+                if user:
+                    result.update(self._parse_web_profile(user))
+                    result["success"] = True
+                    result["method"] = "mobile_api"
+
+                    # Tentar obter dados adicionais via API mobile
+                    user_id = result.get("user_id")
+                    if user_id:
+                        extra_data = self._get_mobile_profile(user_id)
+                        if extra_data:
+                            result.update(extra_data)
+
+                    # Reportar sucesso ao pool
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    self._report_to_pool(
+                        operation="get_profile",
+                        target_username=username,
+                        success=True,
+                        response_status=200,
+                        duration_ms=duration_ms
+                    )
+                    return result
+
+            # Método 2: Web Profile Info (fallback)
+            url = f"{self.WEB_URL}/api/v1/users/web_profile_info/?username={username}"
+            response = self.session.get(url, headers=self.web_headers, timeout=15)
+            logger.warning(f"[SCRAPE DEBUG] Method 2 (web_profile): status={response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("data", {}).get("user", {})
+
+                if user:
+                    result.update(self._parse_web_profile(user))
+                    result["success"] = True
+                    result["method"] = "web_profile_info"
+                    return result
+
+            # Método 3: GraphQL (fallback)
+            profile_data = self._get_graphql_profile(username)
+            logger.warning(f"[SCRAPE DEBUG] Method 3 (graphql): data={'found' if profile_data else 'not found'}")
+            if profile_data:
+                result.update(profile_data)
+                result["success"] = True
+                result["method"] = "graphql"
+                return result
+
+            # Método 4: Página pública (último recurso)
+            public_data = self._get_public_profile(username)
+            logger.warning(f"[SCRAPE DEBUG] Method 4 (public): data={'found' if public_data else 'not found'}")
+            if public_data:
+                result.update(public_data)
+                result["success"] = True
+                result["method"] = "public_page"
+                return result
+
+            result["error"] = "Não foi possível obter dados do perfil"
+            duration_ms = int((time.time() - start_time) * 1000)
+            self._report_to_pool(
+                operation="get_profile",
+                target_username=username,
+                success=False,
+                error_message=result["error"],
+                duration_ms=duration_ms
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f"Erro ao obter perfil de {username}: {e}")
+            result["error"] = str(e)
+            duration_ms = int((time.time() - start_time) * 1000)
+            self._report_to_pool(
+                operation="get_profile",
+                target_username=username,
+                success=False,
+                error_message=str(e),
+                duration_ms=duration_ms
+            )
+            return result
+
+    def _parse_web_profile(self, user: Dict) -> Dict:
+        """Parse dados do web_profile_info"""
+
+        # Extrair informações de contato
+        bio_links = user.get("bio_links", [])
+        external_urls = [link.get("url") for link in bio_links if link.get("url")]
+
+        # Dados básicos
+        data = {
+            "user_id": user.get("id"),
+            "username": user.get("username"),
+            "full_name": user.get("full_name"),
+            "bio": user.get("biography"),
+            "bio_with_entities": user.get("biography_with_entities"),
+            "external_url": user.get("external_url"),
+            "external_urls": external_urls,
+
+            # Métricas
+            "followers_count": user.get("edge_followed_by", {}).get("count", 0),
+            "following_count": user.get("edge_follow", {}).get("count", 0),
+            "posts_count": user.get("edge_owner_to_timeline_media", {}).get("count", 0),
+
+            # Status da conta
+            "is_private": user.get("is_private", False),
+            "is_verified": user.get("is_verified", False),
+            "is_business": user.get("is_business_account", False),
+            "is_professional": user.get("is_professional_account", False),
+            "is_creator": user.get("is_creator_account", False),
+
+            # Categoria
+            "category": user.get("category_name"),
+            "category_id": user.get("category_id"),
+            "business_category": user.get("business_category_name"),
+
+            # Fotos
+            "profile_pic_url": user.get("profile_pic_url"),
+            "profile_pic_url_hd": user.get("profile_pic_url_hd"),
+
+            # IDs importantes
+            "fb_id": user.get("fbid"),
+            "fb_profile_biolink": user.get("fb_profile_biolink"),
+
+            # Configurações
+            "has_ar_effects": user.get("has_ar_effects"),
+            "has_clips": user.get("has_clips"),
+            "has_guides": user.get("has_guides"),
+            "has_channel": user.get("has_channel"),
+            "hide_like_and_view_counts": user.get("hide_like_and_view_counts"),
+
+            # Conexões
+            "connected_fb_page": user.get("connected_fb_page"),
+            "is_joined_recently": user.get("is_joined_recently"),
+        }
+
+        # Tentar extrair mais dados se disponíveis
+        if user.get("edge_felix_video_timeline"):
+            data["reels_count"] = user["edge_felix_video_timeline"].get("count", 0)
+
+        if user.get("edge_mutual_followed_by"):
+            data["mutual_followers_count"] = user["edge_mutual_followed_by"].get("count", 0)
+
+        return data
+
+    def _get_mobile_profile(self, user_id: str) -> Optional[Dict]:
+        """Obtém dados adicionais via API mobile"""
+        try:
+            url = f"{self.BASE_URL}/users/{user_id}/info/"
+            response = self.session.get(url, headers=self.headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("user", {})
+
+                extra = {}
+
+                # Pistas de contato (dados ofuscados)
+                if user.get("public_email"):
+                    extra["email"] = user["public_email"]
+                if user.get("obfuscated_email"):
+                    extra["email_hint"] = user["obfuscated_email"]
+                if user.get("public_phone_number"):
+                    extra["phone"] = user["public_phone_number"]
+                if user.get("obfuscated_phone"):
+                    extra["phone_hint"] = user["obfuscated_phone"]
+                if user.get("public_phone_country_code"):
+                    extra["phone_country_code"] = user["public_phone_country_code"]
+
+                # WhatsApp
+                if user.get("is_whatsapp_linked"):
+                    extra["whatsapp_linked"] = True
+                    if user.get("whatsapp_number"):
+                        extra["whatsapp_number"] = user["whatsapp_number"]
+
+                # Mais dados
+                extra.update({
+                    "has_anonymous_profile_picture": user.get("has_anonymous_profile_picture"),
+                    "account_type": user.get("account_type"),
+                    "is_call_to_action_enabled": user.get("is_call_to_action_enabled"),
+                    "contact_phone_number": user.get("contact_phone_number"),
+                    "city_name": user.get("city_name"),
+                    "address_street": user.get("address_street"),
+                    "direct_messaging": user.get("direct_messaging"),
+                    "latitude": user.get("latitude"),
+                    "longitude": user.get("longitude"),
+                })
+
+                # Limpar None values
+                extra = {k: v for k, v in extra.items() if v is not None}
+
+                return extra if extra else None
+
+        except Exception as e:
+            logger.debug(f"Erro ao obter dados mobile: {e}")
+            return None
+
+    def _get_graphql_profile(self, username: str) -> Optional[Dict]:
+        """Obtém perfil via GraphQL"""
+        try:
+            url = f"{self.WEB_URL}/{username}/?__a=1&__d=dis"
+            response = self.session.get(url, headers=self.web_headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("graphql", {}).get("user", {})
+
+                if user:
+                    return self._parse_web_profile(user)
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Erro GraphQL: {e}")
+            return None
+
+    def _get_public_profile(self, username: str) -> Optional[Dict]:
+        """Obtém dados da página pública"""
+        try:
+            url = f"{self.WEB_URL}/{username}/"
+            response = self.session.get(url, headers=self.web_headers, timeout=10)
+
+            if response.status_code == 200:
+                # Procurar JSON embutido na página
+                import re
+
+                # Procurar dados do usuário no HTML
+                patterns = [
+                    r'"user":\s*({[^}]+})',
+                    r'window\._sharedData\s*=\s*({.+?});</script>',
+                ]
+
+                for pattern in patterns:
+                    match = re.search(pattern, response.text)
+                    if match:
+                        try:
+                            data = json.loads(match.group(1))
+                            if "username" in data:
+                                return {
+                                    "user_id": data.get("id"),
+                                    "username": data.get("username"),
+                                    "full_name": data.get("full_name"),
+                                    "bio": data.get("biography"),
+                                    "is_private": data.get("is_private"),
+                                    "is_verified": data.get("is_verified"),
+                                }
+                        except:
+                            continue
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Erro página pública: {e}")
+            return None
+
+    def get_profile_by_id(self, user_id: str) -> Dict:
+        """
+        Obtém perfil pelo User ID (útil quando o username muda).
+        """
+        result = {
+            "success": False,
+            "user_id": user_id,
+            "scraped_at": datetime.now().isoformat(),
+            "method": "api_by_id",
+            "error": None
+        }
+
+        try:
+            url = f"{self.BASE_URL}/users/{user_id}/info/"
+            response = self.session.get(url, headers=self.headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                user = data.get("user", {})
+
+                if user:
+                    result.update({
+                        "success": True,
+                        "username": user.get("username"),
+                        "full_name": user.get("full_name"),
+                        "bio": user.get("biography"),
+                        "followers_count": user.get("follower_count"),
+                        "following_count": user.get("following_count"),
+                        "posts_count": user.get("media_count"),
+                        "is_private": user.get("is_private"),
+                        "is_verified": user.get("is_verified"),
+                        "is_business": user.get("is_business"),
+                        "category": user.get("category"),
+                        "profile_pic_url": user.get("profile_pic_url"),
+                        "profile_pic_url_hd": user.get("hd_profile_pic_url_info", {}).get("url"),
+                        "email_hint": user.get("obfuscated_email"),
+                        "phone_hint": user.get("obfuscated_phone"),
+                        "whatsapp_linked": user.get("is_whatsapp_linked"),
+                    })
+            else:
+                result["error"] = f"Status {response.status_code}"
+
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
+    def get_contact_hints(self, username: str) -> Dict:
+        """
+        Obtém pistas de contato (email/telefone ofuscados).
+        Útil para triagem de suspeitos.
+        """
+        try:
+            # Usar o endpoint de "esqueci minha senha"
+            url = f"{self.WEB_URL}/accounts/account_recovery_send_ajax/"
+
+            data = {
+                "email_or_username": username,
+            }
+
+            response = self.session.post(
+                url,
+                headers=self.web_headers,
+                data=data,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "success": True,
+                    "email_hint": result.get("email"),  # ex: u***@gmail.com
+                    "phone_hint": result.get("phone_number"),  # ex: +55 ** ****-**68
+                }
+
+            return {"success": False, "error": "Não foi possível obter hints"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def calculate_lead_score(self, profile: Dict) -> Dict:
+        """
+        Calcula score do lead baseado nos dados do perfil.
+
+        Retorna:
+            score: 0-100
+            classification: LEAD_HOT, LEAD_WARM, LEAD_COLD
+            signals: Lista de sinais detectados
+        """
+        score = 0
+        signals = []
+
+        # Score por seguidores
+        followers = profile.get("followers_count", 0)
+        if followers >= 100000:
+            score += 25
+            signals.append("influencer_100k+")
+        elif followers >= 10000:
+            score += 20
+            signals.append("influencer_10k+")
+        elif followers >= 1000:
+            score += 10
+            signals.append("engaged_1k+")
+        elif followers >= 500:
+            score += 5
+            signals.append("followers_500+")
+
+        # Score por bio keywords
+        bio = (profile.get("bio") or "").lower()
+        business_keywords = [
+            "ceo", "founder", "empreendedor", "empresa", "negócio",
+            "marketing", "mentor", "coach", "consultor", "agência",
+            "gestor", "diretor", "investidor", "startup", "digital",
+            "vendas", "growth", "tech", "founder", "co-founder"
+        ]
+
+        keyword_count = 0
+        for kw in business_keywords:
+            if kw in bio:
+                keyword_count += 1
+                signals.append(f"keyword:{kw}")
+                if keyword_count >= 3:
+                    break
+
+        score += min(30, keyword_count * 10)
+
+        # Score por tipo de conta
+        if profile.get("is_business"):
+            score += 15
+            signals.append("business_account")
+        elif profile.get("is_professional"):
+            score += 12
+            signals.append("professional_account")
+        elif profile.get("is_creator"):
+            score += 10
+            signals.append("creator_account")
+
+        # Score por categoria
+        if profile.get("category"):
+            score += 5
+            signals.append(f"category:{profile['category']}")
+
+        # Score por verificação
+        if profile.get("is_verified"):
+            score += 10
+            signals.append("verified")
+
+        # Score por contato disponível
+        if profile.get("email") or profile.get("email_hint"):
+            score += 5
+            signals.append("has_email")
+        if profile.get("phone") or profile.get("phone_hint"):
+            score += 5
+            signals.append("has_phone")
+        if profile.get("whatsapp_linked"):
+            score += 5
+            signals.append("has_whatsapp")
+
+        # Penalidade por conta privada
+        if profile.get("is_private"):
+            score -= 10
+            signals.append("private_account")
+
+        # Penalidade por poucos posts
+        posts = profile.get("posts_count", 0)
+        if posts < 10:
+            score -= 5
+            signals.append("low_activity")
+        elif posts >= 100:
+            score += 5
+            signals.append("active_poster")
+
+        # Normalizar score
+        score = max(0, min(100, score))
+
+        # Classificação
+        if score >= 70:
+            classification = "LEAD_HOT"
+        elif score >= 40:
+            classification = "LEAD_WARM"
+        else:
+            classification = "LEAD_COLD"
+
+        return {
+            "score": score,
+            "classification": classification,
+            "signals": signals
+        }
+
+    def check_friendship(self, user_id: str) -> Dict:
+        """
+        Verifica relação de amizade com um usuário (sigo/me segue).
+
+        Args:
+            user_id: ID numérico do usuário do Instagram
+
+        Returns:
+            Dict com following, followed_by, blocking, etc.
+        """
+        try:
+            url = f"{self.BASE_URL}/friendships/show/{user_id}/"
+            response = self.session.get(url, headers=self.headers, timeout=15)
+
+            if response.status_code != 200:
+                logger.warning(f"Friendship check falhou: {response.status_code}")
+                return {"success": False, "error": f"Status {response.status_code}"}
+
+            data = response.json()
+
+            return {
+                "success": True,
+                "following": data.get("following", False),
+                "followed_by": data.get("followed_by", False),
+                "blocking": data.get("blocking", False),
+                "muting": data.get("muting", False),
+                "is_private": data.get("is_private", False),
+                "incoming_request": data.get("incoming_request", False),
+                "outgoing_request": data.get("outgoing_request", False),
+                "is_bestie": data.get("is_bestie", False),
+                "is_restricted": data.get("is_restricted", False),
+            }
+
+        except Exception as e:
+            logger.error(f"Erro no friendship check para {user_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+    def check_dm_thread(self, user_id: str) -> Dict:
+        """
+        Verifica se existe thread de DM com um usuário.
+
+        Args:
+            user_id: ID numérico do usuário do Instagram
+
+        Returns:
+            Dict com has_thread, thread_id, last_message_direction, message_count
+        """
+        try:
+            url = f"{self.BASE_URL}/direct_v2/threads/"
+            params = {"recipient_users": f"[{user_id}]"}
+            response = self.session.get(url, headers=self.headers, params=params, timeout=15)
+
+            if response.status_code != 200:
+                logger.warning(f"DM thread check falhou: {response.status_code}")
+                return {"success": False, "has_thread": False, "error": f"Status {response.status_code}"}
+
+            data = response.json()
+            thread = data.get("thread") or (data.get("inbox", {}).get("threads", [None])[0] if data.get("inbox") else None)
+
+            if not thread:
+                return {
+                    "success": True,
+                    "has_thread": False,
+                    "thread_id": None,
+                    "message_count": 0,
+                    "last_message_direction": None
+                }
+
+            # Analisar última mensagem para saber quem falou por último
+            items = thread.get("items", [])
+            last_direction = None
+            my_user_id = thread.get("viewer_id")
+
+            if items and my_user_id:
+                last_item = items[0]  # items[0] = mais recente
+                sender_id = str(last_item.get("user_id", ""))
+                last_direction = "outbound" if sender_id == str(my_user_id) else "inbound"
+
+            # Verificar quem iniciou a conversa (último item = mais antigo)
+            first_direction = None
+            if items and my_user_id:
+                first_item = items[-1]
+                first_sender = str(first_item.get("user_id", ""))
+                first_direction = "outbound" if first_sender == str(my_user_id) else "inbound"
+
+            return {
+                "success": True,
+                "has_thread": True,
+                "thread_id": thread.get("thread_id"),
+                "message_count": len(items),
+                "last_message_direction": last_direction,
+                "first_message_direction": first_direction,
+                "is_outbound_initiated": first_direction == "outbound"
+            }
+
+        except Exception as e:
+            logger.error(f"Erro no DM thread check para {user_id}: {e}")
+            return {"success": False, "has_thread": False, "error": str(e)}
+
+    def get_followers(self, username: str, max_count: int = 100) -> Dict:
+        """
+        Obtém lista de seguidores de um perfil.
+
+        Args:
+            username: Username do perfil alvo
+            max_count: Máximo de seguidores a retornar (default: 100)
+
+        Returns:
+            Dict com success, followers (list), count, etc.
+        """
+        try:
+            logger.info(f"Buscando seguidores de @{username} (max: {max_count})")
+
+            # Primeiro, obter o user_id do perfil
+            profile = self.get_profile(username)
+            if not profile.get("success"):
+                return {"success": False, "error": "Perfil não encontrado", "followers": []}
+
+            user_id = profile.get("user_id")
+            if not user_id:
+                return {"success": False, "error": "User ID não encontrado", "followers": []}
+
+            # Endpoint para listar seguidores
+            followers = []
+            max_id = None
+
+            while len(followers) < max_count:
+                url = f"{self.BASE_URL}/friendships/{user_id}/followers/"
+                params = {"count": min(50, max_count - len(followers))}
+                if max_id:
+                    params["max_id"] = max_id
+
+                response = self.session.get(url, headers=self.headers, params=params, timeout=30)
+
+                if response.status_code != 200:
+                    logger.warning(f"Erro ao buscar seguidores: {response.status_code}")
+                    break
+
+                data = response.json()
+                users = data.get("users", [])
+
+                if not users:
+                    break
+
+                for user in users:
+                    followers.append({
+                        "user_id": user.get("pk"),
+                        "username": user.get("username"),
+                        "full_name": user.get("full_name"),
+                        "is_private": user.get("is_private", False),
+                        "is_verified": user.get("is_verified", False),
+                        "profile_pic_url": user.get("profile_pic_url"),
+                    })
+
+                max_id = data.get("next_max_id")
+                if not max_id or not data.get("big_list"):
+                    break
+
+                # Rate limiting
+                import time
+                time.sleep(1)
+
+            logger.info(f"Encontrados {len(followers)} seguidores de @{username}")
+
+            return {
+                "success": True,
+                "username": username,
+                "followers": followers,
+                "count": len(followers),
+                "total_followers": profile.get("followers_count", 0)
+            }
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar seguidores: {e}")
+            return {"success": False, "error": str(e), "followers": []}
+
+    def search_hashtag(self, hashtag: str, max_posts: int = 50) -> Dict:
+        """
+        Busca posts recentes de uma hashtag e extrai os autores.
+
+        Args:
+            hashtag: Hashtag a buscar (sem #)
+            max_posts: Máximo de posts a processar (default: 50)
+
+        Returns:
+            Dict com success, users (list), posts_analyzed, etc.
+        """
+        try:
+            # Limpar hashtag
+            hashtag = hashtag.lstrip("#").strip().lower()
+            logger.info(f"Buscando posts da hashtag #{hashtag} (max: {max_posts})")
+
+            # Endpoint para buscar hashtag
+            url = f"{self.WEB_URL}/explore/tags/{hashtag}/"
+            params = {"__a": 1, "__d": "dis"}
+
+            response = self.session.get(url, headers=self.web_headers, params=params, timeout=30)
+
+            if response.status_code != 200:
+                # Tentar endpoint alternativo
+                url = f"{self.GRAPH_URL}/tags/{hashtag}/sections/"
+                response = self.session.get(url, headers=self.headers, timeout=30)
+
+            if response.status_code != 200:
+                return {"success": False, "error": f"Hashtag não encontrada: {response.status_code}", "users": []}
+
+            data = response.json()
+            users = []
+            seen_usernames = set()
+
+            # Extrair usuários dos posts
+            # Estrutura pode variar dependendo do endpoint
+            sections = data.get("sections", [])
+            for section in sections:
+                medias = section.get("layout_content", {}).get("medias", [])
+                for media in medias:
+                    media_data = media.get("media", {})
+                    user = media_data.get("user", {})
+                    username = user.get("username")
+
+                    if username and username not in seen_usernames:
+                        seen_usernames.add(username)
+                        users.append({
+                            "user_id": user.get("pk"),
+                            "username": username,
+                            "full_name": user.get("full_name"),
+                            "is_private": user.get("is_private", False),
+                            "is_verified": user.get("is_verified", False),
+                            "profile_pic_url": user.get("profile_pic_url"),
+                        })
+
+                    if len(users) >= max_posts:
+                        break
+
+            logger.info(f"Encontrados {len(users)} usuários na hashtag #{hashtag}")
+
+            return {
+                "success": True,
+                "hashtag": hashtag,
+                "users": users,
+                "count": len(users),
+            }
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar hashtag: {e}")
+            return {"success": False, "error": str(e), "users": []}
+
+
+# ============================================
+# FUNÇÕES DE CONVENIÊNCIA
+# ============================================
+
+def scrape_profile(username: str, session_id: str = None) -> Dict:
+    """
+    Função de conveniência para scrape rápido de um perfil.
+
+    Uso:
+        from instagram_api_scraper import scrape_profile
+
+        profile = scrape_profile("username")
+        print(profile)
+    """
+    scraper = InstagramAPIScraper(session_id=session_id)
+    profile = scraper.get_profile(username)
+
+    if profile.get("success"):
+        score_data = scraper.calculate_lead_score(profile)
+        profile.update(score_data)
+
+    return profile
+
+
+def scrape_multiple(usernames: List[str], session_id: str = None, delay: float = 2.0) -> List[Dict]:
+    """
+    Scrape múltiplos perfis com delay entre requisições.
+    """
+    import time
+
+    scraper = InstagramAPIScraper(session_id=session_id)
+    results = []
+
+    for i, username in enumerate(usernames):
+        print(f"[{i+1}/{len(usernames)}] Scraping @{username}...")
+
+        profile = scraper.get_profile(username)
+
+        if profile.get("success"):
+            score_data = scraper.calculate_lead_score(profile)
+            profile.update(score_data)
+
+        results.append(profile)
+
+        if i < len(usernames) - 1:
+            time.sleep(delay)
+
+    return results
+
+
+# ============================================
+# CLI
+# ============================================
+
+def main():
+    """CLI para testar o scraper"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Instagram API Scraper (Método Bruno Fraga)")
+    parser.add_argument("username", help="Username do Instagram para scrape")
+    parser.add_argument("--session-id", help="Session ID do Instagram")
+    parser.add_argument("--output", "-o", help="Arquivo de saída (JSON)")
+    parser.add_argument("--hints", action="store_true", help="Obter apenas hints de contato")
+
+    args = parser.parse_args()
+
+    print("\n" + "="*60)
+    print("  INSTAGRAM API SCRAPER (Método Bruno Fraga)")
+    print("="*60 + "\n")
+
+    try:
+        scraper = InstagramAPIScraper(session_id=args.session_id)
+
+        if args.hints:
+            print(f"🔍 Obtendo hints de contato para @{args.username}...")
+            result = scraper.get_contact_hints(args.username)
+        else:
+            print(f"🔍 Extraindo dados de @{args.username}...")
+            result = scraper.get_profile(args.username)
+
+            if result.get("success"):
+                score_data = scraper.calculate_lead_score(result)
+                result.update(score_data)
+
+        # Mostrar resultado
+        print("\n📊 RESULTADO:\n")
+
+        if result.get("success"):
+            print(f"✅ Sucesso! Método: {result.get('method', 'N/A')}\n")
+
+            # Dados básicos
+            print(f"👤 Username: @{result.get('username')}")
+            print(f"📛 Nome: {result.get('full_name', 'N/A')}")
+            print(f"🆔 User ID: {result.get('user_id', 'N/A')}")
+            print(f"🔗 FB ID: {result.get('fb_id', 'N/A')}")
+
+            # Bio
+            bio = result.get('bio', '')
+            if bio:
+                print(f"📝 Bio: {bio[:100]}{'...' if len(bio) > 100 else ''}")
+
+            # Métricas
+            print(f"\n📊 Métricas:")
+            print(f"   Seguidores: {result.get('followers_count', 0):,}")
+            print(f"   Seguindo: {result.get('following_count', 0):,}")
+            print(f"   Posts: {result.get('posts_count', 0):,}")
+
+            # Status
+            print(f"\n🔐 Status:")
+            print(f"   Privado: {'Sim' if result.get('is_private') else 'Não'}")
+            print(f"   Verificado: {'Sim' if result.get('is_verified') else 'Não'}")
+            print(f"   Business: {'Sim' if result.get('is_business') else 'Não'}")
+            print(f"   Categoria: {result.get('category', 'N/A')}")
+
+            # Contato
+            print(f"\n📧 Contato:")
+            print(f"   Email: {result.get('email', result.get('email_hint', 'N/A'))}")
+            print(f"   Telefone: {result.get('phone', result.get('phone_hint', 'N/A'))}")
+            print(f"   WhatsApp: {'Sim' if result.get('whatsapp_linked') else 'Não'}")
+
+            # Score
+            if "score" in result:
+                print(f"\n🎯 QUALIFICAÇÃO:")
+                print(f"   Score: {result['score']}/100")
+                print(f"   Classificação: {result['classification']}")
+                print(f"   Sinais: {', '.join(result.get('signals', []))}")
+
+        else:
+            print(f"❌ Erro: {result.get('error', 'Desconhecido')}")
+
+        # Salvar output
+        if args.output:
+            with open(args.output, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            print(f"\n💾 Salvo em: {args.output}")
+
+        print("\n" + "="*60 + "\n")
+
+    except Exception as e:
+        print(f"❌ Erro: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    main()

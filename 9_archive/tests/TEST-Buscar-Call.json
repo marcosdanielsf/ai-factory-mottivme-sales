@@ -1,0 +1,100 @@
+{
+  "name": "TEST - Buscar Call",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test-id",
+              "name": "id",
+              "value": "COLE_AQUI_UM_GDRIVE_FILE_ID_REAL",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-test-data",
+      "name": "Set Test Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [300, 300],
+      "notes": "SUBSTITUA 'COLE_AQUI_UM_GDRIVE_FILE_ID_REAL' por um ID real do Google Drive"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, l.api_key as location_api_key, l.association_id \nFROM call_recordings cr \nLEFT JOIN locations l ON cr.location_id = l.location_id \nWHERE cr.gdrive_file_id = '{{ $json.id }}' \n  AND cr.status = 'movido' \nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 300],
+      "id": "buscar-call-test",
+      "name": "Buscar Call no Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Ver todos os registros da tabela\nSELECT * FROM call_recordings ORDER BY created_at DESC LIMIT 10;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [300, 500],
+      "id": "ver-todos-registros",
+      "name": "DEBUG - Ver Todos os Registros",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DEBUG - Ver Todos os Registros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Data": {
+      "main": [
+        [
+          {
+            "node": "Buscar Call no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

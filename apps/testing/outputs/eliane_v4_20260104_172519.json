@@ -1,0 +1,260 @@
+{
+  "pipeline_name": "full",
+  "success": false,
+  "total_time_ms": 17970,
+  "total_tokens": 3488,
+  "agent_results": [
+    {
+      "agent_name": "DataExtractor",
+      "success": true,
+      "output": {
+        "contact": {
+          "id": "sample-contact-eliane",
+          "name": "Maria Santos",
+          "phone": "+5571999999999",
+          "email": "maria@email.com",
+          "source": "Instagram",
+          "tags": [
+            "LEAD",
+            "HORMONIOS"
+          ]
+        },
+        "conversation": {
+          "message_count": 6,
+          "last_message_at": "2024-01-15T10:12:00Z",
+          "messages": [
+            {
+              "role": "lead",
+              "content": "Olá, vi o post sobre reposição hormonal e me interessei",
+              "timestamp": "2024-01-15T10:00:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "Olá Maria! Que bom receber sua mensagem 😊 A Dra. Eline é especialista em hormonologia feminina. Você tem sentido algum sintoma específico?",
+              "timestamp": "2024-01-15T10:02:00Z"
+            },
+            {
+              "role": "lead",
+              "content": "Sim, muito cansaço, insônia e mudanças de humor. Tenho 48 anos",
+              "timestamp": "2024-01-15T10:05:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "Entendo perfeitamente, Maria. Esses sintomas são muito comuns nessa fase e podem estar relacionados às alterações hormonais. A boa notícia é que existe tratamento! A Dra. Eline faz uma avaliação completa antes de indicar qualquer tratamento. Você gostaria de agendar uma consulta para conversarmos melhor?",
+              "timestamp": "2024-01-15T10:08:00Z"
+            },
+            {
+              "role": "lead",
+              "content": "Quanto custa a consulta?",
+              "timestamp": "2024-01-15T10:10:00Z"
+            },
+            {
+              "role": "agent",
+              "content": "A consulta de avaliação é R$ 600. Ela dura cerca de 1 hora, onde a Dra. Eline vai entender todo seu histórico, sintomas e solicitar exames se necessário. O mais importante é ter um diagnóstico correto antes de iniciar qualquer tratamento. Temos horários disponíveis essa semana, qual dia seria melhor para você?",
+              "timestamp": "2024-01-15T10:12:00Z"
+            }
+          ]
+        },
+        "analysis": {
+          "main_interest": "Reposição hormonal para sintomas da menopausa",
+          "questions_asked": [
+            "Quanto custa a consulta?"
+          ],
+          "objections": [
+            "Preocupação com preço da consulta"
+          ],
+          "interest_signals": [
+            "Iniciou contato após ver post sobre reposição hormonal",
+            "Relatou sintomas específicos",
+            "Forneceu idade (48 anos)",
+            "Demonstrou interesse em agendar consulta"
+          ],
+          "disinterest_signals": []
+        },
+        "context": {
+          "summary": "Maria Santos, 48 anos, procurou atendimento após ver post sobre reposição hormonal no Instagram. Relata sintomas típicos da menopausa (cansaço, insônia, mudanças de humor) e demonstra interesse em consulta, mas questionou o preço (R$ 600). Agente ofereceu agendamento para essa semana.",
+          "funnel_stage": "middle",
+          "next_steps": [
+            "Aguardar resposta sobre disponibilidade de horário",
+            "Confirmar agendamento da consulta",
+            "Enviar informações preparatórias se necessário"
+          ],
+          "priority": "high"
+        }
+      },
+      "execution_time_ms": 11435,
+      "tokens_used": 2021,
+      "model": "claude-sonnet-4-20250514",
+      "error": null,
+      "metadata": {
+        "contact_id": "sample-contact-eliane",
+        "message_count": 6
+      }
+    },
+    {
+      "agent_name": "SalesAnalyzer",
+      "success": true,
+      "output": {
+        "classification": "COLD",
+        "score_total": 30,
+        "bant": {
+          "budget": {
+            "score": 10,
+            "evidence": "Não identificado"
+          },
+          "authority": {
+            "score": 10,
+            "evidence": "Não identificado"
+          },
+          "need": {
+            "score": 5,
+            "evidence": "Não identificado"
+          },
+          "timeline": {
+            "score": 5,
+            "evidence": "Não identificado"
+          }
+        },
+        "analysis": {
+          "main_interest": "Não identificado",
+          "conversation_quality": "low"
+        },
+        "recommendations": {
+          "next_action": "Revisar manualmente",
+          "urgency": "low"
+        },
+        "summary": "Preciso da conversa do lead para analisar. Por favor, compartilhe a transcrição ou prints da conversa com o lead para que eu possa fazer a avaliação BANT completa.\n\nInclua:\n- Mensagens trocadas\n- Perguntas e respostas\n- Qualquer informação relevante sobre o contexto (produto/serviço oferecido, valor do ticket, etc.)\n\nAssim que você enviar a conversa, farei uma análise detalhada seguindo o framework BANT e entregarei o relatório em JSON conforme solicitado."
+      },
+      "execution_time_ms": 6527,
+      "tokens_used": 1467,
+      "model": "claude-opus-4-20250514",
+      "error": null,
+      "metadata": {
+        "classification": "COLD",
+        "score": 30
+      }
+    },
+    {
+      "agent_name": "PromptGenerator",
+      "success": false,
+      "output": {},
+      "execution_time_ms": 5,
+      "tokens_used": 0,
+      "model": "claude-opus-4-20250514",
+      "error": "business_config is required",
+      "metadata": {}
+    }
+  ],
+  "final_output": {
+    "DataExtractor": {
+      "contact": {
+        "id": "sample-contact-eliane",
+        "name": "Maria Santos",
+        "phone": "+5571999999999",
+        "email": "maria@email.com",
+        "source": "Instagram",
+        "tags": [
+          "LEAD",
+          "HORMONIOS"
+        ]
+      },
+      "conversation": {
+        "message_count": 6,
+        "last_message_at": "2024-01-15T10:12:00Z",
+        "messages": [
+          {
+            "role": "lead",
+            "content": "Olá, vi o post sobre reposição hormonal e me interessei",
+            "timestamp": "2024-01-15T10:00:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "Olá Maria! Que bom receber sua mensagem 😊 A Dra. Eline é especialista em hormonologia feminina. Você tem sentido algum sintoma específico?",
+            "timestamp": "2024-01-15T10:02:00Z"
+          },
+          {
+            "role": "lead",
+            "content": "Sim, muito cansaço, insônia e mudanças de humor. Tenho 48 anos",
+            "timestamp": "2024-01-15T10:05:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "Entendo perfeitamente, Maria. Esses sintomas são muito comuns nessa fase e podem estar relacionados às alterações hormonais. A boa notícia é que existe tratamento! A Dra. Eline faz uma avaliação completa antes de indicar qualquer tratamento. Você gostaria de agendar uma consulta para conversarmos melhor?",
+            "timestamp": "2024-01-15T10:08:00Z"
+          },
+          {
+            "role": "lead",
+            "content": "Quanto custa a consulta?",
+            "timestamp": "2024-01-15T10:10:00Z"
+          },
+          {
+            "role": "agent",
+            "content": "A consulta de avaliação é R$ 600. Ela dura cerca de 1 hora, onde a Dra. Eline vai entender todo seu histórico, sintomas e solicitar exames se necessário. O mais importante é ter um diagnóstico correto antes de iniciar qualquer tratamento. Temos horários disponíveis essa semana, qual dia seria melhor para você?",
+            "timestamp": "2024-01-15T10:12:00Z"
+          }
+        ]
+      },
+      "analysis": {
+        "main_interest": "Reposição hormonal para sintomas da menopausa",
+        "questions_asked": [
+          "Quanto custa a consulta?"
+        ],
+        "objections": [
+          "Preocupação com preço da consulta"
+        ],
+        "interest_signals": [
+          "Iniciou contato após ver post sobre reposição hormonal",
+          "Relatou sintomas específicos",
+          "Forneceu idade (48 anos)",
+          "Demonstrou interesse em agendar consulta"
+        ],
+        "disinterest_signals": []
+      },
+      "context": {
+        "summary": "Maria Santos, 48 anos, procurou atendimento após ver post sobre reposição hormonal no Instagram. Relata sintomas típicos da menopausa (cansaço, insônia, mudanças de humor) e demonstra interesse em consulta, mas questionou o preço (R$ 600). Agente ofereceu agendamento para essa semana.",
+        "funnel_stage": "middle",
+        "next_steps": [
+          "Aguardar resposta sobre disponibilidade de horário",
+          "Confirmar agendamento da consulta",
+          "Enviar informações preparatórias se necessário"
+        ],
+        "priority": "high"
+      }
+    },
+    "SalesAnalyzer": {
+      "classification": "COLD",
+      "score_total": 30,
+      "bant": {
+        "budget": {
+          "score": 10,
+          "evidence": "Não identificado"
+        },
+        "authority": {
+          "score": 10,
+          "evidence": "Não identificado"
+        },
+        "need": {
+          "score": 5,
+          "evidence": "Não identificado"
+        },
+        "timeline": {
+          "score": 5,
+          "evidence": "Não identificado"
+        }
+      },
+      "analysis": {
+        "main_interest": "Não identificado",
+        "conversation_quality": "low"
+      },
+      "recommendations": {
+        "next_action": "Revisar manualmente",
+        "urgency": "low"
+      },
+      "summary": "Preciso da conversa do lead para analisar. Por favor, compartilhe a transcrição ou prints da conversa com o lead para que eu possa fazer a avaliação BANT completa.\n\nInclua:\n- Mensagens trocadas\n- Perguntas e respostas\n- Qualquer informação relevante sobre o contexto (produto/serviço oferecido, valor do ticket, etc.)\n\nAssim que você enviar a conversa, farei uma análise detalhada seguindo o framework BANT e entregarei o relatório em JSON conforme solicitado."
+    },
+    "shared_memory": {}
+  },
+  "errors": [
+    "agent_03_generator: business_config is required"
+  ]
+}

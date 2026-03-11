@@ -1,0 +1,214 @@
+{
+  "ativacao": {
+    "script_type": "audio_followup",
+    "target_stage": "ativacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "Oi {{nome}}, tudo bem? Aqui é da clínica",
+      "body": [
+        "[tom amigável] Olha, eu vi que você tem interesse em cuidar melhor da sua saúde e energia...",
+        "[pausa breve] E eu queria te contar uma coisa que pode te surpreender:",
+        "[tom mais próximo] A maioria das pessoas que chegam aqui cansadas descobrem que o problema não é só o peso...",
+        "[revelação] É hormonal! E quando a gente ajusta isso, tudo muda."
+      ],
+      "cta": "Posso te mandar um áudio rápido explicando como funciona?"
+    },
+    "full_script": "Oi {{nome}}, tudo bem? Aqui é da clínica. Olha, eu vi que você tem interesse em cuidar melhor da sua saúde e energia... E eu queria te contar uma coisa que pode te surpreender: A maioria das pessoas que chegam aqui cansadas descobrem que o problema não é só o peso... É hormonal! E quando a gente ajusta isso, tudo muda. Posso te mandar um áudio rápido explicando como funciona?",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Curiosidade",
+        "where": "te contar uma coisa que pode te surpreender",
+        "why": "Gera interesse para continuar ouvindo"
+      },
+      {
+        "trigger": "Identificação",
+        "where": "pessoas que chegam aqui cansadas",
+        "why": "Lead se reconhece na situação descrita"
+      },
+      {
+        "trigger": "Revelação/Insight",
+        "where": "É hormonal! E quando a gente ajusta isso, tudo muda",
+        "why": "Oferece uma perspectiva nova sobre o problema"
+      },
+      {
+        "trigger": "Esperança",
+        "where": "tudo muda",
+        "why": "Sugere transformação possível"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para criar conexão pessoal",
+        "example": "Maria"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Conversacional e amigável, como se fosse uma amiga dando uma dica valiosa",
+      "pace": "Ritmo natural, com pausa estratégica antes da revelação",
+      "emphasis": [
+        "surpreender",
+        "hormonal",
+        "tudo muda"
+      ],
+      "pauses": [
+        "Após 'te surpreender:', antes de revelar o insight hormonal"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead demonstrou interesse específico em energia",
+        "script": "Oi {{nome}}, tudo bem? Aqui é da clínica. Vi que você anda se sentindo sem energia, né? Olha, eu queria te contar algo que pode explicar tudo isso: Na maioria dos casos, essa fadiga constante tem origem hormonal, não é só cansaço comum. E quando a gente equilibra os hormônios, a energia volta naturalmente. Posso te explicar melhor como funciona?"
+      },
+      {
+        "scenario": "Se lead demonstrou foco no emagrecimento",
+        "script": "Oi {{nome}}, tudo bem? Aqui é da clínica. Vi seu interesse em emagrecer de forma saudável... E eu queria te contar um segredo: 80% das pessoas que não conseguem perder peso têm desequilíbrio hormonal. Quando a gente corrige isso primeiro, o emagrecimento acontece naturalmente. Quer que eu te explique como descobrimos isso?"
+      }
+    ]
+  },
+  "qualificacao": {
+    "script_type": "audio_followup",
+    "target_stage": "qualificacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "Oi {{nome}}, tudo bem? Aqui é da equipe do Dr. [Nome]",
+      "body": [
+        "[tom amigável] Vi que você se interessou pelo nosso tratamento personalizado...",
+        "[pausa breve, tom empático] Olha, sei que essa fase da vida pode ser bem desafiadora, né?",
+        "[tom confiante] A boa notícia é que você não precisa passar por isso sozinha."
+      ],
+      "cta": "Posso te mandar um áudio rapidinho explicando como funciona nosso método? É só responder aqui mesmo."
+    },
+    "full_script": "Oi {{nome}}, tudo bem? Aqui é da equipe do Dr. [Nome]. Vi que você se interessou pelo nosso tratamento personalizado... [pausa] Olha, sei que essa fase da vida pode ser bem desafiadora, né? [tom empático] A boa notícia é que você não precisa passar por isso sozinha. [tom confiante] Posso te mandar um áudio rapidinho explicando como funciona nosso método? É só responder aqui mesmo.",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Empatia",
+        "where": "sei que essa fase da vida pode ser bem desafiadora",
+        "why": "Valida a experiência do lead e cria conexão emocional"
+      },
+      {
+        "trigger": "Esperança",
+        "where": "você não precisa passar por isso sozinha",
+        "why": "Oferece suporte e quebra o isolamento que muitos sentem"
+      },
+      {
+        "trigger": "Curiosidade",
+        "where": "áudio rapidinho explicando como funciona",
+        "why": "Desperta interesse sem pressão de compromisso"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead",
+        "example": "Maria"
+      },
+      {
+        "placeholder": "[Nome]",
+        "description": "Nome do médico/profissional",
+        "example": "Dr. Silva"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Conversacional e acolhedor, como uma amiga preocupada",
+      "pace": "Moderado, com pausas naturais para respirar",
+      "emphasis": [
+        "desafiadora",
+        "sozinha",
+        "nosso método"
+      ],
+      "pauses": [
+        "após 'personalizado'",
+        "após 'né?'",
+        "antes do CTA"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead demonstrar pressa/correria",
+        "script": "Oi {{nome}}! Sei que você deve estar correndo, mas queria só falar uma coisa rápida... Vi seu interesse no nosso tratamento e queria te contar que temos um método que se adapta à sua rotina. Posso te mandar um áudio de 2 minutos explicando? Prometo que vale a pena!"
+      },
+      {
+        "scenario": "Se lead parecer mais reservada",
+        "script": "Oi {{nome}}, aqui é da equipe do Dr. [Nome]. Obrigada pelo interesse no nosso trabalho. Sei que cuidar da saúde é algo muito pessoal... Por isso criamos um método totalmente individualizado. Gostaria de conhecer melhor como funciona? É sem compromisso."
+      },
+      {
+        "scenario": "Follow-up se não responder",
+        "script": "{{nome}}, sei que deve estar ocupada... Só queria deixar claro que estou aqui caso tenha alguma dúvida sobre o tratamento. Muitas mulheres como você já conseguiram resultados incríveis. Qualquer coisa, é só chamar! 😊"
+      }
+    ]
+  },
+  "recuperacao": {
+    "script_type": "audio_followup",
+    "target_stage": "recuperacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "{{nome}}, eu sei que você pode estar pensando 'mais uma promessa milagrosa'...",
+      "body": [
+        "[empático] Olha, eu entendo essa desconfiança, de verdade.",
+        "[direto] Mas deixa eu te contar uma coisa: 87% das pessoas que não conseguem emagrecer têm desequilíbrio hormonal.",
+        "[revelador] E ninguém fala isso pra você, né?",
+        "[acolhedor] Por isso que dieta sozinha não funciona..."
+      ],
+      "cta": "Me dá só 2 minutos no WhatsApp? Quero te mostrar algo que pode mudar tudo isso."
+    },
+    "full_script": "{{nome}}, eu sei que você pode estar pensando 'mais uma promessa milagrosa'... [pausa] Olha, eu entendo essa desconfiança, de verdade. Mas deixa eu te contar uma coisa: 87% das pessoas que não conseguem emagrecer têm desequilíbrio hormonal. E ninguém fala isso pra você, né? Por isso que dieta sozinha não funciona... Me dá só 2 minutos no WhatsApp? Quero te mostrar algo que pode mudar tudo isso.",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Empatia/Validação",
+        "where": "Hook e início do corpo",
+        "why": "Reconhece a resistência comum em recuperação, criando conexão"
+      },
+      {
+        "trigger": "Revelação/Insight",
+        "where": "Estatística dos 87%",
+        "why": "Oferece uma explicação científica que justifica fracassos anteriores"
+      },
+      {
+        "trigger": "Conspiração/Verdade Oculta",
+        "where": "'ninguém fala isso pra você'",
+        "why": "Cria sensação de informação exclusiva e privilegiada"
+      },
+      {
+        "trigger": "Segunda Chance",
+        "where": "CTA final",
+        "why": "Oferece nova oportunidade com baixo comprometimento (2 minutos)"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para personalização",
+        "example": "Maria"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Conversacional e empático, como um amigo que entende a frustração",
+      "pace": "Moderado, com pausas estratégicas após perguntas retóricas",
+      "emphasis": [
+        "87%",
+        "desequilíbrio hormonal",
+        "ninguém fala",
+        "2 minutos"
+      ],
+      "pauses": [
+        "Após o hook",
+        "Após 'de verdade'",
+        "Após 'né?'"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead já teve experiências ruins com tratamentos",
+        "script": "{{nome}}, eu sei que você já deve ter tentado de tudo e se frustrado... Olha, 87% das pessoas que não conseguem emagrecer têm algo que os outros tratamentos ignoram: desequilíbrio hormonal. É por isso que você faz dieta, malha, e nada muda de verdade. Me dá 2 minutos? Quero te mostrar o que realmente funciona."
+      },
+      {
+        "scenario": "Se lead demonstrou interesse anterior mas não converteu",
+        "script": "{{nome}}, lembra que você demonstrou interesse no nosso tratamento? Eu entendo que pode ter ficado na dúvida... Deixa eu te falar uma coisa que pode explicar tudo: 87% das pessoas com dificuldade para emagrecer têm hormônios desregulados. E isso muda TUDO no tratamento. Me dá 2 minutos para te explicar melhor?"
+      }
+    ]
+  }
+}

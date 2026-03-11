@@ -1,0 +1,122 @@
+{
+  "instruction": "FIX: Node 'Classificar Lead IA' hasn't been executed",
+
+  "problem": "O node GHL - Ativar IA tenta acessar $('Classificar Lead IA') mas esse node só executa quando matched=false",
+
+  "solution": "Criar 2 nodes GHL separados - um para cada caminho do fluxo",
+
+  "nodes_to_add": [
+    {
+      "name": "GHL - Ativar IA (Prospectado)",
+      "description": "Usado quando matched=true - lead foi prospectado no AgenticOS",
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "highLevelOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"key\": \"contact.ativar_ia\",\n      \"field_value\": \"sim\"\n    },\n    {\n      \"key\": \"contact.objetivo_lead\",\n      \"field_value\": \"{{ $('Match Lead Context').first().json.lead_data?.icp_tier || 'PROSPECTADO' }}\"\n    },\n    {\n      \"key\": \"contact.informacoes_ia\",\n      \"field_value\": \"Lead prospectado pelo AgenticOS. Cargo: {{ $('Match Lead Context').first().json.lead_data?.cargo || 'N/A' }}, Empresa: {{ $('Match Lead Context').first().json.lead_data?.empresa || 'N/A' }}, ICP Score: {{ $('Match Lead Context').first().json.lead_data?.icp_score || 'N/A' }}\"\n    },\n    {\n      \"key\": \"contact.resposta_ia\",\n      \"field_value\": \"{{ $('Match Lead Context').first().json.placeholders['{{contexto_prospeccao}}'] || 'Lead já prospectado anteriormente.' }}\"\n    },\n    {\n      \"key\": \"contact.fup_counter\",\n      \"field_value\": \"0\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 280],
+      "id": "ghl-ativar-ia-prospectado",
+      "onError": "continueRegularOutput",
+      "notes": "Ativa IA para leads que já foram prospectados no AgenticOS"
+    },
+    {
+      "name": "GHL - Ativar IA (Classificado)",
+      "description": "Usado quando matched=false e a IA classificou o lead",
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "highLevelOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"key\": \"contact.ativar_ia\",\n      \"field_value\": \"sim\"\n    },\n    {\n      \"key\": \"contact.objetivo_lead\",\n      \"field_value\": \"{{ $('Classificar Lead IA').first().json.classification || 'LEAD_COLD' }}\"\n    },\n    {\n      \"key\": \"contact.informacoes_ia\",\n      \"field_value\": \"Lead novo classificado pela IA. Score: {{ $('Classificar Lead IA').first().json.score || 0 }}, Motivo: {{ $('Classificar Lead IA').first().json.reasoning || 'Primeira interação' }}\"\n    },\n    {\n      \"key\": \"contact.resposta_ia\",\n      \"field_value\": \"{{ $('Classificar Lead IA').first().json.suggested_response || 'Responder com saudação inicial' }}\"\n    },\n    {\n      \"key\": \"contact.fup_counter\",\n      \"field_value\": \"0\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 520],
+      "id": "ghl-ativar-ia-classificado",
+      "onError": "continueRegularOutput",
+      "notes": "Ativa IA para leads novos classificados pela IA Gemini"
+    },
+    {
+      "name": "GHL - Mover Perdido",
+      "description": "Move leads PESSOAL ou SPAM para status Perdido",
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Info').first().json.lead_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "highLevelOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"customFields\": [\n    {\n      \"key\": \"contact.ativar_ia\",\n      \"field_value\": \"nao\"\n    },\n    {\n      \"key\": \"contact.objetivo_lead\",\n      \"field_value\": \"{{ $('Classificar Lead IA').first().json.classification || 'SPAM' }}\"\n    },\n    {\n      \"key\": \"contact.informacoes_ia\",\n      \"field_value\": \"Lead descartado: {{ $('Classificar Lead IA').first().json.reasoning || 'Classificado como pessoal/spam' }}\"\n    }\n  ],\n  \"tags\": [\"perdido\", \"{{ $('Classificar Lead IA').first().json.classification?.toLowerCase() || 'spam' }}\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 720],
+      "id": "ghl-mover-perdido",
+      "onError": "continueRegularOutput",
+      "notes": "Move leads PESSOAL ou SPAM para perdido"
+    }
+  ],
+
+  "connections_to_create": {
+    "Lead Prospectado? [Output 0 - Prospectado]": {
+      "target": "GHL - Ativar IA (Prospectado)"
+    },
+    "Rotear por Classificação [Output LEAD_HOT/WARM/COLD]": {
+      "target": "GHL - Ativar IA (Classificado)"
+    },
+    "Rotear por Classificação [Output PESSOAL/SPAM]": {
+      "target": "GHL - Mover Perdido"
+    }
+  },
+
+  "flow_diagram": {
+    "ascii": "Info → Match Lead Context → Lead Prospectado?\n                                    ↓ matched=true\n                          GHL - Ativar IA (Prospectado)\n                                    ↓ matched=false\n                          Classificar Lead IA → Rotear\n                                                    ↓ HOT/WARM/COLD\n                                       GHL - Ativar IA (Classificado)\n                                                    ↓ PESSOAL/SPAM\n                                              GHL - Mover Perdido"
+  },
+
+  "manual_steps": [
+    "1. Deletar o node antigo 'GHL - Ativar IA' que dá erro",
+    "2. Adicionar os 3 novos nodes acima",
+    "3. Conectar 'Lead Prospectado?' output[0] (Prospectado) → 'GHL - Ativar IA (Prospectado)'",
+    "4. Conectar 'Rotear por Classificação' outputs HOT/WARM/COLD → 'GHL - Ativar IA (Classificado)'",
+    "5. Conectar 'Rotear por Classificação' outputs PESSOAL/SPAM → 'GHL - Mover Perdido'",
+    "6. Salvar e testar o workflow"
+  ]
+}

@@ -1,348 +1,173 @@
 #!/usr/bin/env node
-/**
- * Mega Brain Detect Frameworks — Detecta frameworks e metodologias nos chunks via Gemini Flash
- * Cria/atualiza entidades do tipo 'framework' com dedup fuzzy
- *
- * Usage:
- *   node scripts/mega-brain-detect-frameworks.mjs --source-id UUID
- *   node scripts/mega-brain-detect-frameworks.mjs --recent 10
- */
+// mega-brain-detect-frameworks.mjs
+// Detecta frameworks e metodologias mencionados em chunks
+// Uso: node scripts/mega-brain-detect-frameworks.mjs --source-id UUID
+// Ou:  node scripts/mega-brain-detect-frameworks.mjs --all
 
 import { parseArgs } from 'node:util';
 
-// ─── Configuração ──────────────────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.MEGA_BRAIN_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.MEGA_BRAIN_SUPABASE_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.MEGA_BRAIN_GEMINI_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !GEMINI_KEY) {
-  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_KEY, GEMINI_API_KEY');
+  console.error('Env vars obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY');
   process.exit(1);
 }
 
-const CHUNK_BATCH_SIZE = 50;
-const RATE_LIMIT_MS = 500;
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json'
+};
 
-// ─── Args parsing ──────────────────────────────────────────────────────────────
-
-const { values: args } = parseArgs({
+const { values } = parseArgs({
   options: {
     'source-id': { type: 'string' },
-    recent:      { type: 'string' },
-    help:        { type: 'boolean', default: false },
-  },
-  allowPositionals: false,
+    'all': { type: 'boolean', default: false }
+  }
 });
 
-if (args.help || (!args['source-id'] && !args.recent)) {
-  console.log(`
-Mega Brain Detect Frameworks — Detecção de frameworks via Gemini Flash
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-Uso:
-  node scripts/mega-brain-detect-frameworks.mjs --source-id UUID
-  node scripts/mega-brain-detect-frameworks.mjs --recent 10
-
-Opções:
-  --source-id UUID  Processar apenas este source
-  --recent N        Processar os últimos N sources
-  --help            Mostrar esta ajuda
-`);
-  process.exit(0);
+async function supabaseGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers });
+  if (!res.ok) throw new Error(`GET error: ${res.status}`);
+  return res.json();
 }
 
-// ─── Supabase helpers ──────────────────────────────────────────────────────────
-
-function sbHeaders() {
-  return {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-async function sbGet(path) {
+async function supabasePost(path, data) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: sbHeaders(),
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'return=representation' },
+    body: JSON.stringify(data)
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase GET ${path}: ${res.status} ${err.slice(0, 200)}`);
+    const text = await res.text();
+    if (text.includes('duplicate') || text.includes('23505')) return null;
+    throw new Error(`POST error: ${res.status} ${text}`);
   }
   return res.json();
 }
 
-async function sbPost(path, body, prefer = 'return=representation') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'POST',
-    headers: { ...sbHeaders(), 'Prefer': prefer },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase POST ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-  return prefer === 'return=minimal' ? null : res.json();
-}
-
-async function sbPatch(path, body) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'PATCH',
-    headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase PATCH ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-}
-
-async function sbRpc(fn, body) {
+async function supabaseRpc(fn, params) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: sbHeaders(),
-    body: JSON.stringify(body),
+    method: 'POST', headers, body: JSON.stringify(params)
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase RPC ${fn}: ${res.status} ${err.slice(0, 200)}`);
-  }
+  if (!res.ok) throw new Error(`RPC error: ${res.status}`);
   return res.json();
 }
 
-// ─── Gemini Flash ──────────────────────────────────────────────────────────────
-
-async function detectFrameworksInChunk(chunkText) {
-  const prompt = `Identifique TODOS os frameworks, metodologias ou processos estruturados mencionados neste texto. Inclua apenas os que têm uma estrutura clara (passos, etapas, componentes) ou são metodologias reconhecidas.
-
-Retorne APENAS um JSON array válido, sem texto extra:
-[{
-  "name": "Nome do Framework",
-  "steps": ["passo 1", "passo 2"],
-  "when_to_use": "Quando aplicar este framework",
-  "example": "Exemplo de uso",
-  "source_person": "Quem criou ou popularizou (se mencionado)",
-  "source_context": "Como aparece no texto"
-}]
-
-Se não houver frameworks identificáveis, retorne: []
-
-Texto:
-${chunkText}`;
-
-  const res = await fetch(GEMINI_ENDPOINT, {
+async function detectFrameworks(text) {
+  const res = await fetch(GEMINI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
+      contents: [{
+        parts: [{
+          text: `Identifique TODOS os frameworks, metodologias ou processos estruturados mencionados neste texto.
+Retorne APENAS JSON array (sem markdown): [{"name": "...", "steps": ["passo1", "passo2"], "when_to_use": "...", "example": "...", "source_person": "quem criou/mencionou", "source_context": "contexto onde foi mencionado"}]
+Se nao houver frameworks, retorne [].
+
+Texto:
+${text.slice(0, 4000)}`
+        }]
+      }],
+      generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
+    })
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini Flash ${res.status}: ${err.slice(0, 200)}`);
-  }
-
+  if (!res.ok) return [];
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return [];
-
   try {
-    const parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [];
+    return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
   } catch {
     return [];
   }
 }
 
-// ─── Upsert framework como entidade ───────────────────────────────────────────
+async function main() {
+  console.log('=== Mega Brain Framework Detector ===\n');
 
-async function upsertFrameworkEntity(framework) {
-  if (!framework.name || framework.name.trim().length < 2) return null;
-
-  // Tentar find_entity_fuzzy com tipo 'framework'
-  let existingId = null;
-  try {
-    const results = await sbRpc('find_entity_fuzzy', {
-      search_name: framework.name,
-      similarity_threshold: 0.6,
-    });
-    if (Array.isArray(results) && results.length > 0) {
-      // Verificar se é um framework
-      const match = results.find(r => r.entity_type === 'framework') || results[0];
-      existingId = match.id;
-
-      // Atualizar mention_count e last_seen_at
-      try {
-        await sbPatch(`knowledge_entities?id=eq.${existingId}`, {
-          mention_count: (match.mention_count || 0) + 1,
-          last_seen_at: new Date().toISOString(),
-        });
-      } catch {
-        // Ignorar
-      }
-
-      return existingId;
-    }
-  } catch (err) {
-    if (!err.message.includes('does not exist') && !err.message.includes('404')) {
-      console.warn(`\n[fuzzy] Aviso: ${err.message}`);
-    }
+  let chunks;
+  if (values['source-id']) {
+    chunks = await supabaseGet(`knowledge_chunks?source_id=eq.${values['source-id']}&select=id,content,source_id&order=chunk_index`);
+  } else if (values.all) {
+    chunks = await supabaseGet('knowledge_chunks?select=id,content,source_id&order=created_at&limit=500');
+  } else {
+    console.error('Uso: --source-id UUID ou --all');
+    process.exit(1);
   }
 
-  // Criar nova entidade de framework
-  try {
-    const rows = await sbPost('knowledge_entities', {
-      canonical_name: framework.name,
-      entity_type: 'framework',
-      aliases: [],
-      mention_count: 1,
-      metadata: {
-        steps: framework.steps || [],
-        when_to_use: framework.when_to_use || null,
-        example: framework.example || null,
-        source_person: framework.source_person || null,
-      },
-    });
-    return Array.isArray(rows) ? rows[0]?.id : rows?.id;
-  } catch (err) {
-    if (err.message.includes('duplicate') || err.message.includes('unique')) {
-      try {
-        const existing = await sbGet(
-          `knowledge_entities?canonical_name=eq.${encodeURIComponent(framework.name)}&limit=1`
-        );
-        if (existing.length > 0) return existing[0].id;
-      } catch {}
-    }
-    throw err;
-  }
-}
-
-// ─── Busca de sources ─────────────────────────────────────────────────────────
-
-async function getSourceIds() {
-  if (args['source-id']) {
-    return [args['source-id']];
-  }
-
-  const n = parseInt(args.recent, 10) || 10;
-  const sources = await sbGet(
-    `knowledge_sources?select=id&processing_status=eq.completed&order=created_at.desc&limit=${n}`
-  );
-  return sources.map(s => s.id);
-}
-
-async function getChunksForSource(sourceId) {
-  return sbGet(
-    `knowledge_chunks?source_id=eq.${sourceId}&select=id,content,chunk_index&order=chunk_index.asc`
-  );
-}
-
-// ─── Processamento principal ───────────────────────────────────────────────────
-
-async function processSource(sourceId, index, total) {
-  console.log(`\n[${index}/${total}] Source: ${sourceId}`);
-
-  const chunks = await getChunksForSource(sourceId);
-  if (chunks.length === 0) {
-    console.log(`  Nenhum chunk encontrado — pulando`);
-    return { chunks: 0, frameworks: 0 };
-  }
-
-  console.log(`  ${chunks.length} chunks`);
-
+  console.log(`${chunks.length} chunks para analisar\n`);
   let totalFrameworks = 0;
-  let processedChunks = 0;
 
-  for (let i = 0; i < chunks.length; i += CHUNK_BATCH_SIZE) {
-    const batch = chunks.slice(i, i + CHUNK_BATCH_SIZE);
+  const BATCH = 50;
+  for (let i = 0; i < chunks.length; i += BATCH) {
+    const batch = chunks.slice(i, i + BATCH);
+    console.log(`[${i + 1}-${Math.min(i + BATCH, chunks.length)}/${chunks.length}] Processando...`);
 
     for (const chunk of batch) {
-      try {
-        const frameworks = await detectFrameworksInChunk(chunk.content);
+      const frameworks = await detectFrameworks(chunk.content);
 
-        for (const fw of frameworks) {
-          try {
-            const entityId = await upsertFrameworkEntity(fw);
-            if (entityId) {
-              // Registrar menção do framework no chunk
-              try {
-                await sbPost('entity_mentions', {
-                  chunk_id: chunk.id,
-                  entity_id: entityId,
-                  source_id: sourceId,
-                  mention_text: fw.name,
-                  context_snippet: fw.source_context?.slice(0, 500) || null,
-                  confidence: 0.9,
-                }, 'return=minimal');
-              } catch {
-                // Ignorar duplicatas de menção
-              }
-              totalFrameworks++;
-            }
-          } catch (err) {
-            console.warn(`\n[framework] Erro ao processar "${fw.name}": ${err.message}`);
+      for (const fw of frameworks) {
+        if (!fw.name || fw.name.length < 3) continue;
+
+        // Verificar se ja existe como entidade
+        const existing = await supabaseRpc('find_entity_fuzzy', {
+          search_name: fw.name,
+          similarity_threshold: 0.6
+        });
+
+        let entityId;
+        if (existing.length > 0 && existing[0].entity_type === 'framework') {
+          entityId = existing[0].id;
+          console.log(`  Framework existente: ${fw.name} → ${existing[0].canonical_name}`);
+        } else if (existing.length === 0) {
+          const created = await supabasePost('knowledge_entities', {
+            canonical_name: fw.name,
+            entity_type: 'framework',
+            description: fw.when_to_use || '',
+            metadata: { steps: fw.steps, source_person: fw.source_person, example: fw.example },
+            mention_count: 1
+          });
+          if (created) {
+            entityId = created[0].id;
+            console.log(`  Novo framework: ${fw.name}`);
+            totalFrameworks++;
           }
         }
-      } catch (err) {
-        console.warn(`\n[chunk] Erro no chunk ${chunk.chunk_index}: ${err.message}`);
+
+        if (entityId) {
+          // Inserir mention
+          await supabasePost('entity_mentions', {
+            entity_id: entityId,
+            chunk_id: chunk.id,
+            source_id: chunk.source_id,
+            mention_text: fw.name,
+            context_snippet: fw.source_context?.slice(0, 200) || ''
+          }).catch(() => {}); // Ignorar duplicatas
+
+          // Inserir/atualizar DNA layer frameworks
+          await supabasePost('expert_dna', {
+            entity_id: entityId,
+            layer: 'frameworks',
+            content: { items: [{ title: fw.name, steps: fw.steps, when_to_use: fw.when_to_use, description: fw.example, confidence: 0.8 }] },
+            confidence: 0.8,
+            extracted_by: 'llm'
+          }).catch(() => {}); // Ignorar se ja existe
+        }
       }
-
-      processedChunks++;
-      const pct = Math.round((processedChunks / chunks.length) * 100);
-      process.stdout.write(`\r  [detect] ${processedChunks}/${chunks.length} chunks (${pct}%) | ${totalFrameworks} frameworks        `);
+      await sleep(200);
     }
-
-    // Rate limit entre batches
-    if (i + CHUNK_BATCH_SIZE < chunks.length) {
-      await new Promise(r => setTimeout(r, RATE_LIMIT_MS));
-    }
+    await sleep(1000);
   }
 
-  console.log(`\n  Concluído: ${totalFrameworks} frameworks detectados`);
-  return { chunks: chunks.length, frameworks: totalFrameworks };
+  console.log(`\nConcluido! ${totalFrameworks} novos frameworks detectados.`);
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
-async function main() {
-  console.log('='.repeat(60));
-  console.log('MEGA BRAIN DETECT FRAMEWORKS');
-  console.log('='.repeat(60));
-
-  const sourceIds = await getSourceIds();
-
-  if (sourceIds.length === 0) {
-    console.log('Nenhum source para processar.');
-    process.exit(0);
-  }
-
-  console.log(`Sources a processar: ${sourceIds.length}`);
-
-  let totalChunks = 0;
-  let totalFrameworks = 0;
-
-  for (let i = 0; i < sourceIds.length; i++) {
-    try {
-      const result = await processSource(sourceIds[i], i + 1, sourceIds.length);
-      totalChunks += result.chunks;
-      totalFrameworks += result.frameworks;
-    } catch (err) {
-      console.error(`\n[ERRO] Source ${sourceIds[i]}: ${err.message}`);
-    }
-  }
-
-  console.log('\n' + '='.repeat(60));
-  console.log('DETECÇÃO CONCLUÍDA');
-  console.log('='.repeat(60));
-  console.log(`Sources:    ${sourceIds.length}`);
-  console.log(`Chunks:     ${totalChunks}`);
-  console.log(`Frameworks: ${totalFrameworks}`);
-}
-
-main().catch(err => {
-  console.error('[ERRO CRÍTICO]', err.message);
+main().catch(e => {
+  console.error('Erro fatal:', e.message);
   process.exit(1);
 });

@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-01-26 00:54:38",
+  "prompt_version": "v7.0.10",
+  "overall_score": 80.25,
+  "needs_improvement": false,
+  "simulations": [
+    {
+      "persona": "Maria",
+      "outcome": "lost",
+      "turn_count": 9,
+      "score": 82.5
+    },
+    {
+      "persona": "Joana",
+      "outcome": "converted",
+      "turn_count": 8,
+      "score": 70.0
+    },
+    {
+      "persona": "Ana",
+      "outcome": "converted",
+      "turn_count": 12,
+      "score": 81.25
+    },
+    {
+      "persona": "Claudia",
+      "outcome": "pending",
+      "turn_count": 5,
+      "score": 82.5
+    },
+    {
+      "persona": "Patricia",
+      "outcome": "converted",
+      "turn_count": 10,
+      "score": 85.0
+    }
+  ],
+  "recommended_changes": [
+    {
+      "section": "Role",
+      "issue": "Falta de orientação sobre como utilizar linguagem sensorial",
+      "suggested_text": "Incorporar linguagem sensorial para descrever os benefícios da consulta, como 'Imagine se sentir mais energizado e confiante todos os dias' ou 'Visualize sua vida transformada com nossa ajuda'."
+    },
+    {
+      "section": "Constraints",
+      "issue": "Necessidade de reforçar a importância de apresentar o valor da consulta de forma clara",
+      "suggested_text": "Adicionar uma nota sobre a importância de apresentar o valor da consulta de forma clara e transparente, destacando os benefícios e resultados que o lead pode esperar."
+    },
+    {
+      "section": "REGRAS DE FLUXO (CRITICO)",
+      "issue": "Necessidade de enfatizar a importância de combinar empatia e apresentação de soluções personalizadas",
+      "suggested_text": "Incluir uma nota sobre a importância de combinar empatia, apresentação de soluções personalizadas e técnicas de fechamento suaves para encerrar a venda de forma eficaz."
+    },
+    {
+      "section": "SCRIPT QUANDO LEAD PEDIR PRECO ANTES",
+      "issue": "Necessidade de melhorar a resposta para quando o lead pedir o preço antes de entender o valor",
+      "suggested_text": "Reformular a resposta para incluir uma pergunta aberta que ajude a entender melhor as necessidades do lead, como 'Antes de falar sobre o preço, posso saber mais sobre o que você espera alcançar com nossa consulta?'"
+    },
+    {
+      "section": "REGRAS DE PRECO (MELHORADA - v7.0.10)",
+      "issue": "Falta de garantia de satisfação",
+      "suggested_text": "Ofereça uma garantia de satisfação após a explicação do preço, por exemplo: 'Claro, [LEAD]! Para o valor fazer total sentido, preciso entender sua situação primeiro. Me conta, ha quanto tempo você está passando por isso? Além disso, oferecemos uma garantia de satisfação para que você se sinta seguro com o investimento.'"
+    }
+  ]
+}

@@ -1,816 +1,394 @@
 {
-  "name": "Mega Brain - Ingestão de Conteúdo",
+  "name": "[MEGA BRAIN] Ingestao Universal",
   "nodes": [
     {
-      "id": "webhook-ingest",
-      "name": "Webhook Ingest",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [0, 300],
       "parameters": {
         "httpMethod": "POST",
         "path": "mega-brain-ingest",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
     },
     {
-      "id": "set-normalize",
-      "name": "Normalizar Dados",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [250, 300],
       "parameters": {
-        "mode": "manual",
-        "duplicateItem": false,
-        "assignments": {
-          "assignments": [
-            {
-              "id": "url",
-              "name": "url",
-              "value": "={{ $json.body.url }}",
-              "type": "string"
-            },
-            {
-              "id": "title",
-              "name": "title",
-              "value": "={{ $json.body.title || 'Sem título' }}",
-              "type": "string"
-            },
-            {
-              "id": "source_type",
-              "name": "source_type",
-              "value": "={{ $json.body.source_type || 'text' }}",
-              "type": "string"
-            },
-            {
-              "id": "author",
-              "name": "author",
-              "value": "={{ $json.body.author || '' }}",
-              "type": "string"
-            },
-            {
-              "id": "ingested_at",
-              "name": "ingested_at",
-              "value": "={{ new Date().toISOString() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "switch-source-type",
-      "name": "Switch Tipo Fonte",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [500, 300],
-      "parameters": {
-        "mode": "rules",
-        "rules": {
-          "rules": [
-            {
-              "outputKey": "youtube",
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.source_type }}",
-                    "rightValue": "youtube",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "outputKey": "pdf",
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.source_type }}",
-                    "rightValue": "pdf",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "outputKey": "audio",
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.source_type }}",
-                    "rightValue": "audio",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "outputKey": "text_webpage",
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.source_type }}",
-                    "rightValue": "text",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            }
-          ]
-        },
-        "fallbackOutput": "extra",
-        "options": {}
-      }
-    },
-    {
-      "id": "code-youtube-cmd",
-      "name": "YouTube: Gerar Comando yt-dlp",
+        "jsCode": "// Validar e detectar tipo\nconst input = $input.first().json;\nconst { url, title, source_type, author } = input.body || input;\n\nif (!title) throw new Error('Campo title obrigatorio');\n\nlet detectedType = source_type;\nif (!detectedType && url) {\n  if (url.includes('youtube.com') || url.includes('youtu.be')) detectedType = 'youtube';\n  else if (url.endsWith('.pdf')) detectedType = 'pdf';\n  else if (url.match(/\\.(mp3|wav|m4a|ogg)$/)) detectedType = 'audio';\n  else if (url.match(/\\.(mp4|webm|mov)$/)) detectedType = 'audio';\n  else if (url.match(/\\.(csv|xlsx|xls)$/)) detectedType = 'spreadsheet';\n  else detectedType = 'webpage';\n}\n\nif (!detectedType) detectedType = 'note';\n\nreturn [{\n  json: {\n    url: url || '',\n    title,\n    source_type: detectedType,\n    author: author || 'Desconhecido'\n  }\n}];"
+      },
+      "id": "detect-type",
+      "name": "Detectar Tipo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [750, 0],
-      "parameters": {
-        "jsCode": "const url = $input.first().json.url;\nconst title = $input.first().json.title;\nconst source_type = $input.first().json.source_type;\nconst author = $input.first().json.author;\nconst ingested_at = $input.first().json.ingested_at;\n\n// Extrair video ID do YouTube\nconst videoIdMatch = url.match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/|youtube\\.com\\/embed\\/)([a-zA-Z0-9_-]{11})/);\nconst videoId = videoIdMatch ? videoIdMatch[1] : null;\n\n// URL de download do audio via yt-dlp (formato para STT)\nconst audioDownloadUrl = videoId \n  ? `https://www.youtube.com/watch?v=${videoId}`\n  : url;\n\nreturn [{\n  json: {\n    url,\n    title,\n    source_type,\n    author,\n    ingested_at,\n    video_id: videoId,\n    audio_download_url: audioDownloadUrl,\n    deepgram_url: 'https://api.deepgram.com/v1/listen',\n    deepgram_params: 'model=nova-2&language=pt-BR&punctuate=true&paragraphs=true'\n  }\n}];"
-      }
+      "position": [400, 300]
     },
     {
-      "id": "http-deepgram-youtube",
-      "name": "Deepgram STT - YouTube",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1000, 0],
       "parameters": {
         "method": "POST",
-        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&punctuate=true&paragraphs=true",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://bfumywvwubvernvhjehk.supabase.co/rest/v1/knowledge_sources",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE}}" },
             {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+            },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"url\": \"{{ $json.audio_download_url }}\" }",
-        "options": {
-          "timeout": 120000
-        }
+        "jsonBody": "={{ JSON.stringify({ title: $json.title, source_type: $json.source_type, source_url: $json.url, author: $json.author, processing_status: 'processing', metadata: {} }) }}"
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "deepgram-api-key",
-          "name": "Deepgram API Key"
-        }
-      }
-    },
-    {
-      "id": "code-extract-transcript-youtube",
-      "name": "Extrair Transcrição YouTube",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1250, 0],
-      "parameters": {
-        "jsCode": "const deepgramResponse = $input.first().json;\nconst prevData = $('YouTube: Gerar Comando yt-dlp').first().json;\n\nlet text = '';\ntry {\n  const channels = deepgramResponse.results?.channels || [];\n  for (const channel of channels) {\n    for (const alt of (channel.alternatives || [])) {\n      text += (alt.transcript || '') + '\\n\\n';\n    }\n  }\n} catch (e) {\n  text = '';\n}\n\nreturn [{\n  json: {\n    ...prevData,\n    text: text.trim(),\n    extraction_method: 'deepgram_stt'\n  }\n}];"
-      }
-    },
-    {
-      "id": "http-download-pdf",
-      "name": "Download PDF",
+      "id": "insert-source",
+      "name": "Inserir Source",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [750, 200],
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.url }}",
-        "responseFormat": "file",
-        "options": {
-          "timeout": 60000
-        }
-      }
+      "position": [600, 300]
     },
     {
-      "id": "code-parse-pdf",
-      "name": "Parse PDF",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1000, 200],
       "parameters": {
-        "jsCode": "// PDF parse: extrair texto do buffer binário\n// Em produção, usar serviço como pdf-parse ou Tika\nconst prevData = $('Switch Tipo Fonte').first().json;\nconst binaryData = $input.first().binary;\n\n// Tentar extrair texto via string do buffer\nlet text = '';\ntry {\n  if (binaryData && binaryData.data) {\n    const buffer = Buffer.from(binaryData.data.data, binaryData.data.encoding || 'base64');\n    // Extração básica: buscar strings legíveis do PDF\n    const raw = buffer.toString('latin1');\n    const matches = raw.match(/[\\x20-\\x7E\\xC0-\\xFF]{4,}/g) || [];\n    text = matches\n      .filter(s => s.length > 10 && !/[\\x00-\\x08\\x0E-\\x1F]/.test(s))\n      .join(' ')\n      .replace(/\\s+/g, ' ')\n      .trim();\n  }\n} catch (e) {\n  text = 'Erro ao extrair texto do PDF: ' + e.message;\n}\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text,\n    extraction_method: 'pdf_parse'\n  }\n}];"
-      }
-    },
-    {
-      "id": "http-download-audio",
-      "name": "Download Áudio",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [750, 400],
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.url }}",
-        "responseFormat": "file",
-        "options": {
-          "timeout": 120000
-        }
-      }
-    },
-    {
-      "id": "http-deepgram-audio",
-      "name": "Deepgram STT - Áudio",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1000, 400],
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&punctuate=true&paragraphs=true",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "rules": {
+          "values": [
             {
-              "name": "Content-Type",
-              "value": "audio/mpeg"
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Detectar Tipo').first().json.source_type }}",
+                    "rightValue": "youtube",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "youtube"
+            },
+            {
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Detectar Tipo').first().json.source_type }}",
+                    "rightValue": "pdf",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "pdf"
+            },
+            {
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Detectar Tipo').first().json.source_type }}",
+                    "rightValue": "audio",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Detectar Tipo').first().json.source_type }}",
+                    "rightValue": "webpage",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "webpage"
             }
-          ]
+          ],
+          "fallbackOutput": { "renameOutput": true, "outputKey": "text" }
         },
-        "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "data",
-        "options": {
-          "timeout": 120000
-        }
+        "options": {}
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "deepgram-api-key",
-          "name": "Deepgram API Key"
-        }
-      }
+      "id": "switch-type",
+      "name": "Switch Tipo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [800, 300]
     },
     {
-      "id": "code-extract-transcript-audio",
-      "name": "Extrair Transcrição Áudio",
+      "parameters": {
+        "jsCode": "// YouTube: baixar transcricao via oEmbed ou ytdl\n// Na pratica, usar yt-dlp no servidor ou API de transcricao\nconst url = $('Detectar Tipo').first().json.url;\nconst sourceId = $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id;\n\n// Placeholder: em producao, chamar yt-dlp + Whisper\n// Por enquanto, retorna placeholder para testar pipeline\nreturn [{\n  json: {\n    source_id: sourceId,\n    raw_text: `[Transcricao do video: ${url}] - Implementar yt-dlp + Whisper/Groq aqui`,\n    source_type: 'youtube'\n  }\n}];"
+      },
+      "id": "process-youtube",
+      "name": "Processar YouTube",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 400],
-      "parameters": {
-        "jsCode": "const deepgramResponse = $input.first().json;\nconst prevData = $('Switch Tipo Fonte').first().json;\n\nlet text = '';\ntry {\n  const channels = deepgramResponse.results?.channels || [];\n  for (const channel of channels) {\n    for (const alt of (channel.alternatives || [])) {\n      text += (alt.transcript || '') + '\\n\\n';\n    }\n  }\n} catch (e) {\n  text = '';\n}\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text: text.trim(),\n    extraction_method: 'deepgram_stt'\n  }\n}];"
-      }
+      "position": [1000, 100]
     },
     {
-      "id": "http-download-text",
-      "name": "Download Texto/Webpage",
+      "parameters": {
+        "jsCode": "// PDF: baixar e extrair texto\nconst url = $('Detectar Tipo').first().json.url;\nconst sourceId = $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id;\n\n// Placeholder para processamento PDF\nreturn [{\n  json: {\n    source_id: sourceId,\n    raw_text: `[Conteudo do PDF: ${url}] - Implementar pdf-parse aqui`,\n    source_type: 'pdf'\n  }\n}];"
+      },
+      "id": "process-pdf",
+      "name": "Processar PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Audio: transcrever com Groq Whisper\nconst url = $('Detectar Tipo').first().json.url;\nconst sourceId = $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id;\n\nreturn [{\n  json: {\n    source_id: sourceId,\n    raw_text: `[Transcricao do audio: ${url}] - Implementar Groq Whisper aqui`,\n    source_type: 'audio'\n  }\n}];"
+      },
+      "id": "process-audio",
+      "name": "Processar Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Detectar Tipo').first().json.url }}",
+        "options": { "response": { "response": { "responseFormat": "text" } } }
+      },
+      "id": "fetch-webpage",
+      "name": "Fetch Webpage",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [750, 600],
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.url }}",
-        "options": {
-          "timeout": 30000,
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          }
-        }
-      }
+      "position": [1000, 550]
     },
     {
-      "id": "code-extract-text-webpage",
-      "name": "Extrair Texto Webpage",
+      "parameters": {
+        "jsCode": "// Extrair texto da webpage (strip HTML)\nconst html = $input.first().json.data || $input.first().json.body || '';\nconst sourceId = $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id;\n\nconst text = html\n  .replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nreturn [{\n  json: {\n    source_id: sourceId,\n    raw_text: text,\n    source_type: 'webpage'\n  }\n}];"
+      },
+      "id": "process-webpage",
+      "name": "Processar Webpage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 600],
-      "parameters": {
-        "jsCode": "const rawHtml = $input.first().json.data || $input.first().json.body || '';\nconst prevData = $('Switch Tipo Fonte').first().json;\n\n// Remover tags HTML e extrair texto limpo\nlet text = rawHtml\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&#39;/g, \"'\")\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nreturn [{\n  json: {\n    url: prevData.url,\n    title: prevData.title,\n    source_type: prevData.source_type,\n    author: prevData.author,\n    ingested_at: prevData.ingested_at,\n    text,\n    extraction_method: 'html_strip'\n  }\n}];"
-      }
+      "position": [1200, 550]
     },
     {
-      "id": "code-chunker",
-      "name": "Chunker Semântico",
+      "parameters": {
+        "jsCode": "// Texto/nota simples\nconst sourceId = $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id;\nconst body = $('Webhook').first().json.body || $('Webhook').first().json;\n\nreturn [{\n  json: {\n    source_id: sourceId,\n    raw_text: body.content || body.text || '[Texto nao fornecido no payload]',\n    source_type: $('Detectar Tipo').first().json.source_type\n  }\n}];"
+      },
+      "id": "process-text",
+      "name": "Processar Texto",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 300],
-      "parameters": {
-        "jsCode": "const inputData = $input.first().json;\nconst text = inputData.text || '';\nconst chunkSize = 2000;\nconst overlap = 100;\nconst chunks = [];\n\nif (!text || text.length === 0) {\n  return [{ json: { ...inputData, content: '', chunk_index: 0, chunk_overlap_prev: null, chunk_overlap_next: null, token_count: 0 } }];\n}\n\n// Split por parágrafos primeiro\nconst paragraphs = text.split(/\\n\\n+/);\nlet currentChunk = '';\nlet chunkIndex = 0;\n\nfor (const para of paragraphs) {\n  if ((currentChunk + para).length > chunkSize && currentChunk.length > 0) {\n    const prevOverlap = chunks.length > 0 ? chunks[chunks.length-1].content.slice(-overlap) : null;\n    chunks.push({\n      ...inputData,\n      content: currentChunk.trim(),\n      chunk_index: chunkIndex++,\n      chunk_overlap_prev: prevOverlap,\n      chunk_overlap_next: para.slice(0, overlap),\n      token_count: Math.ceil(currentChunk.length / 4)\n    });\n    currentChunk = currentChunk.slice(-overlap) + para + '\\n\\n';\n  } else {\n    currentChunk += para + '\\n\\n';\n  }\n}\n\nif (currentChunk.trim()) {\n  chunks.push({\n    ...inputData,\n    content: currentChunk.trim(),\n    chunk_index: chunkIndex,\n    chunk_overlap_prev: chunks.length > 0 ? chunks[chunks.length-1].content.slice(-overlap) : null,\n    chunk_overlap_next: null,\n    token_count: Math.ceil(currentChunk.length / 4)\n  });\n}\n\nreturn chunks.map(c => ({ json: c }));"
-      }
+      "position": [1000, 700]
     },
     {
-      "id": "split-in-batches",
-      "name": "SplitInBatches 100",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [1750, 300],
+      "parameters": {
+        "jsCode": "// Chunking semantico: ~500 tokens (2000 chars) com overlap de 100 chars\nconst input = $input.first().json;\nconst rawText = input.raw_text || '';\nconst sourceId = input.source_id;\nconst CHUNK_SIZE = 2000;\nconst OVERLAP = 100;\n\nif (!rawText || rawText.length < 10) {\n  return [{ json: { error: 'Texto vazio ou muito curto', source_id: sourceId, chunks: [] } }];\n}\n\n// Split por paragrafos primeiro\nconst paragraphs = rawText.split(/\\n\\n+/);\nconst chunks = [];\nlet currentChunk = '';\nlet chunkIndex = 0;\n\nfor (const para of paragraphs) {\n  if ((currentChunk + '\\n\\n' + para).length > CHUNK_SIZE && currentChunk.length > 0) {\n    // Salvar chunk atual\n    const prevOverlap = chunks.length > 0 ? chunks[chunks.length - 1].content.slice(-OVERLAP) : null;\n    const nextOverlap = para.slice(0, OVERLAP);\n    \n    chunks.push({\n      content: currentChunk.trim(),\n      chunk_index: chunkIndex,\n      chunk_overlap_prev: prevOverlap,\n      chunk_overlap_next: nextOverlap,\n      token_count: Math.ceil(currentChunk.length / 4),\n      source_id: sourceId,\n      metadata: {}\n    });\n    \n    chunkIndex++;\n    currentChunk = para;\n  } else {\n    currentChunk = currentChunk ? currentChunk + '\\n\\n' + para : para;\n  }\n}\n\n// Ultimo chunk\nif (currentChunk.trim().length > 0) {\n  const prevOverlap = chunks.length > 0 ? chunks[chunks.length - 1].content.slice(-OVERLAP) : null;\n  chunks.push({\n    content: currentChunk.trim(),\n    chunk_index: chunkIndex,\n    chunk_overlap_prev: prevOverlap,\n    chunk_overlap_next: null,\n    token_count: Math.ceil(currentChunk.length / 4),\n    source_id: sourceId,\n    metadata: {}\n  });\n}\n\nreturn chunks.map(c => ({ json: c }));"
+      },
+      "id": "chunker",
+      "name": "Chunker Semantico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
       "parameters": {
         "batchSize": 100,
         "options": {}
-      }
+      },
+      "id": "batch-embeddings",
+      "name": "Batch 100",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1600, 300]
     },
     {
-      "id": "http-openai-embeddings",
-      "name": "OpenAI Embeddings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2000, 300],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/embeddings",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'text-embedding-3-small', input: $input.all().map(item => item.json.content) }) }}",
-        "options": {
-          "timeout": 60000
-        }
+        "jsonBody": "={{ JSON.stringify({ model: 'text-embedding-3-small', input: $items().map(i => i.json.content) }) }}"
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "openai-api-key",
-          "name": "OpenAI API Key"
-        }
-      }
-    },
-    {
-      "id": "code-prepare-chunks",
-      "name": "Preparar Chunks com Embedding",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2250, 300],
-      "parameters": {
-        "jsCode": "const embeddingResponse = $input.first().json;\nconst batchItems = $('SplitInBatches 100').all();\n\nconst embeddings = embeddingResponse.data || [];\n\nconst result = batchItems.map((item, index) => {\n  const embeddingData = embeddings[index];\n  return {\n    json: {\n      url: item.json.url,\n      title: item.json.title,\n      source_type: item.json.source_type,\n      author: item.json.author,\n      ingested_at: item.json.ingested_at,\n      content: item.json.content,\n      chunk_index: item.json.chunk_index,\n      chunk_overlap_prev: item.json.chunk_overlap_prev,\n      chunk_overlap_next: item.json.chunk_overlap_next,\n      token_count: item.json.token_count,\n      extraction_method: item.json.extraction_method,\n      embedding: embeddingData ? embeddingData.embedding : null\n    }\n  };\n});\n\nreturn result;"
-      }
-    },
-    {
-      "id": "http-supabase-insert-chunks",
-      "name": "Supabase Insert Chunks",
+      "id": "openai-embeddings",
+      "name": "OpenAI Embeddings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2500, 300],
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combinar chunks com seus embeddings\nconst embeddingsResponse = $input.first().json;\nconst batchItems = $('Batch 100').all();\nconst embeddings = embeddingsResponse.data || [];\n\nconst results = [];\nfor (let i = 0; i < batchItems.length; i++) {\n  const chunk = batchItems[i].json;\n  const embedding = embeddings[i]?.embedding || null;\n  \n  results.push({\n    json: {\n      source_id: chunk.source_id,\n      content: chunk.content,\n      embedding: embedding ? `[${embedding.join(',')}]` : null,\n      chunk_index: chunk.chunk_index,\n      chunk_overlap_prev: chunk.chunk_overlap_prev,\n      chunk_overlap_next: chunk.chunk_overlap_next,\n      token_count: chunk.token_count,\n      metadata: chunk.metadata\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "merge-embeddings",
+      "name": "Merge Embeddings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    },
+    {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_chunks",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://bfumywvwubvernvhjehk.supabase.co/rest/v1/knowledge_chunks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE}}" },
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
             },
-            {
-              "name": "apikey",
-              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
-            }
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($input.all().map(item => ({\n  source_url: item.json.url,\n  source_title: item.json.title,\n  source_type: item.json.source_type,\n  author: item.json.author,\n  ingested_at: item.json.ingested_at,\n  content: item.json.content,\n  chunk_index: item.json.chunk_index,\n  chunk_overlap_prev: item.json.chunk_overlap_prev,\n  chunk_overlap_next: item.json.chunk_overlap_next,\n  token_count: item.json.token_count,\n  extraction_method: item.json.extraction_method,\n  embedding: item.json.embedding\n}))) }}",
+        "jsonBody": "={{ JSON.stringify($items().map(i => i.json)) }}",
         "options": {
-          "timeout": 30000
+          "batching": { "batch": { "batchSize": 50, "batchInterval": 500 } }
         }
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "supabase-api-key",
-          "name": "Supabase API Key"
-        }
-      }
-    },
-    {
-      "id": "http-update-source-status",
-      "name": "Update Source Status - Completed",
+      "id": "insert-chunks",
+      "name": "Inserir Chunks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2750, 300],
+      "position": [2200, 300]
+    },
+    {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_sources?url=eq.{{ encodeURIComponent($('Normalizar Dados').first().json.url) }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://bfumywvwubvernvhjehk.supabase.co/rest/v1/knowledge_sources?id=eq.{{ $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE}}" },
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
             },
-            {
-              "name": "apikey",
-              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            }
+            { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"status\": \"completed\", \"processed_at\": \"{{ new Date().toISOString() }}\" }",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'completed', total_chunks: $items().length, raw_text: $('Chunker Semantico').first().json.content?.substring(0, 500) }) }}"
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "supabase-api-key",
-          "name": "Supabase API Key"
-        }
-      }
-    },
-    {
-      "id": "respond-success",
-      "name": "Respond - Success",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [3000, 300],
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": true, \"message\": \"Conteúdo ingerido com sucesso\", \"source_type\": \"{{ $('Normalizar Dados').first().json.source_type }}\", \"url\": \"{{ $('Normalizar Dados').first().json.url }}\" }",
-        "options": {
-          "responseCode": 200
-        }
-      }
-    },
-    {
-      "id": "error-handler",
-      "name": "Error Handler",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1500, 600],
-      "parameters": {
-        "jsCode": "const error = $input.first().json;\nconst url = $('Normalizar Dados').first()?.json?.url || 'unknown';\n\nconsole.error('Mega Brain Ingest Error:', JSON.stringify(error));\n\nreturn [{\n  json: {\n    success: false,\n    error: error.message || 'Erro desconhecido',\n    url,\n    failed_at: new Date().toISOString()\n  }\n}];"
-      }
-    },
-    {
-      "id": "http-update-source-failed",
-      "name": "Update Source Status - Failed",
+      "id": "update-source-done",
+      "name": "Atualizar Source ✓",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1750, 600],
+      "position": [2400, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, source_id: $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id, total_chunks: $items().length, message: 'Ingestao concluida com sucesso' }) }}"
+      },
+      "id": "response-ok",
+      "name": "Response OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2600, 300]
+    },
+    {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_sources?url=eq.{{ encodeURIComponent($json.url) }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://bfumywvwubvernvhjehk.supabase.co/rest/v1/knowledge_sources?id=eq.{{ $('Inserir Source').first().json[0]?.id || $('Inserir Source').first().json.id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE}}" },
             {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
             },
-            {
-              "name": "apikey",
-              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            }
+            { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"status\": \"failed\", \"processing_error\": \"{{ $json.error }}\", \"failed_at\": \"{{ $json.failed_at }}\" }",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'failed', processing_error: $json.message || 'Erro desconhecido' }) }}"
       },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "supabase-api-key",
-          "name": "Supabase API Key"
-        }
-      }
-    },
-    {
-      "id": "respond-error",
-      "name": "Respond - Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [2000, 600],
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"{{ $('Error Handler').first().json.error }}\" }",
-        "options": {
-          "responseCode": 500
-        }
-      }
+      "id": "update-source-fail",
+      "name": "Atualizar Source ✗",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 600],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
-    "Webhook Ingest": {
+    "Webhook": {
+      "main": [[{ "node": "Detectar Tipo", "type": "main", "index": 0 }]]
+    },
+    "Detectar Tipo": {
+      "main": [[{ "node": "Inserir Source", "type": "main", "index": 0 }]]
+    },
+    "Inserir Source": {
+      "main": [[{ "node": "Switch Tipo", "type": "main", "index": 0 }]]
+    },
+    "Switch Tipo": {
       "main": [
-        [
-          {
-            "node": "Normalizar Dados",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Processar YouTube", "type": "main", "index": 0 }],
+        [{ "node": "Processar PDF", "type": "main", "index": 0 }],
+        [{ "node": "Processar Audio", "type": "main", "index": 0 }],
+        [{ "node": "Fetch Webpage", "type": "main", "index": 0 }],
+        [{ "node": "Processar Texto", "type": "main", "index": 0 }]
       ]
     },
-    "Normalizar Dados": {
-      "main": [
-        [
-          {
-            "node": "Switch Tipo Fonte",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Processar YouTube": {
+      "main": [[{ "node": "Chunker Semantico", "type": "main", "index": 0 }]]
     },
-    "Switch Tipo Fonte": {
-      "main": [
-        [
-          {
-            "node": "YouTube: Gerar Comando yt-dlp",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Download PDF",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Download Áudio",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Download Texto/Webpage",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Download Texto/Webpage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Processar PDF": {
+      "main": [[{ "node": "Chunker Semantico", "type": "main", "index": 0 }]]
     },
-    "YouTube: Gerar Comando yt-dlp": {
-      "main": [
-        [
-          {
-            "node": "Deepgram STT - YouTube",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Processar Audio": {
+      "main": [[{ "node": "Chunker Semantico", "type": "main", "index": 0 }]]
     },
-    "Deepgram STT - YouTube": {
-      "main": [
-        [
-          {
-            "node": "Extrair Transcrição YouTube",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Fetch Webpage": {
+      "main": [[{ "node": "Processar Webpage", "type": "main", "index": 0 }]]
     },
-    "Extrair Transcrição YouTube": {
-      "main": [
-        [
-          {
-            "node": "Chunker Semântico",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Processar Webpage": {
+      "main": [[{ "node": "Chunker Semantico", "type": "main", "index": 0 }]]
     },
-    "Download PDF": {
-      "main": [
-        [
-          {
-            "node": "Parse PDF",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Processar Texto": {
+      "main": [[{ "node": "Chunker Semantico", "type": "main", "index": 0 }]]
     },
-    "Parse PDF": {
-      "main": [
-        [
-          {
-            "node": "Chunker Semântico",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Chunker Semantico": {
+      "main": [[{ "node": "Batch 100", "type": "main", "index": 0 }]]
     },
-    "Download Áudio": {
-      "main": [
-        [
-          {
-            "node": "Deepgram STT - Áudio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Deepgram STT - Áudio": {
-      "main": [
-        [
-          {
-            "node": "Extrair Transcrição Áudio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extrair Transcrição Áudio": {
-      "main": [
-        [
-          {
-            "node": "Chunker Semântico",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download Texto/Webpage": {
-      "main": [
-        [
-          {
-            "node": "Extrair Texto Webpage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extrair Texto Webpage": {
-      "main": [
-        [
-          {
-            "node": "Chunker Semântico",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Chunker Semântico": {
-      "main": [
-        [
-          {
-            "node": "SplitInBatches 100",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SplitInBatches 100": {
-      "main": [
-        [
-          {
-            "node": "OpenAI Embeddings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Batch 100": {
+      "main": [[{ "node": "OpenAI Embeddings", "type": "main", "index": 0 }]]
     },
     "OpenAI Embeddings": {
-      "main": [
-        [
-          {
-            "node": "Preparar Chunks com Embedding",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Merge Embeddings", "type": "main", "index": 0 }]]
     },
-    "Preparar Chunks com Embedding": {
-      "main": [
-        [
-          {
-            "node": "Supabase Insert Chunks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Merge Embeddings": {
+      "main": [[{ "node": "Inserir Chunks", "type": "main", "index": 0 }]]
     },
-    "Supabase Insert Chunks": {
-      "main": [
-        [
-          {
-            "node": "Update Source Status - Completed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Inserir Chunks": {
+      "main": [[{ "node": "Atualizar Source ✓", "type": "main", "index": 0 }]]
     },
-    "Update Source Status - Completed": {
-      "main": [
-        [
-          {
-            "node": "Respond - Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Error Handler": {
-      "main": [
-        [
-          {
-            "node": "Update Source Status - Failed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Source Status - Failed": {
-      "main": [
-        [
-          {
-            "node": "Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Atualizar Source ✓": {
+      "main": [[{ "node": "Response OK", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "",
-    "timezone": "America/Sao_Paulo"
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
   }
 }

@@ -1,372 +1,372 @@
 #!/usr/bin/env node
 /**
- * Mega Brain Extract Entities — Extrai entidades de chunks via Gemini Flash
- * Para cada chunk: detecta pessoas, empresas, tópicos, frameworks, livros, ferramentas
- * Faz merge com entidades existentes via find_entity_fuzzy (similaridade > 0.6)
+ * mega-brain-extract-entities.mjs
+ * Extrai entidades de chunks usando Gemini Flash e faz dedup fuzzy.
  *
- * Usage:
+ * Uso:
  *   node scripts/mega-brain-extract-entities.mjs --source-id UUID
  *   node scripts/mega-brain-extract-entities.mjs --all
  */
 
 import { parseArgs } from 'node:util';
 
-// ─── Configuração ──────────────────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
+// ============================================================
+// CONFIG — env vars (setar antes de rodar)
+// ============================================================
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.MEGA_BRAIN_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.MEGA_BRAIN_SUPABASE_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.MEGA_BRAIN_GEMINI_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !GEMINI_KEY) {
-  console.error('ERRO: Variaveis de ambiente obrigatorias: SUPABASE_URL, SUPABASE_KEY, GEMINI_API_KEY');
+  console.error('Env vars obrigatorias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY');
   process.exit(1);
 }
 
 const CHUNK_BATCH_SIZE = 50;
-const RATE_LIMIT_MS = 500;
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const FUZZY_SIMILARITY_THRESHOLD = 0.6;
+const LLM_SLEEP_MS = 1000;
 
-// ─── Args parsing ──────────────────────────────────────────────────────────────
+const supaHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
 
+// ============================================================
+// CLI
+// ============================================================
 const { values: args } = parseArgs({
   options: {
     'source-id': { type: 'string' },
     all:         { type: 'boolean', default: false },
-    help:        { type: 'boolean', default: false },
+    help:        { type: 'boolean', short: 'h', default: false },
   },
-  allowPositionals: false,
+  strict: false,
 });
 
 if (args.help || (!args['source-id'] && !args.all)) {
   console.log(`
-Mega Brain Extract Entities — Extração de entidades via Gemini Flash
-
 Uso:
   node scripts/mega-brain-extract-entities.mjs --source-id UUID
   node scripts/mega-brain-extract-entities.mjs --all
 
-Opções:
-  --source-id UUID  Processar apenas este source
-  --all             Processar todos os sources sem entidades extraídas
-  --help            Mostrar esta ajuda
+Opcoes:
+  --source-id UUID   Processar apenas este source
+  --all              Processar todos os sources sem entities extraidas
+  --help, -h         Exibir ajuda
 `);
   process.exit(0);
 }
 
-// ─── Supabase helpers ──────────────────────────────────────────────────────────
-
-function sbHeaders() {
-  return {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-  };
+// ============================================================
+// HELPERS
+// ============================================================
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function sbGet(path) {
+async function supaFetch(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: sbHeaders(),
+    headers: { ...supaHeaders, ...(opts.headers || {}) },
+    ...opts,
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase GET ${path}: ${res.status} ${err.slice(0, 200)}`);
+    const body = await res.text();
+    throw new Error(`Supabase ${opts.method || 'GET'} ${path} -> ${res.status}: ${body}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-async function sbPost(path, body, prefer = 'return=representation') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'POST',
-    headers: { ...sbHeaders(), 'Prefer': prefer },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase POST ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-  return prefer === 'return=minimal' ? null : res.json();
-}
-
-async function sbPatch(path, body) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'PATCH',
-    headers: { ...sbHeaders(), 'Prefer': 'return=minimal' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase PATCH ${path}: ${res.status} ${err.slice(0, 200)}`);
-  }
-}
-
-async function sbRpc(fn, body) {
+async function rpcCall(fn, params) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
-    headers: sbHeaders(),
-    body: JSON.stringify(body),
+    headers: supaHeaders,
+    body: JSON.stringify(params),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase RPC ${fn}: ${res.status} ${err.slice(0, 200)}`);
+    const body = await res.text();
+    throw new Error(`RPC ${fn} -> ${res.status}: ${body}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-// ─── Gemini Flash ──────────────────────────────────────────────────────────────
+async function extractEntitiesFromChunks(chunks) {
+  const combinedText = chunks.map(c => c.content).join('\n\n---\n\n');
+  const prompt = `Extraia TODAS as entidades mencionadas neste texto. Tipos aceitos: person, company, topic, book, framework, tool, place.
 
-async function extractEntitiesFromChunk(chunkText) {
-  const prompt = `Extraia TODAS as entidades mencionadas neste texto. Inclua: pessoas, empresas, tópicos, frameworks, livros, ferramentas e lugares.
+Para cada entidade, retorne um item no array JSON com:
+- name: nome da entidade exatamente como aparece
+- type: um dos tipos acima
+- context_snippet: trecho (max 200 chars) onde a entidade aparece pela primeira vez
 
-Retorne APENAS um JSON array válido, sem texto extra, no formato:
-[{"name": "Nome da Entidade", "type": "person|company|topic|framework|book|tool|place", "context_snippet": "trecho relevante do texto"}]
-
-TIPOS VÁLIDOS APENAS: person, company, topic, framework, book, tool, place
-
-Se não houver entidades relevantes, retorne: []
+Retorne APENAS o JSON array, sem markdown, sem explicacoes.
 
 Texto:
-${chunkText}`;
+${combinedText.slice(0, 25000)}`;
 
-  const res = await fetch(GEMINI_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+      }),
+    }
+  );
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini Flash ${res.status}: ${err.slice(0, 200)}`);
+    const body = await res.text();
+    throw new Error(`Gemini API -> ${res.status}: ${body}`);
   }
 
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return [];
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+
+  // Extrair JSON do texto (pode ter markdown)
+  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
 
   try {
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) return [];
-
-    // Validar tipos — remover entidades com tipos inválidos
-    const validTypes = ['person', 'company', 'topic', 'framework', 'book', 'tool', 'place'];
-    return parsed.filter(e => validTypes.includes(e.type?.toLowerCase()));
+    return JSON.parse(jsonMatch[0]);
   } catch {
+    console.warn('  [warn] Falha ao parsear JSON de entidades, retornando []');
     return [];
   }
 }
 
-// ─── Processamento de entidades ────────────────────────────────────────────────
+async function findOrCreateEntity(name, type, contextSnippet) {
+  // Buscar entidade via fuzzy RPC
+  let matchedEntity = null;
 
-async function upsertEntity(entity) {
-  // 1. Tentar find_entity_fuzzy
-  let existingEntity = null;
   try {
-    const results = await sbRpc('find_entity_fuzzy', {
-      search_name: entity.name,
-      similarity_threshold: 0.6,
+    const results = await rpcCall('find_entity_fuzzy', {
+      p_name: name,
+      p_type: type,
+      p_threshold: FUZZY_SIMILARITY_THRESHOLD,
     });
-    if (Array.isArray(results) && results.length > 0) {
-      existingEntity = results[0];
+
+    if (results && results.length > 0) {
+      matchedEntity = results[0];
     }
   } catch (err) {
-    // RPC pode não existir ainda — prosseguir como nova entidade
-    if (!err.message.includes('does not exist') && !err.message.includes('404')) {
-      console.warn(`\n[fuzzy] Aviso: ${err.message}`);
+    // RPC pode nao existir ainda — fallback para busca direta
+    const existing = await supaFetch(
+      `knowledge_entities?canonical_name=ilike.${encodeURIComponent(name)}&entity_type=eq.${type}&limit=1`
+    );
+    if (existing && existing.length > 0) {
+      matchedEntity = { entity_id: existing[0].id, similarity: 1.0, entity: existing[0] };
     }
   }
 
-  if (existingEntity) {
-    // Merge: adicionar alias se nome for diferente, incrementar mention_count
-    const aliases = existingEntity.aliases || [];
-    const nameLower = entity.name.toLowerCase();
-    const alreadyAlias = aliases.some(a => a.toLowerCase() === nameLower);
-    const isMainName = existingEntity.canonical_name.toLowerCase() === nameLower;
+  if (matchedEntity && matchedEntity.similarity > FUZZY_SIMILARITY_THRESHOLD) {
+    const entityId = matchedEntity.entity_id || matchedEntity.id;
 
-    if (!alreadyAlias && !isMainName) {
-      aliases.push(entity.name);
-    }
-
+    // Adicionar alias se o nome e diferente do canonical
     try {
-      await sbPatch(`knowledge_entities?id=eq.${existingEntity.id}`, {
-        aliases,
-        mention_count: (existingEntity.mention_count || 0) + 1,
-        last_seen_at: new Date().toISOString(),
-      });
+      const current = await supaFetch(`knowledge_entities?id=eq.${entityId}&select=aliases,mention_count`);
+      if (current && current.length > 0) {
+        const entity = current[0];
+        const aliases = Array.isArray(entity.aliases) ? entity.aliases : [];
+        if (!aliases.includes(name) && name !== entity.canonical_name) {
+          aliases.push(name);
+          await supaFetch(`knowledge_entities?id=eq.${entityId}`, {
+            method: 'PATCH',
+            headers: { 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              aliases,
+              mention_count: (entity.mention_count || 0) + 1,
+              updated_at: new Date().toISOString(),
+            }),
+          });
+        } else {
+          await supaFetch(`knowledge_entities?id=eq.${entityId}`, {
+            method: 'PATCH',
+            headers: { 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              mention_count: (entity.mention_count || 0) + 1,
+              updated_at: new Date().toISOString(),
+            }),
+          });
+        }
+      }
     } catch (err) {
-      // Campo pode não existir — ignorar
-      console.warn(`[update] Aviso ao atualizar entidade ${existingEntity.id}: ${err.message}`);
+      console.warn(`  [warn] Falha ao atualizar aliases para ${name}: ${err.message}`);
     }
 
-    return existingEntity.id;
+    return entityId;
   }
 
-  // Nova entidade
-  try {
-    const rows = await sbPost('knowledge_entities', {
-      canonical_name: entity.name,
-      entity_type: entity.type,
+  // Criar nova entidade
+  const newEntity = await supaFetch('knowledge_entities', {
+    method: 'POST',
+    headers: { 'Prefer': 'return=representation' },
+    body: JSON.stringify({
+      canonical_name: name,
+      entity_type: type,
       aliases: [],
       mention_count: 1,
-    });
-    return Array.isArray(rows) ? rows[0]?.id : rows?.id;
-  } catch (err) {
-    // Pode ter constraint de nome duplicado — tentar buscar diretamente via fuzzy
-    try {
-      const results = await sbRpc('find_entity_fuzzy', {
-        search_name: entity.name,
-        similarity_threshold: 0.95,
-      });
-      if (Array.isArray(results) && results.length > 0) {
-        return results[0].id;
-      }
-    } catch {}
-    throw err;
-  }
+      dossier_text: null,
+      dossier_updated_at: null,
+      metadata: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+  });
+
+  return newEntity[0].id;
 }
 
-async function insertEntityMention(chunkId, entityId, contextSnippet, sourceId) {
+async function insertEntityMention(entityId, chunkId, sourceId, mentionText, contextSnippet) {
+  // Verificar se ja existe mention para evitar duplicatas
   try {
-    await sbPost('entity_mentions', {
-      chunk_id: chunkId,
+    const existing = await supaFetch(
+      `entity_mentions?entity_id=eq.${entityId}&chunk_id=eq.${chunkId}&select=id&limit=1`
+    );
+    if (existing && existing.length > 0) return;
+  } catch (_) {
+    // Tabela pode nao existir, continuar
+  }
+
+  await supaFetch('entity_mentions', {
+    method: 'POST',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({
       entity_id: entityId,
+      chunk_id: chunkId,
       source_id: sourceId,
-      mention_text: contextSnippet?.slice(0, 100) || '',
-      context_snippet: contextSnippet?.slice(0, 500) || null,
-      confidence: 1.0,
-    }, 'return=minimal');
-  } catch (err) {
-    // Pode ter constraint unique (entity_id, chunk_id) — ignorar duplicatas
-    if (!err.message.includes('duplicate') && !err.message.includes('unique')) {
-      throw err;
-    }
-  }
+      mention_text: mentionText,
+      context_snippet: contextSnippet?.slice(0, 500) || '',
+      created_at: new Date().toISOString(),
+    }),
+  });
 }
-
-// ─── Busca de sources/chunks ───────────────────────────────────────────────────
-
-async function getSourceIds() {
-  if (args['source-id']) {
-    return [args['source-id']];
-  }
-
-  // Buscar sources completados (coluna entities_extracted não existe ainda no schema)
-  // Processaremos todos os sources com processing_status=completed e chunks
-  const sources = await sbGet(
-    'knowledge_sources?select=id&processing_status=eq.completed&order=created_at.asc'
-  );
-  return sources.map(s => s.id);
-}
-
-async function getChunksForSource(sourceId) {
-  const chunks = await sbGet(
-    `knowledge_chunks?source_id=eq.${sourceId}&select=id,content,chunk_index&order=chunk_index.asc`
-  );
-  return chunks;
-}
-
-// ─── Processamento principal ───────────────────────────────────────────────────
 
 async function processSource(sourceId) {
-  console.log(`\n[source] Processando: ${sourceId}`);
+  console.log(`\nProcessando source: ${sourceId}`);
 
-  const chunks = await getChunksForSource(sourceId);
-  if (chunks.length === 0) {
-    console.log(`[source] Nenhum chunk encontrado — pulando`);
-    return { chunks: 0, entities: 0, mentions: 0 };
+  // Buscar chunks do source
+  const chunks = await supaFetch(
+    `knowledge_chunks?source_id=eq.${sourceId}&select=id,content,chunk_index&order=chunk_index.asc`
+  );
+
+  if (!chunks || chunks.length === 0) {
+    console.log(`  Nenhum chunk encontrado para source ${sourceId}`);
+    return;
   }
 
-  console.log(`[source] ${chunks.length} chunks encontrados`);
+  console.log(`  ${chunks.length} chunks encontrados`);
 
   let totalEntities = 0;
   let totalMentions = 0;
-  let processedChunks = 0;
 
+  // Processar em batches
   for (let i = 0; i < chunks.length; i += CHUNK_BATCH_SIZE) {
     const batch = chunks.slice(i, i + CHUNK_BATCH_SIZE);
+    const batchNum = Math.floor(i / CHUNK_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(chunks.length / CHUNK_BATCH_SIZE);
 
-    for (const chunk of batch) {
+    console.log(`  Batch ${batchNum}/${totalBatches} (${batch.length} chunks)...`);
+
+    let entities = [];
+    try {
+      entities = await extractEntitiesFromChunks(batch);
+    } catch (err) {
+      console.error(`  [erro] LLM falhou no batch ${batchNum}: ${err.message}`);
+      await sleep(LLM_SLEEP_MS * 3);
+      continue;
+    }
+
+    console.log(`    ${entities.length} entidades extraidas`);
+
+    for (const entity of entities) {
+      if (!entity.name || !entity.type) continue;
+
       try {
-        const entities = await extractEntitiesFromChunk(chunk.content);
+        const entityId = await findOrCreateEntity(entity.name, entity.type, entity.context_snippet);
 
-        for (const entity of entities) {
-          if (!entity.name || entity.name.trim().length < 2) continue;
-
-          try {
-            const entityId = await upsertEntity(entity);
-            if (entityId) {
-              await insertEntityMention(chunk.id, entityId, entity.context_snippet, sourceId);
-              totalMentions++;
-              totalEntities++;
-            }
-          } catch (err) {
-            console.warn(`\n[entity] Erro ao processar "${entity.name}": ${err.message}`);
+        // Inserir mencoes para todos os chunks do batch
+        for (const chunk of batch) {
+          if (chunk.content.toLowerCase().includes(entity.name.toLowerCase())) {
+            await insertEntityMention(entityId, chunk.id, sourceId, entity.name, entity.context_snippet);
+            totalMentions++;
           }
         }
+        totalEntities++;
       } catch (err) {
-        console.warn(`\n[chunk] Erro no chunk ${chunk.chunk_index}: ${err.message}`);
+        console.warn(`  [warn] Falha ao processar entidade "${entity.name}": ${err.message}`);
       }
-
-      processedChunks++;
-      const pct = Math.round((processedChunks / chunks.length) * 100);
-      process.stdout.write(`\r[extract] ${processedChunks}/${chunks.length} chunks (${pct}%) | ${totalEntities} entidades        `);
     }
 
-    // Rate limit entre batches
+    // Rate limiting entre batches
     if (i + CHUNK_BATCH_SIZE < chunks.length) {
-      await new Promise(r => setTimeout(r, RATE_LIMIT_MS));
+      await sleep(LLM_SLEEP_MS);
     }
   }
 
-  // Nota: source já está marcado como completed — entidades foram extraídas
-  // Campo entities_extracted não existe no schema atual, será adicionado em futura migration
+  // Marcar source como entities processadas
+  try {
+    await supaFetch(`knowledge_sources?id=eq.${sourceId}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        entities_extracted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  } catch (_) {
+    // Campo pode nao existir, ignorar
+  }
 
-  console.log(`\n[source] Concluído: ${totalEntities} entidades, ${totalMentions} menções`);
-  return { chunks: chunks.length, entities: totalEntities, mentions: totalMentions };
+  console.log(`  Concluido: ${totalEntities} entidades, ${totalMentions} mencoes`);
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
+// ============================================================
+// MAIN
+// ============================================================
 async function main() {
-  console.log('='.repeat(60));
-  console.log('MEGA BRAIN EXTRACT ENTITIES');
-  console.log('='.repeat(60));
+  console.log('=== Mega Brain: Extract Entities ===');
 
-  const sourceIds = await getSourceIds();
-
-  if (sourceIds.length === 0) {
-    console.log('Nenhum source para processar.');
-    process.exit(0);
-  }
-
-  console.log(`Sources a processar: ${sourceIds.length}`);
-
-  let totalChunks = 0;
-  let totalEntities = 0;
-  let totalMentions = 0;
-
-  for (const sourceId of sourceIds) {
+  if (args['source-id']) {
+    await processSource(args['source-id']);
+  } else if (args.all) {
+    // Buscar sources sem entities extraidas
+    let sources;
     try {
-      const result = await processSource(sourceId);
-      totalChunks += result.chunks;
-      totalEntities += result.entities;
-      totalMentions += result.mentions;
-    } catch (err) {
-      console.error(`\n[ERRO] Source ${sourceId}: ${err.message}`);
+      sources = await supaFetch(
+        `knowledge_sources?entities_extracted_at=is.null&select=id,title&order=created_at.asc`
+      );
+    } catch (_) {
+      // Fallback se campo nao existir
+      sources = await supaFetch(
+        `knowledge_sources?select=id,title&order=created_at.asc`
+      );
+    }
+
+    if (!sources || sources.length === 0) {
+      console.log('Nenhum source pendente encontrado.');
+      return;
+    }
+
+    console.log(`${sources.length} sources para processar`);
+
+    for (const source of sources) {
+      console.log(`\n[${sources.indexOf(source) + 1}/${sources.length}] ${source.title || source.id}`);
+      try {
+        await processSource(source.id);
+      } catch (err) {
+        console.error(`  [erro] Source ${source.id}: ${err.message}`);
+      }
     }
   }
 
-  console.log('\n' + '='.repeat(60));
-  console.log('EXTRAÇÃO CONCLUÍDA');
-  console.log('='.repeat(60));
-  console.log(`Sources:   ${sourceIds.length}`);
-  console.log(`Chunks:    ${totalChunks}`);
-  console.log(`Entidades: ${totalEntities}`);
-  console.log(`Menções:   ${totalMentions}`);
+  console.log('\nConcluido!');
 }
 
 main().catch(err => {
-  console.error('[ERRO CRÍTICO]', err.message);
+  console.error('[FATAL]', err);
   process.exit(1);
 });

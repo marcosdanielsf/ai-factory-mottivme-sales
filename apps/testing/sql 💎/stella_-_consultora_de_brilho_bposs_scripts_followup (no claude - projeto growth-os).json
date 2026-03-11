@@ -1,0 +1,217 @@
+{
+  "ativacao": {
+    "script_type": "audio_followup",
+    "target_stage": "ativacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "Oi {{nome}}, tudo bem? Aqui é a Carol!",
+      "body": [
+        "[caloroso] Vi que você demonstrou interesse no nosso tratamento de emagrecimento personalizado...",
+        "[empático] E eu sei como é difícil encontrar algo que realmente funcione, né?",
+        "[confiante] Por isso quero te contar rapidinho sobre uma abordagem que tem transformado a vida de centenas de mulheres como você..."
+      ],
+      "cta": "Posso te mandar uma mensagem explicando melhor? É só um minutinho!"
+    },
+    "full_script": "Oi {{nome}}, tudo bem? Aqui é a Carol! Vi que você demonstrou interesse no nosso tratamento de emagrecimento personalizado... E eu sei como é difícil encontrar algo que realmente funcione, né? Por isso quero te contar rapidinho sobre uma abordagem que tem transformado a vida de centenas de mulheres como você... Posso te mandar uma mensagem explicando melhor? É só um minutinho!",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Conexão Pessoal",
+        "where": "Apresentação com nome próprio 'Carol'",
+        "why": "Cria proximidade e humaniza o primeiro contato"
+      },
+      {
+        "trigger": "Validação/Empatia",
+        "where": "'eu sei como é difícil encontrar algo que realmente funcione'",
+        "why": "Reconhece a frustração comum do público-alvo"
+      },
+      {
+        "trigger": "Prova Social",
+        "where": "'centenas de mulheres como você'",
+        "why": "Gera confiança através de resultados com pessoas similares"
+      },
+      {
+        "trigger": "Curiosidade",
+        "where": "'uma abordagem que tem transformado'",
+        "why": "Desperta interesse sem revelar tudo de uma vez"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para personalização",
+        "example": "Maria"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Caloroso e acolhedor, como uma amiga próxima dando uma dica valiosa",
+      "pace": "Moderado, com pausas naturais para respirar e dar ênfase",
+      "emphasis": [
+        "Carol",
+        "personalizado",
+        "realmente funcione",
+        "transformado",
+        "como você"
+      ],
+      "pauses": [
+        "Após a apresentação",
+        "Antes de 'Por isso'",
+        "Antes do CTA"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se for período da tarde/noite",
+        "script": "Oi {{nome}}, boa tarde! Aqui é a Carol! Vi que você demonstrou interesse no nosso tratamento de emagrecimento personalizado... E eu sei como é difícil encontrar algo que realmente funcione, né? Por isso quero te contar rapidinho sobre uma abordagem que tem transformado a vida de centenas de mulheres como você... Posso te mandar uma mensagem explicando melhor? É só um minutinho!"
+      },
+      {
+        "scenario": "Para público masculino (25%)",
+        "script": "Oi {{nome}}, tudo bem? Aqui é a Carol! Vi que você demonstrou interesse no nosso tratamento de emagrecimento personalizado... E eu sei como é desafiador encontrar algo que realmente dê resultado, né? Por isso quero te contar rapidinho sobre uma abordagem que tem transformado a vida de centenas de pessoas... Posso te mandar uma mensagem explicando melhor? É só um minutinho!"
+      },
+      {
+        "scenario": "Follow-up se não responder em 2 horas",
+        "script": "Oi {{nome}}! A Carol aqui de novo... Sei que você deve estar corrida, mas não queria que você perdesse essa oportunidade de conhecer nosso método... São apenas 3 minutos do seu tempo para algo que pode mudar completamente sua relação com o seu corpo. Que tal?"
+      }
+    ]
+  },
+  "qualificacao": {
+    "script_type": "audio_followup",
+    "target_stage": "qualificacao",
+    "duration_seconds": 22,
+    "duration_range": "20-25s",
+    "script": {
+      "hook": "Oi {{nome}}, aqui é a Carol da equipe de acompanhamento!",
+      "body": [
+        "[caloroso] Vi que você demonstrou interesse no nosso tratamento personalizado de emagrecimento...",
+        "[empático] E eu sei como é difícil encontrar algo que realmente funcione para o nosso corpo, né?",
+        "[acolhedor] Por isso eu queria conversar com você rapidinho para entender melhor o seu momento..."
+      ],
+      "cta": "Você tem uns minutinhos agora para a gente bater um papo?"
+    },
+    "full_script": "Oi {{nome}}, aqui é a Carol da equipe de acompanhamento! Vi que você demonstrou interesse no nosso tratamento personalizado de emagrecimento... E eu sei como é difícil encontrar algo que realmente funcione para o nosso corpo, né? Por isso eu queria conversar com você rapidinho para entender melhor o seu momento... Você tem uns minutinhos agora para a gente bater um papo?",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Empatia",
+        "where": "E eu sei como é difícil encontrar algo que realmente funcione",
+        "why": "Cria conexão emocional e validação da dor comum do público feminino"
+      },
+      {
+        "trigger": "Validação",
+        "where": "Vi que você demonstrou interesse",
+        "why": "Reconhece a ação do lead e valida sua busca por solução"
+      },
+      {
+        "trigger": "Personalização",
+        "where": "entender melhor o seu momento",
+        "why": "Mostra interesse genuíno na situação específica da pessoa"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead",
+        "example": "Maria"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Caloroso e acolhedor, como uma amiga que se importa genuinamente",
+      "pace": "Moderado, com pausas naturais para respirar confiança",
+      "emphasis": [
+        "Carol",
+        "personalizado",
+        "realmente funcione",
+        "seu momento"
+      ],
+      "pauses": [
+        "Após apresentação",
+        "Após 'né?'",
+        "Antes do CTA"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead não responder no primeiro áudio",
+        "script": "Oi {{nome}}! Sou a Carol novamente... Sei que a vida anda corrida, mas queria muito te ajudar com essa questão do emagrecimento. Posso te ligar em um horário que seja melhor para você? Me manda só um 'oi' que eu te explico como funciona!"
+      },
+      {
+        "scenario": "Para leads que já tentaram outros métodos",
+        "script": "Oi {{nome}}, Carol aqui! Vi seu interesse no nosso acompanhamento... E imagino que você já deve ter tentado várias coisas antes, né? É exatamente por isso que nosso tratamento é diferente - é 100% personalizado para o SEU corpo e rotina. Vamos conversar?"
+      },
+      {
+        "scenario": "Para horário noturno/final de semana",
+        "script": "Oi {{nome}}! Aqui é a Carol... Desculpa te incomodar fora do horário comercial, mas vi que você se interessou pelo nosso tratamento e não queria que você perdesse essa oportunidade. Quando você tiver um tempinho, me chama que eu te explico tudo, tá bom?"
+      }
+    ]
+  },
+  "recuperacao": {
+    "script_type": "audio_followup",
+    "target_stage": "recuperacao",
+    "duration_seconds": 25,
+    "duration_range": "20-30s",
+    "script": {
+      "hook": "Oi {{nome}}, tudo bem? Eu sou a Ana da equipe de emagrecimento!",
+      "body": [
+        "[caloroso] Olha, eu vi que você demonstrou interesse no nosso tratamento personalizado, mas talvez algo tenha acontecido...",
+        "[empático] Eu sei como é difícil dar o primeiro passo quando a gente já tentou várias coisas, né?",
+        "[acolhedor] Mas sabe o que eu aprendi? Que cada pessoa tem um tempo único, e eu quero respeitar o seu."
+      ],
+      "cta": "[esperançoso] Me responde aqui: o que mais te preocupa quando você pensa em começar um tratamento de emagrecimento? Eu quero te ajudar de verdade! 💕"
+    },
+    "full_script": "Oi {{nome}}, tudo bem? Eu sou a Ana da equipe de emagrecimento! [pausa] Olha, eu vi que você demonstrou interesse no nosso tratamento personalizado, mas talvez algo tenha acontecido... [pausa] Eu sei como é difícil dar o primeiro passo quando a gente já tentou várias coisas, né? [pausa] Mas sabe o que eu aprendi? Que cada pessoa tem um tempo único, e eu quero respeitar o seu. [pausa] Me responde aqui: o que mais te preocupa quando você pensa em começar um tratamento de emagrecimento? Eu quero te ajudar de verdade! 💕",
+    "emotional_triggers_used": [
+      {
+        "trigger": "Empatia",
+        "where": "Reconhecimento das tentativas anteriores",
+        "why": "Validar a experiência frustante comum do público"
+      },
+      {
+        "trigger": "Segunda Chance",
+        "where": "Respeitar o tempo único de cada pessoa",
+        "why": "Dar oportunidade sem pressão, típico da recuperação"
+      },
+      {
+        "trigger": "Conexão Humana",
+        "where": "Tom pessoal e pergunta sobre preocupações",
+        "why": "Criar abertura para diálogo genuíno"
+      },
+      {
+        "trigger": "Pertencimento",
+        "where": "Apresentação como parte da equipe",
+        "why": "Estabelecer que há uma equipe dedicada a ajudar"
+      }
+    ],
+    "personalization_slots": [
+      {
+        "placeholder": "{{nome}}",
+        "description": "Nome do lead para criar conexão pessoal",
+        "example": "Maria"
+      }
+    ],
+    "delivery_notes": {
+      "tone": "Caloroso e maternal, como uma amiga próxima que se preocupa genuinamente",
+      "pace": "Moderado com pausas naturais, sem pressa",
+      "emphasis": [
+        "Ana",
+        "personalizado",
+        "tempo único",
+        "te ajudar de verdade"
+      ],
+      "pauses": [
+        "Após apresentação",
+        "Após 'acontecido'",
+        "Após 'né?'",
+        "Antes do CTA"
+      ]
+    },
+    "variations": [
+      {
+        "scenario": "Se lead já respondeu negativamente antes",
+        "script": "Oi {{nome}}! Ana aqui novamente 😊 Olha, eu não quero te incomodar, mas algo me disse pra tentar mais uma vez... Às vezes a gente não está pronto numa primeira conversa, e tudo bem! Sabe o que mais me motiva no meu trabalho? Ver mulheres se reconectando com sua autoestima. Me conta: existe algum momento do dia que você se olha no espelho e sente que quer uma mudança? Sem pressão, só curiosidade mesmo! 💕"
+      },
+      {
+        "scenario": "Para leads que não abriram mensagens anteriores",
+        "script": "{{nome}}, oi! 👋 Ana da equipe de emagrecimento aqui! Sei que WhatsApp fica cheio de mensagens, então vou ser bem direta: você chegou até nós porque quer uma transformação real, né? Eu trabalho só com pessoas que estão prontas pra se colocar em primeiro lugar. Me responde uma coisa simples: numa escala de 1 a 10, o quanto você está disposta a investir em você mesma hoje? 💪✨"
+      }
+    ]
+  }
+}

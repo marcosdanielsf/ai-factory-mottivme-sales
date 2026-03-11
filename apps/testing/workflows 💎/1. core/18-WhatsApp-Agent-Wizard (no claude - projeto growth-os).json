@@ -1,0 +1,414 @@
+{
+  "name": "18-WhatsApp-Agent-Wizard",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-wizard",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1800, 300],
+      "id": "webhook-entrada",
+      "name": "1.0 Webhook Entrada",
+      "webhookId": "agent-wizard-whatsapp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1.1 Validar Mensagem e Detectar Trigger\nconst body = $input.first().json.body || $input.first().json;\n\nconst TRIGGER_WORDS = ['criar agente', 'novo agente', '/wizard', '/criar', 'quero um agente'];\nconst userMessage = (body.body || body.message || '').toLowerCase().trim();\nconst contactId = body.contactId || body.contact_id;\nconst locationId = body.locationId || body.location_id;\nconst phone = body.phone || body.from;\nconst conversationId = body.conversationId || body.conversation_id;\n\nconst isTrigger = TRIGGER_WORDS.some(t => userMessage.includes(t));\n\nif (!contactId || !locationId) {\n  return [{ json: { valid: false, error: 'missing_ids' } }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    is_trigger: isTrigger,\n    user_message: userMessage,\n    contact_id: contactId,\n    location_id: locationId,\n    phone: phone,\n    conversation_id: conversationId,\n    raw: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1560, 300],
+      "id": "validar-mensagem",
+      "name": "1.1 Validar Mensagem"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "valido", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1320, 300],
+      "id": "check-valido",
+      "name": "1.2 Mensagem Valida?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM get_or_create_briefing_session(\n  '{{ $json.location_id }}',\n  '{{ $json.contact_id }}',\n  '{{ $json.phone || '' }}',\n  '{{ $json.conversation_id || '' }}'\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-1080, 300],
+      "id": "get-session",
+      "name": "2.0 Get/Create Session",
+      "credentials": { "postgres": { "id": "w2mBaRwhZ3tM4FUw", "name": "Postgres Marcos Daniels." } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 2.1 Preparar Contexto\nconst sessionResult = $input.first().json.get_or_create_briefing_session || $input.first().json;\nconst originalData = $('1.1 Validar Mensagem').first().json;\nconst session = typeof sessionResult === 'string' ? JSON.parse(sessionResult) : sessionResult;\n\nreturn [{\n  json: {\n    session_id: session.session_id,\n    is_new: session.is_new,\n    current_phase: session.current_phase || 1,\n    phase_name: session.phase_name || 'identificacao',\n    collected_data: session.collected_data || {},\n    user_message: originalData.user_message,\n    is_trigger: originalData.is_trigger,\n    contact_id: originalData.contact_id,\n    location_id: originalData.location_id,\n    phone: originalData.phone,\n    conversation_id: originalData.conversation_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-840, 300],
+      "id": "preparar-contexto",
+      "name": "2.1 Preparar Contexto"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "nova-sessao", "leftValue": "={{ $json.is_new }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-600, 300],
+      "id": "check-nova-sessao",
+      "name": "2.2 Nova Sessao?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 3.0 Gerar Pergunta Inicial\nconst data = $input.first().json;\nconst pergunta = `Ola! 👋 Sou o Agent Wizard.\\n\\nVou te ajudar a criar um agente de vendas.\\n\\n*Qual o nome do seu negocio?*\\n\\n(Ex: Instituto Amare, Clinica Dra. Eline)`;\n\nreturn [{\n  json: {\n    ...data,\n    next_phase: 1,\n    next_phase_name: 'identificacao',\n    outbound_message: pergunta,\n    action: 'send_question'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-360, 200],
+      "id": "pergunta-inicial",
+      "name": "3.0 Pergunta Inicial"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [{ "id": "fase1", "leftValue": "={{ $json.current_phase }}", "rightValue": 1, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "Fase 1" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [{ "id": "fase2", "leftValue": "={{ $json.current_phase }}", "rightValue": 2, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "Fase 2" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [{ "id": "fase3", "leftValue": "={{ $json.current_phase }}", "rightValue": 3, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "Fase 3" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [{ "id": "fase4", "leftValue": "={{ $json.current_phase }}", "rightValue": 4, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "Fase 4" },
+            { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [{ "id": "fase5", "leftValue": "={{ $json.current_phase }}", "rightValue": 5, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "Fase 5" }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-360, 400],
+      "id": "router-fase",
+      "name": "3.1 Router por Fase"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "Voce e um assistente que extrai informacoes de respostas.\n\n# FASE: IDENTIFICACAO\n\nExtraia do texto:\n1. nome_negocio: Nome do negocio\n2. vertical: Setor (clinica, imobiliaria, educacao, saas, outro)\n\n# OUTPUT (JSON puro, sem markdown)\n{\"nome_negocio\": \"<nome>\", \"vertical\": \"<setor>\", \"valid\": true}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-80, 200],
+      "id": "agent-fase1",
+      "name": "4.1 Agent Fase 1"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [80, 400],
+      "id": "groq-fase1",
+      "name": "Groq Fase 1",
+      "credentials": { "groqApi": { "id": "groq-api-credential", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "Voce e um assistente que extrai Location ID do GoHighLevel.\n\n# REGRAS\n- Location ID tem 20 caracteres alfanumericos\n- Se usuario nao souber, retorne instructions_needed: true\n\n# OUTPUT (JSON puro)\n{\"location_id\": \"<id ou null>\", \"valid\": <boolean>, \"instructions_needed\": <boolean>}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-80, 340],
+      "id": "agent-fase2",
+      "name": "4.2 Agent Fase 2"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [80, 540],
+      "id": "groq-fase2",
+      "name": "Groq Fase 2",
+      "credentials": { "groqApi": { "id": "groq-api-credential", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "Voce extrai modos de agente.\n\nOpcoes: 1=sdr_inbound, 2=scheduler, 3=followuper, 4=concierge\n\n# OUTPUT (JSON puro)\n{\"modos\": [\"sdr_inbound\"], \"valid\": true}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-80, 480],
+      "id": "agent-fase3",
+      "name": "4.3 Agent Fase 3"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [80, 680],
+      "id": "groq-fase3",
+      "name": "Groq Fase 3",
+      "credentials": { "groqApi": { "id": "groq-api-credential", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "Voce extrai personalidade do agente.\n\n# OUTPUT (JSON puro)\n{\"tom_voz\": \"acolhedor\", \"uso_emojis\": true, \"valid\": true}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-80, 620],
+      "id": "agent-fase4",
+      "name": "4.4 Agent Fase 4"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [80, 820],
+      "id": "groq-fase4",
+      "name": "Groq Fase 4",
+      "credentials": { "groqApi": { "id": "groq-api-credential", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "Voce valida confirmacao (sim/nao).\n\n# OUTPUT (JSON puro)\n{\"confirmado\": <boolean>, \"quer_corrigir\": <boolean>}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-80, 760],
+      "id": "agent-fase5",
+      "name": "4.5 Agent Fase 5"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": { "temperature": 0.1 }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [80, 960],
+      "id": "groq-fase5",
+      "name": "Groq Fase 5",
+      "credentials": { "groqApi": { "id": "groq-api-credential", "name": "Groq API" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 5.0 Processar Resposta LLM\nconst context = $('2.1 Preparar Contexto').first().json;\nconst llmResponse = $input.first().json;\n\nlet parsed;\ntry {\n  const content = llmResponse.output || llmResponse.text || JSON.stringify(llmResponse);\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { valid: false };\n} catch (e) {\n  parsed = { valid: false, error: e.message };\n}\n\nconst currentPhase = context.current_phase;\nlet nextPhase = currentPhase;\nlet nextPhaseName = context.phase_name;\nlet outboundMessage = '';\nlet action = 'send_question';\n\nconst PERGUNTAS = {\n  2: `Agora preciso do *Location ID* do GoHighLevel.\\n\\n1. Ja tenho\\n2. Nao sei onde fica`,\n  3: `Quais funcoes o agente deve ter?\\n\\n1. Atendimento de leads (SDR)\\n2. Agendamento\\n3. Follow-up\\n4. Pos-venda\\n\\n(Ex: 1, 2)`,\n  4: `Como o agente deve conversar?\\n\\n1. Acolhedor\\n2. Direto\\n3. Casual\\n\\nUsar emojis? (sim/nao)`,\n  5: null\n};\n\nif (parsed.valid || parsed.confirmado) {\n  nextPhase = currentPhase + 1;\n  if (nextPhase === 2) nextPhaseName = 'location';\n  else if (nextPhase === 3) nextPhaseName = 'modos';\n  else if (nextPhase === 4) nextPhaseName = 'personalidade';\n  else if (nextPhase === 5) nextPhaseName = 'confirmacao';\n  else if (nextPhase === 6) { nextPhaseName = 'finalizando'; action = 'create_agent'; }\n  \n  if (nextPhase === 5) {\n    const c = context.collected_data || {};\n    const f1 = c['fase_1_identificacao'] || parsed;\n    outboundMessage = `📋 *RESUMO*\\n\\n🏢 ${f1.nome_negocio || parsed.nome_negocio || 'N/A'}\\n🏷️ ${f1.vertical || 'N/A'}\\n\\n*Confirma?*\\n1. Sim\\n2. Corrigir`;\n  } else if (PERGUNTAS[nextPhase]) {\n    outboundMessage = PERGUNTAS[nextPhase];\n  }\n} else if (parsed.instructions_needed) {\n  outboundMessage = `Location ID:\\n1. GHL > Settings > Business Info\\n2. Copie o ID (20 chars)\\n\\nMe manda!`;\n} else {\n  outboundMessage = 'Nao entendi. Pode repetir?';\n}\n\nreturn [{ json: { ...context, extracted_data: parsed, current_phase: currentPhase, next_phase: nextPhase, next_phase_name: nextPhaseName, outbound_message: outboundMessage, action: action } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 500],
+      "id": "processar-resposta",
+      "name": "5.0 Processar Resposta"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM update_briefing_phase('{{ $json.session_id }}'::uuid, {{ $json.next_phase }}, '{{ $json.next_phase_name }}', '{{ JSON.stringify($json.extracted_data).replace(/'/g, \"''\") }}'::jsonb);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [520, 400],
+      "id": "update-phase",
+      "name": "5.1 Update Phase",
+      "credentials": { "postgres": { "id": "w2mBaRwhZ3tM4FUw", "name": "Postgres Marcos Daniels." } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "create", "leftValue": "={{ $json.action }}", "rightValue": "create_agent", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [760, 400],
+      "id": "check-criar-agente",
+      "name": "5.2 Criar Agente?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM finalize_briefing_session('{{ $json.session_id }}'::uuid);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1000, 300],
+      "id": "finalize-briefing",
+      "name": "6.0 Finalize Briefing",
+      "credentials": { "postgres": { "id": "w2mBaRwhZ3tM4FUw", "name": "Postgres Marcos Daniels." } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 6.1 Preparar Payload\nconst result = $input.first().json.finalize_briefing_session;\nconst briefing = typeof result === 'string' ? JSON.parse(result) : result;\nconst payload = briefing.final_briefing || briefing;\n\nconst finalPayload = {\n  nome_negocio: payload.nome_negocio || 'Novo Negocio',\n  vertical: payload.vertical || 'outro',\n  location_id: payload.location_id,\n  modos: payload.modos || ['sdr_inbound'],\n  tom_voz: payload.tom_voz || 'acolhedor',\n  nivel_formalidade: 6,\n  uso_emojis: true,\n  nome_agente: 'Assistente ' + (payload.nome_negocio || 'Virtual'),\n  horario: 'Seg-Sex 9h-18h',\n  cidade: 'Sao Paulo',\n  estado: 'SP',\n  source: 'whatsapp_wizard'\n};\n\nreturn [{ json: { session_id: briefing.session_id, payload: finalPayload } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1240, 300],
+      "id": "preparar-payload",
+      "name": "6.1 Preparar Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'https://n8n.cliente-a1.mentorfy.io' }}/webhook/agent-creator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": { "timeout": 60000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1480, 300],
+      "id": "call-agent-creator",
+      "name": "6.2 Call Agent Creator"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 6.3 Processar Resultado\nconst response = $input.first().json;\nconst context = $('5.0 Processar Resposta').first().json;\n\nlet message;\nif (response.success) {\n  message = `✅ *AGENTE CRIADO!*\\n\\n📊 Score: ${response.score || 0}/200\\n🆔 ID: ${response.agent_id || 'N/A'}\\n\\nCriar outro?`;\n} else {\n  message = `❌ Erro: ${response.error || 'Desconhecido'}\\n\\nEquipe notificada.`;\n}\n\nreturn [{ json: { outbound_message: message, contact_id: context.contact_id, location_id: context.location_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 300],
+      "id": "processar-resultado",
+      "name": "6.3 Processar Resultado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.GHL_API_KEY }}" },
+            { "name": "Version", "value": "2021-07-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $json.contact_id }}\",\n  \"message\": \"{{ $json.outbound_message.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1960, 400],
+      "id": "send-message-ghl",
+      "name": "7.0 Send Message GHL"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2200, 400],
+      "id": "respond-webhook",
+      "name": "8.0 Respond Webhook"
+    },
+    {
+      "parameters": {
+        "content": "## 18-WhatsApp-Agent-Wizard v2\n\n**Estrutura corrigida com AI Agents + Chat Models**\n\n### Arquitetura:\n- AI Agent (system message + prompt)\n- Chat Model Groq conectado via ai_languageModel\n\n### Trigger: \"criar agente\"\n### Timeout: 24h",
+        "height": 280,
+        "width": 280
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1800, -100],
+      "id": "sticky-doc",
+      "name": "Documentacao"
+    }
+  ],
+  "connections": {
+    "1.0 Webhook Entrada": { "main": [[{ "node": "1.1 Validar Mensagem", "type": "main", "index": 0 }]] },
+    "1.1 Validar Mensagem": { "main": [[{ "node": "1.2 Mensagem Valida?", "type": "main", "index": 0 }]] },
+    "1.2 Mensagem Valida?": { "main": [[], [{ "node": "2.0 Get/Create Session", "type": "main", "index": 0 }]] },
+    "2.0 Get/Create Session": { "main": [[{ "node": "2.1 Preparar Contexto", "type": "main", "index": 0 }]] },
+    "2.1 Preparar Contexto": { "main": [[{ "node": "2.2 Nova Sessao?", "type": "main", "index": 0 }]] },
+    "2.2 Nova Sessao?": { "main": [[{ "node": "3.1 Router por Fase", "type": "main", "index": 0 }], [{ "node": "3.0 Pergunta Inicial", "type": "main", "index": 0 }]] },
+    "3.0 Pergunta Inicial": { "main": [[{ "node": "5.1 Update Phase", "type": "main", "index": 0 }]] },
+    "3.1 Router por Fase": {
+      "main": [
+        [{ "node": "4.1 Agent Fase 1", "type": "main", "index": 0 }],
+        [{ "node": "4.2 Agent Fase 2", "type": "main", "index": 0 }],
+        [{ "node": "4.3 Agent Fase 3", "type": "main", "index": 0 }],
+        [{ "node": "4.4 Agent Fase 4", "type": "main", "index": 0 }],
+        [{ "node": "4.5 Agent Fase 5", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Groq Fase 1": { "ai_languageModel": [[{ "node": "4.1 Agent Fase 1", "type": "ai_languageModel", "index": 0 }]] },
+    "Groq Fase 2": { "ai_languageModel": [[{ "node": "4.2 Agent Fase 2", "type": "ai_languageModel", "index": 0 }]] },
+    "Groq Fase 3": { "ai_languageModel": [[{ "node": "4.3 Agent Fase 3", "type": "ai_languageModel", "index": 0 }]] },
+    "Groq Fase 4": { "ai_languageModel": [[{ "node": "4.4 Agent Fase 4", "type": "ai_languageModel", "index": 0 }]] },
+    "Groq Fase 5": { "ai_languageModel": [[{ "node": "4.5 Agent Fase 5", "type": "ai_languageModel", "index": 0 }]] },
+    "4.1 Agent Fase 1": { "main": [[{ "node": "5.0 Processar Resposta", "type": "main", "index": 0 }]] },
+    "4.2 Agent Fase 2": { "main": [[{ "node": "5.0 Processar Resposta", "type": "main", "index": 0 }]] },
+    "4.3 Agent Fase 3": { "main": [[{ "node": "5.0 Processar Resposta", "type": "main", "index": 0 }]] },
+    "4.4 Agent Fase 4": { "main": [[{ "node": "5.0 Processar Resposta", "type": "main", "index": 0 }]] },
+    "4.5 Agent Fase 5": { "main": [[{ "node": "5.0 Processar Resposta", "type": "main", "index": 0 }]] },
+    "5.0 Processar Resposta": { "main": [[{ "node": "5.1 Update Phase", "type": "main", "index": 0 }]] },
+    "5.1 Update Phase": { "main": [[{ "node": "5.2 Criar Agente?", "type": "main", "index": 0 }]] },
+    "5.2 Criar Agente?": { "main": [[{ "node": "7.0 Send Message GHL", "type": "main", "index": 0 }], [{ "node": "6.0 Finalize Briefing", "type": "main", "index": 0 }]] },
+    "6.0 Finalize Briefing": { "main": [[{ "node": "6.1 Preparar Payload", "type": "main", "index": 0 }]] },
+    "6.1 Preparar Payload": { "main": [[{ "node": "6.2 Call Agent Creator", "type": "main", "index": 0 }]] },
+    "6.2 Call Agent Creator": { "main": [[{ "node": "6.3 Processar Resultado", "type": "main", "index": 0 }]] },
+    "6.3 Processar Resultado": { "main": [[{ "node": "7.0 Send Message GHL", "type": "main", "index": 0 }]] },
+    "7.0 Send Message GHL": { "main": [[{ "node": "8.0 Respond Webhook", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "whatsapp-agent-wizard-v2.0",
+  "meta": { "instanceId": "ai-factory-mottivme" },
+  "tags": [{ "name": "agent-wizard" }, { "name": "whatsapp" }]
+}

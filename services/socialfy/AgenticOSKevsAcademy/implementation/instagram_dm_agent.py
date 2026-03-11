@@ -1,0 +1,2200 @@
+"""
+Instagram DM Agent - Automated Outreach System
+===============================================
+Sends personalized DMs to leads using Playwright browser automation.
+Stores all data in Supabase for tracking and analytics.
+
+Usage:
+    python instagram_dm_agent.py                    # Run with default settings
+    python instagram_dm_agent.py --login-only       # Just login and save session
+    python instagram_dm_agent.py --headless         # Run without browser window
+    python instagram_dm_agent.py --limit 50         # Send max 50 DMs this run
+    python instagram_dm_agent.py --template 2       # Use message template 2
+
+Campaign Worker Mode (for campaign_worker.py):
+    python instagram_dm_agent.py --campaign-id <UUID>           # Process specific campaign
+    python instagram_dm_agent.py --campaign-id <UUID> --headless # Headless campaign mode
+    python instagram_dm_agent.py --session-only                  # Use saved cookies only
+
+Exit Codes:
+    0 = Success (DMs sent or no leads to process)
+    1 = Error (login failed, blocked, or fatal error)
+
+Rate Limits (campaign mode):
+    - 10 DMs per session (MAX_DMS_PER_SESSION)
+    - 60-90 seconds between each DM
+    - Updates socialfy_campaigns.total_dms_sent
+    - Updates socialfy_campaign_leads.dm_sent
+
+Framework: ii (Information + Implementation)
+"""
+
+import os
+import sys
+import json
+import random
+import asyncio
+import logging
+from datetime import datetime, timedelta, date
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass, asdict, field
+from enum import Enum
+
+from playwright.async_api import async_playwright, Browser, Page, BrowserContext
+from dotenv import load_dotenv
+import requests
+
+# Stealth mode para evitar detecção de automação
+try:
+    from playwright_stealth import stealth_async
+    STEALTH_AVAILABLE = True
+except ImportError:
+    STEALTH_AVAILABLE = False
+    stealth_async = None
+
+# Import scraping and scoring modules
+try:
+    # Use Gemini Vision scraper (screenshot + AI) - FREE with Gemini 1.5 Flash!
+    from instagram_profile_scraper_gemini import InstagramProfileScraperGemini as InstagramProfileScraperVision, InstagramProfile
+    from lead_scorer import LeadScorer, LeadScore, LeadPriority
+    from message_generator import MessageGenerator, GeneratedMessage
+    SMART_MODE_AVAILABLE = True
+    VISION_SCRAPER = True
+    VISION_MODEL = "gemini"
+except ImportError:
+    try:
+        # Fallback to regular scraper (meta tags)
+        from instagram_profile_scraper import InstagramProfileScraper as InstagramProfileScraperVision, InstagramProfile
+        from lead_scorer import LeadScorer, LeadScore, LeadPriority
+        from message_generator import MessageGenerator, GeneratedMessage
+        SMART_MODE_AVAILABLE = True
+        VISION_SCRAPER = False
+        VISION_MODEL = "none"
+    except ImportError:
+        SMART_MODE_AVAILABLE = False
+        VISION_SCRAPER = False
+        VISION_MODEL = "none"
+
+# Import multi-tenant account manager
+try:
+    from .account_manager import AccountManager, InstagramAccount, get_default_account, RoundRobinAccountRotator
+    MULTI_TENANT_AVAILABLE = True
+except ImportError:
+    try:
+        from account_manager import AccountManager, InstagramAccount, get_default_account, RoundRobinAccountRotator
+        MULTI_TENANT_AVAILABLE = True
+    except ImportError:
+        MULTI_TENANT_AVAILABLE = False
+        RoundRobinAccountRotator = None
+        # logger not available yet - will log later if needed
+
+# Import proxy manager
+try:
+    from .proxy_manager import ProxyManager, ProxyConfig, ProxyRotator
+    PROXY_AVAILABLE = True
+except ImportError:
+    try:
+        from proxy_manager import ProxyManager, ProxyConfig, ProxyRotator
+        PROXY_AVAILABLE = True
+    except ImportError:
+        PROXY_AVAILABLE = False
+        ProxyManager = None
+        ProxyConfig = None
+        ProxyRotator = None
+
+# Load environment
+load_dotenv()
+
+# ============================================
+# CONFIGURATION
+# ============================================
+
+# Paths
+BASE_DIR = Path(__file__).parent.parent
+SESSIONS_DIR = BASE_DIR / "sessions"
+LOGS_DIR = BASE_DIR / "logs"
+SESSIONS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://bfumywvwubvernvhjehk.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+# Instagram
+INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
+INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
+SESSION_PATH = SESSIONS_DIR / "instagram_session.json"
+
+# Rate Limits
+MAX_DMS_PER_HOUR = int(os.getenv("INSTAGRAM_DM_PER_HOUR", 10))
+MAX_DMS_PER_DAY = int(os.getenv("INSTAGRAM_DM_PER_DAY", 200))
+MAX_DMS_PER_SESSION = int(os.getenv("INSTAGRAM_DM_PER_SESSION", 10))  # Campaign worker limit
+MIN_DELAY = int(os.getenv("INSTAGRAM_DM_DELAY_MIN", 60))  # 60-90s for campaign safety
+MAX_DELAY = int(os.getenv("INSTAGRAM_DM_DELAY_MAX", 90))
+
+# GoHighLevel API
+GHL_API_URL = os.getenv("GHL_API_URL", "https://services.leadconnectorhq.com")
+GHL_API_KEY = os.getenv("GHL_API_KEY") or os.getenv("GHL_ACCESS_TOKEN")
+GHL_LOCATION_ID = os.getenv("GHL_LOCATION_ID", "DEFAULT_LOCATION")
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(message)s',
+    handlers=[
+        logging.FileHandler(LOGS_DIR / f"instagram_dm_{date.today()}.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("InstagramDMAgent")
+
+
+# ============================================
+# DATA CLASSES
+# ============================================
+
+@dataclass
+class Lead:
+    id: int
+    username: str
+    full_name: Optional[str] = None
+    bio: Optional[str] = None
+    source: Optional[str] = None
+    icp_score: Optional[int] = None  # 0-100 score calculado
+    priority: Optional[str] = None   # hot, warm, cold, nurturing
+
+    @property
+    def first_name(self) -> str:
+        if self.full_name:
+            return self.full_name.split()[0]
+        return self.username.replace("_", " ").title().split()[0]
+
+
+@dataclass
+class DMResult:
+    lead_id: int
+    username: str
+    success: bool
+    message_sent: Optional[str] = None
+    error: Optional[str] = None
+    timestamp: datetime = None
+
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+
+
+class BlockType(Enum):
+    """Types of Instagram blocks/restrictions"""
+    NONE = "none"
+    CHECKPOINT = "checkpoint"           # Verification required
+    ACTION_BLOCKED = "action_blocked"   # Specific action temporarily blocked
+    RATE_LIMITED = "rate_limited"       # Too many actions
+    ACCOUNT_DISABLED = "account_disabled"
+    SUSPICIOUS_ACTIVITY = "suspicious_activity"
+    TWO_FACTOR = "two_factor"           # 2FA challenge
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class BlockDetectionResult:
+    """Result of block detection check"""
+    is_blocked: bool
+    block_type: BlockType = BlockType.NONE
+    message: str = ""
+    detected_at: datetime = field(default_factory=datetime.now)
+    screenshot_path: Optional[Path] = None
+
+    @property
+    def should_stop_campaign(self) -> bool:
+        """Critical blocks that should stop the entire campaign"""
+        return self.block_type in [
+            BlockType.CHECKPOINT,
+            BlockType.ACTION_BLOCKED,
+            BlockType.ACCOUNT_DISABLED,
+            BlockType.SUSPICIOUS_ACTIVITY
+        ]
+
+    @property
+    def should_switch_account(self) -> bool:
+        """Blocks that suggest switching to another account"""
+        return self.block_type in [
+            BlockType.ACTION_BLOCKED,
+            BlockType.RATE_LIMITED
+        ]
+
+
+# ============================================
+# MESSAGE TEMPLATES
+# ============================================
+
+# Import advanced templates
+try:
+    import sys
+    sys.path.insert(0, str(BASE_DIR / "config"))
+    from dm_templates import (
+        get_template, render_message, extract_first_name,
+        FIRST_CONTACT_TEMPLATES
+    )
+    ADVANCED_TEMPLATES = True
+except ImportError:
+    ADVANCED_TEMPLATES = False
+
+# Fallback templates - PSS Style (Português, acolhedor, sem venda)
+MESSAGE_TEMPLATES = {
+    1: """Seja bem vindo(a) por aqui, {first_name}! 🙏
+
+Espero que meu conteúdo seja útil pra você...
+
+Ótimo dia pra você!""",
+
+    2: """E aí {first_name}! 👋
+
+Gratificante ter você por aqui... Qualquer dúvida, só chamar!
+
+Ótimo dia! 🚀""",
+
+    3: """Fala {first_name}! 
+
+Bem vindo! Espero que consiga te ajudar em algo...
+
+Ótimo dia pra você! 💡""",
+}
+
+
+# ============================================
+# SUPABASE CLIENT (REST API)
+# ============================================
+
+class SupabaseDB:
+    """Supabase database operations using REST API with multi-tenant support"""
+
+    def __init__(self, tenant_id: str = None):
+        self.base_url = f"{SUPABASE_URL}/rest/v1"
+        self.headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+        self.run_id: Optional[int] = None
+        self.tenant_id: Optional[str] = tenant_id
+
+    def _request(self, method: str, endpoint: str, params: dict = None, data: dict = None):
+        """Make request to Supabase REST API"""
+        url = f"{self.base_url}/{endpoint}"
+        response = requests.request(
+            method=method,
+            url=url,
+            headers=self.headers,
+            params=params,
+            json=data,
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json() if response.text else []
+
+    def start_run(self, account: str, tenant_id: str = None) -> int:
+        """Start a new agent run and return run ID"""
+        data = {
+            'account_used': account,
+            'status': 'running'
+        }
+        # Include tenant_id if provided (multi-tenant support)
+        if tenant_id:
+            data['tenant_id'] = tenant_id
+
+        result = self._request("POST", "agentic_instagram_dm_runs", data=data)
+        self.run_id = result[0]['id'] if result else None
+        logger.info(f"Started run #{self.run_id} for tenant {tenant_id or 'default'}")
+        return self.run_id
+
+    def end_run(self, dms_sent: int, dms_failed: int, dms_skipped: int, status: str = 'completed', error_log: str = None):
+        """End the current run"""
+        if not self.run_id:
+            return
+
+        self._request("PATCH", "agentic_instagram_dm_runs",
+            params={"id": f"eq.{self.run_id}"},
+            data={
+                'ended_at': datetime.now().isoformat(),
+                'dms_sent': dms_sent,
+                'dms_failed': dms_failed,
+                'dms_skipped': dms_skipped,
+                'status': status,
+                'error_log': error_log
+            }
+        )
+        logger.info(f"Ended run #{self.run_id} - Sent: {dms_sent}, Failed: {dms_failed}, Skipped: {dms_skipped}")
+
+    def get_leads_to_contact(self, limit: int = 200, min_score: int = 0, prioritize_scored: bool = True) -> List[Lead]:
+        """
+        Get leads that haven't been contacted yet, with optional filtering and sorting.
+
+        Args:
+            limit: Maximum number of leads to return
+            min_score: Minimum ICP score required (0 = no filter, leads without score are included)
+            prioritize_scored: If True, sort HOT > WARM > COLD > unscored
+
+        Returns:
+            List of Lead objects sorted by priority
+        """
+        # Get all leads
+        leads_data = self._request("GET", "agentic_instagram_leads", params={"select": "*"})
+
+        # Get already contacted usernames
+        contacted_data = self._request("GET", "agentic_instagram_dm_sent", params={"select": "username"})
+        contacted_usernames = {r['username'] for r in contacted_data}
+
+        # Filter and convert to Lead objects
+        leads = []
+        for lead_data in leads_data:
+            if lead_data['username'] not in contacted_usernames:
+                lead_score = lead_data.get('icp_score')
+                lead_priority = lead_data.get('priority')
+
+                # Filter by min_score (leads without score pass through for first-time evaluation)
+                if min_score > 0 and lead_score is not None and lead_score < min_score:
+                    continue
+
+                leads.append(Lead(
+                    id=lead_data['id'],
+                    username=lead_data['username'],
+                    full_name=lead_data.get('full_name'),
+                    bio=lead_data.get('bio'),
+                    source=lead_data.get('source'),
+                    icp_score=lead_score,
+                    priority=lead_priority
+                ))
+
+        # Sort by priority: HOT > WARM > COLD > None (unscored)
+        if prioritize_scored:
+            priority_order = {'hot': 0, 'warm': 1, 'cold': 2, 'nurturing': 3, None: 4}
+            leads.sort(key=lambda l: (priority_order.get(l.priority, 4), -(l.icp_score or 0)))
+
+        # Apply limit after sorting
+        leads = leads[:limit]
+
+        scored_count = sum(1 for l in leads if l.icp_score is not None)
+        logger.info(f"Found {len(leads)} leads to contact (limit: {limit}, min_score: {min_score}, scored: {scored_count})")
+        return leads
+
+    def get_new_followers_to_contact(self, account_id: int, limit: int = 50, min_score: int = 0) -> List[Lead]:
+        """
+        Get new followers from new_followers_detected table (PSS approach).
+        These are people who followed the account and should receive a welcome message.
+        
+        Args:
+            account_id: Instagram account ID (1=marcosdanielsf, 5=dr.luis, etc)
+            limit: Maximum followers to return
+            min_score: Minimum ICP score (0 = include all)
+        """
+        # Get pending followers for this account
+        params = {
+            "select": "*",
+            "account_id": f"eq.{account_id}",
+            "outreach_status": "eq.pending",
+            "order": "detected_at.desc",
+            "limit": str(limit)
+        }
+        
+        followers_data = self._request("GET", "new_followers_detected", params=params)
+        
+        leads = []
+        for f in followers_data:
+            icp = f.get('icp_score') or 0
+            if min_score > 0 and icp < min_score:
+                continue
+                
+            leads.append(Lead(
+                id=f['id'],
+                username=f['follower_username'],
+                full_name=f.get('follower_full_name'),
+                bio=f.get('follower_bio'),
+                source=f"new_follower:account_{account_id}",
+                icp_score=icp,
+                priority='warm'  # New followers are warm by default
+            ))
+        
+        logger.info(f"Found {len(leads)} new followers to welcome (account_id: {account_id}, limit: {limit})")
+        return leads
+
+    def mark_follower_contacted(self, follower_id: int, message: str, status: str = 'sent'):
+        """Update outreach status in new_followers_detected"""
+        self._request("PATCH", "new_followers_detected",
+            params={"id": f"eq.{follower_id}"},
+            data={
+                "outreach_status": status,
+                "outreach_message": message,
+                "outreach_sent_at": datetime.now().isoformat()
+            }
+        )
+
+    def record_dm_sent(self, result: DMResult, template: str, account: str):
+        """Record a sent DM"""
+        self._request("POST", "agentic_instagram_dm_sent", data={
+            'lead_id': result.lead_id,
+            'username': result.username,
+            'message_template': template,
+            'message_sent': result.message_sent or '',
+            'status': 'sent' if result.success else 'failed',
+            'error_message': result.error,
+            'account_used': account
+        })
+
+    def get_dms_sent_today(self, account: str) -> int:
+        """Get count of DMs sent today"""
+        today = date.today().isoformat()
+        headers = self.headers.copy()
+        headers["Prefer"] = "count=exact"
+
+        response = requests.get(
+            f"{self.base_url}/agentic_instagram_dm_sent",
+            headers=headers,
+            params={
+                "select": "*",
+                "account_used": f"eq.{account}",
+                "sent_at": f"gte.{today}T00:00:00"
+            },
+            timeout=30
+        )
+        # Get count from content-range header
+        content_range = response.headers.get("content-range", "*/0")
+        return int(content_range.split("/")[1]) if "/" in content_range else 0
+
+    def get_dms_sent_last_hour(self, account: str) -> int:
+        """Get count of DMs sent in last hour"""
+        one_hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
+        headers = self.headers.copy()
+        headers["Prefer"] = "count=exact"
+
+        response = requests.get(
+            f"{self.base_url}/agentic_instagram_dm_sent",
+            headers=headers,
+            params={
+                "select": "*",
+                "account_used": f"eq.{account}",
+                "sent_at": f"gte.{one_hour_ago}"
+            },
+            timeout=30
+        )
+        content_range = response.headers.get("content-range", "*/0")
+        return int(content_range.split("/")[1]) if "/" in content_range else 0
+
+    def update_daily_stats(self, account: str, dms_sent: int, dms_failed: int):
+        """Update daily stats"""
+        today = date.today().isoformat()
+
+        # Try to get existing record
+        existing = self._request("GET", "agentic_instagram_daily_stats", params={
+            "select": "*",
+            "date": f"eq.{today}",
+            "account_used": f"eq.{account}"
+        })
+
+        if existing:
+            # Update existing
+            self._request("PATCH", "agentic_instagram_daily_stats",
+                params={"id": f"eq.{existing[0]['id']}"},
+                data={
+                    'dms_sent': existing[0]['dms_sent'] + dms_sent,
+                    'dms_failed': existing[0]['dms_failed'] + dms_failed
+                }
+            )
+        else:
+            # Create new
+            self._request("POST", "agentic_instagram_daily_stats", data={
+                'date': today,
+                'account_used': account,
+                'dms_sent': dms_sent,
+                'dms_failed': dms_failed
+            })
+
+    def sync_to_growth_leads(self, username: str, message_sent: str, lead_data: dict = None, score_data: dict = None):
+        """
+        Sincroniza lead prospectado para growth_leads.
+        Isso permite que o n8n saiba que o lead foi prospectado quando ele responder.
+
+        Args:
+            username: Instagram username do lead
+            message_sent: Mensagem que foi enviada
+            lead_data: Dados adicionais do lead (full_name, bio, followers, etc)
+            score_data: Dados de scoring (icp_score, priority) para sincronizar com growth_leads
+        """
+        try:
+            # growth_leads usa instagram_username sem @ prefix
+            ig_username = username.lstrip("@")
+            now = datetime.now().isoformat()
+
+            # Verificar se já existe em growth_leads
+            existing = self._request("GET", "growth_leads", params={
+                "instagram_username": f"eq.{ig_username}",
+                "limit": 1
+            })
+
+            lead_info = lead_data or {}
+            score_info = score_data or {}
+
+            if existing:
+                # Atualizar registro existente - incluindo score se disponível
+                update_data = {
+                    'outreach_sent_at': now,
+                    'last_outreach_message': message_sent[:500] if message_sent else None,
+                    'source_channel': 'outbound_instagram_dm',
+                    'funnel_stage': 'prospected',
+                    'updated_at': now
+                }
+                # Adicionar score se disponível
+                if score_info.get('icp_score') is not None:
+                    update_data['icp_score'] = score_info['icp_score']
+                if score_info.get('priority'):
+                    update_data['lead_temperature'] = score_info['priority']  # hot/warm/cold
+
+                self._request("PATCH", "growth_leads",
+                    params={"id": f"eq.{existing[0]['id']}"},
+                    data=update_data
+                )
+                logger.info(f"✅ Sync: Atualizado growth_leads para @{username} (score: {score_info.get('icp_score', 'N/A')})")
+            else:
+                # Criar novo registro
+                # Build custom_fields with Instagram data
+                custom_fields = {
+                    'instagram_bio': lead_info.get('bio'),
+                    'instagram_followers': lead_info.get('followers_count'),
+                    'instagram_following': lead_info.get('following_count'),
+                    'instagram_posts': lead_info.get('media_count'),
+                    'instagram_is_verified': lead_info.get('is_verified'),
+                    'instagram_is_business': lead_info.get('is_business_account'),
+                }
+                # Remove None values from custom_fields
+                custom_fields = {k: v for k, v in custom_fields.items() if v is not None}
+
+                # Preparar dados do novo lead
+                new_lead_data = {
+                    'instagram_username': ig_username,
+                    'name': lead_info.get('full_name') or username,
+                    'source_channel': 'outbound_instagram_dm',
+                    'outreach_sent_at': now,
+                    'last_outreach_message': message_sent[:500] if message_sent else None,
+                    'funnel_stage': 'prospected',
+                    'lead_temperature': score_info.get('priority', 'cold'),  # Usar priority do score se disponível
+                    'location_id': 'DEFAULT_LOCATION',  # Required field
+                    'custom_fields': custom_fields,
+                    'created_at': now,
+                    'updated_at': now
+                }
+                # Adicionar score se disponível
+                if score_info.get('icp_score') is not None:
+                    new_lead_data['icp_score'] = score_info['icp_score']
+
+                self._request("POST", "growth_leads", data=new_lead_data)
+                logger.info(f"✅ Sync: Criado growth_leads para @{username} (score: {score_info.get('icp_score', 'N/A')})")
+
+            # Sync também com GHL API (Bug fix: Prospector agora sincroniza com GHL)
+            self.sync_to_ghl(username, message_sent, lead_data)
+
+            return True
+
+        except Exception as e:
+            logger.warning(f"⚠️ Sync falhou para @{username}: {e}")
+            return False
+
+    # Alias for backwards compatibility
+    def sync_to_socialfy_leads(self, username: str, message_sent: str, lead_data: dict = None):
+        """Deprecated: Use sync_to_growth_leads instead"""
+        return self.sync_to_growth_leads(username, message_sent, lead_data)
+
+    def sync_to_ghl(self, username: str, message_sent: str, lead_data: dict = None) -> bool:
+        """
+        Sincroniza lead prospectado diretamente com GoHighLevel API.
+        Adiciona tag 'prospectado' e atualiza custom fields.
+
+        Args:
+            username: Instagram username do lead
+            message_sent: Mensagem que foi enviada
+            lead_data: Dados adicionais do lead
+
+        Returns:
+            bool: True se sucesso, False se falha
+        """
+        if not GHL_API_KEY:
+            logger.warning("⚠️ GHL_API_KEY não configurada - sync GHL ignorado")
+            return False
+
+        try:
+            ig_username = username.lstrip("@")
+            headers = {
+                "Authorization": f"Bearer {GHL_API_KEY}",
+                "Content-Type": "application/json",
+                "Version": "2021-07-28"
+            }
+
+            # 1. Buscar contato no GHL por instagram_username
+            search_url = f"{GHL_API_URL}/contacts/search"
+            search_params = {
+                "locationId": GHL_LOCATION_ID,
+                "query": ig_username
+            }
+
+            search_response = requests.get(search_url, headers=headers, params=search_params)
+
+            contact_id = None
+            if search_response.status_code == 200:
+                contacts = search_response.json().get("contacts", [])
+                for contact in contacts:
+                    custom = contact.get("customFields", [])
+                    for field in custom:
+                        if field.get("value") == ig_username:
+                            contact_id = contact.get("id")
+                            break
+                    if contact_id:
+                        break
+
+            lead_info = lead_data or {}
+            now = datetime.now().isoformat()
+
+            if contact_id:
+                # 2a. Atualizar contato existente - adicionar tags
+                update_url = f"{GHL_API_URL}/contacts/{contact_id}"
+                update_data = {
+                    "tags": ["prospectado", "outbound-instagram"],
+                    "customFields": [
+                        {"key": "outreach_sent_at", "field_value": now},
+                        {"key": "last_outreach_message", "field_value": message_sent[:500] if message_sent else ""},
+                        {"key": "source_channel", "field_value": "outbound_instagram_dm"}
+                    ]
+                }
+
+                update_response = requests.put(update_url, headers=headers, json=update_data)
+
+                if update_response.status_code in [200, 201]:
+                    logger.info(f"✅ GHL Sync: Atualizado contato {contact_id} para @{username}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ GHL Sync falhou ao atualizar: {update_response.text}")
+                    return False
+            else:
+                # 2b. Criar novo contato no GHL
+                create_url = f"{GHL_API_URL}/contacts"
+                create_data = {
+                    "locationId": GHL_LOCATION_ID,
+                    "name": lead_info.get("full_name") or username,
+                    "tags": ["prospectado", "outbound-instagram", "novo-lead"],
+                    "source": "AgenticOS Prospector",
+                    "customFields": [
+                        {"key": "instagram_username", "field_value": ig_username},
+                        {"key": "outreach_sent_at", "field_value": now},
+                        {"key": "last_outreach_message", "field_value": message_sent[:500] if message_sent else ""},
+                        {"key": "source_channel", "field_value": "outbound_instagram_dm"},
+                        {"key": "instagram_bio", "field_value": (lead_info.get("bio") or "")[:500]},
+                        {"key": "instagram_followers", "field_value": str(lead_info.get("followers_count", ""))}
+                    ]
+                }
+
+                create_response = requests.post(create_url, headers=headers, json=create_data)
+
+                if create_response.status_code in [200, 201]:
+                    new_contact = create_response.json().get("contact", {})
+                    logger.info(f"✅ GHL Sync: Criado contato {new_contact.get('id')} para @{username}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ GHL Sync falhou ao criar: {create_response.text}")
+                    return False
+
+        except Exception as e:
+            logger.warning(f"⚠️ GHL Sync exception para @{username}: {e}")
+            return False
+
+    def get_leads_for_campaign(self, campaign_id: str, limit: int = 10) -> List[Lead]:
+        """
+        Get leads for a specific campaign from socialfy_campaign_leads table.
+        Only returns leads that haven't been contacted yet (dm_sent = false).
+        
+        Args:
+            campaign_id: UUID of the campaign
+            limit: Maximum leads to return (default 10 for session safety)
+            
+        Returns:
+            List of Lead objects for this campaign
+        """
+        try:
+            # Get campaign leads that haven't been DMed yet
+            params = {
+                "select": "*",
+                "campaign_id": f"eq.{campaign_id}",
+                "dm_sent": "eq.false",
+                "order": "created_at.asc",
+                "limit": str(limit)
+            }
+            
+            leads_data = self._request("GET", "socialfy_campaign_leads", params=params)
+            
+            leads = []
+            for lead_data in leads_data:
+                leads.append(Lead(
+                    id=lead_data['id'],
+                    username=lead_data['instagram_username'],
+                    full_name=lead_data.get('full_name'),
+                    bio=lead_data.get('bio'),
+                    source=f"campaign:{campaign_id}",
+                    icp_score=lead_data.get('icp_score'),
+                    priority=lead_data.get('priority', 'warm')
+                ))
+            
+            logger.info(f"Found {len(leads)} leads for campaign {campaign_id[:8]}... (limit: {limit})")
+            return leads
+            
+        except Exception as e:
+            logger.error(f"Error fetching campaign leads: {e}")
+            return []
+
+    def mark_campaign_lead_sent(self, lead_id: int, message: str, success: bool = True):
+        """
+        Mark a campaign lead as DMed in socialfy_campaign_leads.
+        
+        Args:
+            lead_id: ID of the lead in socialfy_campaign_leads
+            message: Message that was sent
+            success: Whether the DM was successful
+        """
+        try:
+            self._request("PATCH", "socialfy_campaign_leads",
+                params={"id": f"eq.{lead_id}"},
+                data={
+                    "dm_sent": success,
+                    "dm_sent_at": datetime.now().isoformat() if success else None,
+                    "dm_message": message[:500] if message else None,
+                    "dm_error": None if success else message[:500]
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update campaign lead {lead_id}: {e}")
+
+    def increment_campaign_dms_sent(self, campaign_id: str) -> bool:
+        """
+        Increment total_dms_sent counter in socialfy_campaigns.
+        
+        Args:
+            campaign_id: UUID of the campaign
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            # Get current count
+            existing = self._request("GET", "socialfy_campaigns", params={
+                "id": f"eq.{campaign_id}",
+                "select": "total_dms_sent"
+            })
+            
+            if not existing:
+                logger.warning(f"Campaign {campaign_id} not found")
+                return False
+            
+            current_count = existing[0].get('total_dms_sent') or 0
+            
+            # Increment
+            self._request("PATCH", "socialfy_campaigns",
+                params={"id": f"eq.{campaign_id}"},
+                data={
+                    "total_dms_sent": current_count + 1,
+                    "updated_at": datetime.now().isoformat()
+                }
+            )
+            
+            logger.debug(f"Campaign {campaign_id[:8]}... total_dms_sent: {current_count + 1}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Failed to increment campaign DMs: {e}")
+            return False
+
+    def update_lead_score(self, lead_id: int, score: int, priority: str) -> bool:
+        """
+        Atualiza o ICP score e priority de um lead no banco.
+        Isso permite ordenar leads por qualidade na próxima execução.
+
+        Args:
+            lead_id: ID do lead na tabela agentic_instagram_leads
+            score: Score calculado (0-100)
+            priority: Prioridade (hot, warm, cold, nurturing)
+
+        Returns:
+            bool: True se sucesso
+        """
+        try:
+            self._request("PATCH", "agentic_instagram_leads",
+                params={"id": f"eq.{lead_id}"},
+                data={
+                    'icp_score': score,
+                    'priority': priority,
+                    'scored_at': datetime.now().isoformat()
+                }
+            )
+            logger.debug(f"📊 Score atualizado: lead {lead_id} = {score} ({priority})")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao atualizar score do lead {lead_id}: {e}")
+            return False
+
+
+# ============================================
+# INSTAGRAM DM AGENT
+# ============================================
+
+class InstagramDMAgent:
+    """
+    Autonomous Instagram DM Agent using Playwright
+    Now with Smart Mode: Profile Scraping + Semantic Scoring + Personalized Messages
+    """
+
+    def __init__(self, headless: bool = False, smart_mode: bool = True, tenant_id: str = "DEFAULT"):
+        self.headless = headless
+        self.smart_mode = smart_mode and SMART_MODE_AVAILABLE
+        self.tenant_id = tenant_id
+        self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
+        self.page: Optional[Page] = None
+        self.db = SupabaseDB(tenant_id=tenant_id)
+        self.results: List[DMResult] = []
+        self.dms_sent = 0
+        self.dms_failed = 0
+        self.dms_skipped = 0
+
+        # Multi-tenant account management
+        self.account_manager = AccountManager() if MULTI_TENANT_AVAILABLE else None
+        self.current_account: Optional[InstagramAccount] = None
+
+        # Proxy management
+        self.proxy_manager = ProxyManager() if PROXY_AVAILABLE else None
+        self.current_proxy: Optional[ProxyConfig] = None
+
+        # Smart mode components
+        if self.smart_mode:
+            self.scraper = None  # Initialized after page is ready
+            self.scorer = LeadScorer(tenant_id=tenant_id)
+            self.message_generator = MessageGenerator()
+            if VISION_SCRAPER and VISION_MODEL == "gemini":
+                logger.info("🧠 Smart Mode ENABLED: Gemini Vision (FREE)")
+            elif VISION_SCRAPER:
+                logger.info("🧠 Smart Mode ENABLED: Screenshot + AI Vision")
+            else:
+                logger.info("🧠 Smart Mode ENABLED: Meta tags extraction (fallback)")
+
+    async def start(self):
+        """Initialize browser and load session"""
+        logger.info("🚀 Starting Instagram DM Agent...")
+
+        # Get account for tenant (multi-tenant support)
+        if self.account_manager:
+            self.current_account = self.account_manager.get_available_account(self.tenant_id)
+            if not self.current_account:
+                # Fallback to default account from env vars
+                self.current_account = get_default_account()
+
+        if not self.current_account:
+            # Last resort: use env vars directly
+            if INSTAGRAM_USERNAME:
+                logger.warning(f"Using env var fallback for account @{INSTAGRAM_USERNAME}")
+                self.current_account = InstagramAccount(
+                    id=0,
+                    tenant_id=self.tenant_id,
+                    username=INSTAGRAM_USERNAME,
+                    session_id=os.getenv("INSTAGRAM_SESSION_ID"),
+                    session_data=None,
+                    status="active",
+                    daily_limit=MAX_DMS_PER_DAY,
+                    hourly_limit=MAX_DMS_PER_HOUR,
+                    last_used_at=None,
+                    blocked_until=None
+                )
+            else:
+                raise ValueError(f"No Instagram account available for tenant '{self.tenant_id}'. "
+                               "Add account to instagram_accounts table or set INSTAGRAM_USERNAME env var.")
+
+        logger.info(f"   Account: @{self.current_account.username}")
+        logger.info(f"   Tenant: {self.tenant_id}")
+        logger.info(f"   Headless: {self.headless}")
+        logger.info(f"   Remaining today: {self.current_account.remaining_today}")
+
+        # Get proxy for tenant/account
+        if self.proxy_manager:
+            # Try account-specific proxy first, then tenant proxy
+            if self.current_account and self.current_account.id:
+                self.current_proxy = self.proxy_manager.get_proxy_for_account(self.current_account.id)
+            if not self.current_proxy:
+                self.current_proxy = self.proxy_manager.get_proxy_for_tenant(self.tenant_id)
+
+            if self.current_proxy:
+                logger.info(f"   🌐 Proxy: {self.current_proxy.host}:{self.current_proxy.port} ({self.current_proxy.country or 'unknown'})")
+            else:
+                logger.warning("   ⚠️ No proxy configured - using direct connection")
+
+        playwright = await async_playwright().start()
+
+        # Browser launch options
+        launch_options = {
+            'headless': self.headless,
+            'args': [
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-dev-shm-usage'
+            ]
+        }
+
+        # Add proxy if available (use account username as session_id for sticky IP)
+        if self.current_proxy:
+            # Each Instagram account gets its own sticky IP via session_id
+            session_id = self.current_account.username if self.current_account else None
+            launch_options['proxy'] = self.current_proxy.to_playwright(session_id=session_id)
+            logger.info(f"   🔒 Browser will use proxy: {self.current_proxy.proxy_type.value}://{self.current_proxy.host}:{self.current_proxy.port}")
+            if session_id:
+                logger.info(f"   🎯 Sticky session for @{session_id}")
+
+        self.browser = await playwright.chromium.launch(**launch_options)
+
+        # Browser context options
+        context_options = {
+            'viewport': {'width': 1280, 'height': 800},
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        # Try to load session from database first (multi-tenant), then fallback to file
+        session_loaded = False
+        if self.current_account and self.current_account.session_data:
+            logger.info("📂 Loading session from database (multi-tenant)...")
+            try:
+                context_options['storage_state'] = self.current_account.session_data
+                session_loaded = True
+            except Exception as e:
+                logger.warning(f"Could not load session from database: {e}")
+
+        # Fallback to local file if no database session
+        if not session_loaded and SESSION_PATH.exists():
+            logger.info("📂 Loading session from local file...")
+            try:
+                storage_state = json.loads(SESSION_PATH.read_text())
+                context_options['storage_state'] = storage_state
+            except Exception as e:
+                logger.warning(f"Could not load session from file: {e}")
+
+        self.context = await self.browser.new_context(**context_options)
+        self.page = await self.context.new_page()
+
+        # Apply stealth mode to avoid detection
+        if STEALTH_AVAILABLE and stealth_async:
+            await stealth_async(self.page)
+            logger.info("   🥷 Stealth mode ENABLED (anti-detection)")
+
+        # Set extra headers
+        await self.page.set_extra_http_headers({
+            'Accept-Language': 'en-US,en;q=0.9',
+        })
+
+        # Initialize scraper for smart mode
+        if self.smart_mode:
+            self.scraper = InstagramProfileScraperVision(self.page)
+
+    async def save_session(self):
+        """Save browser session for reuse"""
+        try:
+            storage = await self.context.storage_state()
+            SESSION_PATH.write_text(json.dumps(storage, indent=2))
+            logger.info(f"💾 Session saved to {SESSION_PATH}")
+        except Exception as e:
+            logger.error(f"Failed to save session: {e}")
+
+    async def take_screenshot(self, name: str) -> Path:
+        """Take screenshot for debugging"""
+        screenshot_path = LOGS_DIR / f"screenshot_{name}_{datetime.now().strftime('%H%M%S')}.png"
+        await self.page.screenshot(path=str(screenshot_path))
+        logger.info(f"📸 Screenshot: {screenshot_path}")
+        return screenshot_path
+
+    async def check_for_block(self, context: str = "action") -> BlockDetectionResult:
+        """
+        Detect if Instagram has blocked/restricted the account.
+
+        Checks for:
+        - URL-based detection (checkpoint, challenge, two_factor)
+        - Page content detection (action_blocked, rate_limited)
+        - Error dialogs and popups
+
+        Args:
+            context: What action triggered this check (for logging)
+
+        Returns:
+            BlockDetectionResult with block type and details
+        """
+        try:
+            current_url = self.page.url
+
+            # 1. URL-based detection
+            if 'challenge' in current_url:
+                screenshot = await self.take_screenshot(f"block_checkpoint_{context}")
+                logger.warning(f"⛔ CHECKPOINT detected during {context}")
+                return BlockDetectionResult(
+                    is_blocked=True,
+                    block_type=BlockType.CHECKPOINT,
+                    message="Instagram requires verification (checkpoint challenge)",
+                    screenshot_path=screenshot
+                )
+
+            if 'two_factor' in current_url:
+                screenshot = await self.take_screenshot(f"block_2fa_{context}")
+                logger.warning(f"⛔ TWO_FACTOR detected during {context}")
+                return BlockDetectionResult(
+                    is_blocked=True,
+                    block_type=BlockType.TWO_FACTOR,
+                    message="Two-factor authentication required",
+                    screenshot_path=screenshot
+                )
+
+            if 'suspended' in current_url or 'disabled' in current_url:
+                screenshot = await self.take_screenshot(f"block_disabled_{context}")
+                logger.error(f"⛔ ACCOUNT DISABLED detected during {context}")
+                return BlockDetectionResult(
+                    is_blocked=True,
+                    block_type=BlockType.ACCOUNT_DISABLED,
+                    message="Account appears to be disabled or suspended",
+                    screenshot_path=screenshot
+                )
+
+            # 2. Page content detection - check for common block messages
+            page_content = await self.page.content()
+            page_content_lower = page_content.lower()
+
+            # Action blocked patterns
+            action_blocked_patterns = [
+                "action blocked",
+                "try again later",
+                "we restrict certain activity",
+                "this action was blocked",
+                "temporarily blocked",
+                "you're temporarily blocked"
+            ]
+
+            for pattern in action_blocked_patterns:
+                if pattern in page_content_lower:
+                    screenshot = await self.take_screenshot(f"block_action_{context}")
+                    logger.warning(f"⛔ ACTION_BLOCKED detected during {context}: '{pattern}'")
+                    return BlockDetectionResult(
+                        is_blocked=True,
+                        block_type=BlockType.ACTION_BLOCKED,
+                        message=f"Instagram blocked this action: {pattern}",
+                        screenshot_path=screenshot
+                    )
+
+            # Rate limit patterns
+            rate_limit_patterns = [
+                "please wait a few minutes",
+                "you've been temporarily limited",
+                "slow down",
+                "too many requests",
+                "rate limit"
+            ]
+
+            for pattern in rate_limit_patterns:
+                if pattern in page_content_lower:
+                    screenshot = await self.take_screenshot(f"block_rate_{context}")
+                    logger.warning(f"⚠️ RATE_LIMITED detected during {context}: '{pattern}'")
+                    return BlockDetectionResult(
+                        is_blocked=True,
+                        block_type=BlockType.RATE_LIMITED,
+                        message=f"Instagram rate limit hit: {pattern}",
+                        screenshot_path=screenshot
+                    )
+
+            # Suspicious activity patterns
+            suspicious_patterns = [
+                "suspicious activity",
+                "unusual login",
+                "we detected unusual activity",
+                "confirm it's you"
+            ]
+
+            for pattern in suspicious_patterns:
+                if pattern in page_content_lower:
+                    screenshot = await self.take_screenshot(f"block_suspicious_{context}")
+                    logger.warning(f"⛔ SUSPICIOUS_ACTIVITY detected during {context}: '{pattern}'")
+                    return BlockDetectionResult(
+                        is_blocked=True,
+                        block_type=BlockType.SUSPICIOUS_ACTIVITY,
+                        message=f"Instagram detected suspicious activity: {pattern}",
+                        screenshot_path=screenshot
+                    )
+
+            # 3. Check for error dialogs/popups
+            try:
+                # Instagram often shows blocks in dialog boxes
+                error_dialog = await self.page.query_selector('[role="dialog"]')
+                if error_dialog:
+                    dialog_text = await error_dialog.inner_text()
+                    dialog_lower = dialog_text.lower()
+
+                    if any(p in dialog_lower for p in action_blocked_patterns):
+                        screenshot = await self.take_screenshot(f"block_dialog_{context}")
+                        logger.warning(f"⛔ Block detected in dialog during {context}")
+                        return BlockDetectionResult(
+                            is_blocked=True,
+                            block_type=BlockType.ACTION_BLOCKED,
+                            message=f"Block dialog: {dialog_text[:100]}",
+                            screenshot_path=screenshot
+                        )
+            except:
+                pass  # No dialog found, that's fine
+
+            # No block detected
+            return BlockDetectionResult(is_blocked=False, block_type=BlockType.NONE)
+
+        except Exception as e:
+            logger.error(f"Error checking for block: {e}")
+            return BlockDetectionResult(
+                is_blocked=False,
+                block_type=BlockType.UNKNOWN,
+                message=f"Error during block check: {str(e)}"
+            )
+
+    async def login(self) -> bool:
+        """Login to Instagram and save session"""
+        logger.info("🔐 Logging into Instagram...")
+
+        try:
+            # Use domcontentloaded instead of networkidle (Instagram never stops loading)
+            await self.page.goto('https://www.instagram.com/', wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(3)
+
+            # Check if already logged in
+            current_url = self.page.url
+            if 'login' not in current_url and 'accounts' not in current_url:
+                # Verify we're actually logged in by checking for profile icon
+                try:
+                    await self.page.wait_for_selector('svg[aria-label="Home"]', timeout=5000)
+                    logger.info("✅ Already logged in!")
+                    await self.save_session()
+                    return True
+                except:
+                    pass
+
+            # Navigate to login page
+            await self.page.goto('https://www.instagram.com/accounts/login/', wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(2)
+
+            # Accept cookies if prompted
+            try:
+                cookie_btn = await self.page.wait_for_selector('button:has-text("Allow")', timeout=3000)
+                if cookie_btn:
+                    await cookie_btn.click()
+                    await asyncio.sleep(1)
+            except:
+                pass
+
+            # Fill login form
+            logger.info("   Entering credentials...")
+            await self.page.fill('input[name="username"]', INSTAGRAM_USERNAME)
+            await asyncio.sleep(0.5)
+            await self.page.fill('input[name="password"]', INSTAGRAM_PASSWORD)
+            await asyncio.sleep(0.5)
+
+            # Click login button
+            await self.page.click('button[type="submit"]')
+            await asyncio.sleep(5)
+
+            # Check for 2FA
+            if 'challenge' in self.page.url or 'two_factor' in self.page.url:
+                logger.warning("⚠️  2FA required! Please complete verification in the browser...")
+                logger.warning("   Waiting up to 2 minutes for manual 2FA...")
+
+                try:
+                    # Wait for redirect away from challenge page
+                    await self.page.wait_for_url(
+                        lambda url: 'challenge' not in url and 'two_factor' not in url,
+                        timeout=120000
+                    )
+                    logger.info("✅ 2FA completed!")
+                except:
+                    logger.error("❌ 2FA timeout - please try again")
+                    return False
+
+            # Handle "Save Login Info" popup
+            await asyncio.sleep(2)
+            try:
+                save_btn = await self.page.wait_for_selector('button:has-text("Save info")', timeout=5000)
+                if save_btn:
+                    await save_btn.click()
+                    await asyncio.sleep(1)
+            except:
+                pass
+
+            # Handle "Turn on Notifications" popup
+            try:
+                not_now = await self.page.wait_for_selector('button:has-text("Not Now")', timeout=5000)
+                if not_now:
+                    await not_now.click()
+                    await asyncio.sleep(1)
+            except:
+                pass
+
+            # Verify login success
+            try:
+                await self.page.wait_for_selector('svg[aria-label="Home"]', timeout=10000)
+                logger.info("✅ Login successful!")
+                await self.save_session()
+                return True
+            except:
+                await self.take_screenshot("login_failed")
+                logger.error("❌ Login verification failed")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Login error: {e}")
+            await self.take_screenshot("login_error")
+            return False
+
+    def check_rate_limits(self) -> tuple[bool, str]:
+        """Check if we can send more DMs"""
+        dms_today = self.db.get_dms_sent_today(INSTAGRAM_USERNAME)
+        dms_hour = self.db.get_dms_sent_last_hour(INSTAGRAM_USERNAME)
+
+        if dms_today >= MAX_DMS_PER_DAY:
+            return False, f"Daily limit reached ({dms_today}/{MAX_DMS_PER_DAY})"
+
+        if dms_hour >= MAX_DMS_PER_HOUR:
+            return False, f"Hourly limit reached ({dms_hour}/{MAX_DMS_PER_HOUR})"
+
+        remaining_today = MAX_DMS_PER_DAY - dms_today
+        remaining_hour = MAX_DMS_PER_HOUR - dms_hour
+
+        logger.info(f"📊 Rate limits: {dms_hour}/{MAX_DMS_PER_HOUR}/hour, {dms_today}/{MAX_DMS_PER_DAY}/day")
+        return True, f"OK - {min(remaining_today, remaining_hour)} DMs available"
+
+    def get_personalized_message(self, lead: Lead, template_id: int = 1) -> str:
+        """Generate personalized message for lead (fallback method)"""
+        template = MESSAGE_TEMPLATES.get(template_id, MESSAGE_TEMPLATES[1])
+
+        # Extract interest from bio or use default
+        interest = "growth and business"
+        if lead.bio:
+            bio_lower = lead.bio.lower()
+            if "marketing" in bio_lower:
+                interest = "marketing"
+            elif "startup" in bio_lower or "founder" in bio_lower:
+                interest = "startups"
+            elif "sales" in bio_lower:
+                interest = "sales"
+            elif "entrepreneur" in bio_lower:
+                interest = "entrepreneurship"
+            elif "coach" in bio_lower:
+                interest = "coaching"
+
+        return template.format(
+            first_name=lead.first_name,
+            interest=interest
+        )
+
+    async def analyze_and_generate_message(self, lead: Lead) -> tuple[str, Optional[LeadScore], Optional[InstagramProfile]]:
+        """
+        SMART MODE: Analyze profile, calculate score, and generate personalized message.
+        Returns (message, score, profile) tuple.
+        """
+        if not self.smart_mode:
+            return self.get_personalized_message(lead), None, None
+
+        logger.info(f"🔍 Analyzing profile @{lead.username}...")
+
+        try:
+            # 1. Scrape profile
+            profile = await self.scraper.scrape_profile(lead.username)
+
+            if not profile.scrape_success:
+                logger.warning(f"   Could not scrape @{lead.username}: {profile.error_message}")
+                return self.get_personalized_message(lead), None, None
+
+            extraction_mode = getattr(profile, 'extraction_method', 'unknown')
+            logger.info(f"   📊 {profile.followers_count} followers | Bio: {(profile.bio or '')[:50]}... [{extraction_mode}]")
+
+            # 2. Calculate score
+            profile_dict = profile.to_dict()
+            score = self.scorer.calculate_score(profile_dict)
+
+            logger.info(f"   🎯 Score: {score.total_score}/100 | Priority: {score.priority.value.upper()}")
+
+            # 2.1 Persist score to database for future prioritization
+            self.db.update_lead_score(lead.id, score.total_score, score.priority.value)
+
+            # 3. Check if should send DM
+            if score.priority == LeadPriority.NURTURING:
+                logger.info(f"   ⏭️  Score too low ({score.total_score}), skipping DM")
+                return None, score, profile  # None message = skip this lead
+
+            # 4. Generate personalized message
+            score_dict = {
+                'detected_profession': score.detected_profession,
+                'detected_interests': score.detected_interests,
+                'detected_location': score.detected_location,
+                'total_score': score.total_score,
+                'priority': score.priority.value,
+                'personalization_hooks': score.personalization_hooks
+            }
+
+            generated = self.message_generator.generate(profile_dict, score_dict)
+
+            logger.info(f"   ✨ Generated {generated.personalization_level} personalized message")
+            logger.info(f"   📝 Hooks: {', '.join(generated.hooks_used)}")
+
+            return generated.message, score, profile
+
+        except Exception as e:
+            logger.error(f"   Smart mode error: {e}, falling back to template")
+            return self.get_personalized_message(lead), None, None
+
+    async def send_dm(self, lead: Lead, message: str) -> DMResult:
+        """Send DM to a single lead with block detection"""
+        logger.info(f"💬 Sending DM to @{lead.username}...")
+
+        try:
+            # Go to Instagram Direct
+            await self.page.goto('https://www.instagram.com/direct/inbox/', wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(2)
+
+            # Check for blocks after navigation
+            block_check = await self.check_for_block(context=f"dm_inbox_{lead.username}")
+            if block_check.is_blocked:
+                logger.warning(f"   ⛔ Block detected before sending DM: {block_check.block_type.value}")
+                return DMResult(
+                    lead_id=lead.id,
+                    username=lead.username,
+                    success=False,
+                    error=f"BLOCKED:{block_check.block_type.value}:{block_check.message}"
+                )
+
+            # Click "New Message" / "Send message" button
+            try:
+                new_msg_btn = await self.page.wait_for_selector(
+                    'svg[aria-label="New message"]',
+                    timeout=5000
+                )
+                await new_msg_btn.click()
+                await asyncio.sleep(1)
+            except:
+                # Try alternative selector
+                try:
+                    compose_btn = await self.page.wait_for_selector(
+                        'div[role="button"]:has-text("Send message")',
+                        timeout=3000
+                    )
+                    await compose_btn.click()
+                    await asyncio.sleep(1)
+                except:
+                    pass
+
+            # Search for user - O modal "New message" tem campo com "Search..."
+            # IMPORTANTE: Pegar o campo DENTRO do modal (dialog), não o da lista atrás
+            await asyncio.sleep(1.5)  # Espera modal abrir completamente
+
+            try:
+                # Primeiro tenta o campo dentro do modal/dialog
+                search_input = await self.page.wait_for_selector(
+                    'div[role="dialog"] input[name="queryBox"]',
+                    timeout=3000
+                )
+            except:
+                try:
+                    # Tenta pelo placeholder dentro do dialog
+                    search_input = await self.page.wait_for_selector(
+                        'div[role="dialog"] input[placeholder="Search..."]',
+                        timeout=3000
+                    )
+                except:
+                    try:
+                        # Fallback: qualquer input com Search... (modal usa esse)
+                        search_input = await self.page.wait_for_selector(
+                            'input[placeholder="Search..."]',
+                            timeout=3000
+                        )
+                    except:
+                        # Último fallback: Search sem pontos
+                        search_input = await self.page.wait_for_selector(
+                            'input[placeholder="Search"]',
+                            timeout=5000
+                        )
+
+            await search_input.click()  # Garante foco no campo
+            await asyncio.sleep(0.3)
+            await search_input.fill(lead.username)
+            await asyncio.sleep(2)
+
+            # Click on the user from search results
+            try:
+                user_result = await self.page.wait_for_selector(
+                    f'div[role="button"] span:text-is("{lead.username}")',
+                    timeout=5000
+                )
+                await user_result.click()
+                await asyncio.sleep(1)
+            except:
+                # Try clicking any result with the username
+                try:
+                    await self.page.click(f'text="{lead.username}"')
+                    await asyncio.sleep(1)
+                except:
+                    logger.warning(f"   Could not find @{lead.username} in search")
+                    return DMResult(
+                        lead_id=lead.id,
+                        username=lead.username,
+                        success=False,
+                        error="User not found in search"
+                    )
+
+            # Click "Chat" or "Next" button
+            try:
+                next_btn = await self.page.wait_for_selector(
+                    'div[role="button"]:has-text("Chat"), div[role="button"]:has-text("Next")',
+                    timeout=3000
+                )
+                await next_btn.click()
+                await asyncio.sleep(1)
+            except:
+                pass
+
+            # Find message input and type
+            await asyncio.sleep(1)
+            message_input = await self.page.wait_for_selector(
+                'textarea[placeholder="Message..."], div[role="textbox"]',
+                timeout=5000
+            )
+
+            # Type message character by character for more human-like behavior
+            await message_input.click()
+            await asyncio.sleep(0.3)
+
+            # Use fill for speed, but could use type() for more human-like
+            await message_input.fill(message)
+            await asyncio.sleep(0.5)
+
+            # Send message
+            await self.page.keyboard.press('Enter')
+            await asyncio.sleep(2)
+
+            # Check for blocks after sending (Instagram often shows block popup after action)
+            block_check = await self.check_for_block(context=f"dm_sent_{lead.username}")
+            if block_check.is_blocked:
+                logger.warning(f"   ⛔ Block detected AFTER sending DM: {block_check.block_type.value}")
+                # Message might have been sent before block popup - mark as failed to be safe
+                return DMResult(
+                    lead_id=lead.id,
+                    username=lead.username,
+                    success=False,
+                    error=f"BLOCKED:{block_check.block_type.value}:{block_check.message}"
+                )
+
+            logger.info(f"   ✅ DM sent to @{lead.username}")
+
+            # Record proxy success
+            if self.proxy_manager and self.current_proxy:
+                self.proxy_manager.record_success(self.current_proxy.id)
+
+            return DMResult(
+                lead_id=lead.id,
+                username=lead.username,
+                success=True,
+                message_sent=message
+            )
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"   ❌ Failed to send DM to @{lead.username}: {error_msg}")
+            await self.take_screenshot(f"dm_error_{lead.username}")
+
+            # Check if exception was caused by a block
+            block_check = await self.check_for_block(context=f"dm_exception_{lead.username}")
+            if block_check.is_blocked:
+                error_msg = f"BLOCKED:{block_check.block_type.value}:{block_check.message}"
+                # Record proxy failure for blocks (might indicate proxy detection)
+                if self.proxy_manager and self.current_proxy:
+                    self.proxy_manager.mark_proxy_failed(self.current_proxy.id, f"Block detected: {block_check.block_type.value}")
+
+            return DMResult(
+                lead_id=lead.id,
+                username=lead.username,
+                success=False,
+                error=error_msg
+            )
+
+    async def run_campaign(self, limit: int = 200, template_id: int = 1, min_score: int = 0, 
+                           new_followers: bool = False, account_id: int = 1):
+        """
+        Run DM campaign with optional quality filtering.
+
+        Args:
+            limit: Maximum number of leads to process
+            template_id: ID of message template to use (if not smart mode)
+            min_score: Minimum ICP score required (0 = no filter, process all)
+                       Recommended: 40 (skip NURTURING), 50 (only WARM+HOT), 70 (only HOT)
+            new_followers: If True, use new_followers_detected table (PSS welcome messages)
+            account_id: Instagram account ID for new-followers mode
+        """
+        logger.info("="*60)
+        if new_followers:
+            logger.info("🎯 STARTING NEW FOLLOWERS WELCOME CAMPAIGN (PSS)")
+            logger.info(f"   Account ID: {account_id}")
+        else:
+            logger.info("🎯 STARTING DM CAMPAIGN")
+        if min_score > 0:
+            logger.info(f"🎯 Quality Filter: min_score >= {min_score}")
+        logger.info("="*60)
+
+        # Check rate limits
+        can_send, reason = self.check_rate_limits()
+        if not can_send:
+            logger.warning(f"⚠️  {reason}")
+            return
+
+        # Start run tracking (using current tenant account)
+        account_username = self.current_account.username if self.current_account else INSTAGRAM_USERNAME
+        self.db.start_run(account_username, self.tenant_id)
+
+        # Get leads - either from new_followers_detected or agentic_instagram_leads
+        if new_followers:
+            leads = self.db.get_new_followers_to_contact(account_id=account_id, limit=limit, min_score=min_score)
+        else:
+            leads = self.db.get_leads_to_contact(limit=limit, min_score=min_score, prioritize_scored=True)
+        
+        if not leads:
+            logger.warning("⚠️  No leads to contact!")
+            self.db.end_run(0, 0, 0, status='no_leads')
+            return
+
+        logger.info(f"📋 Processing {len(leads)} leads (sorted by priority: HOT > WARM > COLD)...")
+
+        try:
+            for i, lead in enumerate(leads):
+                # Check rate limits before each DM
+                can_send, reason = self.check_rate_limits()
+                if not can_send:
+                    logger.warning(f"⚠️  Stopping: {reason}")
+                    break
+
+                # Generate message (Smart Mode or Template)
+                profile = None  # Inicializar para evitar erro de referência
+                if self.smart_mode:
+                    message, score, profile = await self.analyze_and_generate_message(lead)
+
+                    # Skip if score too low
+                    if message is None:
+                        self.dms_skipped += 1
+                        logger.info(f"📊 Progress: {i+1}/{len(leads)} | Sent: {self.dms_sent} | Skipped: {self.dms_skipped}")
+                        continue
+
+                    template_name = f"smart_{score.priority.value}" if score else "smart_fallback"
+                else:
+                    message = self.get_personalized_message(lead, template_id)
+                    template_name = f"template_{template_id}"
+
+                # Send DM
+                result = await self.send_dm(lead, message)
+
+                # Record result
+                self.results.append(result)
+                self.db.record_dm_sent(result, template_name, INSTAGRAM_USERNAME)
+
+                if result.success:
+                    self.dms_sent += 1
+                    # Sincronizar com growth_leads para que n8n saiba que foi prospectado
+                    lead_data = {
+                        'full_name': lead.full_name,
+                        'bio': lead.bio,
+                        'followers_count': getattr(profile, 'followers_count', None) if self.smart_mode and profile else None,
+                        'following_count': getattr(profile, 'following_count', None) if self.smart_mode and profile else None,
+                        'media_count': getattr(profile, 'media_count', None) if self.smart_mode and profile else None,
+                        'is_verified': getattr(profile, 'is_verified', None) if self.smart_mode and profile else None,
+                        'is_business_account': getattr(profile, 'is_business_account', None) if self.smart_mode and profile else None
+                    }
+                    # Incluir score_data para sincronizar com growth_leads
+                    score_data = None
+                    if self.smart_mode and score:
+                        score_data = {
+                            'icp_score': score.total_score,
+                            'priority': score.priority.value
+                        }
+                    self.db.sync_to_growth_leads(lead.username, result.message_sent, lead_data, score_data)
+                    
+                    # Update new_followers_detected if this is a new follower
+                    if lead.source and lead.source.startswith("new_follower:"):
+                        self.db.mark_follower_contacted(lead.id, result.message_sent, 'sent')
+                else:
+                    self.dms_failed += 1
+                    
+                    # Mark as failed in new_followers table if applicable
+                    if lead.source and lead.source.startswith("new_follower:"):
+                        self.db.mark_follower_contacted(lead.id, result.error or 'failed', 'failed')
+
+                    # Check if blocked - stop campaign for critical blocks
+                    if result.error and result.error.startswith("BLOCKED:"):
+                        parts = result.error.split(":", 2)
+                        block_type_str = parts[1] if len(parts) > 1 else "unknown"
+                        block_msg = parts[2] if len(parts) > 2 else ""
+
+                        # Critical blocks that should stop the campaign
+                        critical_blocks = ["checkpoint", "action_blocked", "account_disabled", "suspicious_activity"]
+                        if block_type_str in critical_blocks:
+                            logger.error(f"🛑 CRITICAL BLOCK DETECTED: {block_type_str}")
+                            logger.error(f"   Message: {block_msg}")
+                            logger.error(f"   Stopping campaign to protect account...")
+                            self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped,
+                                          status='blocked', error_log=result.error)
+                            return  # Stop campaign immediately
+
+                        # Rate limit - just log warning, might recover
+                        elif block_type_str == "rate_limited":
+                            logger.warning(f"⚠️ Rate limit detected. Waiting extra time before continuing...")
+                            await asyncio.sleep(300)  # Wait 5 minutes
+
+                # Progress update
+                logger.info(f"📊 Progress: {i+1}/{len(leads)} | Sent: {self.dms_sent} | Failed: {self.dms_failed} | Skipped: {self.dms_skipped}")
+
+                # Random delay between DMs
+                if i < len(leads) - 1:
+                    delay = random.randint(MIN_DELAY, MAX_DELAY)
+                    logger.info(f"⏳ Waiting {delay} seconds...")
+                    await asyncio.sleep(delay)
+
+        except KeyboardInterrupt:
+            logger.warning("⚠️  Campaign interrupted by user")
+        except Exception as e:
+            logger.error(f"❌ Campaign error: {e}")
+            self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped, status='error', error_log=str(e))
+            raise
+
+        # End run
+        self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped)
+        self.db.update_daily_stats(INSTAGRAM_USERNAME, self.dms_sent, self.dms_failed)
+
+        # Final summary
+        logger.info("="*60)
+        logger.info("📊 CAMPAIGN COMPLETE")
+        logger.info(f"   DMs Sent: {self.dms_sent}")
+        logger.info(f"   DMs Failed: {self.dms_failed}")
+        logger.info(f"   DMs Skipped: {self.dms_skipped}")
+        if self.smart_mode:
+            logger.info(f"   Mode: 🧠 SMART (Profile Analysis + Semantic Scoring)")
+        total_processed = self.dms_sent + self.dms_failed
+        logger.info(f"   Success Rate: {(self.dms_sent/total_processed*100):.1f}%" if total_processed > 0 else "N/A")
+        logger.info("="*60)
+
+        # Save session
+        await self.save_session()
+
+    async def run_campaign_kevs(
+        self,
+        limit: int = 200,
+        template_id: int = 1,
+        min_score: int = 0,
+        delay_min_minutes: float = 3.0,
+        delay_max_minutes: float = 7.0
+    ):
+        """
+        MÉTODO KEVS ANTI-BLOCK: Campanha com rotação round-robin e delay em minutos.
+
+        Diferenças do run_campaign normal:
+        1. Rotação round-robin entre contas (A→B→C→A, não esgota uma antes)
+        2. Delay em MINUTOS (não segundos) entre cada DM
+        3. Jitter humano para parecer natural
+
+        Args:
+            limit: Número máximo de leads para processar
+            template_id: ID do template de mensagem (se não usar smart mode)
+            min_score: Score mínimo para enviar DM (0=todos)
+            delay_min_minutes: Delay mínimo entre DMs em MINUTOS (padrão: 3)
+            delay_max_minutes: Delay máximo entre DMs em MINUTOS (padrão: 7)
+
+        Fluxo esperado:
+            08:00 → Conta A: DM1
+            08:05 → Conta B: DM2
+            08:11 → Conta C: DM3
+            08:17 → Conta A: DM4  ← volta pro início
+        """
+        logger.info("="*60)
+        logger.info("🎯 INICIANDO CAMPANHA KEVS ANTI-BLOCK")
+        logger.info(f"⏱️  Delay entre DMs: {delay_min_minutes}-{delay_max_minutes} minutos")
+        logger.info(f"🔄 Modo: Rotação Round-Robin entre contas")
+        if min_score > 0:
+            logger.info(f"🎯 Filtro de qualidade: min_score >= {min_score}")
+        logger.info("="*60)
+
+        # Verificar se RoundRobin está disponível
+        if not MULTI_TENANT_AVAILABLE or not RoundRobinAccountRotator:
+            logger.warning("⚠️ RoundRobinAccountRotator não disponível. Usando modo single account.")
+            return await self.run_campaign(limit, template_id, min_score)
+
+        # Inicializar rotador round-robin
+        rotator = RoundRobinAccountRotator(self.tenant_id)
+        rotator_stats = rotator.get_stats()
+
+        if rotator_stats['accounts_in_rotation'] == 0:
+            logger.error(f"❌ Nenhuma conta disponível para tenant {self.tenant_id}")
+            return
+
+        logger.info(f"🔄 Contas na rotação: {rotator_stats['accounts_in_rotation']}")
+        for acc in rotator_stats['accounts']:
+            logger.info(f"   @{acc['username']}: {acc['remaining_today']} DMs disponíveis hoje")
+
+        # Iniciar tracking de run
+        first_account = rotator.get_next_account()
+        if not first_account:
+            logger.error("❌ Nenhuma conta disponível para iniciar campanha")
+            return
+
+        self.db.start_run(first_account.username, self.tenant_id)
+
+        # Buscar leads com filtro de qualidade
+        leads = self.db.get_leads_to_contact(limit=limit, min_score=min_score, prioritize_scored=True)
+        if not leads:
+            logger.warning("⚠️ Nenhum lead para contatar!")
+            self.db.end_run(0, 0, 0, status='no_leads')
+            return
+
+        logger.info(f"📋 Processando {len(leads)} leads (ordenados por prioridade)")
+
+        try:
+            for i, lead in enumerate(leads):
+                # Pegar próxima conta na rotação
+                current_account = rotator.get_next_account()
+
+                if not current_account:
+                    logger.warning("⚠️ Todas as contas atingiram o limite. Parando campanha.")
+                    break
+
+                logger.info(f"\n🔄 DM #{i+1} usando @{current_account.username}")
+
+                # Trocar para a conta atual (se necessário recarregar sessão)
+                if self.current_account and self.current_account.id != current_account.id:
+                    logger.info(f"   Alternando de @{self.current_account.username} → @{current_account.username}")
+                    self.current_account = current_account
+
+                    # Update proxy for new account
+                    if self.proxy_manager:
+                        new_proxy = self.proxy_manager.get_proxy_for_account(current_account.id)
+                        if not new_proxy:
+                            new_proxy = self.proxy_manager.get_proxy_for_tenant(self.tenant_id)
+                        if new_proxy and (not self.current_proxy or new_proxy.id != self.current_proxy.id):
+                            self.current_proxy = new_proxy
+                            logger.info(f"   🌐 Proxy atualizado: {new_proxy.host}:{new_proxy.port}")
+
+                    # Recarregar contexto do browser com nova sessão se necessário
+                    if current_account.session_data and self.context:
+                        try:
+                            await self.context.close()
+                            context_options = {
+                                'viewport': {'width': 1280, 'height': 800},
+                                'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                                'storage_state': current_account.session_data
+                            }
+                            self.context = await self.browser.new_context(**context_options)
+                            self.page = await self.context.new_page()
+                            if self.smart_mode:
+                                self.scraper = InstagramProfileScraperVision(self.page)
+                        except Exception as e:
+                            logger.warning(f"   Erro ao alternar conta: {e}. Continuando...")
+
+                # Gerar mensagem (Smart Mode ou Template)
+                profile = None
+                if self.smart_mode:
+                    message, score, profile = await self.analyze_and_generate_message(lead)
+
+                    # Pular se score muito baixo
+                    if message is None:
+                        self.dms_skipped += 1
+                        logger.info(f"📊 Progresso: {i+1}/{len(leads)} | Enviados: {self.dms_sent} | Skipped: {self.dms_skipped}")
+                        continue
+
+                    template_name = f"kevs_smart_{score.priority.value}" if score else "kevs_smart_fallback"
+                else:
+                    message = self.get_personalized_message(lead, template_id)
+                    template_name = f"kevs_template_{template_id}"
+
+                # Enviar DM
+                result = await self.send_dm(lead, message)
+
+                # Registrar resultado
+                self.results.append(result)
+                self.db.record_dm_sent(result, template_name, current_account.username)
+
+                if result.success:
+                    self.dms_sent += 1
+                    rotator.record_dm_sent(current_account.id)
+
+                    # Sincronizar com growth_leads
+                    lead_data = {
+                        'full_name': lead.full_name,
+                        'bio': lead.bio,
+                        'followers_count': getattr(profile, 'followers_count', None) if profile else None,
+                        'following_count': getattr(profile, 'following_count', None) if profile else None,
+                        'media_count': getattr(profile, 'media_count', None) if profile else None,
+                        'is_verified': getattr(profile, 'is_verified', None) if profile else None,
+                        'is_business_account': getattr(profile, 'is_business_account', None) if profile else None
+                    }
+                    score_data = None
+                    if self.smart_mode and score:
+                        score_data = {
+                            'icp_score': score.total_score,
+                            'priority': score.priority.value
+                        }
+                    self.db.sync_to_growth_leads(lead.username, result.message_sent, lead_data, score_data)
+                else:
+                    self.dms_failed += 1
+
+                    # Verificar se foi bloqueado usando novo formato
+                    if result.error and result.error.startswith("BLOCKED:"):
+                        parts = result.error.split(":", 2)
+                        block_type_str = parts[1] if len(parts) > 1 else "unknown"
+                        block_msg = parts[2] if len(parts) > 2 else ""
+
+                        logger.warning(f"⛔ Conta @{current_account.username} bloqueada: {block_type_str}")
+
+                        # Mark account as blocked
+                        rotator.mark_account_blocked(current_account.id, hours=24, reason=result.error)
+
+                        # Check if all accounts are blocked
+                        available_accounts = [a for a in rotator.accounts if not a.is_blocked]
+                        if not available_accounts:
+                            logger.error("🛑 TODAS AS CONTAS BLOQUEADAS! Parando campanha.")
+                            self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped,
+                                          status='all_accounts_blocked', error_log=result.error)
+                            return
+
+                        # Critical blocks - remove account from rotation
+                        critical_blocks = ["checkpoint", "action_blocked", "account_disabled", "suspicious_activity"]
+                        if block_type_str in critical_blocks:
+                            logger.warning(f"   Removendo @{current_account.username} da rotação (bloqueio crítico)")
+                            # Account will be skipped automatically by rotator
+
+                    # Legacy check for non-formatted errors
+                    elif result.error and ('blocked' in result.error.lower() or 'rate' in result.error.lower()):
+                        logger.warning(f"⛔ Conta @{current_account.username} pode estar bloqueada!")
+                        rotator.mark_account_blocked(current_account.id, hours=24, reason=result.error)
+
+                # Progresso
+                logger.info(f"📊 Progresso: {i+1}/{len(leads)} | Enviados: {self.dms_sent} | Falhas: {self.dms_failed} | Skipped: {self.dms_skipped}")
+
+                # DELAY KEVS: Em MINUTOS com jitter humano
+                if i < len(leads) - 1:
+                    # Delay base em minutos
+                    delay_minutes = random.uniform(delay_min_minutes, delay_max_minutes)
+
+                    # Jitter humano: ±15% de variação
+                    jitter = delay_minutes * random.uniform(-0.15, 0.15)
+                    final_delay_minutes = delay_minutes + jitter
+
+                    delay_seconds = final_delay_minutes * 60
+
+                    logger.info(f"⏳ Aguardando {final_delay_minutes:.1f} minutos até próxima DM...")
+                    logger.info(f"   (Próxima conta será: rotação round-robin)")
+
+                    await asyncio.sleep(delay_seconds)
+
+        except KeyboardInterrupt:
+            logger.warning("⚠️ Campanha interrompida pelo usuário")
+        except Exception as e:
+            logger.error(f"❌ Erro na campanha: {e}")
+            self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped, status='error', error_log=str(e))
+            raise
+
+        # Finalizar run
+        self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped)
+
+        # Sumário final
+        logger.info("="*60)
+        logger.info("📊 CAMPANHA KEVS ANTI-BLOCK COMPLETA")
+        logger.info(f"   DMs Enviadas: {self.dms_sent}")
+        logger.info(f"   DMs Falharam: {self.dms_failed}")
+        logger.info(f"   DMs Skipped: {self.dms_skipped}")
+        logger.info(f"   Modo: 🔄 Round-Robin + ⏱️ Delay {delay_min_minutes}-{delay_max_minutes}min")
+
+        # Estatísticas finais das contas
+        final_stats = rotator.get_stats()
+        logger.info(f"   Contas usadas: {final_stats['accounts_in_rotation']}")
+        for acc in final_stats['accounts']:
+            logger.info(f"      @{acc['username']}: {acc['remaining_today']} DMs restantes")
+
+        total_processed = self.dms_sent + self.dms_failed
+        if total_processed > 0:
+            logger.info(f"   Taxa de sucesso: {(self.dms_sent/total_processed*100):.1f}%")
+        logger.info("="*60)
+
+        # Salvar sessão
+        await self.save_session()
+
+    async def run_campaign_worker(
+        self,
+        campaign_id: str,
+        limit: int = None,
+        template_id: int = 1
+    ) -> bool:
+        """
+        Campaign worker mode: Run DM session for a specific campaign.
+        
+        Designed to be called by campaign_worker.py with these constraints:
+        - Uses session cookies only (no login/password needed)
+        - Respects MAX_DMS_PER_SESSION (default 10)
+        - 60-90 seconds delay between DMs
+        - Updates socialfy_campaign_leads.dm_sent after each DM
+        - Updates socialfy_campaigns.total_dms_sent counter
+        - Updates agentic_instagram_dm_sent for tracking
+        
+        Args:
+            campaign_id: UUID of the campaign to process
+            limit: Max DMs this session (defaults to MAX_DMS_PER_SESSION)
+            template_id: Message template ID (if not using smart mode)
+            
+        Returns:
+            bool: True if session completed successfully (even with 0 DMs), False on error
+        """
+        session_limit = limit or MAX_DMS_PER_SESSION
+        
+        logger.info("="*60)
+        logger.info("🤖 CAMPAIGN WORKER MODE")
+        logger.info(f"   Campaign: {campaign_id[:8]}...")
+        logger.info(f"   Session limit: {session_limit} DMs")
+        logger.info(f"   Delay: {MIN_DELAY}-{MAX_DELAY}s between DMs")
+        logger.info("="*60)
+
+        # Get leads for this campaign
+        leads = self.db.get_leads_for_campaign(campaign_id, limit=session_limit)
+        
+        if not leads:
+            logger.info("✅ No pending leads for this campaign")
+            return True  # Success - nothing to do
+
+        # Start run tracking
+        account_username = self.current_account.username if self.current_account else INSTAGRAM_USERNAME
+        self.db.start_run(account_username, self.tenant_id)
+
+        logger.info(f"📋 Processing {len(leads)} leads for campaign...")
+
+        session_success = True
+        
+        try:
+            for i, lead in enumerate(leads):
+                # Check rate limits
+                can_send, reason = self.check_rate_limits()
+                if not can_send:
+                    logger.warning(f"⚠️ Rate limit: {reason}")
+                    break
+
+                # Generate message
+                profile = None
+                if self.smart_mode:
+                    message, score, profile = await self.analyze_and_generate_message(lead)
+                    if message is None:
+                        self.dms_skipped += 1
+                        self.db.mark_campaign_lead_sent(lead.id, "Score too low - skipped", success=False)
+                        continue
+                    template_name = f"campaign_smart_{score.priority.value}" if score else "campaign_smart"
+                else:
+                    message = self.get_personalized_message(lead, template_id)
+                    template_name = f"campaign_template_{template_id}"
+
+                # Send DM
+                result = await self.send_dm(lead, message)
+
+                # Record in agentic_instagram_dm_sent
+                self.db.record_dm_sent(result, template_name, account_username)
+
+                if result.success:
+                    self.dms_sent += 1
+                    
+                    # Update campaign-specific tables
+                    self.db.mark_campaign_lead_sent(lead.id, result.message_sent, success=True)
+                    self.db.increment_campaign_dms_sent(campaign_id)
+                    
+                    # Sync to growth_leads
+                    lead_data = {
+                        'full_name': lead.full_name,
+                        'bio': lead.bio,
+                        'followers_count': getattr(profile, 'followers_count', None) if profile else None,
+                    }
+                    score_data = {'icp_score': score.total_score, 'priority': score.priority.value} if score else None
+                    self.db.sync_to_growth_leads(lead.username, result.message_sent, lead_data, score_data)
+                    
+                    logger.info(f"✅ [{i+1}/{len(leads)}] DM sent to @{lead.username}")
+                else:
+                    self.dms_failed += 1
+                    self.db.mark_campaign_lead_sent(lead.id, result.error, success=False)
+                    
+                    # Check for critical blocks
+                    if result.error and result.error.startswith("BLOCKED:"):
+                        parts = result.error.split(":", 2)
+                        block_type = parts[1] if len(parts) > 1 else "unknown"
+                        
+                        critical_blocks = ["checkpoint", "action_blocked", "account_disabled", "suspicious_activity"]
+                        if block_type in critical_blocks:
+                            logger.error(f"🛑 CRITICAL BLOCK: {block_type}")
+                            session_success = False
+                            break
+                    
+                    logger.warning(f"❌ [{i+1}/{len(leads)}] Failed @{lead.username}: {result.error}")
+
+                # Delay between DMs (60-90s for safety)
+                if i < len(leads) - 1:
+                    delay = random.randint(MIN_DELAY, MAX_DELAY)
+                    logger.info(f"⏳ Waiting {delay}s...")
+                    await asyncio.sleep(delay)
+
+        except Exception as e:
+            logger.error(f"❌ Campaign worker error: {e}")
+            session_success = False
+            self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped, 
+                          status='error', error_log=str(e))
+            return False
+
+        # End run
+        status = 'completed' if session_success else 'blocked'
+        self.db.end_run(self.dms_sent, self.dms_failed, self.dms_skipped, status=status)
+
+        # Summary
+        logger.info("="*60)
+        logger.info(f"📊 CAMPAIGN WORKER SESSION COMPLETE")
+        logger.info(f"   Campaign: {campaign_id[:8]}...")
+        logger.info(f"   DMs Sent: {self.dms_sent}")
+        logger.info(f"   DMs Failed: {self.dms_failed}")
+        logger.info(f"   DMs Skipped: {self.dms_skipped}")
+        logger.info(f"   Status: {'✅ SUCCESS' if session_success else '❌ BLOCKED'}")
+        logger.info("="*60)
+
+        return session_success
+
+    async def stop(self):
+        """Cleanup and close browser"""
+        logger.info("🛑 Stopping agent...")
+        if self.context:
+            await self.save_session()
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
+        logger.info("👋 Agent stopped")
+
+
+# ============================================
+# MAIN
+# ============================================
+
+async def main() -> int:
+    """
+    Main entry point. Returns exit code (0=success, 1=error).
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Instagram DM Agent with Smart Mode')
+    parser.add_argument('--headless', action='store_true', help='Run without browser window')
+    parser.add_argument('--login-only', action='store_true', help='Only login and save session')
+    parser.add_argument('--limit', type=int, default=200, help='Max DMs to send this run')
+    parser.add_argument('--template', type=int, default=1, choices=[1, 2, 3], help='Message template (1-3)')
+    parser.add_argument('--smart', action='store_true', default=True, help='Enable Smart Mode (profile analysis + scoring)')
+    parser.add_argument('--no-smart', action='store_true', help='Disable Smart Mode, use templates only')
+    parser.add_argument('--new-followers', action='store_true', help='Use new_followers_detected table (PSS welcome messages)')
+    parser.add_argument('--account-id', type=int, default=1, help='Instagram account ID for new-followers mode (1=marcosdanielsf)')
+    
+    # Campaign worker flags
+    parser.add_argument('--campaign-id', type=str, help='Campaign UUID to process (campaign worker mode)')
+    parser.add_argument('--session-only', action='store_true', help='Use saved session only, skip login (requires valid cookies)')
+    
+    args = parser.parse_args()
+
+    # Determine smart mode
+    smart_mode = args.smart and not args.no_smart
+
+    # Validate configuration
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        logger.error("❌ Supabase not configured! Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+        return 1
+
+    # Session-only mode requires either saved session or session_id
+    if args.session_only:
+        has_session = SESSION_PATH.exists() or os.getenv("INSTAGRAM_SESSION_ID")
+        if not has_session:
+            logger.error("❌ --session-only requires saved session. Run --login-only first.")
+            return 1
+        if not INSTAGRAM_USERNAME:
+            logger.error("❌ INSTAGRAM_USERNAME required even for session-only mode")
+            return 1
+    else:
+        # Normal mode requires username + password
+        if not INSTAGRAM_USERNAME or (not INSTAGRAM_PASSWORD and not os.getenv("INSTAGRAM_SESSION_ID")):
+            logger.error("❌ Instagram not configured! Set INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD")
+            return 1
+
+    # Campaign worker mode validation
+    if args.campaign_id:
+        # Campaign mode uses session-only by default and limited DMs
+        args.session_only = True
+        if args.limit == 200:  # Default wasn't changed
+            args.limit = MAX_DMS_PER_SESSION
+        logger.info(f"📦 Campaign worker mode: campaign={args.campaign_id[:8]}...")
+
+    agent = InstagramDMAgent(headless=args.headless, smart_mode=smart_mode)
+    exit_code = 0
+
+    try:
+        await agent.start()
+
+        # Login handling
+        if args.session_only:
+            # Session-only: verify session is valid by navigating to Instagram
+            logger.info("🔐 Session-only mode: verifying saved session...")
+            await agent.page.goto('https://www.instagram.com/', wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(3)
+            
+            # Check if logged in
+            try:
+                await agent.page.wait_for_selector('svg[aria-label="Home"]', timeout=10000)
+                logger.info("✅ Session valid, logged in!")
+            except:
+                logger.error("❌ Session invalid or expired. Run with --login-only to refresh.")
+                return 1
+        else:
+            # Normal login
+            if not await agent.login():
+                logger.error("❌ Login failed, aborting")
+                return 1
+
+        if args.login_only:
+            logger.info("✅ Login complete. Session saved.")
+            return 0
+
+        # Run appropriate campaign mode
+        if args.campaign_id:
+            # Campaign worker mode
+            success = await agent.run_campaign_worker(
+                campaign_id=args.campaign_id,
+                limit=args.limit,
+                template_id=args.template
+            )
+            exit_code = 0 if success else 1
+        else:
+            # Normal campaign mode
+            await agent.run_campaign(
+                limit=args.limit, 
+                template_id=args.template,
+                new_followers=args.new_followers,
+                account_id=args.account_id
+            )
+            # Consider success if any DMs sent or no leads to contact
+            exit_code = 0 if (agent.dms_sent > 0 or agent.dms_failed == 0) else 1
+
+    except KeyboardInterrupt:
+        logger.warning("⚠️ Interrupted by user")
+        exit_code = 1
+    except Exception as e:
+        logger.error(f"❌ Fatal error: {e}")
+        exit_code = 1
+    finally:
+        await agent.stop()
+
+    return exit_code
+
+
+if __name__ == "__main__":
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

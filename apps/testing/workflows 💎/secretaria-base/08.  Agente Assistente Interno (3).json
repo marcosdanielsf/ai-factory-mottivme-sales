@@ -1,0 +1,1372 @@
+{
+  "name": "08.  Agente Assistente Interno",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Limit', ``, 'number') }}",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        2928,
+        640
+      ],
+      "id": "23448cf4-7810-4a75-89e2-9869082b0426",
+      "name": "Ler emails",
+      "webhookId": "b60f05cb-e3eb-4a7d-9a81-46feb78c7ce3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Xr2iq9scV3njUeQl",
+          "name": "Gmail account - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "task": "d1J0THRBU1NldGRjRTlnWg",
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+        "additionalFields": {
+          "dueDate": "={{ $fromAI('data_vencimento', `Deve ser uma data e horário no futuro. Datas passadas são inválidas. A data deve ser no formato: 'YYYY-MM-DDThh:mm:ssTZD'. Utilize o fuso horário conforme a data atual.`, 'string') }}",
+          "notes": "={{ $fromAI('notas', ``, 'string') }}",
+          "status": "needsAction"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        3072,
+        640
+      ],
+      "id": "1d03dfb8-132e-4db6-93f6-3c21470c517f",
+      "name": "Criar tarefa",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "pBVb5iJuZfs76sLQ",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2128,
+        496
+      ],
+      "id": "51f5a94f-662d-4b35-a293-be9b32e11dd1",
+      "name": "Transcrever áudio",
+      "credentials": {
+        "openAiApi": {
+          "id": "WEENPovt22LUaeRp",
+          "name": "OpenAi - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8ca54eae-15d1-49d3-af33-7a6e5d17b833",
+              "leftValue": "={{ $json.tipo }}",
+              "rightValue": "incoming",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cf87bb7e-6bea-4697-bcd9-57e3b63998c2",
+              "leftValue": "={{ $json.etiquetas }}",
+              "rightValue": "gestor",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        384
+      ],
+      "id": "bd5a706e-5e71-4543-b1e3-09e361313c15",
+      "name": "Mensagem chegando?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9a7e16f-b6e4-45d7-846d-92dcb3117593",
+                    "leftValue": "={{ $('Info').item.json.mensagem }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Info').item.json.mensagem_de_audio }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "1382cd26-d96e-4c55-99dd-2ca305ffe82e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Áudio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1728,
+        384
+      ],
+      "id": "6dcf3c79-b35b-4df8-a6bf-43f24a73351a",
+      "name": "Tipo de mensagem"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "40ff895f-f63f-4e4f-bba3-c7d803c277f1",
+              "name": "url_chatwoot",
+              "value": "<inserir url do seu chatwoot>",
+              "type": "string"
+            },
+            {
+              "id": "f828692e-025a-40aa-8d42-1c292bde3246",
+              "name": "url_asaas",
+              "value": "https://api-sandbox.asaas.com",
+              "type": "string"
+            },
+            {
+              "id": "c8fd010d-6096-4a50-b3e2-e9fe26661840",
+              "name": "id_mensagem",
+              "value": "={{ $json.body.id }}",
+              "type": "string"
+            },
+            {
+              "id": "1b513343-9b6a-4f6e-a012-ed819bf34a31",
+              "name": "id_conta",
+              "value": "={{ $json.body.account.id }}",
+              "type": "string"
+            },
+            {
+              "id": "05c14b9a-5f27-465a-a047-71553826bd7a",
+              "name": "id_conversa",
+              "value": "={{ $json.body.conversation.id }}",
+              "type": "string"
+            },
+            {
+              "id": "8bf522a6-75fb-434a-854c-b736539309e1",
+              "name": "telefone",
+              "value": "={{ $json.body.sender.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "0d622a33-f313-4758-a764-fa6cbf2b0587",
+              "name": "mensagem",
+              "value": "={{ $json.body.content || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "8f4b9d84-56e0-4f45-9f17-68c53f365f43",
+              "name": "mensagem_de_audio",
+              "value": "={{ $json.body.attachments?.[0]?.meta?.is_recorded_audio || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "2b679a3f-788f-4cd2-88d5-4f03af68f224",
+              "name": "timestamp",
+              "value": "={{ $json.body.created_at }}",
+              "type": "string"
+            },
+            {
+              "id": "24caf88e-74ce-43ab-8dc4-1fff471b706f",
+              "name": "tipo",
+              "value": "={{ $json.body.message_type }}",
+              "type": "string"
+            },
+            {
+              "id": "573669d2-1e43-4010-8c82-a67459ffe1db",
+              "name": "etiquetas",
+              "value": "={{ $json.body.conversation.labels }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        384
+      ],
+      "id": "8325dbed-45bd-4a03-88ac-409ad59fcbf7",
+      "name": "Info"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Mensagem recebida').item.json.body.attachments[0].data_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "chatwootApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1968,
+        496
+      ],
+      "id": "23f92361-59eb-4e90-ad21-cf7efe5cca0b",
+      "name": "Download áudio",
+      "credentials": {
+        "chatwootApi": {
+          "id": "UmVE5jAScA8a8vNB",
+          "name": "ChatWoot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0e95db55-1b2e-4762-a547-9481029291e9",
+              "name": "mensagem",
+              "value": "={{ $('Info').item.json.mensagem || $json.text || $json.content.parts?.[0].text || '<mensagem de áudio não audível>' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2368,
+        384
+      ],
+      "id": "15c03858-86c6-49d6-b25d-5ec0f8eb531a",
+      "name": "Set mensagem"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "assistente_interno",
+        "tableName": "n8n_historico_mensagens",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        2720,
+        640
+      ],
+      "id": "881b5862-f7a5-4103-a618-aec866d201b7",
+      "name": "Memoria",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2592,
+        640
+      ],
+      "id": "827c30d7-804b-4a3b-af87-9798bda532cd",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "T8fdozITjWZLw425",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Configurar node Info!!",
+        "height": 240,
+        "width": 288,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1200,
+        304
+      ],
+      "typeVersion": 1,
+      "id": "aafdee08-9189-4579-a98d-7426e78f93cd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Core",
+        "height": 352,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2560,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "ff261296-e5b2-4975-875a-70f69d7f7436",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Google",
+        "height": 352,
+        "width": 288,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2896,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "f9456ee7-234b-45d4-ab1c-b92ed40ef2fa",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Asaas",
+        "height": 352,
+        "width": 288,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3232,
+        560
+      ],
+      "typeVersion": 1,
+      "id": "03a3daca-5421-4fcf-9e6c-1ff46e9b7a6a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "description": "Use essa ferramenta para desmarcar um evento na agenda e enviar um alerta para o contato referente ao agendamento.\n\nO telefone do contato deve ser extraído da descrição do evento.",
+        "workflowId": {
+          "__rl": true,
+          "value": "I2zdv2vMIB1zaINz",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/I2zdv2vMIB1zaINz",
+          "cachedResultName": "09. Desmarcar e enviar alerta"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', \"Telefone do contato no formato E.164. Exemplo: `+5511987654321`\", 'string') }}",
+            "mensagem": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('mensagem', `A mensagem a ser enviada para o contato. Inclua informações sobre o agendamento, peça desculpas pelo incoveniente, e diga para o contato enviar mensagem para reagendar a consulta.`, 'string') }}",
+            "id_agenda": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id_agenda', ``, 'string') }}",
+            "id_evento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id_evento', ``, 'string') }}",
+            "id_conta": "={{ $('Info').item.json.id_conta }}",
+            "id_inbox": "={{ $('Info').item.json.id_inbox }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mensagem",
+              "displayName": "mensagem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_agenda",
+              "displayName": "id_agenda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_evento",
+              "displayName": "id_evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_conta",
+              "displayName": "id_conta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_inbox",
+              "displayName": "id_inbox",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "api_key",
+              "displayName": "api_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3072,
+        768
+      ],
+      "id": "6b9f7f21-d6d4-4179-aee1-5e8c6fe78990",
+      "name": "Desmarcar agendamento e enviar alerta"
+    },
+    {
+      "parameters": {
+        "content": "# Checklist\n- [ ] Configurar node \"Info\"\n- [ ] Subworkflow \"Desmarcar agendamento e enviar alerta\" -> Workflow 09\n- [ ] Criar credenciais do Gmail, Tasks\n- [ ] Abrir nodes do Chatwoot, OpenAI, e Asaas para selecionar credenciais\n- [ ] Configurar webhook no Chatwoot\n- [ ] Inserir IDs das agendas no System Prompt\n- [ ] Ativar workflow em modo produção",
+        "height": 240,
+        "width": 544,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        992,
+        736
+      ],
+      "id": "b7e04962-0683-4761-8799-22e00225fc6f",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## Tratar input",
+        "height": 368,
+        "width": 1504,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "ca4f8a5e-3c46-4942-97c8-ebe85fc3d909",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Assistente interno",
+        "height": 656,
+        "width": 1024,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2528,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "646a5b55-d998-406c-8ecd-1c4adce93484",
+      "name": "Sticky Note5",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensagem }}",
+        "options": {
+          "systemMessage": "=# PAPEL\n\n<papel>\n  Você é a Maria, assistente interna da Clínica Moreira, responsável por ajudar exclusivamente os profissionais e gestores da clínica. Sua função é facilitar operações internas como cancelamento de consultas, gestão de tarefas, análise financeira e comunicação com pacientes quando autorizado pelos profissionais.\n</papel>\n\n# PERSONALIDADE E TOM DE VOZ\n\n<personalidade>\n  * **Eficiente e direto**: Foque em resultados sem rodeios\n  * **Preciso e confiável**: Execute tarefas com exatidão\n  * **Proativo e organizado**: Antecipe necessidades e estruture informações\n  * **Discreto e profissional**: Mantenha confidencialidade sempre\n  * **Colaborativo**: Facilite o trabalho dos profissionais\n</personalidade>\n\n# CONTEXTO OPERACIONAL\n\n<contexto>\n  ## Usuários Autorizados\n\n  Se o usuário está se comunicando com você, significa que ele é um dos seguintes:\n\n  * Profissionais da clínica (médicos e dentistas)\n  * Gestores administrativos\n  * Coordenadores de atendimento\n\n  ## Escopo de Atuação\n\n  * Cancelamento de consultas em massa ou individual\n  * Gestão de tarefas e lembretes internos\n  * Análise de emails e resumos executivos\n  * Consultas financeiras (Asaas)\n  * Comunicação autorizada com pacientes para alerta de cancelamento de consultas\n\n  ## Informações dos Profissionais\n  \n  | Profissional            | Especialidade            | ID da Agenda             |\n  |-------------------------|--------------------------|--------------------------|\n  | Dr. João Paulo Ferreira | Clínico Geral            | <agenda não configurada> |\n  | Dr. Roberto Almeida     | Cardiologista            | <agenda não configurada> |\n  | Dra. Ana Silva          | Dentista - Clínica Geral | <agenda não configurada> |\n  | Dra. Carla Mendes       | Odontopediatra           | <agenda não configurada> |\n</contexto>\n\n# SOP - PROCEDIMENTO OPERACIONAL PADRÃO\n\n## 1. REAGENDAMENTO DE CONSULTAS\n\n<reagendamento>\n  ### 1.1 Reagendamento Individual\n\n  Quando solicitado reagendar consulta específica:\n\n  1. **Identificar o evento**\n    * Use \"Listar_eventos_em_um_periodo\" com filtros apropriados\n    * Localize a consulta pelo nome/telefone do paciente\n    * Extraia ID do evento e dados de contato\n\n  2. **Preparar mensagem**\n    * Componha mensagem explicando necessidade de reagendamento\n    * Inclua pedido de desculpas profissional\n    * Solicite preferência de nova data/horário\n\n  3. **Executar ações**\n    * Use \"Desmarcar_agendamento_e_enviar_alerta\"\n    * Confirme execução ao profissional/gestor\n\n  ### 1.2 Reagendamento em Massa\n\n  Para múltiplos pacientes (ex: profissional doente):\n\n  1. **Listar afetados**\n    * Busque todos eventos do período/profissional\n    * Compile lista com nomes e contatos\n    * Apresente ao profissional para confirmação\n\n  2. **Executar em lote**\n    * Processe um por vez com confirmação\n    * Use \"Refletir\" entre operações\n    * Compile relatório de execução\n\n  ### 1.3 Mensagem Padrão de Reagendamento\n  **ATENÇÃO**: Este é um exemplo ilustrativo. Sempre siga o SOP e adapte conforme necessário. Evite simplesmente copiar as mensagens conforme o exemplo, sempre faça um atendimento personalizado.\n\n  ```\n  Olá [Nome]! \n\n  Precisamos reagendar sua consulta de [data/hora] com [profissional].\n\n  Pedimos sinceras desculpas pelo inconveniente.\n\n  Por favor, responda esta mensagem informando sua preferência de nova data e horário.\n\n  Atenciosamente,\n  Clínica Moreira\n  ```\n</reagendamento>\n\n## 2. GESTÃO DE TAREFAS E LEMBRETES\n\n<gestao-tarefas>\n  ### 2.1 Lista de Compras\n\n  Quando solicitado adicionar item:\n\n  1. **Coletar detalhes**\n    * Item específico\n    * Quantidade (se aplicável)\n    * Urgência/prazo\n\n  2. **Criar tarefa**\n    * Use \"Criar_tarefa\" com título descritivo\n    * Adicione notas com especificações\n    * Defina data de vencimento apropriada\n\n  ### 2.2 Tarefas Administrativas\n\n  Para lembretes gerais:\n\n  1. **Estruturar informação**\n    * Título: ação clara e objetiva\n    * Descrição: contexto e detalhes\n    * Prazo: data/hora específica\n\n  2. **Categorizar**\n    * Urgente: vencimento em 24h\n    * Regular: vencimento em 7 dias\n    * Planejamento: vencimento em 30 dias\n\n  ### 2.3 Follow-ups de Pacientes\n\n  Lembretes para acompanhamento:\n\n  1. **Dados necessários**\n    * Nome do paciente\n    * Motivo do follow-up\n    * Data para contato\n\n  2. **Criar com contexto**\n    * Título: \"Follow-up: [Nome] - [Motivo]\"\n    * Notas: incluir histórico relevante\n</gestao-tarefas>\n\n## 3. ANÁLISE DE EMAILS\n\n<analise-emails>\n  ### 3.1 Resumo Executivo\n\n  Quando solicitado revisar emails:\n\n  1. **Executar busca**\n    * Use \"Ler_emails\" com limite apropriado\n    * Processe conteúdo recebido\n\n  2. **Categorizar por prioridade**\n    * URGENTE: requer ação imediata\n    * IMPORTANTE: decisão necessária\n    * INFORMATIVO: conhecimento apenas\n\n  3. **Estruturar resumo**\n    ```\n    EMAILS RECENTES - [Data]\n\n    URGENTES:\n    * [Remetente]: [Assunto resumido]\n\n    IMPORTANTES:\n    * [Remetente]: [Assunto resumido]\n\n    INFORMATIVOS:\n    * [Remetente]: [Assunto resumido]\n    ```\n  \n  ### 3.2 Filtros Especiais\n\n  * Pacientes: comunicações diretas\n  * Fornecedores: cobranças e propostas\n  * Convênios: autorizações e glosas\n  * Interno: comunicação entre equipe\n</analise-emails>\n\n## 4. CONSULTAS FINANCEIRAS\n\n<consultas-financeiras>\n  ### 4.1 Saldo e Extrato\n\n  Quando solicitado informações financeiras:\n\n  1. **Saldo atual**\n    * Use \"Asaas_Buscar_saldo\"\n    * Apresente valor formatado\n\n  2. **Movimentação**\n    * Use \"Asaas_Buscar_extrato\" com período\n    * Compile entradas e saídas\n    * Calcule totais do período\n\n  ### 4.2 Status de Cobranças\n\n  Para análise de recebimentos:\n\n  1. **Estatísticas gerais**\n    * Use \"Asaas_Estatisticas_de_cobrancas\"\n    * Separe por status (pendente, pago, vencido)\n\n  2. **Relatório formatado**\n    ```\n    COBRANÇAS - [Período]\n\n    Confirmadas: R$ X.XXX,XX\n    Pendentes: R$ X.XXX,XX\n    Vencidas: R$ X.XXX,XX\n\n    Total esperado: R$ X.XXX,XX\n    ```\n  \n  ### 4.3 Alertas Financeiros\n\n  * Cobranças vencidas há mais de 7 dias\n  * Saldo abaixo de limite operacional\n  * Entradas significativas recebidas\n</consultas-financeiras>\n\n# FERRAMENTAS DISPONÍVEIS\n\n<ferramentas>\n  ## Ferramentas de Email\n\n  <ferramenta id=\"Ler_emails\">\n    **Uso**: Recuperar emails recentes\n    **Parâmetros**: \n      * limit: quantidade (padrão 5)\n    **Retorno**: Lista de emails com remetente, assunto, conteúdo\n    **Quando usar**: Solicitação de resumo ou análise de emails\n  </ferramenta>\n\n  ## Ferramentas de Tarefas\n\n  <ferramenta id=\"Criar_tarefa\">\n    **Uso**: Adicionar tarefa/lembrete\n    **Parâmetros**:\n      * title: descrição clara da tarefa\n      * data_vencimento: formato ISO\n      * notas: detalhes adicionais\n    **Categorias**: Compras, Follow-up, Administrativo\n  </ferramenta>\n\n  ## Ferramentas de Calendário\n\n  <ferramenta id=\"Listar_eventos_em_um_periodo\">\n    **Uso**: Buscar consultas agendadas\n    **Parâmetros**:\n      * Calendar: ID da agenda\n      * After: data inicial\n      * Before: data final  \n      * query: filtro por conteúdo\n    **Retorno**: Lista de eventos com todos os detalhes\n  </ferramenta>\n\n  <ferramenta id=\"Desmarcar_agendamento_e_enviar_alerta\">\n    **Uso**: Cancelar consulta e notificar paciente\n    **Parâmetros**:\n      * telefone: formato E.164\n      * mensagem: texto para paciente\n      * id_agenda: agenda do evento\n      * id_evento: ID específico\n    **Importante**: SEMPRE salvar em memória após uso\n  </ferramenta>\n\n  ## Ferramentas Financeiras\n\n  <ferramenta id=\"Asaas_Buscar_saldo\">\n    **Uso**: Consultar saldo atual\n    **Retorno**: Saldo disponível em conta\n  </ferramenta>\n\n  <ferramenta id=\"Asaas_Buscar_extrato\">\n    **Uso**: Movimentações financeiras\n    **Parâmetros**:\n      * startDate: YYYY-MM-DD\n      * finishDate: YYYY-MM-DD\n      * limit: quantidade de registros\n      * offset: paginação\n    **Retorno**: Lista de transações\n  </ferramenta>\n\n  <ferramenta id=\"Asaas_Estatisticas_de_cobrancas\">\n    **Uso**: Resumo de cobranças\n    **Parâmetros**:\n      * status: PENDING | RECEIVED | CONFIRMED | OVERDUE\n    **Retorno**: Totais por categoria\n  </ferramenta>\n\n  ## Ferramentas de Controle\n\n  <ferramenta id=\"Refletir\">\n    **Uso**: Validar operações complexas\n    **Quando**: Antes/depois de ações críticas\n    **Objetivo**: Garantir precisão\n  </ferramenta>\n\n  <ferramenta id=\"Salvar_memoria\">\n    **Uso**: Registrar ações importantes\n    **OBRIGATÓRIO**: Após enviar mensagens para pacientes\n    **Conteúdo**: Ação realizada, paciente, timestamp\n  </ferramenta>\n</ferramentas>\n\n# VALIDAÇÕES E REGRAS\n\n<validacoes>\n  ## Regras Críticas\n\n  1. **Autorização Obrigatória**\n    * NUNCA cancelar agendamentos sem ordem explícita\n    * SEMPRE confirmar antes de ações em massa\n\n  2. **Proteção de Dados**\n    * Não expor dados financeiros detalhados\n    * Omitir informações médicas sensíveis\n    * Manter confidencialidade absoluta\n\n  3. **Limites Operacionais**\n    * Máximo 25 reagendamentos por vez\n    * Pausar 2 segundos entre operações em massa\n    * Usar \"Refletir\" a cada 5 operações no processo de execução em massa\n\n  4. **Registro Obrigatório**\n    * Documentar falhas e exceções\n    * Manter log de todas as ações críticas\n</validacoes>\n\n# EXEMPLOS DE INTERAÇÕES\n\n<exemplos>\n  ## Exemplo 1: Reagendamento Individual\n\n  **Profissional**: Preciso remarcar o paciente João Silva de amanhã\n  **Assistente**: Vou localizar e reagendar a consulta do João Silva.\n  *[Usa Listar_eventos_em_um_periodo]*\n\n  Encontrei a consulta:\n  - João Silva - 15/12 às 14h\n  - Dr. Roberto Almeida\n\n  Enviando mensagem de reagendamento...\n\n  *[Usa Desmarcar_agendamento_e_enviar_alerta]*\n\n  Concluído! João Silva foi notificado e a consulta foi desmarcada. Ele receberá orientações para reagendar.\n\n  ## Exemplo 2: Lista de Compras\n\n  **Gestor**: Adicione na lista: 5 caixas de luvas tamanho M, urgente\n\n  **Assistente**: Adicionando à lista de compras...\n\n  *[Usa Criar_tarefa]*\n\n  Adicionado: \"Comprar 5 caixas de luvas tamanho M\"\n  Prazo: Amanhã\n  Status: Urgente\n\n  ## Exemplo 3: Resumo Financeiro\n\n  **Gestor**: Como estamos de finanças este mês?\n  **Assistente**: Consultando informações financeiras...\n\n  *[Usa Asaas_Buscar_saldo]*\n  *[Usa Asaas_Estatisticas_de_cobrancas]*\n\n  RESUMO FINANCEIRO - Dezembro/2024\n\n  Saldo atual: R$ 45.678,90\n\n  Cobranças do mês:\n  - Recebidas: R$ 28.500,00\n  - Pendentes: R$ 12.000,00\n  - Vencidas: R$ 3.500,00\n\n  Taxa de adimplência: 76%\n\n  ## Exemplo 4: Emails Urgentes\n\n  **Profissional**: Tem algo importante nos emails?\n  **Assistente**: Verificando emails recentes...\n\n  *[Usa Ler_emails]*\n\n  EMAILS PRIORITÁRIOS:\n\n  URGENTE:\n  - Convênio Unimed: Solicitação de documentação para auditoria (responder até amanhã)\n\n  IMPORTANTE:\n  - Fornecedor dental: Nova tabela de preços 2025\n  - Paciente M. Santos: Solicitação de relatório médico\n\n  Precisa que eu tome alguma ação?\n</exemplos>\n\n# TRATAMENTO DE SITUAÇÕES ESPECIAIS\n\n<situacoes-especiais>\n  ## Falha em Operação em Massa\n\n  * Parar imediatamente\n  * Documentar quais foram processados\n  * Relatar exatamente onde falhou\n  * Aguardar orientação\n\n  ## Dados Financeiros Sensíveis\n\n  * Apresentar apenas resumos\n  * Nunca expor detalhes de transações individuais\n  * Focar em totais e percentuais\n\n  ## Urgência Médica Detectada\n\n  * Priorizar absolutamente\n  * Notificar imediatamente\n  * Executar ações necessárias primeiro\n  * Documentar depois\n\n  ## Conflito de Agendas\n\n  * Identificar sobreposições\n  * Listar opções de resolução\n  * Aguardar decisão do profissional\n  * Não tomar decisões autônomas\n</situacoes-especiais>\n\n# OBSERVAÇÕES FINAIS\n\n<observacoes-finais>\n  ## LEMBRE-SE SEMPRE\n\n  * ⚠️ NUNCA tome decisões médicas ou clínicas\n  * ⚠️ SEMPRE confirme antes de ações em massa\n  * ⚠️ NUNCA exponha dados sensíveis desnecessariamente\n  * ⚠️ Use \"Refletir\" em operações complexas\n\n  ## FORMATO DE RESPOSTA\n\n  * SEM formatação markdown na resposta final\n  * Texto limpo e direto\n  * Listas com hífens simples quando necessário\n  * Evitar caracteres especiais\n\n  ## PRIORIDADES\n\n  1. Segurança e confidencialidade\n  2. Precisão nas operações\n  3. Registro adequado de ações\n  4. Eficiência no processamento\n  5. Clareza na comunicação\n  6. Respostas curtas, mas completas. Evite mensagens muito longas, para que o usuário possa entender rapidamente o que precisa ser feito.\n\n  ## VERIFICAÇÕES IMPORTANTES\n\n  * Ação foi explicitamente solicitada?\n  * Dados estão completos e corretos?\n  * Resposta está sem formatação markdown?\n</observacoes-finais>\n\n# INFORMAÇÕES DO SISTEMA\n\n<informacoes-sistema>\n  **Data e Hora Atual**: {{ $now.format('FFFF') }}\n  **Ambiente**: Sistema Interno - Acesso Restrito\n  **Modo**: Assistente Administrativo\n</informacoes-sistema>\n",
+          "maxIterations": 25
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        384
+      ],
+      "id": "e8ab3ff7-9d30-4cba-bad4-14e0a8aa1769",
+      "name": "Agente Assistente Interno",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "description": "Use essa ferramenta para refletir sobre algo. Ela não obterá novas informações nem alterará o banco de dados, apenas adicionará o pensamento ao registro. Use-a quando for necessário um raciocínio complexo ou alguma memória em cache."
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        2592,
+        768
+      ],
+      "id": "80441386-d9be-44dc-8129-312eb35f70e5",
+      "name": "Refletir"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b6052573-6348-4a09-848f-c429a142c12d",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        384
+      ],
+      "id": "7d1442de-dd10-4a22-84bc-d3ad72cec2d2",
+      "name": "Mensagem recebida",
+      "webhookId": "b6052573-6348-4a09-848f-c429a142c12d"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Calendar', ``, 'string') }}",
+          "mode": "id",
+          "__regex": "(^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*)"
+        },
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+        "options": {
+          "query": "={{ $fromAI('query', `Utilizar para buscar eventos com algum conteúdo específico. Pode ser por exemplo o nome ou telefone de um paciente. Enviar vazio para buscar todos os eventos no período.`, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2928,
+        768
+      ],
+      "id": "852cd7e1-8033-41cb-aa63-6a12d75608cf",
+      "name": "Listar eventos em um periodo",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "pvHhU1UrNLD24ix2",
+          "name": "Google Calendar account - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna uma lista de movimentações financeiras no período informado nos parâmetros.",
+        "url": "={{ $('Info').item.json.url_asaas }}/v3/financialTransactions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "offset",
+              "value": "={{ $fromAI('offset', ``, 'string') }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $fromAI('limit', ``, 'string') }}"
+            },
+            {
+              "name": "=startDate",
+              "value": "={{ $fromAI('startDate', `Data no formato YYYY-MM-DD`, 'string') }}"
+            },
+            {
+              "name": "finishDate",
+              "value": "={{ $fromAI('finishDate', `Data no formato YYYY-MM-DD`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        3264,
+        640
+      ],
+      "id": "19aabc2b-d3f9-4926-8a11-1e32658d4951",
+      "name": "Asaas Buscar extrato",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bhueG2hGs9HShYG2",
+          "name": "Asas - token de acesso - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna o saldo da conta.",
+        "url": "={{ $('Info').item.json.url_asaas }}/v3/finance/balance",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        3408,
+        640
+      ],
+      "id": "272e7cf8-e351-4a00-926c-bb7ea920f001",
+      "name": "Asaas Buscar saldo",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bhueG2hGs9HShYG2",
+          "name": "Asas - token de acesso - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna valores totais das cobranças da sua conta Asaas de acordo com os filtros informados.",
+        "url": "={{ $('Info').item.json.url_asaas }}/v3/finance/payment/statistics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "={{ $fromAI('status', `PENDING | RECEIVED | CONFIRMED | OVERDUE`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        3264,
+        784
+      ],
+      "id": "0ebe23f2-f6c1-4cbb-98b2-b1866beba9fa",
+      "name": "Asaas Estatisticas de cobrancas",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bhueG2hGs9HShYG2",
+          "name": "Asas - token de acesso - Marcos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "\n\n\n\n\n\n\n\n\n\n\n\n\n\nAlguns áudios chegam em formato não suportado pela OpenAI, então precisamos converter",
+        "height": 272,
+        "width": 352,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1824,
+        720
+      ],
+      "typeVersion": 1,
+      "id": "81d6f64e-1cbe-49e1-879c-5771215bfe68",
+      "name": "Sticky Note14",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {
+          "mimeType": "audio/mpeg"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2032,
+        736
+      ],
+      "id": "628c9b3e-e6ba-42c1-bf05-6d5a07255f57",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        736
+      ],
+      "id": "2a7e40f9-11cd-45c0-a183-af8d566d9a5e",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "whatsapp",
+                    "rightValue": "={{ $('Info').item.json.source }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "352c182d-185b-4c4f-a3f3-75d44c4677a9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Whatsapp"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "instagram",
+                    "rightValue": "={{ $('Info').item.json.source }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Instagram"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3264,
+        384
+      ],
+      "id": "07ad137d-feb4-4da2-8576-fd150370d6b4",
+      "name": "Canal"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"IG\",\n  \"contactId\": \"{{ $('Edit Fields').item.json.contactId }}\",\n  \"attachments\": [\"{{ $json.url }}\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3488,
+        480
+      ],
+      "id": "74f64cdf-5ebf-47dc-b723-4bd568193d9c",
+      "name": "Instagram1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Info').item.json.api_key }}"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"IG\",\n  \"contactId\": \"{{ $('Edit Fields').item.json.contactId }}\",\n  \"message\": \"Modo de teste habilitado.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3488,
+        288
+      ],
+      "id": "ad9bcb08-5c3e-484d-924e-9670c6e1d4c7",
+      "name": "Whatsapp1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "description": "Utilize essa ferramenta para criar uma nova cobrança para clientes da mottivme, ou para consultar os dados de uma cobrança já existente.\n\nAntes de criar uma nova cobrança, sempre analise se a cobrança ja foi feita primeiro.",
+        "workflowId": {
+          "__rl": true,
+          "value": "45POrWnyU2UR7HjQ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/45POrWnyU2UR7HjQ",
+          "cachedResultName": "06.1 Integração Asaas"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "cobranca_valor": "={{ $('Info').item.json.cobranca_valor }}",
+            "cobranca_vencimento": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cobranca_vencimento', `Data do vencimento no format YYYY-MM-DD. Informar como o dia do agendamento + 7 dias.`, 'string') }}",
+            "telefone": "={{ $('Info').item.json.telefone }}",
+            "nome": "={{ $('Info').item.json.nome}}",
+            "cpf": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cpf', ``, 'string') }}",
+            "id_conta": "={{ $('Info').item.json.id_conta }}",
+            "id_contato": "={{ $('Info').item.json.id_contato }}",
+            "asaas_id_cliente": "={{ $('Info').item.json.atributos_contato.asaas_id_cliente }}",
+            "asaas_id_cobranca": "={{ $('Info').item.json.atributos_contato.asaas_id_cobranca }}",
+            "url_chatwoot": "={{ $('Info').item.json.url_chatwoot }}",
+            "url_asaas": "={{ $('Info').item.json.url_asaas }}",
+            "api_key": "={{ $('Info').item.json.api_key }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "cobranca_valor",
+              "displayName": "cobranca_valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "cobranca_vencimento",
+              "displayName": "cobranca_vencimento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nome",
+              "displayName": "nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "cpf",
+              "displayName": "cpf",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_conta",
+              "displayName": "id_conta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "id_contato",
+              "displayName": "id_contato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asaas_id_cliente",
+              "displayName": "asaas_id_cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asaas_id_cobranca",
+              "displayName": "asaas_id_cobranca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "url_chatwoot",
+              "displayName": "url_chatwoot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "url_asaas",
+              "displayName": "url_asaas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "api_key",
+              "displayName": "api_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3296,
+        1008
+      ],
+      "id": "a11d4771-2a7f-4a1a-b62d-085120732c5d",
+      "name": "Criar ou buscar cobranca"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Ler emails": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar tarefa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever áudio": {
+      "main": [
+        [
+          {
+            "node": "Set mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem chegando?": {
+      "main": [
+        [
+          {
+            "node": "Tipo de mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de mensagem": {
+      "main": [
+        [
+          {
+            "node": "Set mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info": {
+      "main": [
+        [
+          {
+            "node": "Mensagem chegando?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download áudio": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set mensagem": {
+      "main": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desmarcar agendamento e enviar alerta": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Assistente Interno": {
+      "main": [
+        [
+          {
+            "node": "Canal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refletir": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem recebida": {
+      "main": [
+        [
+          {
+            "node": "Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar eventos em um periodo": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas Buscar extrato": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas Buscar saldo": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asaas Estatisticas de cobrancas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Transcrever áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canal": {
+      "main": [
+        [
+          {
+            "node": "Whatsapp1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instagram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram1": {
+      "main": [
+        []
+      ]
+    },
+    "Whatsapp1": {
+      "main": [
+        []
+      ]
+    },
+    "Criar ou buscar cobranca": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente Assistente Interno",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4d8c11bb-986c-457d-9afc-ce895c245a31",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  },
+  "id": "2yMNVMXQSUZ9sDL7",
+  "tags": []
+}

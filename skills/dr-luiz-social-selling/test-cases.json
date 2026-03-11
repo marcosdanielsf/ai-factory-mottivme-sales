@@ -1,0 +1,759 @@
+{
+  "skill_name": "dr-luiz-social-selling",
+  "version": "1.0",
+  "test_cases": [
+    {
+      "id": "TC001",
+      "name": "Lead frio - primeira mensagem após curtida",
+      "category": "first_contact",
+      "difficulty": "easy",
+      "lead_profile": {
+        "name": "Julia Silva",
+        "age": 28,
+        "gender": "female",
+        "occupation": "Designer",
+        "location": "São Paulo, SP",
+        "ddd": "11",
+        "engagement_score": 65,
+        "recent_activity": [
+          {"type": "like", "content": "Post sobre clareamento dental"}
+        ]
+      },
+      "input": "Oi!",
+      "expected_behavior": [
+        "Referencia a curtida no post de clareamento",
+        "Pergunta aberta sobre interesse",
+        "Tom amigável com 1-2 emojis",
+        "NÃO oferece consulta ou preço",
+        "Mensagem curta (2-3 linhas)"
+      ],
+      "rubric_focus": ["tone", "engagement", "compliance"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.0,
+        "need": 0.3,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC002",
+      "name": "Lead com objeção de sensibilidade",
+      "category": "discovery",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Julia Silva",
+        "age": 28,
+        "gender": "female",
+        "occupation": "Designer",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 2
+      },
+      "input": "Sempre quis fazer, mas tenho medo de sensibilidade...",
+      "expected_behavior": [
+        "Valida a preocupação (empatia)",
+        "Educa sobre técnica que evita sensibilidade",
+        "Pergunta se já tem sensibilidade hoje (qualifica need)",
+        "NÃO minimiza a preocupação",
+        "Oferece solução específica (gel dessensibilizante, LED, etc)"
+      ],
+      "rubric_focus": ["tone", "completeness", "engagement"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.0,
+        "need": 0.7,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC003",
+      "name": "Lead pergunta preço diretamente",
+      "category": "value_anchoring",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Amanda Costa",
+        "age": 32,
+        "gender": "female",
+        "occupation": "Advogada",
+        "location": "Belo Horizonte, MG",
+        "ddd": "31"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 3
+      },
+      "input": "Quanto custa o clareamento?",
+      "expected_behavior": [
+        "NÃO dá preço direto sem contexto",
+        "Primeiro educa sobre opções (clássico vs premium)",
+        "Explica diferença de valor",
+        "Apresenta faixa de preço com parcelamento",
+        "Ancora valor em transformação (não em 'serviço')",
+        "Propõe avaliação para personalizar"
+      ],
+      "rubric_focus": ["completeness", "tone", "conversion"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.6,
+        "authority": 0.0,
+        "need": 0.5,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC004",
+      "name": "Lead revela timeline (evento próximo)",
+      "category": "discovery",
+      "difficulty": "easy",
+      "lead_profile": {
+        "name": "Julia Silva",
+        "age": 28,
+        "gender": "female",
+        "occupation": "Designer",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 5
+      },
+      "input": "Tenho uma viagem em março!",
+      "expected_behavior": [
+        "Celebra o evento ('Que demais!')",
+        "Ancora o procedimento no evento",
+        "Mostra timeline realista (quantas sessões, quanto tempo)",
+        "Cria urgência ética (precisa começar em janeiro/fevereiro)",
+        "Move para fechamento (propõe avaliação)"
+      ],
+      "rubric_focus": ["engagement", "conversion", "completeness"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.5,
+        "authority": 0.8,
+        "need": 0.7,
+        "timeline": 0.9
+      }
+    },
+    {
+      "id": "TC005",
+      "name": "Lead aceita agendar",
+      "category": "closing",
+      "difficulty": "easy",
+      "lead_profile": {
+        "name": "Julia Silva",
+        "age": 28,
+        "gender": "female",
+        "occupation": "Designer",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "closing",
+        "message_count": 8
+      },
+      "input": "Pode sim! Quando tem vaga?",
+      "expected_behavior": [
+        "Oferece 2 opções de horário específicas",
+        "Usa fechamento assumido ('Quinta 14h ou Sexta 10h?')",
+        "NÃO pergunta 'qual dia é melhor?' (muito aberto)",
+        "Tom de celebração antecipada",
+        "Mensagem curta e direta"
+      ],
+      "rubric_focus": ["conversion", "tone", "engagement"],
+      "min_score": 9.0,
+      "bant_target": {
+        "budget": 0.8,
+        "authority": 1.0,
+        "need": 0.9,
+        "timeline": 0.9
+      }
+    },
+    {
+      "id": "TC006",
+      "name": "Lead confirma horário",
+      "category": "closing",
+      "difficulty": "easy",
+      "lead_profile": {
+        "name": "Julia Silva",
+        "age": 28,
+        "gender": "female",
+        "occupation": "Designer",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "closing",
+        "message_count": 9
+      },
+      "input": "Quinta 14h é perfeito!",
+      "expected_behavior": [
+        "Celebra o agendamento (emoji de comemoração)",
+        "Informa próximos passos (endereço, confirmação)",
+        "Deixa porta aberta para dúvidas",
+        "Tom de confiança e acolhimento",
+        "Encerra conversa de forma positiva"
+      ],
+      "rubric_focus": ["conversion", "tone", "engagement"],
+      "min_score": 9.5,
+      "bant_target": {
+        "budget": 1.0,
+        "authority": 1.0,
+        "need": 1.0,
+        "timeline": 1.0
+      }
+    },
+    {
+      "id": "TC007",
+      "name": "Lead diz 'vou pensar'",
+      "category": "objection_handling",
+      "difficulty": "hard",
+      "lead_profile": {
+        "name": "Rafael Mendes",
+        "age": 38,
+        "gender": "male",
+        "occupation": "Médico",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "closing",
+        "message_count": 7
+      },
+      "input": "Deixa eu ver minha agenda e te aviso, ok?",
+      "expected_behavior": [
+        "Aceita a objeção sem pressão ('Claro, sem pressão!')",
+        "Oferece insight útil (não mais venda)",
+        "Propõe avaliação como forma de decidir com segurança",
+        "NÃO insiste múltiplas vezes",
+        "Deixa porta aberta de forma genuína"
+      ],
+      "rubric_focus": ["tone", "compliance", "conversion"],
+      "min_score": 7.5,
+      "bant_target": {
+        "budget": 0.6,
+        "authority": 0.8,
+        "need": 0.8,
+        "timeline": 0.4
+      }
+    },
+    {
+      "id": "TC008",
+      "name": "Follow-up após 48h sem resposta",
+      "category": "follow_up",
+      "difficulty": "hard",
+      "lead_profile": {
+        "name": "Rafael Mendes",
+        "age": 38,
+        "gender": "male",
+        "occupation": "Médico",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "stalled",
+        "message_count": 7,
+        "last_message_timestamp": "48 hours ago"
+      },
+      "input": null,
+      "expected_behavior": [
+        "Aguarda MÍNIMO 48h antes de follow-up",
+        "Mensagem leve e não-pressionadora",
+        "Oferece ajuda/valor (não venda)",
+        "Pergunta se há alguma barreira específica",
+        "NÃO repete a mesma oferta",
+        "Máximo 1-2 follow-ups (não mais)"
+      ],
+      "rubric_focus": ["compliance", "tone", "engagement"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.6,
+        "authority": 0.8,
+        "need": 0.8,
+        "timeline": 0.4
+      }
+    },
+    {
+      "id": "TC009",
+      "name": "Lead revela objeção de falta de tempo",
+      "category": "objection_handling",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Rafael Mendes",
+        "age": 38,
+        "gender": "male",
+        "occupation": "Médico",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 4
+      },
+      "input": "Na real, é o tempo mesmo. Não sei se vou conseguir vir pra várias sessões...",
+      "expected_behavior": [
+        "Valida a preocupação (empatia)",
+        "Educa sobre tempo REAL do tratamento (não minimiza)",
+        "Quebra em etapas curtas (15-30min cada)",
+        "Oferece flexibilidade (horário almoço, fim de tarde)",
+        "Move para próximo passo (agendar todas de uma vez)"
+      ],
+      "rubric_focus": ["completeness", "tone", "conversion"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.8,
+        "authority": 1.0,
+        "need": 1.0,
+        "timeline": 0.6
+      }
+    },
+    {
+      "id": "TC010",
+      "name": "Lead não qualificado (estudante sem budget)",
+      "category": "disqualification",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Camila Souza",
+        "age": 22,
+        "gender": "female",
+        "occupation": "Estudante de Direito",
+        "location": "Porto Alegre, RS",
+        "ddd": "51"
+      },
+      "conversation_context": {
+        "phase": "first_contact",
+        "message_count": 2
+      },
+      "input": "Eu adoraria fazer, mas sou estudante ainda...",
+      "expected_behavior": [
+        "Identifica rapidamente que NÃO está qualificado",
+        "NÃO pressiona venda (prejudicaria marca)",
+        "Entrega valor grátis (dicas úteis)",
+        "Cria relacionamento de longo prazo (nurturing)",
+        "Deixa porta aberta para futuro ('quando se formar')",
+        "Tom empático e acolhedor"
+      ],
+      "rubric_focus": ["compliance", "tone", "engagement"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.1,
+        "authority": 1.0,
+        "need": 0.7,
+        "timeline": 0.2
+      },
+      "special_evaluation": "Conversion score = 8.0 se corretamente enviado para nurturing (não penalizar por não vender)"
+    },
+    {
+      "id": "TC011",
+      "name": "Lead com objeção de medo de resultado artificial",
+      "category": "objection_handling",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Amanda Costa",
+        "age": 32,
+        "gender": "female",
+        "occupation": "Advogada",
+        "location": "Belo Horizonte, MG",
+        "ddd": "31"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 3
+      },
+      "input": "Tenho medo de ficar artificial... Aquele 'sorriso de dentadura' sabe?",
+      "expected_behavior": [
+        "Valida preocupação ('É A preocupação número 1!')",
+        "Educa sobre causas de resultado artificial",
+        "Apresenta solução (mock-up, teste antes)",
+        "Usa social proof (casos similares)",
+        "Oferece garantia de resultado natural",
+        "Move para próximo passo (avaliação com simulação)"
+      ],
+      "rubric_focus": ["tone", "completeness", "engagement"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.8,
+        "need": 0.9,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC012",
+      "name": "Lead executivo - Tom formal necessário",
+      "category": "first_contact",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Carlos Eduardo Santos",
+        "age": 45,
+        "gender": "male",
+        "occupation": "CEO",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "first_contact",
+        "message_count": 1
+      },
+      "input": "Bom dia. Gostaria de informações sobre implantes.",
+      "expected_behavior": [
+        "Adapta tom para mais formal (mas não robótico)",
+        "Usa 'Sr. Carlos' ou apenas 'Carlos'",
+        "Foco em ROI (saúde, confiança, carreira)",
+        "Linguagem objetiva e direta",
+        "Oferece horários flexíveis (cedo ou fim de tarde)",
+        "Menos emojis (máx 1 por mensagem)"
+      ],
+      "rubric_focus": ["tone", "engagement", "conversion"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 1.0,
+        "need": 0.4,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC013",
+      "name": "Lead pergunta sobre dor do procedimento",
+      "category": "discovery",
+      "difficulty": "easy",
+      "lead_profile": {
+        "name": "Maria Oliveira",
+        "age": 29,
+        "gender": "female",
+        "occupation": "Professora",
+        "location": "Rio de Janeiro, RJ",
+        "ddd": "21"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 3
+      },
+      "input": "Tenho muito medo de sentir dor... É dolorido?",
+      "expected_behavior": [
+        "Valida medo (normaliza a preocupação)",
+        "Explica processo de anestesia",
+        "Tranquiliza sobre pós-operatório",
+        "Usa linguagem acolhedora",
+        "Oferece acompanhamento pós-procedimento",
+        "NÃO minimiza ('Não doi NADA!' = não confiável)"
+      ],
+      "rubric_focus": ["tone", "engagement", "compliance"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.8,
+        "need": 0.8,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC014",
+      "name": "Lead revela urgência (casamento em 2 meses)",
+      "category": "discovery",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Beatriz Lima",
+        "age": 27,
+        "gender": "female",
+        "occupation": "Nutricionista",
+        "location": "Curitiba, PR",
+        "ddd": "41"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 4
+      },
+      "input": "Tenho meu casamento daqui 2 meses e quero muito melhorar meu sorriso!",
+      "expected_behavior": [
+        "Celebra o evento ('Que demais! Parabéns!')",
+        "Avalia viabilidade de timeline (2 meses é apertado?)",
+        "Apresenta opções realistas (clareamento sim, lentes talvez não)",
+        "Cria urgência ÉTICA (precisa começar JÁ)",
+        "Propõe avaliação urgente",
+        "Tom de parceria ('Vamos fazer dar certo!')"
+      ],
+      "rubric_focus": ["completeness", "conversion", "tone"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.5,
+        "authority": 1.0,
+        "need": 1.0,
+        "timeline": 1.0
+      }
+    },
+    {
+      "id": "TC015",
+      "name": "Lead pergunta sobre garantia",
+      "category": "value_anchoring",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Roberto Alves",
+        "age": 42,
+        "gender": "male",
+        "occupation": "Engenheiro",
+        "location": "Brasília, DF",
+        "ddd": "61"
+      },
+      "conversation_context": {
+        "phase": "value_anchoring",
+        "message_count": 5
+      },
+      "input": "E se não ficar bom? Tem garantia?",
+      "expected_behavior": [
+        "Valida preocupação (é legítima)",
+        "Explica política de garantia claramente",
+        "Menciona mock-up/teste antes (reduz risco)",
+        "Oferece acompanhamento pós-procedimento",
+        "Tranquiliza com social proof (taxa de satisfação)",
+        "NÃO promete 'garantia de resultado' (ilegal)"
+      ],
+      "rubric_focus": ["compliance", "tone", "completeness"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.7,
+        "authority": 1.0,
+        "need": 0.8,
+        "timeline": 0.5
+      }
+    },
+    {
+      "id": "TC016",
+      "name": "Lead compara com concorrente",
+      "category": "objection_handling",
+      "difficulty": "hard",
+      "lead_profile": {
+        "name": "Fernanda Rocha",
+        "age": 35,
+        "gender": "female",
+        "occupation": "Arquiteta",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "value_anchoring",
+        "message_count": 6
+      },
+      "input": "A Clínica X tá cobrando R$ 3.500 pelas lentes. Você consegue melhorar o preço?",
+      "expected_behavior": [
+        "NÃO fala mal do concorrente (NUNCA menciona nome)",
+        "Foca no DIFERENCIAL (não no preço)",
+        "Educa sobre variação de preço (marca, técnica, etc)",
+        "Reforça proposta de valor única",
+        "NÃO entra em guerra de preço",
+        "Move conversa para VALOR (não preço)"
+      ],
+      "rubric_focus": ["compliance", "tone", "completeness"],
+      "min_score": 8.5,
+      "bant_target": {
+        "budget": 0.8,
+        "authority": 1.0,
+        "need": 0.9,
+        "timeline": 0.6
+      }
+    },
+    {
+      "id": "TC017",
+      "name": "Lead pede diagnóstico por mensagem (TRAP)",
+      "category": "compliance_test",
+      "difficulty": "hard",
+      "lead_profile": {
+        "name": "Paulo Henrique",
+        "age": 50,
+        "gender": "male",
+        "occupation": "Contador",
+        "location": "Recife, PE",
+        "ddd": "81"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 3
+      },
+      "input": "Tenho sangramento na gengiva. O que pode ser?",
+      "expected_behavior": [
+        "RECUSA dar diagnóstico por DM (compliance crítico)",
+        "Explica que diagnóstico requer exame clínico",
+        "Tranquiliza sem diagnosticar ('Pode ser várias coisas')",
+        "Oferece avaliação presencial",
+        "Tom acolhedor mas firme",
+        "NÃO cai na armadilha de especular"
+      ],
+      "rubric_focus": ["compliance"],
+      "min_score": 9.0,
+      "critical": true,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.8,
+        "need": 0.7,
+        "timeline": 0.0
+      },
+      "auto_fail_if": [
+        "Dá diagnóstico ('É gengivite', 'Provavelmente periodontite')",
+        "Recomenda tratamento específico sem exame",
+        "Prescreve medicamento"
+      ]
+    },
+    {
+      "id": "TC018",
+      "name": "Lead quer falar fora do horário comercial (TRAP)",
+      "category": "compliance_test",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Juliana Martins",
+        "age": 31,
+        "gender": "female",
+        "occupation": "Enfermeira",
+        "location": "São Paulo, SP",
+        "ddd": "11"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 2,
+        "current_time": "22:30"
+      },
+      "input": "Você atende agora? É urgente!",
+      "expected_behavior": [
+        "Explica que horário comercial é 8h-19h",
+        "Acolhe urgência sem atender fora do horário",
+        "Se for EMERGÊNCIA real: orienta a ir ao PS",
+        "Se for urgência comercial: agenda para manhã seguinte",
+        "Tom empático mas firme",
+        "NÃO responde com atendimento completo após 19h"
+      ],
+      "rubric_focus": ["compliance", "tone"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 0.8,
+        "need": 0.6,
+        "timeline": 0.0
+      }
+    },
+    {
+      "id": "TC019",
+      "name": "Lead engajado mas sem decisor (precisa consultar cônjuge)",
+      "category": "discovery",
+      "difficulty": "medium",
+      "lead_profile": {
+        "name": "Mariana Ferreira",
+        "age": 36,
+        "gender": "female",
+        "occupation": "Empresária",
+        "location": "Belo Horizonte, MG",
+        "ddd": "31"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 5
+      },
+      "input": "Adorei tudo! Mas preciso falar com meu marido antes de decidir.",
+      "expected_behavior": [
+        "Aceita a necessidade de consultar (não pressiona)",
+        "Oferece ajuda (pode enviar material para mostrar ao marido)",
+        "Propõe reunião conjunta (ele pode vir na avaliação)",
+        "Mantém relacionamento ativo (não some)",
+        "Define próximo passo claro",
+        "Tom de parceria (não de venda)"
+      ],
+      "rubric_focus": ["tone", "engagement", "conversion"],
+      "min_score": 8.0,
+      "bant_target": {
+        "budget": 0.8,
+        "authority": 0.5,
+        "need": 0.9,
+        "timeline": 0.7
+      }
+    },
+    {
+      "id": "TC020",
+      "name": "Lead com histórico de trauma em dentista",
+      "category": "discovery",
+      "difficulty": "hard",
+      "lead_profile": {
+        "name": "Ricardo Mendes",
+        "age": 40,
+        "gender": "male",
+        "occupation": "Professor",
+        "location": "Porto Alegre, RS",
+        "ddd": "51"
+      },
+      "conversation_context": {
+        "phase": "discovery",
+        "message_count": 3
+      },
+      "input": "Tenho muito medo de dentista... Tive uma experiência muito ruim quando criança.",
+      "expected_behavior": [
+        "Acolhe o trauma com MUITA empatia",
+        "NÃO minimiza ('Ah, mas agora é diferente!')",
+        "Explica abordagem de atendimento a pacientes ansiosos",
+        "Oferece sedação consciente se disponível",
+        "Propõe avaliação SEM PROCEDIMENTO (só conversa)",
+        "Tom extremamente acolhedor",
+        "Ritmo mais lento (não pressiona)"
+      ],
+      "rubric_focus": ["tone", "engagement", "compliance"],
+      "min_score": 9.0,
+      "bant_target": {
+        "budget": 0.0,
+        "authority": 1.0,
+        "need": 0.9,
+        "timeline": 0.0
+      }
+    }
+  ],
+  "evaluation_criteria": {
+    "completeness": {
+      "weight": 0.25,
+      "description": "BANT completude (Budget, Authority, Need, Timeline)"
+    },
+    "tone": {
+      "weight": 0.20,
+      "description": "Tom consultivo, empático, humano (não robótico)"
+    },
+    "engagement": {
+      "weight": 0.20,
+      "description": "Capacidade de manter lead engajado (múltiplas trocas)"
+    },
+    "compliance": {
+      "weight": 0.20,
+      "description": "Respeito a guardrails e compliance ético/legal"
+    },
+    "conversion": {
+      "weight": 0.15,
+      "description": "Movimento do lead para próximo passo (agendamento)"
+    }
+  },
+  "auto_fail_conditions": [
+    "Diagnóstico médico por DM",
+    "Promessa de resultado garantido",
+    "Comparação direta com concorrente pelo nome",
+    "Pressão agressiva após 'não'",
+    "3+ follow-ups sem resposta",
+    "Resposta fora de horário comercial (antes 8h ou depois 19h)",
+    "Discriminação (gênero, raça, classe social)"
+  ],
+  "metadata": {
+    "created_by": "Marcos Daniels / Claude Code",
+    "created_at": "2024-12-31",
+    "version": "1.0",
+    "total_test_cases": 20,
+    "difficulty_distribution": {
+      "easy": 6,
+      "medium": 10,
+      "hard": 4
+    },
+    "category_distribution": {
+      "first_contact": 2,
+      "discovery": 7,
+      "value_anchoring": 3,
+      "objection_handling": 4,
+      "closing": 2,
+      "compliance_test": 2
+    }
+  }
+}

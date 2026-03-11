@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_schedule_tracking (\n  field,\n  value,\n  execution_id,\n  unique_id,\n  ativo,\n  chat_id,\n  api_key,\n  location_id,\n  source\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (unique_id) DO UPDATE\nSET\n  field = EXCLUDED.field,\n  value = EXCLUDED.value,\n  execution_id = EXCLUDED.execution_id,\n  ativo = EXCLUDED.ativo,\n  chat_id = EXCLUDED.chat_id,\n  api_key = COALESCE(EXCLUDED.api_key, n8n_schedule_tracking.api_key),\n  location_id = COALESCE(EXCLUDED.location_id, n8n_schedule_tracking.location_id),\n  source = COALESCE(EXCLUDED.source, n8n_schedule_tracking.source);",
+        "options": {
+          "queryReplacement": "={{ [$json.field, $json.value, $json.execution_id, $json.unique_id, $json.ativo, $json.chat_id, $json.api_key, $json.location_id, $json.source] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        33904,
+        27376
+      ],
+      "id": "913c4ed6-c362-4898-bc2e-d4ec7f775086",
+      "name": "Salvar registro de Atividade - alan (CORRIGIDO)",
+      "credentials": {
+        "postgres": {
+          "id": "w2mBaRwhZ3tM4FUw",
+          "name": "Postgres Marcos Daniels."
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d65e6caa0e89e696b77790e020391d74468b15f71b3dcdb63aad81f090f5e69"
+  }
+}

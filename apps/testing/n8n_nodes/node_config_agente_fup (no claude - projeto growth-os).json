@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "description": "Nó para buscar/definir configuração do agente de follow-up",
+    "version": "1.0",
+    "instructions": "Adicionar este nó ANTES do nó 'Informacoes Relevantes - FUP1'"
+  },
+  "node": {
+    "parameters": {
+      "assignments": {
+        "assignments": [
+          {
+            "id": "agent-name-001",
+            "name": "agent_name",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.agent_name || 'Assistente' }}",
+            "type": "string"
+          },
+          {
+            "id": "company-name-001",
+            "name": "company_name",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.company_name || 'Empresa' }}",
+            "type": "string"
+          },
+          {
+            "id": "company-desc-001",
+            "name": "company_description",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.company_description || '' }}",
+            "type": "string"
+          },
+          {
+            "id": "agent-role-001",
+            "name": "agent_role",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.agent_role || 'Atendente' }}",
+            "type": "string"
+          },
+          {
+            "id": "fup-type-001",
+            "name": "follow_up_type",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.follow_up_type || 'sdr_inbound' }}",
+            "type": "string"
+          },
+          {
+            "id": "language-001",
+            "name": "language",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.language || 'pt-BR' }}",
+            "type": "string"
+          },
+          {
+            "id": "tone-001",
+            "name": "tone",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.tone || 'casual' }}",
+            "type": "string"
+          },
+          {
+            "id": "slang-001",
+            "name": "use_slang",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.use_slang !== false }}",
+            "type": "boolean"
+          },
+          {
+            "id": "emoji-001",
+            "name": "use_emoji",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.use_emoji !== false }}",
+            "type": "boolean"
+          },
+          {
+            "id": "max-emoji-001",
+            "name": "max_emoji",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.max_emoji_per_message || 1 }}",
+            "type": "number"
+          },
+          {
+            "id": "max-lines-001",
+            "name": "max_lines",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.max_message_lines || 3 }}",
+            "type": "number"
+          },
+          {
+            "id": "offer-attempt-001",
+            "name": "offer_value_attempt",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.offer_value_attempt || 3 }}",
+            "type": "number"
+          },
+          {
+            "id": "breakup-attempt-001",
+            "name": "breakup_attempt",
+            "value": "={{ $('Buscar Config Agente')?.item?.json?.breakup_attempt || 5 }}",
+            "type": "number"
+          }
+        ]
+      },
+      "options": {}
+    },
+    "type": "n8n-nodes-base.set",
+    "typeVersion": 3.4,
+    "position": [-4600, 816],
+    "id": "config-agente-fup-001",
+    "name": "Config Agente"
+  },
+  "supabase_query_node": {
+    "parameters": {
+      "operation": "executeQuery",
+      "query": "SELECT * FROM fuu_agent_configs WHERE location_id = '{{ $json.location_id }}' AND follow_up_type = 'sdr_inbound' AND is_active = true LIMIT 1",
+      "options": {}
+    },
+    "type": "n8n-nodes-base.postgres",
+    "typeVersion": 2.6,
+    "position": [-4800, 816],
+    "id": "buscar-config-agente-001",
+    "name": "Buscar Config Agente",
+    "credentials": {
+      "postgres": {
+        "id": "w2mBaRwhZ3tM4FUw",
+        "name": "Postgres Marcos Daniels."
+      }
+    },
+    "onError": "continueRegularOutput",
+    "retryOnFail": false
+  },
+  "fallback_defaults": {
+    "comment": "Se a tabela fuu_agent_configs não existir, usar estes defaults no nó Config Agente",
+    "defaults_by_location": {
+      "cd1uyzpJox6XPt4Vct8Y": {
+        "agent_name": "Isabella",
+        "company_name": "Instituto Amar",
+        "company_description": "Clínica de estética e bem-estar",
+        "agent_role": "Atendente",
+        "tone": "friendly",
+        "use_slang": true,
+        "use_emoji": true
+      },
+      "five_rings_location": {
+        "agent_name": "Julia",
+        "company_name": "Five Rings Financial",
+        "company_description": "Consultoria financeira para brasileiros nos EUA",
+        "agent_role": "SDR",
+        "tone": "casual",
+        "use_slang": true,
+        "use_emoji": false
+      }
+    }
+  }
+}

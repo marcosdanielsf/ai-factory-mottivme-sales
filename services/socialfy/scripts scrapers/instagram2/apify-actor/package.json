@@ -1,0 +1,16 @@
+{
+    "name": "mottivme-instagram-scraper",
+    "version": "1.0.0",
+    "description": "Simple Instagram profile scraper for MOTTIVME",
+    "main": "src/main.js",
+    "type": "module",
+    "scripts": {
+        "start": "node src/main.js"
+    },
+    "dependencies": {
+        "apify": "^3.1.0",
+        "crawlee": "^3.5.0"
+    },
+    "author": "MOTTIVME",
+    "license": "MIT"
+}

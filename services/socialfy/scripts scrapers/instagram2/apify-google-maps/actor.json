@@ -1,0 +1,8 @@
+{
+    "actorSpecification": 1,
+    "name": "google-maps-scraper",
+    "title": "MOTTIVME Google Maps Scraper",
+    "description": "Scraper de Google Maps para leads de médicos e dentistas",
+    "version": "1.0.0",
+    "dockerfile": "./Dockerfile"
+}
