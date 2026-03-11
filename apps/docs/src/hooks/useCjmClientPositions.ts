@@ -32,33 +32,47 @@ export const useCjmClientPositions = (locationId?: string | null) => {
         return;
       }
 
-      // Fetch contact names from cjm_events metadata
+      // Fetch contact names from cjm_events metadata (batched to avoid URL length limit)
       const contactIds = [...new Set(journeyData.map((j) => j.contact_id))];
-
-      const { data: eventsData } = await supabase
-        .from("cjm_events")
-        .select("contact_id, metadata")
-        .in("contact_id", contactIds)
-        .not("metadata", "is", null)
-        .order("occurred_at", { ascending: false });
-
-      // Build contact_id -> name lookup from most recent event metadata
       const nameMap = new Map<string, string>();
-      if (eventsData) {
-        for (const event of eventsData) {
-          if (!nameMap.has(event.contact_id)) {
-            const meta = event.metadata as Record<string, unknown> | null;
-            const name = meta?.contact_name as string | undefined;
-            if (name) {
-              nameMap.set(event.contact_id, name);
+      const CHUNK_SIZE = 50;
+      const chunks: string[][] = [];
+      for (let i = 0; i < contactIds.length; i += CHUNK_SIZE) {
+        chunks.push(contactIds.slice(i, i + CHUNK_SIZE));
+      }
+
+      const results = await Promise.all(
+        chunks.map((chunk) =>
+          supabase
+            .from("cjm_events")
+            .select("contact_id, metadata")
+            .in("contact_id", chunk)
+            .not("metadata", "is", null)
+            .order("occurred_at", { ascending: false })
+            .limit(chunk.length),
+        ),
+      );
+
+      for (const { data: eventsData } of results) {
+        if (eventsData) {
+          for (const event of eventsData) {
+            if (!nameMap.has(event.contact_id)) {
+              const meta = event.metadata as Record<string, unknown> | null;
+              const name = meta?.contact_name as string | undefined;
+              if (name) {
+                nameMap.set(event.contact_id, name);
+              }
             }
           }
         }
       }
 
       const result: CjmClientPosition[] = journeyData.map((j) => {
-        const hoursInStage =
-          (Date.now() - new Date(j.entered_stage_at).getTime()) / 3600000;
+        const enteredAt = j.entered_stage_at
+          ? new Date(j.entered_stage_at).getTime()
+          : Date.now();
+        const hoursInStage = (Date.now() - enteredAt) / 3600000;
+        const sla = j.sla_status as CjmSlaStatus;
         return {
           contact_id: j.contact_id,
           contact_name:
@@ -66,7 +80,8 @@ export const useCjmClientPositions = (locationId?: string | null) => {
           pipeline_id: j.pipeline_id,
           current_stage: j.current_stage,
           entered_stage_at: j.entered_stage_at,
-          sla_status: j.sla_status as CjmSlaStatus,
+          sla_status:
+            sla === "ok" || sla === "warning" || sla === "breach" ? sla : "ok",
           hours_in_stage: Math.max(0, hoursInStage),
         };
       });

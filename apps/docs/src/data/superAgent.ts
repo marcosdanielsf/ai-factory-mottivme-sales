@@ -1,55 +1,105 @@
-import { Member, Trainer } from '../types/rpg';
+import { Member, Trainer } from "../types/rpg";
 
 export const superAgent: Member = {
-  id: 'super-goku-1',
-  name: 'Sales Goku',
-  role: 'Super Agent',
-  type: 'super_agent',
+  id: "super-agent-001",
+  name: "Super Agent V4",
+  role: "Super Agent",
+  type: "super_agent",
   level: 1,
   xp: 0,
-  skills: [],
+  skills: [
+    {
+      id: "sk-followup",
+      name: "Follow Up Inteligente",
+      description: "Envia follow-ups contextuais baseados no historico do lead",
+      type: "action",
+    },
+    {
+      id: "sk-scheduling",
+      name: "Agendamento Automatico",
+      description: "Agenda reunioes com base na disponibilidade do calendario",
+      type: "action",
+    },
+    {
+      id: "sk-objection",
+      name: "Tratamento de Objecoes",
+      description: "Responde objecoes com framework A.R.O",
+      type: "prompt",
+    },
+  ],
   avatarStyle: {
-    color: '#f97316', // Orange like Goku's Gi
-    accessory: 'none',
-    aura: 'none'
-  }
+    color: "#f97316",
+    accessory: "crown",
+    aura: "none",
+  },
 };
 
 export const trainers: Trainer[] = [
   {
-    id: 'trainer-lawyer',
-    name: 'Dr. Lex',
-    role: 'Trainer',
-    type: 'trainer',
-    specialization: 'Law',
-    buffDescription: 'Conhecimento Jurídico & Contratos',
-    level: 50,
-    xp: 9999,
-    skills: [],
-    avatarStyle: { color: '#475569', accessory: 'glasses' }
+    id: "trainer-law",
+    name: "Dr. Lex",
+    role: "Trainer",
+    type: "trainer",
+    level: 10,
+    xp: 5000,
+    specialization: "Law",
+    buffDescription:
+      "Adiciona compliance juridica aos contratos e comunicacoes",
+    skills: [
+      {
+        id: "sk-compliance",
+        name: "Compliance Check",
+        description: "Valida clausulas e termos legais",
+        type: "passive",
+      },
+    ],
+    avatarStyle: {
+      color: "#3b82f6",
+      accessory: "glasses",
+    },
   },
   {
-    id: 'trainer-coach',
-    name: 'Master Sales',
-    role: 'Trainer',
-    type: 'trainer',
-    specialization: 'Coaching',
-    buffDescription: 'Técnicas de Vendas & Objeções',
-    level: 50,
-    xp: 9999,
-    skills: [],
-    avatarStyle: { color: '#eab308', accessory: 'headband' }
+    id: "trainer-fitness",
+    name: "Coach Titan",
+    role: "Trainer",
+    type: "trainer",
+    level: 10,
+    xp: 5000,
+    specialization: "Fitness",
+    buffDescription: "Aumenta energia e persistencia nas interacoes",
+    skills: [
+      {
+        id: "sk-persistence",
+        name: "Persistencia",
+        description: "Nunca desiste de um lead",
+        type: "passive",
+      },
+    ],
+    avatarStyle: {
+      color: "#ef4444",
+      accessory: "headband",
+    },
   },
   {
-    id: 'trainer-pt',
-    name: 'Coach Fit',
-    role: 'Trainer',
-    type: 'trainer',
-    specialization: 'Fitness',
-    buffDescription: 'Resistência em Follow-ups',
-    level: 50,
-    xp: 9999,
-    skills: [],
-    avatarStyle: { color: '#ef4444', accessory: 'none' }
-  }
+    id: "trainer-coaching",
+    name: "Mestre Kai",
+    role: "Trainer",
+    type: "trainer",
+    level: 10,
+    xp: 5000,
+    specialization: "Coaching",
+    buffDescription: "Melhora empatia e rapport com leads",
+    skills: [
+      {
+        id: "sk-rapport",
+        name: "Rapport Builder",
+        description: "Cria conexao emocional com o lead",
+        type: "passive",
+      },
+    ],
+    avatarStyle: {
+      color: "#eab308",
+      accessory: "helmet",
+    },
+  },
 ];

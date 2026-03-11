@@ -1,106 +1,137 @@
+export interface AgentMode {
+  id: string;
+  name: string;
+  description: string;
+}
 
-export const AGENT_MODES = [
+export interface AgentTool {
+  id: string;
+  name: string;
+  description: string;
+  params: string;
+}
+
+export const AGENT_MODES: AgentMode[] = [
   {
-    id: 'first_contact',
-    name: 'First Contact',
-    description: 'Primeiro contato com o lead. Foco em saudação e identificação.',
-    prompt_variable: 'prompts_por_modo.first_contact'
+    id: "first_contact",
+    name: "Primeiro Contato",
+    description: "Modo de abordagem inicial com o lead",
   },
   {
-    id: 'scheduler',
-    name: 'Scheduler',
-    description: 'Responsável por encontrar horários e agendar reuniões.',
-    prompt_variable: 'prompts_por_modo.scheduler'
+    id: "scheduler",
+    name: "Agendador",
+    description: "Modo focado em agendar consultas/reunioes",
   },
   {
-    id: 'rescheduler',
-    name: 'Rescheduler',
-    description: 'Gerencia reagendamentos de reuniões existentes.',
-    prompt_variable: 'prompts_por_modo.rescheduler'
+    id: "rescheduler",
+    name: "Reagendador",
+    description: "Modo para remarcar consultas canceladas",
   },
   {
-    id: 'concierge',
-    name: 'Concierge',
-    description: 'Auxilia com dúvidas gerais e direcionamento.',
-    prompt_variable: 'prompts_por_modo.concierge'
+    id: "concierge",
+    name: "Concierge",
+    description: "Modo de atendimento e suporte ao paciente",
   },
   {
-    id: 'customer_success',
-    name: 'Customer Success',
-    description: 'Foco em pós-venda e sucesso do cliente.',
-    prompt_variable: 'prompts_por_modo.customer_success'
+    id: "customer_success",
+    name: "Customer Success",
+    description: "Modo de acompanhamento pos-venda",
   },
   {
-    id: 'objection_handler',
-    name: 'Objection Handler',
-    description: 'Especialista em contornar objeções e negativas.',
-    prompt_variable: 'prompts_por_modo.objection_handler'
+    id: "objection_handler",
+    name: "Tratamento de Objecoes",
+    description: "Modo para contornar objecoes de leads",
   },
   {
-    id: 'followuper',
-    name: 'Followuper',
-    description: 'Realiza o acompanhamento de leads que não responderam.',
-    prompt_variable: 'prompts_por_modo.followuper'
-  }
+    id: "followuper",
+    name: "Follow Up",
+    description: "Modo de reengajamento de leads inativos",
+  },
+  {
+    id: "social_seller",
+    name: "Social Seller",
+    description: "Modo de venda social via Instagram/WhatsApp",
+  },
+  {
+    id: "reativador",
+    name: "Reativador",
+    description: "Modo para reativar leads frios",
+  },
+  {
+    id: "inbound",
+    name: "SDR Inbound",
+    description: "Modo de qualificacao de leads inbound",
+  },
 ];
 
-export const AGENT_TOOLS = [
+export const AGENT_TOOLS: AgentTool[] = [
   {
-    id: 'busca_disponibilidade',
-    name: 'Busca Disponibilidade',
-    description: 'Busca/consultar por horários disponíveis antes de agendar.',
-    usage: 'OBRIGATÓRIO antes de oferecer horários ao lead.',
-    params: 'calendar, dateStartFrom, dateEndTo'
+    id: "busca_disponibilidade",
+    name: "Busca Disponibilidade",
+    description: "Consulta horarios livres no calendario GHL",
+    params: "calendar_id, date_range",
   },
   {
-    id: 'agendar_reuniao',
-    name: 'Agendar Reunião',
-    description: 'Agendar uma nova reunião no CRM/GHL.',
-    usage: 'Use APÓS confirmar horário com o lead.',
-    params: 'nome, tel, email, eventId, data, hora'
+    id: "agendar_consulta",
+    name: "Agendar Consulta",
+    description: "Cria agendamento no calendario do cliente",
+    params: "calendar_id, contact_id, datetime, notes",
   },
   {
-    id: 'adicionar_tag_perdido',
-    name: 'Adicionar Tag Perdido',
-    description: 'Marcar lead como perdido/desqualificado.',
-    usage: 'Quando o lead não tem interesse ou pede para não ser contatado.',
-    params: 'contact_id'
-  }
+    id: "buscar_historico",
+    name: "Buscar Historico",
+    description: "Recupera historico de conversas do lead",
+    params: "contact_id, limit",
+  },
+  {
+    id: "enviar_mensagem",
+    name: "Enviar Mensagem",
+    description: "Envia mensagem via WhatsApp/Instagram",
+    params: "contact_id, message, channel",
+  },
+  {
+    id: "atualizar_lead",
+    name: "Atualizar Lead",
+    description: "Atualiza campos customizados do lead no GHL",
+    params: "contact_id, fields",
+  },
+  {
+    id: "buscar_preco",
+    name: "Buscar Preco",
+    description: "Consulta tabela de precos do servico",
+    params: "service_id",
+  },
+  {
+    id: "escalar_humano",
+    name: "Escalar para Humano",
+    description: "Transfere conversa para atendente humano",
+    params: "contact_id, reason, priority",
+  },
+  {
+    id: "consultar_knowledge",
+    name: "Consultar Knowledge Base",
+    description: "Busca informacoes na base de conhecimento",
+    params: "query, top_k",
+  },
 ];
 
-export const SYSTEM_PROMPT_TEMPLATE = `**CONTEXTO**
-DATA: {{ $now.format('FFFF') }}
-HORA_LOCAL: {{ $now.setZone('America/Sao_Paulo').toFormat('HH:mm') }}
-TEL/WHATSAPP: {{ $('Preparar Execução + Identificar Contexto').item.json.telefone }}
-EMAIL: {{ $('Preparar Execução + Identificar Contexto').item.json.email || 'não informado' }}
-NOME DO CLIENTE: {{ $('Preparar Execução + Identificar Contexto').item.json.first_name }} {{ $('Preparar Execução + Identificar Contexto').item.json.last_name }}
-CONTACT_ID: {{ $('Preparar Execução + Identificar Contexto').item.json.contact_id }}
-LOCATION_ID: {{ $('Preparar Execução + Identificar Contexto').item.json.location_id }}
-API_KEY: {{ $('Preparar Execução + Identificar Contexto').item.json.location_api_key }}
-MODO_ATUAL: {{ $json.modo_atual }}
+export const SYSTEM_PROMPT_TEMPLATE = `# {AGENT_NAME} {VERSION} - {CONTEXT}
 
-{{ $('Preparar Execução + Identificar Contexto').item.json.contexto_hiperpersonalizado }}
+## IDENTIDADE
+Voce e {AGENT_NAME}, assistente virtual de {BUSINESS_NAME}.
 
-## SAUDAÇÃO
-{{ $('Preparar Execução + Identificar Contexto').item.json.is_primeira_mensagem ? '- PRIMEIRA MENSAGEM: Use saudação apropriada (Bom dia/Boa tarde/Boa noite conforme HORA_LOCAL) + nome do cliente' : '- JÁ CONVERSARAM: Não use saudação, vá direto ao ponto' }}
-- HORA_LOCAL < 12 → "Bom dia"
-- HORA_LOCAL 12-17 → "Boa tarde"
-- HORA_LOCAL >= 18 → "Boa noite"
+## REGRAS
+1. Sempre responda em portugues brasileiro
+2. Seja cordial e profissional
+3. Nunca invente informacoes
+4. Siga o fluxo de atendimento do modo ativo
 
-## FERRAMENTAS DISPONÍVEIS
-- **Busca_disponibilidade**: OBRIGATÓRIO antes de oferecer horários
-- **Agendar_reuniao**: Criar agendamento (nome, tel, email, eventId, data, hora)
-- **Adicionar_tag_perdido**: Desqualificar lead
+## MODOS DE OPERACAO
+{MODES_CONFIG}
 
-## FORMATOS OBRIGATÓRIOS
-- **Telefone**: +00000000000 (sem espaços)
-- **Data**: dd/mm/yyyy
-- **Hora**: 24h (manter exato, não converter)
-- **Agendamento CRM**: ISO 8601 (Y-m-d\\TH:i:sP)
+## FERRAMENTAS DISPONIVEIS
+{TOOLS_CONFIG}
 
-## HISTÓRICO DE CONVERSAS ANTIGAS
-(Placeholder - implementar busca de histórico no GHL)
-
----
-
-{{ $json.prompt_dinamico }}`;
+## REGRAS DE COMPLIANCE
+{COMPLIANCE_RULES}
+`;
