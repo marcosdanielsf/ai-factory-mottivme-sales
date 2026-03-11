@@ -17,6 +17,10 @@ const LoadingFallback = () => (
   <div className="p-8 text-text-muted">Carregando...</div>
 );
 
+const LogoApproval = lazy(() =>
+  import("./pages/LogoApproval").then((m) => ({ default: m.LogoApproval })),
+);
+
 // All pages lazy loaded (except Login which needs to be eager)
 const Dashboard = lazy(() =>
   import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })),
@@ -396,6 +400,14 @@ const App = () => {
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/login" element={<Login />} />
+                    <Route
+                      path="/approve/logos"
+                      element={
+                        <Suspense fallback={<LoadingFallback />}>
+                          <LogoApproval />
+                        </Suspense>
+                      }
+                    />
                     <Route
                       path="/onboarding"
                       element={

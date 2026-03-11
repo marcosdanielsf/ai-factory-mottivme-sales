@@ -19,6 +19,7 @@ import {
   Fingerprint,
   Lightbulb,
   Layers,
+  Shirt,
 } from "lucide-react";
 import { useAccount } from "../../contexts/AccountContext";
 import { usePermissions } from "../../hooks/usePermissions";
@@ -36,6 +37,7 @@ import { DownloadAllButton } from "./components/DownloadAllButton";
 import { BrandStrategyWizard } from "./components/BrandStrategy";
 import { BrandConcepts } from "./components/BrandConcepts";
 import { BrandMarketplace } from "./components/BrandMarketplace";
+import { BrandShowcase } from "./components/BrandShowcase";
 import { supabase } from "../../lib/supabase";
 import type { BrandConfig } from "../../types/brand";
 
@@ -55,6 +57,7 @@ const TAB_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
   strategy: { label: "Estrategia", icon: Fingerprint },
   concepts: { label: "Conceitos", icon: Lightbulb },
   marketplace: { label: "Templates", icon: Layers },
+  showcase: { label: "Showcase", icon: Shirt },
 };
 
 const LOGO_SUB_SECTIONS = ["logos", "signatures", "symbols"];
@@ -290,6 +293,9 @@ const ClientBrand: React.FC = () => {
   if (!sectionTabs.includes("marketplace")) {
     sectionTabs.push("marketplace");
   }
+  if (!sectionTabs.includes("showcase")) {
+    sectionTabs.push("showcase");
+  }
   const availableTabs = ["overview", ...sectionTabs];
 
   const renderTab = () => {
@@ -373,6 +379,13 @@ const ClientBrand: React.FC = () => {
           <BrandMarketplace
             brandId={activeBrand.id}
             locationId={activeBrand.location_id || ""}
+          />
+        );
+      case "showcase":
+        return (
+          <BrandShowcase
+            brandId={activeBrand.id}
+            primaryColor={activeBrand.primary_color}
           />
         );
       default:
