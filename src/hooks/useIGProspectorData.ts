@@ -10,23 +10,29 @@ import { useAccountData } from "./useAccountData";
 export interface IGFunnelStage {
   stage: string;
   count: number;
-  ig_account?: string;
-  location_id?: string;
 }
 
 export interface IGReplyRateByAccount {
-  ig_account: string;
-  dms_sent: number;
-  replies: number;
-  reply_rate: number;
+  approach_type: string;
+  month: string;
+  total_dms_sent: number;
+  total_replied: number;
+  total_scheduled: number;
+  reply_rate_pct: number;
+  schedule_rate_pct: number;
+  avg_time_to_reply_hours: number;
   location_id?: string;
 }
 
 export interface IGCostPerLead {
-  ig_account: string;
-  total_cost: number;
-  leads_count: number;
-  cost_per_lead: number;
+  month: string;
+  leads_contacted: number;
+  leads_replied: number;
+  leads_scheduled: number;
+  total_ai_cost_usd: number;
+  cost_per_lead_contacted_usd: number;
+  cost_per_lead_replied_usd: number;
+  cost_per_scheduled_usd: number;
   location_id?: string;
 }
 
@@ -40,10 +46,28 @@ export interface IGProspectorData {
 }
 
 // ============================================================================
+// Ordem canonica dos stages do funil
+// ============================================================================
+const STAGE_ORDER = [
+  "prospected",
+  "warming",
+  "warm",
+  "dm_ready",
+  "first_contact",
+  "replied",
+  "won",
+  "already_active",
+  "lost",
+];
+
+// ============================================================================
 // HOOK: useIGProspectorData
 // Agrega dados das 3 views Supabase do Instagram Prospector para o dashboard.
 // Filtra por activeLocationId quando disponivel (cliente ou admin vendo subconta).
 // Usa Promise.allSettled para queries paralelas — falha parcial retorna dados parciais.
+//
+// IMPORTANTE: vw_lead_funnel_e2e retorna 1 linha por lead (nao agregada).
+// O hook agrega em contagens por funnel_stage no frontend.
 // ============================================================================
 
 export function useIGProspectorData(): IGProspectorData {
@@ -68,9 +92,9 @@ export function useIGProspectorData(): IGProspectorData {
     const funnelQuery = activeLocationId
       ? supabase
           .from("vw_lead_funnel_e2e")
-          .select("*")
+          .select("funnel_stage")
           .eq("location_id", activeLocationId)
-      : supabase.from("vw_lead_funnel_e2e").select("*");
+      : supabase.from("vw_lead_funnel_e2e").select("funnel_stage");
 
     const replyRateQuery = activeLocationId
       ? supabase
@@ -92,23 +116,29 @@ export function useIGProspectorData(): IGProspectorData {
 
     const errors: string[] = [];
 
-    // Processar vw_lead_funnel_e2e
+    // Processar vw_lead_funnel_e2e — agregar por funnel_stage
     if (funnelResult.status === "fulfilled") {
       const { data, error: err } = funnelResult.value;
       if (err) {
         console.error("[useIGProspectorData] vw_lead_funnel_e2e error:", err);
         errors.push("vw_lead_funnel_e2e: " + err.message);
       } else {
-        const mapped: IGFunnelStage[] = (data ?? []).map(
-          (row: Record<string, unknown>) => ({
-            stage: String(row.stage ?? ""),
-            count: Number(row.count ?? 0),
-            ig_account:
-              row.ig_account != null ? String(row.ig_account) : undefined,
-            location_id:
-              row.location_id != null ? String(row.location_id) : undefined,
-          }),
-        );
+        // Agregar: contar leads por funnel_stage
+        const stageCounts: Record<string, number> = {};
+        for (const row of data ?? []) {
+          const stage = String(
+            (row as Record<string, unknown>).funnel_stage ?? "unknown",
+          );
+          stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+        }
+        // Ordenar por STAGE_ORDER
+        const mapped: IGFunnelStage[] = Object.entries(stageCounts)
+          .sort(([a], [b]) => {
+            const ia = STAGE_ORDER.indexOf(a);
+            const ib = STAGE_ORDER.indexOf(b);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+          })
+          .map(([stage, count]) => ({ stage, count }));
         setFunnelStages(mapped);
       }
     } else {
@@ -119,7 +149,7 @@ export function useIGProspectorData(): IGProspectorData {
       errors.push("vw_lead_funnel_e2e: fetch failed");
     }
 
-    // Processar vw_reply_rate_by_account
+    // Processar vw_reply_rate_by_account — campos reais da view
     if (replyRateResult.status === "fulfilled") {
       const { data, error: err } = replyRateResult.value;
       if (err) {
@@ -131,10 +161,14 @@ export function useIGProspectorData(): IGProspectorData {
       } else {
         const mapped: IGReplyRateByAccount[] = (data ?? []).map(
           (row: Record<string, unknown>) => ({
-            ig_account: String(row.ig_account ?? ""),
-            dms_sent: Number(row.dms_sent ?? 0),
-            replies: Number(row.replies ?? 0),
-            reply_rate: Number(row.reply_rate ?? 0),
+            approach_type: String(row.approach_type ?? ""),
+            month: String(row.month ?? ""),
+            total_dms_sent: Number(row.total_dms_sent ?? 0),
+            total_replied: Number(row.total_replied ?? 0),
+            total_scheduled: Number(row.total_scheduled ?? 0),
+            reply_rate_pct: Number(row.reply_rate_pct ?? 0),
+            schedule_rate_pct: Number(row.schedule_rate_pct ?? 0),
+            avg_time_to_reply_hours: Number(row.avg_time_to_reply_hours ?? 0),
             location_id:
               row.location_id != null ? String(row.location_id) : undefined,
           }),
@@ -149,7 +183,7 @@ export function useIGProspectorData(): IGProspectorData {
       errors.push("vw_reply_rate_by_account: fetch failed");
     }
 
-    // Processar vw_cost_per_lead
+    // Processar vw_cost_per_lead — campos reais da view
     if (costResult.status === "fulfilled") {
       const { data, error: err } = costResult.value;
       if (err) {
@@ -158,10 +192,18 @@ export function useIGProspectorData(): IGProspectorData {
       } else {
         const mapped: IGCostPerLead[] = (data ?? []).map(
           (row: Record<string, unknown>) => ({
-            ig_account: String(row.ig_account ?? ""),
-            total_cost: Number(row.total_cost ?? 0),
-            leads_count: Number(row.leads_count ?? 0),
-            cost_per_lead: Number(row.cost_per_lead ?? 0),
+            month: String(row.month ?? ""),
+            leads_contacted: Number(row.leads_contacted ?? 0),
+            leads_replied: Number(row.leads_replied ?? 0),
+            leads_scheduled: Number(row.leads_scheduled ?? 0),
+            total_ai_cost_usd: Number(row.total_ai_cost_usd ?? 0),
+            cost_per_lead_contacted_usd: Number(
+              row.cost_per_lead_contacted_usd ?? 0,
+            ),
+            cost_per_lead_replied_usd: Number(
+              row.cost_per_lead_replied_usd ?? 0,
+            ),
+            cost_per_scheduled_usd: Number(row.cost_per_scheduled_usd ?? 0),
             location_id:
               row.location_id != null ? String(row.location_id) : undefined,
           }),

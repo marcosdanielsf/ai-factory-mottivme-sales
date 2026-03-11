@@ -10,18 +10,45 @@ import {
 import { useIGProspectorData } from "../hooks/useIGProspectorData";
 
 // ============================================================================
+// Labels amigaveis para stages do funil
+// ============================================================================
+const STAGE_LABELS: Record<string, string> = {
+  prospected: "Prospectado",
+  warming: "Aquecendo",
+  warm: "Aquecido",
+  dm_ready: "Pronto p/ DM",
+  first_contact: "Contatado",
+  replied: "Respondeu",
+  won: "Agendado",
+  already_active: "Ja Ativo",
+  lost: "Perdido",
+};
+
+const STAGE_COLORS: Record<string, string> = {
+  prospected: "#8b949e",
+  warming: "#d29922",
+  warm: "#d29922",
+  dm_ready: "#58a6ff",
+  first_contact: "#58a6ff",
+  replied: "#3fb950",
+  won: "#3fb950",
+  already_active: "#8b949e",
+  lost: "#f85149",
+};
+
+// ============================================================================
 // IGProspectorDashboard
 // Dashboard de prospecção Instagram — consome exclusivamente useIGProspectorData
-// Exibe: funil de leads, reply rate por conta, custo por lead
+// Exibe: funil de leads, reply rate por abordagem/mes, custo por lead
 // ============================================================================
 
 export default function IGProspectorDashboard() {
   const { funnelStages, replyRates, costPerLead, loading, error, refetch } =
     useIGProspectorData();
 
-  // --------------------------------------------------------------------------
-  // Loading state
-  // --------------------------------------------------------------------------
+  // Total de leads no funil
+  const totalLeads = funnelStages.reduce((sum, s) => sum + s.count, 0);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
@@ -35,9 +62,6 @@ export default function IGProspectorDashboard() {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Render
-  // --------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] p-6">
       {/* Header */}
@@ -47,7 +71,7 @@ export default function IGProspectorDashboard() {
             Instagram Prospector — Dashboard
           </h1>
           <p className="text-sm text-[#8b949e] mt-1">
-            Visão consolidada de funil, replies e custo por lead
+            Visao consolidada de funil, replies e custo por lead
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -78,7 +102,7 @@ export default function IGProspectorDashboard() {
       )}
 
       {/* -------------------------------------------------------------------- */}
-      {/* Seção 1: Funil de Leads */}
+      {/* Secao 1: Funil de Leads */}
       {/* -------------------------------------------------------------------- */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
@@ -86,9 +110,9 @@ export default function IGProspectorDashboard() {
           <h2 className="text-lg font-semibold text-[#f0f6fc]">
             Funil de Leads
           </h2>
-          {funnelStages.length > 0 && (
+          {totalLeads > 0 && (
             <span className="text-xs text-[#8b949e] ml-1">
-              ({funnelStages.length} estágios)
+              ({totalLeads.toLocaleString("pt-BR")} leads total)
             </span>
           )}
         </div>
@@ -98,56 +122,56 @@ export default function IGProspectorDashboard() {
             <Filter className="h-10 w-10 text-[#30363d] mx-auto mb-3" />
             <p className="text-[#8b949e] text-sm">Sem dados de funil</p>
             <p className="text-[#6e7681] text-xs mt-1">
-              Os dados aparecerão quando houver leads na view vw_lead_funnel_e2e
+              Os dados aparecerao quando houver leads na view vw_lead_funnel_e2e
             </p>
           </div>
         ) : (
-          <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#30363d] text-[#8b949e]">
-                  <th className="text-left px-4 py-3 font-medium">Estágio</th>
-                  <th className="text-right px-4 py-3 font-medium">Leads</th>
-                  <th className="text-left px-4 py-3 font-medium hidden md:table-cell">
-                    Conta IG
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {funnelStages.map((stage, idx) => (
-                  <tr
-                    key={`${stage.stage}-${stage.ig_account ?? "all"}-${idx}`}
-                    className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
-                  >
-                    <td className="px-4 py-3 text-[#c9d1d9]">{stage.stage}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-[#3fb950] font-semibold">
-                        {stage.count.toLocaleString("pt-BR")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#8b949e] text-xs hidden md:table-cell">
-                      {stage.ig_account ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3">
+            {funnelStages.map((s) => {
+              const pct = totalLeads > 0 ? (s.count / totalLeads) * 100 : 0;
+              const color = STAGE_COLORS[s.stage] ?? "#8b949e";
+              return (
+                <div
+                  key={s.stage}
+                  className="bg-[#161b22] border border-[#30363d] rounded-lg p-4"
+                >
+                  <p className="text-xs text-[#8b949e] mb-1">
+                    {STAGE_LABELS[s.stage] ?? s.stage}
+                  </p>
+                  <p className="text-2xl font-bold font-mono" style={{ color }}>
+                    {s.count.toLocaleString("pt-BR")}
+                  </p>
+                  <div className="mt-2 h-1 bg-[#21262d] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(pct, 100)}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-[#6e7681] mt-1">
+                    {pct.toFixed(1)}%
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
 
       {/* -------------------------------------------------------------------- */}
-      {/* Seção 2: Reply Rate por Conta */}
+      {/* Secao 2: Reply Rate por Abordagem */}
       {/* -------------------------------------------------------------------- */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <MessageCircle className="h-5 w-5 text-[#58a6ff]" />
           <h2 className="text-lg font-semibold text-[#f0f6fc]">
-            Reply Rate por Conta
+            Reply Rate por Abordagem
           </h2>
           {replyRates.length > 0 && (
             <span className="text-xs text-[#8b949e] ml-1">
-              ({replyRates.length} conta{replyRates.length !== 1 ? "s" : ""})
+              ({replyRates.length} registro{replyRates.length !== 1 ? "s" : ""})
             </span>
           )}
         </div>
@@ -157,21 +181,14 @@ export default function IGProspectorDashboard() {
             <MessageCircle className="h-10 w-10 text-[#30363d] mx-auto mb-3" />
             <p className="text-[#8b949e] text-sm">Sem dados de reply rate</p>
             <p className="text-[#6e7681] text-xs mt-1">
-              Os dados aparecerão quando houver DMs enviados em
+              Os dados aparecerao quando houver DMs enviados em
               vw_reply_rate_by_account
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {replyRates.map((account) => {
-              // reply_rate pode ser decimal (0-1) ou percentual (0-100)
-              // vw_reply_rate_by_account: se replies/dms_sent resulta em 0-1, multiplica por 100
-              const rateDisplay =
-                account.reply_rate <= 1
-                  ? (account.reply_rate * 100).toFixed(1)
-                  : account.reply_rate.toFixed(1);
-
-              const rateNum = parseFloat(rateDisplay);
+            {replyRates.map((row, idx) => {
+              const rateNum = row.reply_rate_pct;
               const rateColor =
                 rateNum >= 15
                   ? "#3fb950"
@@ -181,14 +198,17 @@ export default function IGProspectorDashboard() {
 
               return (
                 <div
-                  key={account.ig_account}
+                  key={`${row.approach_type}-${row.month}-${idx}`}
                   className="bg-[#161b22] border border-[#30363d] rounded-lg p-4"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="text-xs text-[#8b949e] mb-0.5">Conta</p>
-                      <p className="text-sm font-medium text-[#58a6ff] truncate max-w-[180px]">
-                        @{account.ig_account}
+                      <p className="text-xs text-[#8b949e] mb-0.5">Abordagem</p>
+                      <p className="text-sm font-medium text-[#58a6ff]">
+                        {row.approach_type === "warm" ? "Warm" : "Cold"}
+                      </p>
+                      <p className="text-[10px] text-[#6e7681] mt-0.5">
+                        {row.month}
                       </p>
                     </div>
                     <div className="text-right">
@@ -199,21 +219,27 @@ export default function IGProspectorDashboard() {
                         className="text-xl font-bold"
                         style={{ color: rateColor }}
                       >
-                        {rateDisplay}%
+                        {rateNum.toFixed(1)}%
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-4 text-xs text-[#8b949e]">
                     <span>
-                      DMs enviados:{" "}
+                      DMs:{" "}
                       <span className="text-[#c9d1d9] font-mono">
-                        {account.dms_sent.toLocaleString("pt-BR")}
+                        {row.total_dms_sent.toLocaleString("pt-BR")}
                       </span>
                     </span>
                     <span>
-                      Respostas:{" "}
+                      Replies:{" "}
                       <span className="text-[#c9d1d9] font-mono">
-                        {account.replies.toLocaleString("pt-BR")}
+                        {row.total_replied.toLocaleString("pt-BR")}
+                      </span>
+                    </span>
+                    <span>
+                      Agend:{" "}
+                      <span className="text-[#c9d1d9] font-mono">
+                        {row.total_scheduled.toLocaleString("pt-BR")}
                       </span>
                     </span>
                   </div>
@@ -227,6 +253,12 @@ export default function IGProspectorDashboard() {
                       }}
                     />
                   </div>
+                  {row.avg_time_to_reply_hours > 0 && (
+                    <p className="text-[10px] text-[#6e7681] mt-1">
+                      Tempo medio de resposta:{" "}
+                      {row.avg_time_to_reply_hours.toFixed(1)}h
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -235,7 +267,7 @@ export default function IGProspectorDashboard() {
       </section>
 
       {/* -------------------------------------------------------------------- */}
-      {/* Seção 3: Custo por Lead */}
+      {/* Secao 3: Custo por Lead */}
       {/* -------------------------------------------------------------------- */}
       <section>
         <div className="flex items-center gap-2 mb-4">
@@ -245,7 +277,7 @@ export default function IGProspectorDashboard() {
           </h2>
           {costPerLead.length > 0 && (
             <span className="text-xs text-[#8b949e] ml-1">
-              ({costPerLead.length} conta{costPerLead.length !== 1 ? "s" : ""})
+              ({costPerLead.length} mes{costPerLead.length !== 1 ? "es" : ""})
             </span>
           )}
         </div>
@@ -255,7 +287,7 @@ export default function IGProspectorDashboard() {
             <DollarSign className="h-10 w-10 text-[#30363d] mx-auto mb-3" />
             <p className="text-[#8b949e] text-sm">Sem dados de custo</p>
             <p className="text-[#6e7681] text-xs mt-1">
-              Os dados aparecerão quando houver custos registrados em
+              Os dados aparecerao quando houver custos registrados em
               vw_cost_per_lead
             </p>
           </div>
@@ -264,35 +296,41 @@ export default function IGProspectorDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#30363d] text-[#8b949e]">
-                  <th className="text-left px-4 py-3 font-medium">Conta IG</th>
-                  <th className="text-right px-4 py-3 font-medium">Leads</th>
+                  <th className="text-left px-4 py-3 font-medium">Mes</th>
                   <th className="text-right px-4 py-3 font-medium">
-                    Custo por Lead
+                    Contatados
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    Responderam
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium">
+                    Custo/Lead
                   </th>
                   <th className="text-right px-4 py-3 font-medium hidden md:table-cell">
-                    Custo Total
+                    Custo Total IA
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {costPerLead.map((row) => (
+                {costPerLead.map((row, idx) => (
                   <tr
-                    key={row.ig_account}
+                    key={`${row.month}-${idx}`}
                     className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
                   >
-                    <td className="px-4 py-3 text-[#58a6ff]">
-                      @{row.ig_account}
+                    <td className="px-4 py-3 text-[#c9d1d9]">{row.month}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                      {row.leads_contacted.toLocaleString("pt-BR")}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
-                      {row.leads_count.toLocaleString("pt-BR")}
+                      {row.leads_replied.toLocaleString("pt-BR")}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="font-mono text-[#3fb950] font-semibold">
-                        R$ {row.cost_per_lead.toFixed(2)}
+                        ${row.cost_per_lead_contacted_usd.toFixed(4)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden md:table-cell">
-                      R$ {row.total_cost.toFixed(2)}
+                      ${row.total_ai_cost_usd.toFixed(2)}
                     </td>
                   </tr>
                 ))}
