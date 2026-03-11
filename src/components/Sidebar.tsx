@@ -455,6 +455,12 @@ const navSections: NavSection[] = [
     permission: "canViewAllClients",
     items: [
       {
+        icon: Flame,
+        label: "4 Obsessoes",
+        to: "/obsessoes",
+        permission: "canViewAllClients",
+      },
+      {
         icon: Cpu,
         label: "System v4",
         to: "/system-v4",

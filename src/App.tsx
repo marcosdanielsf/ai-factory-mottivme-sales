@@ -311,6 +311,11 @@ const AttendantsPage = lazy(() =>
 // Squad AI (Pipeline de agentes com execucoes n8n)
 const SquadAI = lazy(() => import("./pages/SquadAI"));
 
+// 4 Obsessoes (roadmap bilionario)
+const Obsessoes = lazy(() =>
+  import("./pages/Obsessoes").then((m) => ({ default: m.Obsessoes })),
+);
+
 // System v4.0 Dashboard
 const SystemV4 = lazy(() => import("./pages/SystemV4"));
 
@@ -1590,6 +1595,20 @@ const App = () => {
                           <Layout>
                             <Suspense fallback={<LoadingFallback />}>
                               <SquadAI />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* 4 Obsessoes — Roadmap Bilionario */}
+                    <Route
+                      path="/obsessoes"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <Obsessoes />
                             </Suspense>
                           </Layout>
                         </ProtectedRoute>
