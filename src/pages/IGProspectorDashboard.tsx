@@ -114,27 +114,14 @@ export default function IGProspectorDashboard() {
     if (!isSupabaseConfigured()) return;
 
     const fetchLocations = async () => {
-      // Try location_name_map first (has friendly names)
-      const { data: nameMapData, error: nameMapErr } = await supabase
-        .from("location_name_map")
-        .select("location_id, location_name")
-        .order("location_name");
-
-      if (!nameMapErr && nameMapData && nameMapData.length > 0) {
-        setLocations(
-          nameMapData.map((row: Record<string, unknown>) => ({
-            location_id: String(row.location_id ?? ""),
-            location_name: String(row.location_name ?? ""),
-          })),
-        );
-        return;
-      }
-
-      // Fallback: get distinct locations from prospector_campaigns
+      // Usar prospector_campaigns direto — mostra cada ig_account como opcao
+      // Sem dedup por location_id (instituto.abadisantos e drthauansantos compartilham location)
       const { data: campData, error: campErr } = await supabase
         .from("prospector_campaigns")
         .select("location_id, ig_account")
-        .not("location_id", "is", null);
+        .not("location_id", "is", null)
+        .not("ig_account", "is", null)
+        .order("ig_account");
 
       if (campErr) {
         console.error(
@@ -144,23 +131,15 @@ export default function IGProspectorDashboard() {
         return;
       }
 
-      // Deduplicate by location_id
-      const seen = new Set<string>();
-      const unique: LocationOption[] = [];
-      for (const row of campData ?? []) {
-        const lid = String((row as Record<string, unknown>).location_id ?? "");
-        if (lid && !seen.has(lid)) {
-          seen.add(lid);
-          unique.push({
-            location_id: lid,
-            location_name: String(
-              (row as Record<string, unknown>).ig_account ?? lid,
-            ),
-          });
-        }
-      }
-      unique.sort((a, b) => a.location_name.localeCompare(b.location_name));
-      setLocations(unique);
+      const options: LocationOption[] = (campData ?? [])
+        .filter(
+          (row: Record<string, unknown>) => row.ig_account && row.location_id,
+        )
+        .map((row: Record<string, unknown>) => ({
+          location_id: String(row.location_id),
+          location_name: String(row.ig_account),
+        }));
+      setLocations(options);
     };
 
     fetchLocations();
