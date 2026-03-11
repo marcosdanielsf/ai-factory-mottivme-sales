@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   RefreshCw,
   Filter,
@@ -6,8 +6,11 @@ import {
   DollarSign,
   AlertCircle,
   Loader2,
+  Building2,
 } from "lucide-react";
 import { useIGProspectorData } from "../hooks/useIGProspectorData";
+import { useAccountData } from "../hooks/useAccountData";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 // ============================================================================
 // Labels amigaveis para stages do funil
@@ -36,6 +39,11 @@ const STAGE_COLORS: Record<string, string> = {
   lost: "#f85149",
 };
 
+interface LocationOption {
+  location_id: string;
+  location_name: string;
+}
+
 // ============================================================================
 // IGProspectorDashboard
 // Dashboard de prospecção Instagram — consome exclusivamente useIGProspectorData
@@ -43,11 +51,63 @@ const STAGE_COLORS: Record<string, string> = {
 // ============================================================================
 
 export default function IGProspectorDashboard() {
+  const { isAdmin, isViewingSubconta } = useAccountData();
+  const showClientSelector = isAdmin && !isViewingSubconta;
+
+  // Selector state — undefined = dont override (use context), null = all, string = specific
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+
+  // locationId to name map for display
+  const locationNameMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const loc of locations) {
+      map[loc.location_id] = loc.location_name;
+    }
+    return map;
+  }, [locations]);
+
+  // Fetch available locations from location_name_map
+  useEffect(() => {
+    if (!showClientSelector) return;
+    if (!isSupabaseConfigured()) return;
+
+    supabase
+      .from("location_name_map")
+      .select("location_id, location_name")
+      .order("location_name")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(
+            "[IGProspectorDashboard] location_name_map error:",
+            error,
+          );
+          return;
+        }
+        setLocations(
+          (data ?? []).map((row: Record<string, unknown>) => ({
+            location_id: String(row.location_id ?? ""),
+            location_name: String(row.location_name ?? ""),
+          })),
+        );
+      });
+  }, [showClientSelector]);
+
+  // Pass override: empty string = no override (fall back to context), non-empty = filter
+  const locationIdOverride = showClientSelector
+    ? selectedLocationId === ""
+      ? null
+      : selectedLocationId
+    : undefined;
+
   const { funnelStages, replyRates, costPerLead, loading, error, refetch } =
-    useIGProspectorData();
+    useIGProspectorData(locationIdOverride);
 
   // Total de leads no funil
   const totalLeads = funnelStages.reduce((sum, s) => sum + s.count, 0);
+
+  // Whether we are showing all clients (admin, no filter selected)
+  const showingAllClients = showClientSelector && selectedLocationId === "";
 
   if (loading) {
     return (
@@ -75,6 +135,24 @@ export default function IGProspectorDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Client selector — only for admin in admin mode */}
+          {showClientSelector && (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-[#8b949e]" />
+              <select
+                value={selectedLocationId}
+                onChange={(e) => setSelectedLocationId(e.target.value)}
+                className="bg-[#161b22] border border-[#30363d] text-[#c9d1d9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#58a6ff] transition-colors"
+              >
+                <option value="">Todos os clientes</option>
+                {locations.map((loc) => (
+                  <option key={loc.location_id} value={loc.location_id}>
+                    {loc.location_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <span className="inline-flex items-center gap-1.5 text-xs bg-[#161b22] border border-[#30363d] text-[#3fb950] px-3 py-1.5 rounded-full">
             <span className="h-1.5 w-1.5 rounded-full bg-[#3fb950] animate-pulse" />
             Dados em tempo real
@@ -195,6 +273,10 @@ export default function IGProspectorDashboard() {
                   : rateNum >= 8
                     ? "#d29922"
                     : "#f85149";
+              const clientName =
+                showingAllClients && row.location_id
+                  ? locationNameMap[row.location_id]
+                  : null;
 
               return (
                 <div
@@ -210,6 +292,12 @@ export default function IGProspectorDashboard() {
                       <p className="text-[10px] text-[#6e7681] mt-0.5">
                         {row.month}
                       </p>
+                      {clientName && (
+                        <p className="text-[10px] text-[#8b949e] mt-0.5 flex items-center gap-1">
+                          <Building2 className="h-2.5 w-2.5" />
+                          {clientName}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-[#8b949e] mb-0.5">
@@ -297,6 +385,9 @@ export default function IGProspectorDashboard() {
               <thead>
                 <tr className="border-b border-[#30363d] text-[#8b949e]">
                   <th className="text-left px-4 py-3 font-medium">Mes</th>
+                  {showingAllClients && (
+                    <th className="text-left px-4 py-3 font-medium">Cliente</th>
+                  )}
                   <th className="text-right px-4 py-3 font-medium">
                     Contatados
                   </th>
@@ -312,28 +403,46 @@ export default function IGProspectorDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {costPerLead.map((row, idx) => (
-                  <tr
-                    key={`${row.month}-${idx}`}
-                    className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
-                  >
-                    <td className="px-4 py-3 text-[#c9d1d9]">{row.month}</td>
-                    <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
-                      {row.leads_contacted.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
-                      {row.leads_replied.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-[#3fb950] font-semibold">
-                        ${row.cost_per_lead_contacted_usd.toFixed(4)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden md:table-cell">
-                      ${row.total_ai_cost_usd.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+                {costPerLead.map((row, idx) => {
+                  const clientName =
+                    showingAllClients && row.location_id
+                      ? (locationNameMap[row.location_id] ?? row.location_id)
+                      : null;
+                  return (
+                    <tr
+                      key={`${row.month}-${idx}`}
+                      className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
+                    >
+                      <td className="px-4 py-3 text-[#c9d1d9]">{row.month}</td>
+                      {showingAllClients && (
+                        <td className="px-4 py-3 text-[#8b949e] text-xs">
+                          {clientName ? (
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3 flex-shrink-0" />
+                              {clientName}
+                            </span>
+                          ) : (
+                            <span className="text-[#6e7681]">—</span>
+                          )}
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                        {row.leads_contacted.toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                        {row.leads_replied.toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-mono text-[#3fb950] font-semibold">
+                          ${row.cost_per_lead_contacted_usd.toFixed(4)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden md:table-cell">
+                        ${row.total_ai_cost_usd.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

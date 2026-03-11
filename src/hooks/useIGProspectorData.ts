@@ -70,8 +70,14 @@ const STAGE_ORDER = [
 // O hook agrega em contagens por funnel_stage no frontend.
 // ============================================================================
 
-export function useIGProspectorData(): IGProspectorData {
+export function useIGProspectorData(
+  locationIdOverride?: string | null,
+): IGProspectorData {
   const { activeLocationId } = useAccountData();
+
+  // Use override if explicitly provided (including null for "all"), otherwise fall back to context
+  const effectiveLocationId =
+    locationIdOverride !== undefined ? locationIdOverride : activeLocationId;
 
   const [funnelStages, setFunnelStages] = useState<IGFunnelStage[]>([]);
   const [replyRates, setReplyRates] = useState<IGReplyRateByAccount[]>([]);
@@ -88,26 +94,26 @@ export function useIGProspectorData(): IGProspectorData {
     setLoading(true);
     setError(null);
 
-    // Montar queries — adicionar filtro location_id quando activeLocationId estiver disponivel
-    const funnelQuery = activeLocationId
+    // Montar queries — adicionar filtro location_id quando effectiveLocationId estiver disponivel
+    const funnelQuery = effectiveLocationId
       ? supabase
           .from("vw_lead_funnel_e2e")
           .select("funnel_stage")
-          .eq("location_id", activeLocationId)
+          .eq("location_id", effectiveLocationId)
       : supabase.from("vw_lead_funnel_e2e").select("funnel_stage");
 
-    const replyRateQuery = activeLocationId
+    const replyRateQuery = effectiveLocationId
       ? supabase
           .from("vw_reply_rate_by_account")
           .select("*")
-          .eq("location_id", activeLocationId)
+          .eq("location_id", effectiveLocationId)
       : supabase.from("vw_reply_rate_by_account").select("*");
 
-    const costQuery = activeLocationId
+    const costQuery = effectiveLocationId
       ? supabase
           .from("vw_cost_per_lead")
           .select("*")
-          .eq("location_id", activeLocationId)
+          .eq("location_id", effectiveLocationId)
       : supabase.from("vw_cost_per_lead").select("*");
 
     // Executar 3 queries em paralelo — falha parcial nao bloqueia as demais
@@ -223,7 +229,7 @@ export function useIGProspectorData(): IGProspectorData {
     }
 
     setLoading(false);
-  }, [activeLocationId]);
+  }, [effectiveLocationId]);
 
   useEffect(() => {
     fetchData();
