@@ -7,7 +7,11 @@ import {
   AlertCircle,
   Loader2,
   Building2,
+  Users,
+  Flame,
+  Send,
 } from "lucide-react";
+import { DateRangePicker, DateRange } from "../components/DateRangePicker";
 import { useIGProspectorData } from "../hooks/useIGProspectorData";
 import { useAccountData } from "../hooks/useAccountData";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
@@ -39,6 +43,32 @@ const STAGE_COLORS: Record<string, string> = {
   lost: "#f85149",
 };
 
+// ============================================================================
+// 6 buckets canonicos do funil visual (DASH-02)
+// Mapeia stages da view para buckets de exibicao
+// ============================================================================
+const FUNNEL_BUCKETS = [
+  { key: "sync", label: "Sincronizados", stages: ["prospected"] },
+  { key: "warming", label: "Aquecendo", stages: ["warming", "warm"] },
+  { key: "dm_ready", label: "Prontos p/ DM", stages: ["dm_ready"] },
+  { key: "contacted", label: "Contatados", stages: ["first_contact"] },
+  { key: "replied", label: "Responderam", stages: ["replied"] },
+  { key: "won", label: "Agendados", stages: ["won"] },
+];
+
+// ============================================================================
+// Opcoes do dropdown de filtro por stage (FILT-03)
+// ============================================================================
+const STAGE_OPTIONS = [
+  { value: "", label: "Todos os stages" },
+  { value: "prospected", label: "Prospectado" },
+  { value: "warming", label: "Aquecendo" },
+  { value: "dm_ready", label: "Pronto p/ DM" },
+  { value: "first_contact", label: "Contatado" },
+  { value: "replied", label: "Respondeu" },
+  { value: "won", label: "Agendado" },
+];
+
 interface LocationOption {
   location_id: string;
   location_name: string;
@@ -47,7 +77,9 @@ interface LocationOption {
 // ============================================================================
 // IGProspectorDashboard
 // Dashboard de prospecção Instagram — consome exclusivamente useIGProspectorData
-// Exibe: funil de leads, reply rate por abordagem/mes, custo por lead
+// Exibe: KPI cards, funil de conversao visual, reply rate, custo por lead
+// Filtros: conta (admin), periodo (DateRangePicker), stage (dropdown)
+// Auto-refresh a cada 30s (DASH-03)
 // ============================================================================
 
 export default function IGProspectorDashboard() {
@@ -57,6 +89,15 @@ export default function IGProspectorDashboard() {
   // Selector state — undefined = dont override (use context), null = all, string = specific
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [locations, setLocations] = useState<LocationOption[]>([]);
+
+  // FILT-02 — Filtro de periodo
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+  });
+
+  // FILT-03 — Filtro de stage ('' = todos)
+  const [stageFilter, setStageFilter] = useState<string>("");
 
   // locationId to name map for display
   const locationNameMap = React.useMemo(() => {
@@ -132,15 +173,47 @@ export default function IGProspectorDashboard() {
       : selectedLocationId
     : undefined;
 
-  const { funnelStages, replyRates, costPerLead, loading, error, refetch } =
-    useIGProspectorData(locationIdOverride);
+  // Normalizar dateRange — null se nenhuma data selecionada
+  const effectiveDateRange =
+    dateRange.startDate || dateRange.endDate ? dateRange : null;
 
-  // Total de leads no funil
+  // Normalizar stageFilter — null se vazio
+  const effectiveStageFilter = stageFilter || null;
+
+  const { funnelStages, replyRates, costPerLead, loading, error, refetch } =
+    useIGProspectorData(
+      locationIdOverride,
+      effectiveDateRange,
+      effectiveStageFilter,
+    );
+
+  // ============================================================================
+  // Computed — KPI cards (DASH-01)
+  // ============================================================================
   const totalLeads = funnelStages.reduce((sum, s) => sum + s.count, 0);
+
+  const warming = funnelStages
+    .filter((s) => s.stage === "warming" || s.stage === "warm")
+    .reduce((sum, s) => sum + s.count, 0);
+
+  const totalDmsSent = replyRates.reduce((sum, r) => sum + r.total_dms_sent, 0);
+  const totalReplies = replyRates.reduce((sum, r) => sum + r.total_replied, 0);
 
   // Whether we are showing all clients (admin, no filter selected)
   const showingAllClients = showClientSelector && selectedLocationId === "";
 
+  // Handler para limpar todos os filtros
+  const handleClearFilters = () => {
+    setDateRange({ startDate: null, endDate: null });
+    setStageFilter("");
+  };
+
+  const hasActiveFilters =
+    dateRange.startDate || dateRange.endDate || stageFilter;
+
+  // ============================================================================
+  // Loading state
+  // ============================================================================
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
@@ -156,8 +229,10 @@ export default function IGProspectorDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] p-6">
+      {/* -------------------------------------------------------------------- */}
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* -------------------------------------------------------------------- */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#f0f6fc]">
             Instagram Prospector — Dashboard
@@ -166,28 +241,11 @@ export default function IGProspectorDashboard() {
             Visao consolidada de funil, replies e custo por lead
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Client selector — only for admin in admin mode */}
-          {showClientSelector && (
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-[#8b949e]" />
-              <select
-                value={selectedLocationId}
-                onChange={(e) => setSelectedLocationId(e.target.value)}
-                className="bg-[#161b22] border border-[#30363d] text-[#c9d1d9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#58a6ff] transition-colors"
-              >
-                <option value="">Todos os clientes</option>
-                {locations.map((loc) => (
-                  <option key={loc.location_id} value={loc.location_id}>
-                    {loc.location_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <span className="inline-flex items-center gap-1.5 text-xs bg-[#161b22] border border-[#30363d] text-[#3fb950] px-3 py-1.5 rounded-full">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#3fb950] animate-pulse" />
-            Dados em tempo real
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* DASH-03 — Badge de auto-refresh */}
+          <span className="inline-flex items-center gap-1.5 text-xs bg-[#161b22] border border-[#30363d] text-[#8b949e] px-3 py-1.5 rounded-full">
+            <RefreshCw className="h-3 w-3" />
+            Auto 30s
           </span>
           <button
             onClick={refetch}
@@ -200,7 +258,59 @@ export default function IGProspectorDashboard() {
         </div>
       </div>
 
+      {/* -------------------------------------------------------------------- */}
+      {/* Barra de filtros — FILT-01 (conta) + FILT-02 (periodo) + FILT-03 (stage) */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-[#161b22] border border-[#30363d] rounded-lg">
+        {/* FILT-01 — Filtro de conta (admin only) */}
+        {showClientSelector && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-[#8b949e] flex-shrink-0" />
+            <select
+              value={selectedLocationId}
+              onChange={(e) => setSelectedLocationId(e.target.value)}
+              className="bg-[#0d1117] border border-[#30363d] text-[#c9d1d9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#58a6ff] transition-colors"
+            >
+              <option value="">Todos os clientes</option>
+              {locations.map((loc) => (
+                <option key={loc.location_id} value={loc.location_id}>
+                  {loc.location_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* FILT-02 — Filtro de periodo */}
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+        {/* FILT-03 — Filtro de stage */}
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="bg-[#0d1117] border border-[#30363d] text-[#c9d1d9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#58a6ff] transition-colors"
+        >
+          {STAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Limpar filtros — so aparece se algum filtro ativo */}
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearFilters}
+            className="text-xs text-[#8b949e] hover:text-[#f85149] border border-[#30363d] hover:border-[#f85149] px-3 py-2 rounded-lg transition-colors"
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
       {/* Error banner */}
+      {/* -------------------------------------------------------------------- */}
       {error && (
         <div className="flex items-start gap-3 bg-[#161b22] border border-[#f85149] text-[#f85149] rounded-lg p-4 mb-6">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -212,19 +322,62 @@ export default function IGProspectorDashboard() {
       )}
 
       {/* -------------------------------------------------------------------- */}
-      {/* Secao 1: Funil de Leads */}
+      {/* DASH-01 — 4 KPI cards */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        {[
+          {
+            label: "Total de Leads",
+            value: totalLeads,
+            icon: Users,
+            color: "#58a6ff",
+          },
+          {
+            label: "Aquecendo",
+            value: warming,
+            icon: Flame,
+            color: "#d29922",
+          },
+          {
+            label: "DMs Enviados",
+            value: totalDmsSent,
+            icon: Send,
+            color: "#58a6ff",
+          },
+          {
+            label: "Replies",
+            value: totalReplies,
+            icon: MessageCircle,
+            color: "#3fb950",
+          },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="bg-[#161b22] border border-[#30363d] rounded-lg p-5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-[#8b949e]">{label}</span>
+              <Icon className="h-4 w-4" style={{ color }} />
+            </div>
+            <p className="text-3xl font-bold font-mono" style={{ color }}>
+              {value.toLocaleString("pt-BR")}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* DASH-02 — Funil visual com 6 stages canonicos */}
       {/* -------------------------------------------------------------------- */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-5 w-5 text-[#58a6ff]" />
           <h2 className="text-lg font-semibold text-[#f0f6fc]">
-            Funil de Leads
+            Funil de Conversao
           </h2>
-          {totalLeads > 0 && (
-            <span className="text-xs text-[#8b949e] ml-1">
-              ({totalLeads.toLocaleString("pt-BR")} leads total)
-            </span>
-          )}
+          <span className="text-xs text-[#8b949e]">
+            ({totalLeads.toLocaleString("pt-BR")} leads)
+          </span>
         </div>
 
         {funnelStages.length === 0 ? (
@@ -236,33 +389,67 @@ export default function IGProspectorDashboard() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3">
-            {funnelStages.map((s) => {
-              const pct = totalLeads > 0 ? (s.count / totalLeads) * 100 : 0;
-              const color = STAGE_COLORS[s.stage] ?? "#8b949e";
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
+            {FUNNEL_BUCKETS.map((bucket, idx) => {
+              const count = funnelStages
+                .filter((s) => bucket.stages.includes(s.stage))
+                .reduce((sum, s) => sum + s.count, 0);
+
+              // Percentual em relacao ao total geral
+              const pct = totalLeads > 0 ? (count / totalLeads) * 100 : 0;
+
+              // Taxa de conversao em relacao ao bucket imediatamente anterior
+              const prevBucketCount =
+                idx === 0
+                  ? totalLeads
+                  : funnelStages
+                      .filter((s) =>
+                        FUNNEL_BUCKETS[idx - 1].stages.includes(s.stage),
+                      )
+                      .reduce((sum, s) => sum + s.count, 0);
+              const convRate =
+                prevBucketCount > 0 ? (count / prevBucketCount) * 100 : 0;
+
+              const isLast = idx === FUNNEL_BUCKETS.length - 1;
+              const color = ["replied", "won"].includes(bucket.key)
+                ? "#3fb950"
+                : "#58a6ff";
+
               return (
                 <div
-                  key={s.stage}
-                  className="bg-[#161b22] border border-[#30363d] rounded-lg p-4"
+                  key={bucket.key}
+                  className={`px-5 py-4 ${!isLast ? "border-b border-[#21262d]" : ""}`}
                 >
-                  <p className="text-xs text-[#8b949e] mb-1">
-                    {STAGE_LABELS[s.stage] ?? s.stage}
-                  </p>
-                  <p className="text-2xl font-bold font-mono" style={{ color }}>
-                    {s.count.toLocaleString("pt-BR")}
-                  </p>
-                  <div className="mt-2 h-1 bg-[#21262d] rounded-full overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-[#8b949e] w-6 text-center font-mono">
+                        {idx + 1}
+                      </span>
+                      <span className="text-sm text-[#c9d1d9]">
+                        {bucket.label}
+                      </span>
+                      {idx > 0 && convRate > 0 && (
+                        <span className="text-[10px] text-[#8b949e]">
+                          {convRate.toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className="text-lg font-bold font-mono"
+                      style={{ color }}
+                    >
+                      {count.toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[#21262d] rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all"
+                      className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${Math.min(pct, 100)}%`,
                         backgroundColor: color,
                       }}
                     />
                   </div>
-                  <p className="text-[10px] text-[#6e7681] mt-1">
-                    {pct.toFixed(1)}%
-                  </p>
                 </div>
               );
             })}
