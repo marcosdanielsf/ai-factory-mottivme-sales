@@ -437,7 +437,8 @@ export default function IGProspectorDashboard() {
       </section>
 
       {/* -------------------------------------------------------------------- */}
-      {/* Secao 2: Reply Rate por Abordagem */}
+      {/* Secao 2: Reply Rate — METR-01 */}
+      {/* KPI agregado + tabela detalhada por mes/abordagem */}
       {/* -------------------------------------------------------------------- */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
@@ -462,104 +463,171 @@ export default function IGProspectorDashboard() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {replyRates.map((row, idx) => {
-              const rateNum = row.reply_rate_pct;
-              const rateColor =
-                rateNum >= 15
-                  ? "#3fb950"
-                  : rateNum >= 8
-                    ? "#d29922"
-                    : "#f85149";
-              const clientName =
-                showingAllClients && row.location_id
-                  ? locationNameMap[row.location_id]
-                  : null;
+          (() => {
+            // Agregado: soma total_replied / soma total_dms_sent * 100
+            const aggDmsSent = replyRates.reduce(
+              (sum, r) => sum + r.total_dms_sent,
+              0,
+            );
+            const aggReplied = replyRates.reduce(
+              (sum, r) => sum + r.total_replied,
+              0,
+            );
+            const aggRate =
+              aggDmsSent > 0 ? (aggReplied / aggDmsSent) * 100 : 0;
+            const aggRateColor =
+              aggRate >= 15 ? "#3fb950" : aggRate >= 8 ? "#d29922" : "#f85149";
 
-              return (
-                <div
-                  key={`${row.approach_type}-${row.month}-${idx}`}
-                  className="bg-[#161b22] border border-[#30363d] rounded-lg p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-xs text-[#8b949e] mb-0.5">Abordagem</p>
-                      <p className="text-sm font-medium text-[#58a6ff]">
-                        {row.approach_type === "warm" ? "Warm" : "Cold"}
-                      </p>
-                      <p className="text-[10px] text-[#6e7681] mt-0.5">
-                        {row.month}
-                      </p>
-                      {clientName && (
-                        <p className="text-[10px] text-[#8b949e] mt-0.5 flex items-center gap-1">
-                          <Building2 className="h-2.5 w-2.5" />
-                          {clientName}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-[#8b949e] mb-0.5">
-                        Reply Rate
-                      </p>
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: rateColor }}
-                      >
-                        {rateNum.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 text-xs text-[#8b949e]">
-                    <span>
-                      DMs:{" "}
-                      <span className="text-[#c9d1d9] font-mono">
-                        {row.total_dms_sent.toLocaleString("pt-BR")}
-                      </span>
-                    </span>
-                    <span>
-                      Replies:{" "}
-                      <span className="text-[#c9d1d9] font-mono">
-                        {row.total_replied.toLocaleString("pt-BR")}
-                      </span>
-                    </span>
-                    <span>
-                      Agend:{" "}
-                      <span className="text-[#c9d1d9] font-mono">
-                        {row.total_scheduled.toLocaleString("pt-BR")}
-                      </span>
-                    </span>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mt-3 h-1.5 bg-[#21262d] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(rateNum, 100)}%`,
-                        backgroundColor: rateColor,
-                      }}
-                    />
-                  </div>
-                  {row.avg_time_to_reply_hours > 0 && (
-                    <p className="text-[10px] text-[#6e7681] mt-1">
-                      Tempo medio de resposta:{" "}
-                      {row.avg_time_to_reply_hours.toFixed(1)}h
+            return (
+              <div>
+                {/* KPI destacado — Reply Rate agregado */}
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5 mb-4 flex items-center gap-6">
+                  <div>
+                    <p className="text-xs text-[#8b949e] mb-1">
+                      Reply Rate (periodo filtrado)
                     </p>
-                  )}
+                    <p
+                      className="text-5xl font-bold font-mono"
+                      style={{ color: aggRateColor }}
+                    >
+                      {aggRate.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-[#6e7681] mt-1">
+                      {aggReplied.toLocaleString("pt-BR")} replies /{" "}
+                      {aggDmsSent.toLocaleString("pt-BR")} DMs enviados
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <div className="h-3 bg-[#21262d] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.min(aggRate, 100)}%`,
+                          backgroundColor: aggRateColor,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-[#6e7681] mt-1">
+                      <span>0%</span>
+                      <span className="text-[#d29922]">8%</span>
+                      <span className="text-[#3fb950]">15%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Tabela detalhada por mes/abordagem */}
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#30363d] text-[#8b949e]">
+                        <th className="text-left px-4 py-3 font-medium">Mes</th>
+                        <th className="text-left px-4 py-3 font-medium">
+                          Abordagem
+                        </th>
+                        {showingAllClients && (
+                          <th className="text-left px-4 py-3 font-medium">
+                            Cliente
+                          </th>
+                        )}
+                        <th className="text-right px-4 py-3 font-medium">
+                          DMs Enviados
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium">
+                          Replies
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium">
+                          Reply Rate
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium hidden md:table-cell">
+                          Agendados
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {replyRates.map((row, idx) => {
+                        const rateNum = row.reply_rate_pct;
+                        const rateColor =
+                          rateNum >= 15
+                            ? "#3fb950"
+                            : rateNum >= 8
+                              ? "#d29922"
+                              : "#f85149";
+                        const clientName =
+                          showingAllClients && row.location_id
+                            ? (locationNameMap[row.location_id] ??
+                              row.location_id)
+                            : null;
+
+                        return (
+                          <tr
+                            key={`${row.approach_type}-${row.month}-${idx}`}
+                            className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
+                          >
+                            <td className="px-4 py-3 text-[#c9d1d9] font-mono text-xs">
+                              {row.month}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  row.approach_type === "warm"
+                                    ? "bg-[#d29922]/15 text-[#d29922]"
+                                    : "bg-[#58a6ff]/15 text-[#58a6ff]"
+                                }`}
+                              >
+                                {row.approach_type === "warm" ? "Warm" : "Cold"}
+                              </span>
+                            </td>
+                            {showingAllClients && (
+                              <td className="px-4 py-3 text-[#8b949e] text-xs">
+                                {clientName ? (
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="h-3 w-3 flex-shrink-0" />
+                                    {clientName}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#6e7681]">—</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                              {row.total_dms_sent.toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                              {row.total_replied.toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span
+                                className="font-bold font-mono"
+                                style={{ color: rateColor }}
+                              >
+                                {rateNum.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden md:table-cell">
+                              {row.total_scheduled.toLocaleString("pt-BR")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()
         )}
       </section>
 
       {/* -------------------------------------------------------------------- */}
-      {/* Secao 3: Custo por Lead */}
+      {/* Secao 3: Custo por Lead e Agendamento — METR-02 */}
+      {/* 2 KPI cards (ultimo mes) + tabela detalhada por mes */}
       {/* -------------------------------------------------------------------- */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <DollarSign className="h-5 w-5 text-[#58a6ff]" />
           <h2 className="text-lg font-semibold text-[#f0f6fc]">
-            Custo por Lead
+            Custo por Lead e Agendamento
           </h2>
           {costPerLead.length > 0 && (
             <span className="text-xs text-[#8b949e] ml-1">
@@ -574,76 +642,140 @@ export default function IGProspectorDashboard() {
             <p className="text-[#8b949e] text-sm">Sem dados de custo</p>
             <p className="text-[#6e7681] text-xs mt-1">
               Os dados aparecerao quando houver custos registrados em
-              vw_cost_per_lead
+              vw_cost_per_lead. Os custos sao calculados com base nas chamadas
+              de IA do prospector.
             </p>
           </div>
         ) : (
-          <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#30363d] text-[#8b949e]">
-                  <th className="text-left px-4 py-3 font-medium">Mes</th>
-                  {showingAllClients && (
-                    <th className="text-left px-4 py-3 font-medium">Cliente</th>
-                  )}
-                  <th className="text-right px-4 py-3 font-medium">
-                    Contatados
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium">
-                    Responderam
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium">
-                    Custo/Lead
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium hidden md:table-cell">
-                    Custo Total IA
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {costPerLead.map((row, idx) => {
-                  const clientName =
-                    showingAllClients && row.location_id
-                      ? (locationNameMap[row.location_id] ?? row.location_id)
-                      : null;
-                  return (
-                    <tr
-                      key={`${row.month}-${idx}`}
-                      className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
-                    >
-                      <td className="px-4 py-3 text-[#c9d1d9]">{row.month}</td>
-                      {showingAllClients && (
-                        <td className="px-4 py-3 text-[#8b949e] text-xs">
-                          {clientName ? (
-                            <span className="flex items-center gap-1">
-                              <Building2 className="h-3 w-3 flex-shrink-0" />
-                              {clientName}
-                            </span>
-                          ) : (
-                            <span className="text-[#6e7681]">—</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
-                        {row.leads_contacted.toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
-                        {row.leads_replied.toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-mono text-[#3fb950] font-semibold">
-                          ${row.cost_per_lead_contacted_usd.toFixed(4)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden md:table-cell">
-                        ${row.total_ai_cost_usd.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          (() => {
+            // Usar o ultimo mes disponivel como valor principal dos KPI cards
+            const latestRow = costPerLead[costPerLead.length - 1];
+            const fmtUsd = (val: number) =>
+              val > 0 ? `$${val.toFixed(4)}` : "--";
+
+            return (
+              <div>
+                {/* 2 KPI cards side-by-side */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-[#8b949e]">
+                        Custo / Lead Respondido
+                      </span>
+                      <DollarSign className="h-4 w-4 text-[#3fb950]" />
+                    </div>
+                    <p className="text-3xl font-bold font-mono text-[#3fb950]">
+                      {fmtUsd(latestRow.cost_per_lead_replied_usd)}
+                    </p>
+                    <p className="text-[10px] text-[#6e7681] mt-1">
+                      Ultimo mes: {latestRow.month}
+                    </p>
+                  </div>
+                  <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-[#8b949e]">
+                        Custo / Agendamento
+                      </span>
+                      <DollarSign className="h-4 w-4 text-[#58a6ff]" />
+                    </div>
+                    <p className="text-3xl font-bold font-mono text-[#58a6ff]">
+                      {fmtUsd(latestRow.cost_per_scheduled_usd)}
+                    </p>
+                    <p className="text-[10px] text-[#6e7681] mt-1">
+                      Ultimo mes: {latestRow.month}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tabela detalhada por mes */}
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#30363d] text-[#8b949e]">
+                        <th className="text-left px-4 py-3 font-medium">Mes</th>
+                        {showingAllClients && (
+                          <th className="text-left px-4 py-3 font-medium">
+                            Cliente
+                          </th>
+                        )}
+                        <th className="text-right px-4 py-3 font-medium">
+                          Contatados
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium">
+                          Responderam
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">
+                          Agendamentos
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium">
+                          Custo/Lead
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium hidden md:table-cell">
+                          Custo/Agend
+                        </th>
+                        <th className="text-right px-4 py-3 font-medium hidden lg:table-cell">
+                          Custo Total IA
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {costPerLead.map((row, idx) => {
+                        const clientName =
+                          showingAllClients && row.location_id
+                            ? (locationNameMap[row.location_id] ??
+                              row.location_id)
+                            : null;
+                        return (
+                          <tr
+                            key={`${row.month}-${idx}`}
+                            className="border-b border-[#21262d] last:border-0 hover:bg-[#21262d] transition-colors"
+                          >
+                            <td className="px-4 py-3 text-[#c9d1d9] font-mono text-xs">
+                              {row.month}
+                            </td>
+                            {showingAllClients && (
+                              <td className="px-4 py-3 text-[#8b949e] text-xs">
+                                {clientName ? (
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="h-3 w-3 flex-shrink-0" />
+                                    {clientName}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#6e7681]">—</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                              {row.leads_contacted.toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#c9d1d9]">
+                              {row.leads_replied.toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#c9d1d9] hidden sm:table-cell">
+                              {row.leads_scheduled.toLocaleString("pt-BR")}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="font-mono text-[#3fb950] font-semibold">
+                                {fmtUsd(row.cost_per_lead_replied_usd)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#58a6ff] hidden md:table-cell">
+                              {fmtUsd(row.cost_per_scheduled_usd)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-[#8b949e] hidden lg:table-cell">
+                              {row.total_ai_cost_usd > 0
+                                ? `$${row.total_ai_cost_usd.toFixed(2)}`
+                                : "--"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()
         )}
       </section>
     </div>
