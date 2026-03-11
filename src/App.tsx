@@ -409,6 +409,14 @@ const App = () => {
                       }
                     />
                     <Route
+                      path="/approve/logos/:brandId"
+                      element={
+                        <Suspense fallback={<LoadingFallback />}>
+                          <LogoApproval />
+                        </Suspense>
+                      }
+                    />
+                    <Route
                       path="/onboarding"
                       element={
                         <Suspense fallback={<LoadingFallback />}>

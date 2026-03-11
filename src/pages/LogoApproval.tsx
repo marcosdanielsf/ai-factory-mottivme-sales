@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   Check,
   Send,
@@ -15,36 +16,26 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-const BRAND_ID = "96ca4177-502e-4a13-a087-37c0156f6e8d";
+// ─── Constants ──────────────────────────────────────────────────
+const MEDPRIME_BRAND_ID = "96ca4177-502e-4a13-a087-37c0156f6e8d";
+const STORAGE_BASE =
+  "https://bfumywvwubvernvhjehk.supabase.co/storage/v1/object/public/brandpacks/";
 
-// ─── Brand Colors ───────────────────────────────────────────────
-const BRAND_COLORS = [
-  { name: "Marsala", hex: "#7A2E3B", role: "Primary" },
-  { name: "Gold", hex: "#C9A96E", role: "Secondary" },
-  { name: "Navy Profundo", hex: "#0A1A3A", role: "Dark Accent" },
-  { name: "Almost Black", hex: "#050D1A", role: "Background" },
-  { name: "Cream", hex: "#F5F0E8", role: "Light" },
-];
+// ─── Fallback Data (MEDPRIME) ────────────────────────────────────
+const FALLBACK_BRAND = {
+  brand_name: "MEDPRIME",
+  tagline: "Medicina de excelencia. Carreira de impacto.",
+  primary_color: "#7A2E3B",
+  secondary_color: "#C9A96E",
+  accent_color: "#C9A96E",
+  dark_color: "#050D1A",
+  light_color: "#F5F0E8",
+  display_font: "Cormorant Garamond",
+  body_font: "Inter",
+  client_names: "Dr. Luiz Augusto Jr & Dra. Carolina Simonato",
+};
 
-const BRAND_FONTS = [
-  { name: "Cormorant Garamond", role: "Display / Titulos", sample: "MEDPRIME" },
-  {
-    name: "Inter",
-    role: "Body / Texto corrido",
-    sample: "Medicina de excelencia.",
-  },
-];
-
-// ─── Logo Options ───────────────────────────────────────────────
-interface LogoOption {
-  id: string;
-  name: string;
-  concept: string;
-  imageUrl: string;
-  aspect: "wide" | "square" | "tall";
-}
-
-const LOGO_OPTIONS: LogoOption[] = [
+const FALLBACK_LOGOS: LogoOption[] = [
   {
     id: "v3-01",
     name: "Royal Crest",
@@ -131,16 +122,7 @@ const LOGO_OPTIONS: LogoOption[] = [
   },
 ];
 
-// ─── Showcase Items ─────────────────────────────────────────────
-interface ShowcaseItem {
-  id: string;
-  title: string;
-  imageUrl: string;
-  videoUrl?: string;
-  description: string;
-}
-
-const SHOWCASE_ITEMS: ShowcaseItem[] = [
+const FALLBACK_SHOWCASE: ShowcaseItem[] = [
   {
     id: "01",
     title: "Premium T-Shirt",
@@ -197,17 +179,64 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
   },
 ];
 
+// ─── Types ───────────────────────────────────────────────────────
+interface LogoOption {
+  id: string;
+  name: string;
+  concept: string;
+  imageUrl: string;
+  aspect: "wide" | "square" | "tall";
+}
+
+interface ShowcaseItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  videoUrl?: string;
+  description: string;
+}
+
+interface BrandData {
+  brand_name: string;
+  tagline: string;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  dark_color: string;
+  light_color: string;
+  display_font: string;
+  body_font: string;
+  client_names: string;
+}
+
+// ─── Supabase asset row shape ────────────────────────────────────
+interface BrandAssetRow {
+  id: string;
+  brand_id: string;
+  name: string;
+  format: string | null;
+  storage_path: string | null;
+  description: string | null;
+  sort_order: number | null;
+  category: string | null;
+}
+
 // ─── Section Header ─────────────────────────────────────────────
 const SectionHeader: React.FC<{
   icon: React.ElementType;
   title: string;
   subtitle: string;
   id: string;
-}> = ({ icon: Icon, title, subtitle, id }) => (
+  primaryColor: string;
+  secondaryColor: string;
+}> = ({ icon: Icon, title, subtitle, id, primaryColor, secondaryColor }) => (
   <div id={id} className="pt-16 pb-8 scroll-mt-20">
     <div className="flex items-center gap-3 mb-2">
-      <div className="w-10 h-10 rounded-lg bg-[#7A2E3B]/15 flex items-center justify-center">
-        <Icon size={18} className="text-[#C9A96E]" />
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: `${primaryColor}26` }}
+      >
+        <Icon size={18} style={{ color: secondaryColor }} />
       </div>
       <div>
         <h2 className="text-xl font-semibold text-white tracking-tight">
@@ -216,7 +245,12 @@ const SectionHeader: React.FC<{
         <p className="text-white/40 text-sm">{subtitle}</p>
       </div>
     </div>
-    <div className="h-px bg-gradient-to-r from-[#7A2E3B]/40 via-[#C9A96E]/20 to-transparent mt-4" />
+    <div
+      className="h-px mt-4"
+      style={{
+        background: `linear-gradient(to right, ${primaryColor}66, ${secondaryColor}33, transparent)`,
+      }}
+    />
   </div>
 );
 
@@ -226,7 +260,8 @@ const TiltCard: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
   onZoom: () => void;
-}> = ({ logo, isSelected, onSelect, onZoom }) => {
+  secondaryColor: string;
+}> = ({ logo, isSelected, onSelect, onZoom, secondaryColor }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
@@ -256,6 +291,15 @@ const TiltCard: React.FC<{
     setIsHovering(false);
   }, []);
 
+  // parse hex to rgb for dynamic rgba
+  const hexToRgb = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `${r},${g},${b}`;
+  };
+  const secRgb = hexToRgb(secondaryColor);
+
   return (
     <div
       ref={cardRef}
@@ -267,12 +311,10 @@ const TiltCard: React.FC<{
       style={{ perspective: "800px" }}
     >
       <div
-        className={`relative rounded-xl overflow-hidden transition-all border-2 ${
-          isSelected
-            ? "border-[#C9A96E] shadow-[0_0_40px_rgba(201,169,110,0.2)]"
-            : "border-white/[0.06] hover:border-white/15"
-        }`}
+        className="relative rounded-xl overflow-hidden transition-all border-2"
         style={{
+          borderColor: isSelected ? secondaryColor : "rgba(255,255,255,0.06)",
+          boxShadow: isSelected ? `0 0 40px rgba(${secRgb},0.2)` : undefined,
           transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${isHovering ? 1.02 : 1})`,
           transition: isHovering
             ? "transform 0.1s ease-out"
@@ -283,12 +325,15 @@ const TiltCard: React.FC<{
         <div
           className="absolute inset-0 z-10 pointer-events-none rounded-xl"
           style={{
-            background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(201,169,110,${glare.opacity}), transparent 60%)`,
+            background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(${secRgb},${glare.opacity}), transparent 60%)`,
             transition: isHovering ? "none" : "opacity 0.4s",
           }}
         />
         {isSelected && (
-          <div className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg">
+          <div
+            className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+            style={{ backgroundColor: secondaryColor }}
+          >
             <Check size={16} className="text-[#0D0D14]" />
           </div>
         )}
@@ -316,12 +361,26 @@ const TiltCard: React.FC<{
         <div className="p-4 bg-[#0A0A10]/80">
           <div className="flex items-center gap-2">
             <span
-              className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? "bg-[#C9A96E]/20 text-[#C9A96E]" : "bg-white/5 text-white/30"}`}
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={
+                isSelected
+                  ? {
+                      backgroundColor: `rgba(${secRgb},0.2)`,
+                      color: secondaryColor,
+                    }
+                  : {
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                      color: "rgba(255,255,255,0.3)",
+                    }
+              }
             >
               {logo.id}
             </span>
             <p
-              className={`font-medium text-sm ${isSelected ? "text-[#C9A96E]" : "text-white/80"}`}
+              className="font-medium text-sm"
+              style={{
+                color: isSelected ? secondaryColor : "rgba(255,255,255,0.8)",
+              }}
             >
               {logo.name}
             </p>
@@ -334,10 +393,11 @@ const TiltCard: React.FC<{
 };
 
 // ─── Zoom Modal ─────────────────────────────────────────────────
-const ZoomModal: React.FC<{ logo: LogoOption; onClose: () => void }> = ({
-  logo,
-  onClose,
-}) => {
+const ZoomModal: React.FC<{
+  logo: LogoOption;
+  onClose: () => void;
+  secondaryColor: string;
+}> = ({ logo, onClose, secondaryColor }) => {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -405,7 +465,9 @@ const ZoomModal: React.FC<{ logo: LogoOption; onClose: () => void }> = ({
         </span>
       </div>
       <div className="absolute top-4 left-4 z-50">
-        <p className="text-[#C9A96E] font-medium text-sm">{logo.name}</p>
+        <p className="font-medium text-sm" style={{ color: secondaryColor }}>
+          {logo.name}
+        </p>
         <p className="text-white/40 text-xs">{logo.concept}</p>
       </div>
       <div
@@ -440,7 +502,10 @@ const ZoomModal: React.FC<{ logo: LogoOption; onClose: () => void }> = ({
 };
 
 // ─── Product Card (Video-on-Hover) ──────────────────────────────
-const ProductCard: React.FC<{ item: ShowcaseItem }> = ({ item }) => {
+const ProductCard: React.FC<{
+  item: ShowcaseItem;
+  secondaryColor: string;
+}> = ({ item, secondaryColor }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
@@ -462,7 +527,13 @@ const ProductCard: React.FC<{ item: ShowcaseItem }> = ({ item }) => {
 
   return (
     <div
-      className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-[#C9A96E]/40 hover:shadow-[0_0_30px_rgba(201,169,110,0.08)] transition-all duration-300"
+      className="group relative rounded-xl overflow-hidden border transition-all duration-300"
+      style={{
+        borderColor: isHovered
+          ? `${secondaryColor}66`
+          : "rgba(255,255,255,0.06)",
+        boxShadow: isHovered ? `0 0 30px ${secondaryColor}14` : undefined,
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -501,6 +572,29 @@ const ProductCard: React.FC<{ item: ShowcaseItem }> = ({ item }) => {
   );
 };
 
+// ─── Skeleton ────────────────────────────────────────────────────
+const PageSkeleton: React.FC = () => (
+  <div className="min-h-screen bg-[#0D0D14] animate-pulse">
+    <div className="h-14 bg-white/[0.04] border-b border-white/[0.06]" />
+    <div className="max-w-6xl mx-auto px-4 pt-20 pb-12 text-center space-y-4">
+      <div className="h-3 w-32 bg-white/[0.06] rounded mx-auto" />
+      <div className="h-12 w-64 bg-white/[0.08] rounded mx-auto" />
+      <div className="h-5 w-80 bg-white/[0.05] rounded mx-auto" />
+      <div className="h-4 w-48 bg-white/[0.04] rounded mx-auto" />
+    </div>
+    <div className="max-w-6xl mx-auto px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-xl bg-white/[0.04] border border-white/[0.06] aspect-[16/9]"
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 // ─── Navigation ─────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: "logos", label: "Logos", icon: Crown },
@@ -513,6 +607,16 @@ const NAV_ITEMS = [
 // MAIN: Brand Experience Page
 // ═══════════════════════════════════════════════════════════════
 export const LogoApproval: React.FC = () => {
+  const { brandId: brandIdParam } = useParams<{ brandId?: string }>();
+  const brandId = brandIdParam || MEDPRIME_BRAND_ID;
+
+  // ─── Data state ──────────────────────────────────────────
+  const [loading, setLoading] = useState(true);
+  const [brand, setBrand] = useState<BrandData>(FALLBACK_BRAND);
+  const [logos, setLogos] = useState<LogoOption[]>([]);
+  const [showcase, setShowcase] = useState<ShowcaseItem[]>([]);
+
+  // ─── UI state ────────────────────────────────────────────
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [comment, setComment] = useState("");
@@ -521,7 +625,167 @@ export const LogoApproval: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const selectedLogo = LOGO_OPTIONS.find((l) => l.id === selected);
+  // ─── Fetch brand data ────────────────────────────────────
+  useEffect(() => {
+    const fetchBrandData = async () => {
+      setLoading(true);
+      try {
+        const [configResult, assetsResult] = await Promise.all([
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("brand_configs")
+            .select(
+              "brand_name,tagline,primary_color,secondary_color,accent_color,dark_color,light_color,display_font,body_font,storage_prefix",
+            )
+            .eq("id", brandId)
+            .single(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("brand_assets")
+            .select(
+              "id,brand_id,name,format,storage_path,description,sort_order,category",
+            )
+            .eq("brand_id", brandId)
+            .in("category", ["logo", "merchandise"])
+            .order("sort_order", { ascending: true }),
+        ]);
+
+        // ── Brand config ──────────────────────────────────
+        if (configResult.error || !configResult.data) {
+          // fall through to fallback
+        } else {
+          const c = configResult.data;
+          setBrand({
+            brand_name: c.brand_name || FALLBACK_BRAND.brand_name,
+            tagline: c.tagline || FALLBACK_BRAND.tagline,
+            primary_color: c.primary_color || FALLBACK_BRAND.primary_color,
+            secondary_color:
+              c.secondary_color || FALLBACK_BRAND.secondary_color,
+            accent_color: c.accent_color || FALLBACK_BRAND.accent_color,
+            dark_color: c.dark_color || FALLBACK_BRAND.dark_color,
+            light_color: c.light_color || FALLBACK_BRAND.light_color,
+            display_font: c.display_font || FALLBACK_BRAND.display_font,
+            body_font: c.body_font || FALLBACK_BRAND.body_font,
+            client_names: FALLBACK_BRAND.client_names, // not in schema, keep fallback
+          });
+        }
+
+        // ── Assets ────────────────────────────────────────
+        if (!assetsResult.error && assetsResult.data) {
+          const rows = assetsResult.data as BrandAssetRow[];
+
+          const logoRows = rows.filter((r) => r.category === "logo");
+          const merchandiseRows = rows.filter(
+            (r) => r.category === "merchandise",
+          );
+
+          if (logoRows.length > 0) {
+            const mapped = logoRows.map((r, idx) => {
+              const imageUrl = r.storage_path
+                ? `${STORAGE_BASE}${r.storage_path}`
+                : `/logo-approval/${r.name.toLowerCase().replace(/\s+/g, "-")}.jpg`;
+
+              // Derive aspect from format hint or name
+              let aspect: "wide" | "square" | "tall" = "wide";
+              if (r.format) {
+                if (r.format.includes("square")) aspect = "square";
+                else if (
+                  r.format.includes("tall") ||
+                  r.format.includes("vertical")
+                )
+                  aspect = "tall";
+              }
+
+              return {
+                id: `logo-${idx + 1}`,
+                name: r.name,
+                concept: r.description || "",
+                imageUrl,
+                aspect,
+              } satisfies LogoOption;
+            });
+            setLogos(mapped);
+          }
+
+          if (merchandiseRows.length > 0) {
+            const mapped = merchandiseRows.map((r, idx) => {
+              const isVideo = r.format === "mp4";
+              const baseUrl = r.storage_path
+                ? `${STORAGE_BASE}${r.storage_path}`
+                : null;
+
+              // If storage_path points to a video, derive image path by swapping extension
+              let imageUrl: string;
+              let videoUrl: string | undefined;
+
+              if (baseUrl) {
+                if (isVideo) {
+                  // storage_path is the video — no image available from storage
+                  videoUrl = baseUrl;
+                  imageUrl = `/showcase/${r.name.toLowerCase().replace(/\s+/g, "-")}.jpg`;
+                } else {
+                  imageUrl = baseUrl;
+                  // Check if a parallel mp4 exists (same path, .mp4 extension)
+                  const withoutExt = baseUrl.replace(/\.[^/.]+$/, "");
+                  videoUrl = `${withoutExt}.mp4`;
+                }
+              } else {
+                const slug = r.name.toLowerCase().replace(/\s+/g, "-");
+                imageUrl = `/showcase/${slug}.jpg`;
+                videoUrl = `/showcase/${slug}.mp4`;
+              }
+
+              return {
+                id: `merch-${idx + 1}`,
+                title: r.name,
+                imageUrl,
+                videoUrl,
+                description: r.description || "",
+              } satisfies ShowcaseItem;
+            });
+            setShowcase(mapped);
+          }
+        }
+      } catch {
+        // silently fall through to fallback data already set
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBrandData();
+  }, [brandId]);
+
+  // Use fallback data if nothing loaded from Supabase
+  const displayLogos = logos.length > 0 ? logos : FALLBACK_LOGOS;
+  const displayShowcase = showcase.length > 0 ? showcase : FALLBACK_SHOWCASE;
+
+  const primaryColor = brand.primary_color;
+  const secondaryColor = brand.secondary_color;
+
+  // Build brand colors array from config
+  const brandColors = [
+    { name: "Primary", hex: brand.primary_color, role: "Primary" },
+    { name: "Secondary", hex: brand.secondary_color, role: "Secondary" },
+    { name: "Accent", hex: brand.accent_color, role: "Accent" },
+    { name: "Dark", hex: brand.dark_color, role: "Background" },
+    { name: "Light", hex: brand.light_color, role: "Light" },
+  ];
+
+  const brandFonts = [
+    {
+      name: brand.display_font,
+      role: "Display / Titulos",
+      sample: brand.brand_name,
+    },
+    {
+      name: brand.body_font,
+      role: "Body / Texto corrido",
+      sample: brand.tagline,
+    },
+  ];
+
+  const selectedLogo = displayLogos.find((l) => l.id === selected);
 
   const handleConfirm = () => {
     if (!selected) return;
@@ -533,16 +797,19 @@ export const LogoApproval: React.FC = () => {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const { error } = await supabase.from("brand_logo_approvals").insert({
-        brand_id: BRAND_ID,
-        logo_id: selected,
-        logo_name: selectedLogo?.name || selected,
-        comment: comment || null,
-        metadata: {
-          concept: selectedLogo?.concept,
-          imageUrl: selectedLogo?.imageUrl,
-        },
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("brand_logo_approvals")
+        .insert({
+          brand_id: brandId,
+          logo_id: selected,
+          logo_name: selectedLogo?.name || selected,
+          comment: comment || null,
+          metadata: {
+            concept: selectedLogo?.concept,
+            imageUrl: selectedLogo?.imageUrl,
+          },
+        });
       if (error) throw new Error(error.message);
       setSubmitted(true);
     } catch (err: unknown) {
@@ -556,20 +823,26 @@ export const LogoApproval: React.FC = () => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // ─── Loading ────────────────────────────────────────────
+  if (loading) return <PageSkeleton />;
+
   // ─── Success Screen ─────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen bg-[#0D0D14] flex items-center justify-center p-6">
         <div className="max-w-lg text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-[#C9A96E]/20 flex items-center justify-center mx-auto">
-            <Check size={32} className="text-[#C9A96E]" />
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+            style={{ backgroundColor: `${secondaryColor}33` }}
+          >
+            <Check size={32} style={{ color: secondaryColor }} />
           </div>
           <h2 className="text-2xl font-semibold text-white">
             Aprovacao Registrada!
           </h2>
           <p className="text-white/50">
             Voce escolheu:{" "}
-            <span className="text-[#C9A96E] font-medium">
+            <span className="font-medium" style={{ color: secondaryColor }}>
               {selectedLogo?.name}
             </span>
           </p>
@@ -586,7 +859,10 @@ export const LogoApproval: React.FC = () => {
             </p>
           )}
           <div className="pt-4 border-t border-white/[0.06]">
-            <p className="text-[#C9A96E]/60 text-xs font-medium tracking-wider uppercase">
+            <p
+              className="text-xs font-medium tracking-wider uppercase"
+              style={{ color: `${secondaryColor}99` }}
+            >
               Proximo passo
             </p>
             <p className="text-white/40 text-sm mt-1">
@@ -595,7 +871,7 @@ export const LogoApproval: React.FC = () => {
             </p>
           </div>
           <p className="text-white/20 text-xs">
-            MEDPRIME &mdash; Medicina de excelencia. Carreira de impacto.
+            {brand.brand_name} &mdash; {brand.tagline}
           </p>
         </div>
       </div>
@@ -606,19 +882,31 @@ export const LogoApproval: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0D0D14]">
       {zoomLogo && (
-        <ZoomModal logo={zoomLogo} onClose={() => setZoomLogo(null)} />
+        <ZoomModal
+          logo={zoomLogo}
+          onClose={() => setZoomLogo(null)}
+          secondaryColor={secondaryColor}
+        />
       )}
 
       {/* ── Sticky Nav ────────────────────────────────── */}
-      <nav className="sticky top-0 z-30 bg-[#0D0D14]/95 backdrop-blur-md border-b border-[#7A2E3B]/20">
+      <nav
+        className="sticky top-0 z-30 bg-[#0D0D14]/95 backdrop-blur-md border-b"
+        style={{ borderColor: `${primaryColor}33` }}
+      >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#7A2E3B]/20 flex items-center justify-center">
-              <Crown size={18} className="text-[#C9A96E]" />
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${primaryColor}33` }}
+            >
+              <Crown size={18} style={{ color: secondaryColor }} />
             </div>
             <div>
               <p className="text-sm font-semibold text-white tracking-tight">
-                <span className="text-[#C9A96E]">MEDPRIME</span>
+                <span style={{ color: secondaryColor }}>
+                  {brand.brand_name}
+                </span>
               </p>
               <p className="text-white/30 text-[11px]">Brand Experience</p>
             </div>
@@ -628,7 +916,18 @@ export const LogoApproval: React.FC = () => {
               <button
                 key={item.id}
                 onClick={() => scrollTo(item.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/50 hover:text-[#C9A96E] hover:bg-[#C9A96E]/5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/50 rounded-lg transition-colors hover:bg-white/5"
+                style={
+                  {
+                    ["--hover-color" as string]: secondaryColor,
+                  } as React.CSSProperties
+                }
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = secondaryColor)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "rgba(255,255,255,0.5)")
+                }
               >
                 <item.icon size={13} />
                 {item.label}
@@ -636,31 +935,53 @@ export const LogoApproval: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="h-[2px] bg-gradient-to-r from-[#7A2E3B] via-[#C9A96E] to-[#7A2E3B]" />
+        <div
+          className="h-[2px]"
+          style={{
+            background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor}, ${primaryColor})`,
+          }}
+        />
       </nav>
 
       {/* ── Hero ──────────────────────────────────────── */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#7A2E3B]/10 via-transparent to-transparent" />
+        <div
+          className="absolute inset-0 bg-gradient-to-b from-transparent to-transparent"
+          style={{
+            background: `linear-gradient(to bottom, ${primaryColor}1A, transparent)`,
+          }}
+        />
         <div className="max-w-6xl mx-auto px-4 pt-20 pb-12 text-center relative">
-          <p className="text-[#C9A96E]/50 text-[10px] font-medium tracking-[0.3em] uppercase mb-4">
+          <p
+            className="text-[10px] font-medium tracking-[0.3em] uppercase mb-4"
+            style={{ color: `${secondaryColor}80` }}
+          >
             Identidade Visual Premium
           </p>
           <h1
             className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-3"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            style={{
+              fontFamily: `'${brand.display_font}', serif`,
+            }}
           >
-            MEDPRIME
+            {brand.brand_name}
           </h1>
           <p className="text-white/40 text-base sm:text-lg max-w-xl mx-auto">
-            Medicina de excelencia. Carreira de impacto.
+            {brand.tagline}
           </p>
-          <p className="text-white/25 text-sm mt-3">
-            Dr. Luiz Augusto Jr &amp; Dra. Carolina Simonato
-          </p>
+          {brand.client_names && (
+            <p className="text-white/25 text-sm mt-3">{brand.client_names}</p>
+          )}
           <button
             onClick={() => scrollTo("logos")}
-            className="mt-8 mx-auto flex flex-col items-center gap-1 text-[#C9A96E]/40 hover:text-[#C9A96E]/70 transition-colors"
+            className="mt-8 mx-auto flex flex-col items-center gap-1 transition-colors"
+            style={{ color: `${secondaryColor}66` }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = `${secondaryColor}B3`)
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = `${secondaryColor}66`)
+            }
           >
             <span className="text-xs">Explorar</span>
             <ChevronDown size={16} className="animate-bounce" />
@@ -674,11 +995,13 @@ export const LogoApproval: React.FC = () => {
           id="logos"
           icon={Crown}
           title="Escolha sua Logo"
-          subtitle="Selecione a opcao que melhor representa a MEDPRIME. Passe o mouse para efeito 3D, clique na lupa para zoom."
+          subtitle="Selecione a opcao que melhor representa sua marca. Passe o mouse para efeito 3D, clique na lupa para zoom."
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-          {LOGO_OPTIONS.map((logo) => (
+          {displayLogos.map((logo) => (
             <TiltCard
               key={logo.id}
               logo={logo}
@@ -688,13 +1011,17 @@ export const LogoApproval: React.FC = () => {
                 setConfirmed(false);
               }}
               onZoom={() => setZoomLogo(logo)}
+              secondaryColor={secondaryColor}
             />
           ))}
         </div>
 
         {/* Selection bar */}
         {selected && (
-          <div className="sticky bottom-0 z-20 bg-[#0D0D14]/95 backdrop-blur-md border-t border-[#C9A96E]/20 -mx-4 px-4 py-5">
+          <div
+            className="sticky bottom-0 z-20 bg-[#0D0D14]/95 backdrop-blur-md border-t -mx-4 px-4 py-5"
+            style={{ borderColor: `${secondaryColor}33` }}
+          >
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center gap-4 mb-4">
                 <img
@@ -717,7 +1044,18 @@ export const LogoApproval: React.FC = () => {
               {!confirmed ? (
                 <button
                   onClick={handleConfirm}
-                  className="w-full py-3 rounded-xl bg-[#C9A96E] text-[#0D0D14] font-semibold text-sm hover:bg-[#D4B87A] transition-colors"
+                  className="w-full py-3 rounded-xl font-semibold text-sm transition-colors"
+                  style={{
+                    backgroundColor: secondaryColor,
+                    color: "#0D0D14",
+                  }}
+                  onMouseEnter={(e) => {
+                    // lighten slightly on hover
+                    e.currentTarget.style.filter = "brightness(1.1)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.filter = "";
+                  }}
                 >
                   Confirmar escolha
                 </button>
@@ -727,14 +1065,37 @@ export const LogoApproval: React.FC = () => {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Comentario opcional (ex: 'gostei mas queria sem a coroa', 'perfeito!')"
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white/80 text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A96E]/40 resize-none"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white/80 text-sm placeholder:text-white/20 focus:outline-none resize-none"
+                    style={
+                      {
+                        ["--focus-border" as string]: `${secondaryColor}66`,
+                      } as React.CSSProperties
+                    }
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = `${secondaryColor}66`)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(255,255,255,0.1)")
+                    }
                     rows={2}
                     maxLength={500}
                   />
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="w-full py-3 rounded-xl bg-[#C9A96E] text-[#0D0D14] font-semibold text-sm hover:bg-[#D4B87A] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: secondaryColor,
+                      color: "#0D0D14",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!submitting)
+                        e.currentTarget.style.filter = "brightness(1.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.filter = "";
+                    }}
                   >
                     {submitting ? (
                       <>
@@ -760,11 +1121,17 @@ export const LogoApproval: React.FC = () => {
           icon={Shirt}
           title="Merchandise Premium"
           subtitle="Colecao exclusiva de vestuario e materiais. Passe o mouse para ver em movimento."
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-          {SHOWCASE_ITEMS.map((item) => (
-            <ProductCard key={item.id} item={item} />
+          {displayShowcase.map((item) => (
+            <ProductCard
+              key={item.id}
+              item={item}
+              secondaryColor={secondaryColor}
+            />
           ))}
         </div>
 
@@ -773,11 +1140,13 @@ export const LogoApproval: React.FC = () => {
           id="paleta"
           icon={Palette}
           title="Paleta de Cores"
-          subtitle="Cores oficiais da identidade visual MEDPRIME"
+          subtitle={`Cores oficiais da identidade visual ${brand.brand_name}`}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-          {BRAND_COLORS.map((color) => (
+          {brandColors.map((color) => (
             <div
               key={color.hex}
               className="rounded-xl overflow-hidden border border-white/[0.06]"
@@ -791,7 +1160,10 @@ export const LogoApproval: React.FC = () => {
                   {color.name}
                 </p>
                 <p className="text-white/30 text-xs font-mono">{color.hex}</p>
-                <p className="text-[#C9A96E]/40 text-[10px] uppercase tracking-wider mt-1">
+                <p
+                  className="text-[10px] uppercase tracking-wider mt-1"
+                  style={{ color: `${secondaryColor}66` }}
+                >
                   {color.role}
                 </p>
               </div>
@@ -801,22 +1173,20 @@ export const LogoApproval: React.FC = () => {
 
         {/* Fonts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          {BRAND_FONTS.map((font) => (
+          {brandFonts.map((font) => (
             <div
               key={font.name}
               className="rounded-xl border border-white/[0.06] p-5 bg-[#0A0A10]/40"
             >
-              <p className="text-[#C9A96E]/50 text-[10px] uppercase tracking-wider mb-2">
+              <p
+                className="text-[10px] uppercase tracking-wider mb-2"
+                style={{ color: `${secondaryColor}80` }}
+              >
                 {font.role}
               </p>
               <p
                 className="text-white/80 text-2xl mb-1"
-                style={{
-                  fontFamily:
-                    font.name === "Cormorant Garamond"
-                      ? "'Cormorant Garamond', serif"
-                      : "'Inter', sans-serif",
-                }}
+                style={{ fontFamily: `'${font.name}', sans-serif` }}
               >
                 {font.sample}
               </p>
@@ -831,6 +1201,8 @@ export const LogoApproval: React.FC = () => {
           icon={BookOpen}
           title="Manual da Marca"
           subtitle="Documentos oficiais da identidade visual"
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
@@ -868,14 +1240,23 @@ export const LogoApproval: React.FC = () => {
           ].map((doc) => (
             <div
               key={doc.icon}
-              className="rounded-xl border border-white/[0.06] p-5 bg-[#0A0A10]/40 hover:border-[#C9A96E]/20 transition-colors"
+              className="rounded-xl border border-white/[0.06] p-5 bg-[#0A0A10]/40 transition-colors"
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.borderColor = `${secondaryColor}33`)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")
+              }
             >
               <div className="flex items-center gap-3 mb-2">
-                <BookOpen size={16} className="text-[#C9A96E]/60" />
+                <BookOpen size={16} style={{ color: `${secondaryColor}99` }} />
                 <p className="text-white/80 font-medium text-sm">{doc.title}</p>
               </div>
               <p className="text-white/30 text-xs">{doc.desc}</p>
-              <p className="text-[#C9A96E]/40 text-[10px] uppercase tracking-wider mt-3">
+              <p
+                className="text-[10px] uppercase tracking-wider mt-3"
+                style={{ color: `${secondaryColor}66` }}
+              >
                 Disponivel apos aprovacao da logo
               </p>
             </div>
@@ -887,12 +1268,13 @@ export const LogoApproval: React.FC = () => {
       <div className="border-t border-white/[0.06] bg-[#0A0A10]/40">
         <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-center sm:text-left">
-            <p className="text-[#C9A96E]/40 text-xs font-medium tracking-wider">
-              MEDPRIME
+            <p
+              className="text-xs font-medium tracking-wider"
+              style={{ color: `${secondaryColor}66` }}
+            >
+              {brand.brand_name}
             </p>
-            <p className="text-white/20 text-[11px]">
-              Medicina de excelencia. Carreira de impacto.
-            </p>
+            <p className="text-white/20 text-[11px]">{brand.tagline}</p>
           </div>
           <p className="text-white/15 text-[10px]">
             Powered by MOTTIVME AI Factory
