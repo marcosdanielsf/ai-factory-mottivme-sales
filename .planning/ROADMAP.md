@@ -42,8 +42,8 @@ Customer Journey Map v2.0 delivers full visibility into the MOTTIVME client jour
 
 Plans:
 
-- [ ] 09-01-PLAN.md — Supabase schema (5 tabelas + business_calendar, 2 views, RLS, business_hours_diff() SQL function) + TypeScript types em apps/docs/src/types/cjm.ts
-- [ ] 09-02-PLAN.md — n8n CJM Event Ingester (live GHL webhook → idempotent INSERT) + CJM Backfill (bulk histórico 4 pipelines × 4 clientes com rate limiting)
+- [x] 09-01-PLAN.md — Supabase schema (5 tabelas + business_calendar, 2 views, RLS, business_hours_diff() SQL function) + TypeScript types em apps/docs/src/types/cjm.ts
+- [x] 09-02-PLAN.md — n8n CJM Event Ingester (live GHL webhook → idempotent INSERT) + CJM Backfill (bulk histórico 4 pipelines × 4 clientes com rate limiting)
 
 ### Phase 10: Visual Journey Map
 
@@ -56,12 +56,12 @@ Plans:
 2. Each pipeline column shows the names and current-stage duration of all active clients positioned there (updated within 30 seconds of a GHL stage transition)
 3. Each stage column displays its configured owner, SLA threshold, and tools — all editable inline — without navigating away from the map
 4. Clicking or hovering on a stage reveals a panel with conversion rate, average time, current volume, and SLA compliance percentage drawn from Supabase views
-   **Plans**: TBD
+   **Plans**: 2 plans
 
 Plans:
 
-- [ ] 10-01: `pages/CustomerJourney/` module (tab router: Map / Analytics / SLA / Editor), lazy-loaded route in `App.tsx`, all 6 `useCjm*` hooks (`useCjmPipelineMap`, `useCjmClientPositions`, `useCjmStageConfig`, `useCjmSlaStatus`, `useCjmDropOff`, `useCjmRealtime`), Realtime Broadcast channel via `useCjmRealtime.ts` (modeled on `useSupervisionRealtime.ts`), sidebar entry
-- [ ] 10-02: `JourneyCanvas.tsx`, `PipelineLane.tsx`, `StageColumn.tsx`, `TouchpointCard.tsx`, `SlaIndicator.tsx` — swimlane renderer with 4-pipeline tabs, client position badges, SLA color coding (green/amber/red), stage config inline editing panel
+- [ ] 10-01-PLAN.md — Data layer: 4 useCjm\* hooks (PipelineMap, ClientPositions, StageConfig, Realtime), page shell with tab router, lazy route in App.tsx, sidebar entry, RLS UPDATE policy SQL
+- [ ] 10-02-PLAN.md — Visual components: JourneyCanvas, PipelineLane, StageColumn, ClientBadge, SlaIndicator (swimlane renderer), StageConfigPanel (inline editing), StageMetricsPopover (metrics on hover)
 
 ### Phase 11: Client Timeline + SLA Monitor
 
@@ -125,13 +125,13 @@ Phases execute strictly in sequence: 9 → 10 → 11 → 12 → 13
 Phase 9 is the unblockable prerequisite — no UI phase can start before the data pipeline is live.
 Phase 12 and Phase 13 can be parallelized after Phase 11 is complete if velocity allows.
 
-| Phase                             | Plans Complete | Status      | Completed |
-| --------------------------------- | -------------- | ----------- | --------- |
-| 9. Foundation                     | 0/2            | Not started | -         |
-| 10. Visual Journey Map            | 0/2            | Not started | -         |
-| 11. Client Timeline + SLA Monitor | 0/2            | Not started | -         |
-| 12. Analytics Dashboard + Sankey  | 0/2            | Not started | -         |
-| 13. Stage Editor + Health Score   | 0/2            | Not started | -         |
+| Phase                             | Plans Complete | Status      | Completed  |
+| --------------------------------- | -------------- | ----------- | ---------- |
+| 9. Foundation                     | 2/2            | Complete    | 2026-03-11 |
+| 10. Visual Journey Map            | 0/2            | Planned     | -          |
+| 11. Client Timeline + SLA Monitor | 0/2            | Not started | -          |
+| 12. Analytics Dashboard + Sankey  | 0/2            | Not started | -          |
+| 13. Stage Editor + Health Score   | 0/2            | Not started | -          |
 
 ---
 
