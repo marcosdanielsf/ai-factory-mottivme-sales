@@ -226,6 +226,11 @@ const navSections: NavSection[] = [
             to: "/prospector/ig-growth",
           },
           {
+            icon: Activity,
+            label: "Instagram Prospector",
+            to: "/prospector/ig-prospector",
+          },
+          {
             icon: Search,
             label: "LinkedIn Posts",
             to: "/leadgen/linkedin-posts",
