@@ -95,12 +95,15 @@ export function useIGProspectorData(
     setError(null);
 
     // Montar queries — adicionar filtro location_id quando effectiveLocationId estiver disponivel
-    const funnelQuery = effectiveLocationId
-      ? supabase
-          .from("vw_lead_funnel_e2e")
-          .select("funnel_stage")
-          .eq("location_id", effectiveLocationId)
-      : supabase.from("vw_lead_funnel_e2e").select("funnel_stage");
+    // NOTA: vw_lead_funnel_e2e retorna 1 row por lead (50k+).
+    // Filtramos funnel_stage NOT NULL para pegar apenas leads no pipeline ativo.
+    let funnelQuery = supabase
+      .from("vw_lead_funnel_e2e")
+      .select("funnel_stage")
+      .not("funnel_stage", "is", null);
+    if (effectiveLocationId) {
+      funnelQuery = funnelQuery.eq("location_id", effectiveLocationId);
+    }
 
     const replyRateQuery = effectiveLocationId
       ? supabase
