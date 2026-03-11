@@ -37,10 +37,16 @@ export interface IGCostPerLead {
   location_id?: string;
 }
 
+export interface IGLeadsByMonth {
+  month: string; // "YYYY-MM"
+  count: number;
+}
+
 export interface IGProspectorData {
   funnelStages: IGFunnelStage[];
   replyRates: IGReplyRateByAccount[];
   costPerLead: IGCostPerLead[];
+  leadsByMonth: IGLeadsByMonth[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
@@ -94,6 +100,7 @@ export function useIGProspectorData(
   const [funnelStages, setFunnelStages] = useState<IGFunnelStage[]>([]);
   const [replyRates, setReplyRates] = useState<IGReplyRateByAccount[]>([]);
   const [costPerLead, setCostPerLead] = useState<IGCostPerLead[]>([]);
+  const [leadsByMonth, setLeadsByMonth] = useState<IGLeadsByMonth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,7 +118,7 @@ export function useIGProspectorData(
     // Filtramos funnel_stage NOT NULL para pegar apenas leads no pipeline ativo.
     let funnelQuery = supabase
       .from("vw_lead_funnel_e2e")
-      .select("funnel_stage")
+      .select("funnel_stage, first_contact_at")
       .not("funnel_stage", "is", null);
     if (effectiveLocationId) {
       funnelQuery = funnelQuery.eq("location_id", effectiveLocationId);
@@ -198,6 +205,20 @@ export function useIGProspectorData(
           ? mapped.filter((s) => s.stage === stageFilter)
           : mapped;
         setFunnelStages(filtered);
+
+        // Agregar leadsByMonth — contar leads com first_contact_at por mes (YYYY-MM)
+        const monthCounts: Record<string, number> = {};
+        for (const row of data ?? []) {
+          const rawDate = (row as Record<string, unknown>).first_contact_at;
+          if (rawDate == null) continue;
+          const month = String(rawDate).slice(0, 7); // "YYYY-MM"
+          if (month.length !== 7) continue;
+          monthCounts[month] = (monthCounts[month] || 0) + 1;
+        }
+        const lbm: IGLeadsByMonth[] = Object.entries(monthCounts)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([month, count]) => ({ month, count }));
+        setLeadsByMonth(lbm);
       }
     } else {
       console.error(
@@ -299,6 +320,7 @@ export function useIGProspectorData(
     funnelStages,
     replyRates,
     costPerLead,
+    leadsByMonth,
     loading,
     error,
     refetch: fetchData,
