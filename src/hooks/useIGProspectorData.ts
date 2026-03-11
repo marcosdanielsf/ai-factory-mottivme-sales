@@ -67,8 +67,8 @@ const STAGE_ORDER = [
   "lost",
 ];
 
-// Helper: extrair "YYYY-MM" de uma Date
-const toYearMonth = (d: Date): string => d.toISOString().slice(0, 7);
+// Helper: extrair "YYYY-MM-01" de uma Date (coluna month e tipo DATE, nao TEXT)
+const toYearMonth = (d: Date): string => d.toISOString().slice(0, 7) + "-01";
 
 // ============================================================================
 // HOOK: useIGProspectorData
