@@ -28,6 +28,9 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 const MindflowHome = React.lazy(() => import("./pages/mindflow/index"));
 const BoardPage = React.lazy(() => import("./pages/mindflow/BoardPage"));
 
+// Customer Journey Map - lazy loaded
+const CustomerJourney = React.lazy(() => import("./pages/CustomerJourney"));
+
 const App = () => {
   return (
     <AuthProvider>
@@ -68,6 +71,24 @@ const App = () => {
                 <ProtectedRoute>
                   <Layout>
                     <Agendamentos />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Customer Journey Map */}
+            <Route
+              path="/customer-journey"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <React.Suspense
+                      fallback={
+                        <div className="p-8 text-text-muted">Carregando...</div>
+                      }
+                    >
+                      <CustomerJourney />
+                    </React.Suspense>
                   </Layout>
                 </ProtectedRoute>
               }

@@ -23,6 +23,7 @@ import {
   CalendarCheck,
   Sparkles,
   LayoutDashboard,
+  Map,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -267,6 +268,13 @@ export const Sidebar = ({
           icon={CalendarCheck}
           label="Agendamentos"
           to="/agendamentos"
+          onNavigate={handleNavigate}
+          isCollapsed={isCollapsed}
+        />
+        <SidebarItem
+          icon={Map}
+          label="Jornada Cliente"
+          to="/customer-journey"
           onNavigate={handleNavigate}
           isCollapsed={isCollapsed}
         />
