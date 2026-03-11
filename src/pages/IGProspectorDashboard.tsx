@@ -10,7 +10,18 @@ import {
   Users,
   Flame,
   Send,
+  TrendingUp,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { DateRangePicker, DateRange } from "../components/DateRangePicker";
 import { useIGProspectorData } from "../hooks/useIGProspectorData";
 import { useAccountData } from "../hooks/useAccountData";
@@ -159,12 +170,19 @@ export default function IGProspectorDashboard() {
   // Normalizar stageFilter — null se vazio
   const effectiveStageFilter = stageFilter || null;
 
-  const { funnelStages, replyRates, costPerLead, loading, error, refetch } =
-    useIGProspectorData(
-      locationIdOverride,
-      effectiveDateRange,
-      effectiveStageFilter,
-    );
+  const {
+    funnelStages,
+    replyRates,
+    costPerLead,
+    leadsByMonth,
+    loading,
+    error,
+    refetch,
+  } = useIGProspectorData(
+    locationIdOverride,
+    effectiveDateRange,
+    effectiveStageFilter,
+  );
 
   // ============================================================================
   // Computed — KPI cards (DASH-01)
@@ -620,7 +638,156 @@ export default function IGProspectorDashboard() {
       </section>
 
       {/* -------------------------------------------------------------------- */}
-      {/* Secao 3: Custo por Lead e Agendamento — METR-02 */}
+      {/* Secao 3: Evolucao Historica — METR-03 */}
+      {/* Grafico de linha: volume de leads contatados e reply rate por mes */}
+      {/* -------------------------------------------------------------------- */}
+      {(() => {
+        // Coletar todos os meses unicos de leadsByMonth e replyRates
+        const allMonths = Array.from(
+          new Set([
+            ...leadsByMonth.map((l) => l.month),
+            ...replyRates.map((r) => r.month),
+          ]),
+        ).sort();
+
+        // Para cada mes: leads = contagem de leadsByMonth; replyRate = media ponderada de reply_rate_pct
+        const chartData = allMonths.map((month) => {
+          const lbm = leadsByMonth.find((l) => l.month === month);
+          const ratesThisMonth = replyRates.filter((r) => r.month === month);
+          const totalDms = ratesThisMonth.reduce(
+            (sum, r) => sum + r.total_dms_sent,
+            0,
+          );
+          const totalReplied = ratesThisMonth.reduce(
+            (sum, r) => sum + r.total_replied,
+            0,
+          );
+          const replyRate =
+            totalDms > 0
+              ? parseFloat(((totalReplied / totalDms) * 100).toFixed(1))
+              : 0;
+          return {
+            month,
+            leads: lbm?.count ?? 0,
+            replyRate,
+          };
+        });
+
+        return (
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="h-5 w-5 text-[#58a6ff]" />
+              <h2 className="text-lg font-semibold text-[#f0f6fc]">
+                Evolucao Historica
+              </h2>
+              {chartData.length > 0 && (
+                <span className="text-xs text-[#8b949e] ml-1">
+                  ({chartData.length} mes{chartData.length !== 1 ? "es" : ""})
+                </span>
+              )}
+            </div>
+
+            {chartData.length === 0 ? (
+              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-8 text-center">
+                <TrendingUp className="h-10 w-10 text-[#30363d] mx-auto mb-3" />
+                <p className="text-[#8b949e] text-sm">Sem dados historicos</p>
+                <p className="text-[#6e7681] text-xs mt-1">
+                  O grafico aparecera quando houver leads com first_contact_at
+                  preenchido
+                </p>
+              </div>
+            ) : (
+              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#21262d"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "#8b949e", fontSize: 11 }}
+                      axisLine={{ stroke: "#30363d" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{ fill: "#8b949e", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={40}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fill: "#8b949e", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={40}
+                      unit="%"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#161b22",
+                        border: "1px solid #30363d",
+                        borderRadius: "6px",
+                        color: "#c9d1d9",
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "#8b949e", marginBottom: 4 }}
+                      formatter={(value: number, name: string) => {
+                        if (name === "replyRate")
+                          return [`${value}%`, "Reply Rate"];
+                        return [
+                          value.toLocaleString("pt-BR"),
+                          "Leads Contatados",
+                        ];
+                      }}
+                    />
+                    <Legend
+                      wrapperStyle={{
+                        fontSize: 12,
+                        color: "#8b949e",
+                        paddingTop: 12,
+                      }}
+                      formatter={(value: string) =>
+                        value === "leads"
+                          ? "Leads Contatados"
+                          : "Reply Rate (%)"
+                      }
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="leads"
+                      stroke="#58a6ff"
+                      strokeWidth={2}
+                      dot={{ fill: "#58a6ff", r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="replyRate"
+                      stroke="#3fb950"
+                      strokeWidth={2}
+                      dot={{ fill: "#3fb950", r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </section>
+        );
+      })()}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* Secao 4: Custo por Lead e Agendamento — METR-02 */}
       {/* 2 KPI cards (ultimo mes) + tabela detalhada por mes */}
       {/* -------------------------------------------------------------------- */}
       <section>
