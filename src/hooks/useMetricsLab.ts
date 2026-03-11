@@ -502,6 +502,37 @@ export const useMetricsLab = (
       // Helper para formatar data como YYYY-MM-DD
       const formatDateISO = (d: Date): string => d.toISOString().split("T")[0];
 
+      // Q0: Buscar account_names permitidos (apenas clientes ativos com agent_versions)
+      const { data: mappingRows, error: mappingErr } = await supabase
+        .from("ad_account_mapping")
+        .select("account_name")
+        .eq("is_active", true);
+
+      if (mappingErr) {
+        console.error(
+          "[MetricsLab] ad_account_mapping query falhou:",
+          mappingErr.message,
+        );
+        setError(
+          "Falha ao carregar mapeamento de contas: " + mappingErr.message,
+        );
+        setLoading(false);
+        return;
+      }
+      const allowedAccounts = (mappingRows ?? []).map(
+        (r: { account_name: string }) => r.account_name,
+      );
+
+      // Se nao ha contas mapeadas, nada a mostrar
+      if (allowedAccounts.length === 0) {
+        setRawAds([]);
+        setRawAdsPrev([]);
+        setRawTracking([]);
+        setUnattributedCount(0);
+        setLoading(false);
+        return;
+      }
+
       // Q2: fb_ads_performance with video columns (criativos + funil)
       let adsQuery = supabase
         .from("fb_ads_performance")
@@ -511,11 +542,8 @@ export const useMetricsLab = (
             "video_views_3s, video_p75, outbound_clicks, conversas_iniciadas, " +
             "custo_por_conversa, conversions, conversion_value, thumbnail_url",
         )
+        .in("account_name", accountName ? [accountName] : allowedAccounts)
         .order("data_relatorio", { ascending: true });
-
-      if (accountName) {
-        adsQuery = adsQuery.eq("account_name", accountName);
-      }
 
       if (dateRange?.startDate) {
         adsQuery = adsQuery.gte(
@@ -541,11 +569,8 @@ export const useMetricsLab = (
             "video_views_3s, video_p75, outbound_clicks, conversas_iniciadas, " +
             "custo_por_conversa, conversions, conversion_value",
         )
+        .in("account_name", accountName ? [accountName] : allowedAccounts)
         .order("data_relatorio", { ascending: true });
-
-      if (accountName) {
-        adsPrevQuery = adsPrevQuery.eq("account_name", accountName);
-      }
 
       if (dateRange?.startDate && dateRange?.endDate) {
         const rangeMs =
