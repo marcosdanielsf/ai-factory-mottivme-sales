@@ -1,5 +1,18 @@
 import React, { useState, useMemo } from "react";
 import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Treemap,
+} from "recharts";
+import {
   DollarSign,
   Users,
   Cpu,
@@ -115,9 +128,81 @@ export const ClientCosts = () => {
     byAgent,
     abTest,
     byFase,
+    daily,
     loading: loadingAnalytics,
     hasData: hasAnalyticsData,
   } = useCostAnalytics();
+
+  // Chart data: daily costs aggregated by date
+  const dailyChartData = useMemo(() => {
+    const map = new Map<string, number>();
+    daily.forEach((d) => {
+      map.set(d.dia, (map.get(d.dia) || 0) + d.total_usd);
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dia, total]) => ({
+        dia: new Date(dia).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        total,
+      }));
+  }, [daily]);
+
+  // Chart data: treemap by agent (aggregate by agent_name)
+  const agentTreemapData = useMemo(() => {
+    const map = new Map<
+      string,
+      { cost: number; calls: number; client: string }
+    >();
+    byAgent.forEach((a) => {
+      const key = a.agent_name || "N/A";
+      const prev = map.get(key) || { cost: 0, calls: 0, client: "" };
+      map.set(key, {
+        cost: prev.cost + a.total_usd,
+        calls: prev.calls + a.chamadas,
+        client: a.location_name,
+      });
+    });
+    return Array.from(map.entries())
+      .map(([name, d]) => ({
+        name,
+        size: d.cost,
+        calls: d.calls,
+        client: d.client,
+      }))
+      .sort((a, b) => b.size - a.size);
+  }, [byAgent]);
+
+  // Chart data: donut A/B (aggregate by variant)
+  const abDonutData = useMemo(() => {
+    const map = new Map<string, { cost: number; calls: number }>();
+    abTest.forEach((a) => {
+      const key = a.ab_variant || "N/A";
+      const prev = map.get(key) || { cost: 0, calls: 0 };
+      map.set(key, {
+        cost: prev.cost + a.total_usd,
+        calls: prev.calls + a.chamadas,
+      });
+    });
+    return Array.from(map.entries()).map(([name, d]) => ({
+      name,
+      value: d.cost,
+      calls: d.calls,
+    }));
+  }, [abTest]);
+
+  const CHART_COLORS = [
+    "#8b5cf6",
+    "#22c55e",
+    "#3b82f6",
+    "#f59e0b",
+    "#ef4444",
+    "#06b6d4",
+    "#ec4899",
+    "#84cc16",
+  ];
 
   const handleRefresh = async () => {
     await Promise.all([refetch(), refetchWorkflows()]);
@@ -1195,6 +1280,270 @@ export const ClientCosts = () => {
             </div>
           ) : (
             <>
+              {/* ===== CHARTS ROW ===== */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {/* 1. Daily Cost Trend — AreaChart */}
+                {dailyChartData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm lg:col-span-2">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <TrendingUp size={16} />
+                        Custo Diario
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Tendencia de gasto por dia (ultimos 60 dias)
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4"
+                      style={{ height: isMobile ? 200 : 280 }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={dailyChartData}
+                          margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id="costGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#8b5cf6"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#8b5cf6"
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="rgba(255,255,255,0.06)"
+                          />
+                          <XAxis
+                            dataKey="dia"
+                            tick={{
+                              fontSize: 10,
+                              fill: "rgba(255,255,255,0.4)",
+                            }}
+                            tickLine={false}
+                            axisLine={false}
+                            interval={isMobile ? 6 : 3}
+                          />
+                          <YAxis
+                            tick={{
+                              fontSize: 10,
+                              fill: "rgba(255,255,255,0.4)",
+                            }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+                            width={55}
+                          />
+                          <ReTooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(20,20,30,0.95)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: 8,
+                              fontSize: 12,
+                            }}
+                            formatter={(value: number) => [
+                              `$${value.toFixed(4)}`,
+                              "Custo",
+                            ]}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="total"
+                            stroke="#8b5cf6"
+                            strokeWidth={2}
+                            fill="url(#costGradient)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Treemap — Custo por Agente */}
+                {agentTreemapData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Users size={16} />
+                        Custo por Agente
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Tamanho proporcional ao custo total
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4"
+                      style={{ height: isMobile ? 220 : 300 }}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                          data={agentTreemapData}
+                          dataKey="size"
+                          aspectRatio={4 / 3}
+                          stroke="rgba(0,0,0,0.3)"
+                          content={({
+                            x,
+                            y,
+                            width,
+                            height,
+                            name,
+                            index,
+                          }: {
+                            x: number;
+                            y: number;
+                            width: number;
+                            height: number;
+                            name?: string;
+                            index?: number;
+                          }) => {
+                            const color =
+                              CHART_COLORS[(index ?? 0) % CHART_COLORS.length];
+                            const item = agentTreemapData.find(
+                              (d) => d.name === name,
+                            );
+                            const showLabel = width > 50 && height > 35;
+                            return (
+                              <g>
+                                <rect
+                                  x={x}
+                                  y={y}
+                                  width={width}
+                                  height={height}
+                                  fill={color}
+                                  fillOpacity={0.7}
+                                  rx={4}
+                                  stroke="rgba(0,0,0,0.4)"
+                                  strokeWidth={1}
+                                />
+                                {showLabel && (
+                                  <>
+                                    <text
+                                      x={x + width / 2}
+                                      y={y + height / 2 - 6}
+                                      textAnchor="middle"
+                                      fill="#fff"
+                                      fontSize={11}
+                                      fontWeight="bold"
+                                    >
+                                      {name}
+                                    </text>
+                                    <text
+                                      x={x + width / 2}
+                                      y={y + height / 2 + 10}
+                                      textAnchor="middle"
+                                      fill="rgba(255,255,255,0.7)"
+                                      fontSize={10}
+                                    >
+                                      ${item?.size.toFixed(2)}
+                                    </text>
+                                  </>
+                                )}
+                              </g>
+                            );
+                          }}
+                        />
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Donut — A/B Test */}
+                {abDonutData.length > 0 && (
+                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        <Zap size={16} />
+                        A/B Test — Pro vs Flash
+                      </h2>
+                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                        Distribuicao de custo entre variantes
+                      </p>
+                    </div>
+                    <div
+                      className="p-3 md:p-4 flex items-center justify-center"
+                      style={{ height: isMobile ? 220 : 300 }}
+                    >
+                      <div className="w-full flex items-center justify-center gap-6">
+                        <ResponsiveContainer
+                          width="60%"
+                          height={isMobile ? 180 : 240}
+                        >
+                          <PieChart>
+                            <Pie
+                              data={abDonutData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={isMobile ? 40 : 60}
+                              outerRadius={isMobile ? 70 : 95}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {abDonutData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={i === 0 ? "#8b5cf6" : "#22c55e"}
+                                />
+                              ))}
+                            </Pie>
+                            <ReTooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(20,20,30,0.95)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                              formatter={(value: number) => [
+                                `$${value.toFixed(4)}`,
+                                "Custo",
+                              ]}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="space-y-3">
+                          {abDonutData.map((d, i) => (
+                            <div
+                              key={d.name}
+                              className="flex items-center gap-2"
+                            >
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    i === 0 ? "#8b5cf6" : "#22c55e",
+                                }}
+                              />
+                              <div>
+                                <p className="text-xs font-bold text-text-primary uppercase">
+                                  {d.name}
+                                </p>
+                                <p className="text-[10px] text-text-muted">
+                                  ${d.value.toFixed(4)} ·{" "}
+                                  {formatNumber(d.calls)} chamadas
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* By Agent Mode */}
               {byAgentMode.length > 0 && (
                 <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
