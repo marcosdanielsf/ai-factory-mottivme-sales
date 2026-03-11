@@ -1,185 +1,102 @@
-# MindFlow - Requirements v1
+# Requirements: Customer Journey Map v2.0
 
-> Milestone 1: MVP Board Engine + Table + Kanban
-> Generated: 2026-03-05 | Source: research + user scoping
+**Defined:** 2026-03-11
+**Core Value:** Visibilidade total da jornada do cliente — da prospecao ate renovacao/churn — com tracking de cada touchpoint, owners claros, SLAs definidos e dashboard visual.
 
----
+## v2.0 Requirements
 
-## v1 Requirements
+### Data Pipeline
 
-### Board Engine
+- [ ] **DATA-01**: Sistema sincroniza stage transitions dos 4 pipelines GHL para Supabase via n8n webhook, com dedup por (contact_id, stage_key, source_event_id)
+- [ ] **DATA-02**: Tabela journey_events armazena eventos append-only com timestamptz, client_id, pipeline_id, stage_id, event_type, e metadata JSONB
+- [ ] **DATA-03**: Backfill importa dados historicos dos 4 pipelines GHL (Prospects, Pre-Vendas, Sales Farming, CS/Retencao) para journey_events
+- [ ] **DATA-04**: Funcao SQL business_hours_diff() calcula tempo util entre dois timestamps excluindo fins de semana e feriados (tabela business_calendar)
 
-- [ ] **BOARD-01**: User can create a board with name, description, and typed columns (Text, Number, Status, Date, Person, Dropdown, Checkbox)
-- [ ] **BOARD-02**: User can add, rename, reorder, and delete columns on a board via drag-and-drop
-- [ ] **BOARD-03**: User can create collapsible, colorable groups (sections) within a board
-- [ ] **BOARD-04**: User can create subitems (1 level deep) under any item, collapsible in table view
-- [ ] **BOARD-05**: User can reorder items within and between groups via drag-and-drop
-- [ ] **BOARD-06**: Column types render appropriate editors: Text (inline input), Number (formatted input), Status (color-coded dropdown), Date (date picker), Person (user selector), Dropdown (custom options), Checkbox (toggle)
-- [x] **BOARD-07**: Board stores column definitions as JSONB and item values as JSONB (column_values pattern)
+### Journey Map Visual
 
-### Table View
+- [x] **MAP-01**: Usuario ve mapa visual ponta-a-ponta com todas as etapas da jornada do cliente (prospecao → qualificacao → reuniao → proposta → onboarding → ativo → renovacao)
+- [x] **MAP-02**: Mapa mostra indicador de posicao de cada cliente ativo na jornada (em qual etapa esta, ha quanto tempo)
+- [x] **MAP-03**: Cada etapa do mapa exibe configuracao editavel: owner responsavel, SLA em horas uteis, ferramentas usadas, descricao
+- [ ] **MAP-04**: Tooltip ou painel lateral por etapa mostra metricas: conversion rate, tempo medio, volume atual, SLA compliance %
 
-- [ ] **TABLE-01**: User can view board items in a table with inline editing (click cell = type-specific editor)
-- [ ] **TABLE-02**: Table virtualizes rows for boards with 1000+ items using TanStack Virtual
-- [ ] **TABLE-03**: User can resize columns by dragging column borders
-- [ ] **TABLE-04**: User can hide/show columns per view
-- [ ] **TABLE-05**: User can select multiple rows (checkbox, Shift+click range) and perform bulk actions via floating toolbar (delete, move, change status, assign)
-- [ ] **TABLE-06**: Table has sticky header and sticky first column
-- [ ] **TABLE-07**: User can navigate between cells using Tab key
+### Client Timeline
 
-### Kanban View
+- [ ] **TIME-01**: Usuario pode ver timeline cronologica de todos os eventos/touchpoints de um cliente especifico (webhook recebido, stage change, mensagem enviada, agendamento)
+- [ ] **TIME-02**: Timeline exibe indicadores visuais de SLA (verde = dentro do prazo, amarelo = proximo do limite, vermelho = breach)
+- [ ] **TIME-03**: Sistema envia alerta (notificacao na UI + opcional webhook) quando SLA de uma etapa e violado para um cliente
+- [ ] **TIME-04**: Modulo de onboarding checklist integrado com etapas configuradas e progresso por cliente (meta: onboarding <48h)
 
-- [ ] **KANBAN-01**: User can view board items as Kanban cards grouped by Status column, with drag-and-drop between columns
-- [ ] **KANBAN-02**: User can group Kanban by any column type (Status, Person, Dropdown)
-- [ ] **KANBAN-03**: User can configure which fields are visible on Kanban cards
-- [ ] **KANBAN-04**: Kanban columns show card count and can be collapsed
+### Analytics Dashboard
 
-### Filtering, Sorting, Grouping
+- [ ] **ANAL-01**: Dashboard exibe diagrama Sankey mostrando fluxo de clientes entre etapas (volume de transicoes, com threshold minimo de 30 eventos)
+- [ ] **ANAL-02**: Dashboard mostra drop-off rates por etapa (% de clientes que saem/churnam em cada ponto da jornada)
+- [ ] **ANAL-03**: Dashboard mostra tempo medio por etapa com comparacao vs SLA definido (destaque visual quando acima do SLA)
+- [ ] **ANAL-04**: Dashboard usa layout customizavel com widgets arrastáveis (react-grid-layout) — usuario pode reorganizar e redimensionar graficos
 
-- [ ] **FILTER-01**: User can filter items by any column with type-appropriate operators (equals, contains, is empty, greater than, etc.)
-- [ ] **FILTER-02**: User can combine multiple filters with AND/OR logic
-- [ ] **FILTER-03**: User can sort items by any column (asc/desc), including multi-column sort
-- [ ] **FILTER-04**: User can group items by any column (collapsible group headers with counts)
-- [ ] **FILTER-05**: Filters, sort, and group-by settings are saved independently per view
-- [ ] **FILTER-06**: User can search items by name via quick filter bar
+### Stage Editor
 
-### CRUD & Data
-
-- [ ] **CRUD-01**: User can create items inline (add row at bottom of group)
-- [ ] **CRUD-02**: User can duplicate an item (copies all column values)
-- [ ] **CRUD-03**: User can delete items (with confirmation dialog)
-- [ ] **CRUD-04**: User can archive items (soft delete with archived_at timestamp)
-- [ ] **CRUD-05**: User can move items between groups via drag-and-drop or context menu
-- [ ] **CRUD-06**: User can open item detail panel (sidebar) showing all fields, description (rich text), and activity
-- [ ] **CRUD-07**: System logs activity per item (who changed what field, when) in audit trail
-
-### Real-time & Collaboration
-
-- [ ] **RT-01**: Changes made by other users appear in real-time without page refresh (Supabase Realtime)
-- [ ] **RT-02**: Board shows presence indicators (avatars of users currently viewing)
-
-### Permissions
-
-- [ ] **PERM-01**: Board supports 3 roles: Admin (full control), Member (edit items), Viewer (read-only)
-- [ ] **PERM-02**: Board owner can invite users and assign roles
-- [ ] **PERM-03**: Supabase RLS enforces permissions at database level
-
-### Navigation & UX
-
-- [ ] **NAV-01**: MindFlow has dedicated sidebar section with workspace/board navigation
-- [ ] **NAV-02**: User can switch between Table and Kanban views via tabs
-- [ ] **NAV-03**: Command palette (Cmd+K) allows quick navigation to any board, item, or action
-- [ ] **NAV-04**: Breadcrumb navigation shows current location (Workspace > Board > View)
-
-### Templates
-
-- [ ] **TPL-01**: System provides 4 pre-built board templates: Projeto, CRM, Sprint, Onboarding
-- [ ] **TPL-02**: User can create a board from template (pre-configured columns, groups, and sample items)
-
-### Multi-tenant
-
-- [ ] **MT-01**: Boards are scoped to location_id for client isolation (RLS policies)
-- [ ] **MT-02**: Internal MOTTIVME workspace serves as first tenant for validation
+- [ ] **EDIT-01**: Usuario pode criar, editar, reordenar e deletar etapas da jornada via interface drag-and-drop
+- [ ] **EDIT-02**: Cada etapa tem campos editaveis: nome, owner, SLA (horas uteis), ferramentas, descricao, cor, icone
+- [ ] **EDIT-03**: Sistema calcula health score automatico por cliente baseado em: tempo na etapa vs SLA, quality_score das conversas (quando disponivel), responded rate, agendamentos realizados
 
 ---
 
-## v2 Requirements (Deferred)
+## Future Requirements (v3.0+)
 
-- [ ] Calendar view for items with dates
-- [ ] Gantt chart with dependencies (SVAR React Gantt)
-- [ ] Dashboard builder with draggable widgets (charts, numbers, battery, table)
-- [ ] Automation engine (trigger + condition + action, 10 initial recipes)
-- [ ] AI columns (scoring, auto-fill, sentiment, summarize)
-- [ ] GHL leads sync as board items
-- [ ] Formula column
-- [ ] Rich text docs (TipTap collaborative)
-- [ ] Form view (public form creates items)
-- [ ] Comments with @mentions on items
-- [ ] File attachments on items
-- [ ] White-label multi-tenant for AI Factory clients
-
----
+- Mapa de jornada por tipo de cliente (medico vs mentoria vs financeiro)
+- Integracao com MindFlow boards (etapas como items de board)
+- AI recommendations (sugestao de proxima acao por cliente)
+- Multi-tenant journey maps (cada cliente do AI Factory define sua jornada)
+- Benchmarks entre clientes (comparar performance)
+- Attribution modeling (qual canal gera mais conversao por etapa)
 
 ## Out of Scope
 
-| Exclusion                  | Rationale                                                 |
-| -------------------------- | --------------------------------------------------------- |
-| Mobile native app          | Web-first. Responsive PWA later.                          |
-| Apps marketplace           | Premature complexity. Extend codebase directly.           |
-| Whiteboards / canvas       | Not core PM. Embed Miro/Excalidraw if needed.             |
-| Video calls / chat         | Use Slack/WhatsApp/GHL conversations.                     |
-| Complex Gantt v1           | Defer to v2 with SVAR React Gantt.                        |
-| Connect Boards + Mirror    | Requires distributed query engine. v2.                    |
-| Goals/OKRs                 | Already have business_okrs in Supabase. Integrate v2.     |
-| Sprint management complete | Burndown/velocity = v2. Status columns sufficient for v1. |
-| Time tracking native       | Timer + timesheet = complex UX. v2.                       |
-| 7-level hierarchy          | Over-engineering. 4 levels + subitems = sufficient.       |
-| Multi-LLM user selection   | We pick best model per task internally.                   |
-| n8n workflow triggers      | v3 platform play.                                         |
-| Agent actions column       | v3 platform play.                                         |
-
----
+| Feature                                | Reason                                           |
+| -------------------------------------- | ------------------------------------------------ |
+| Canvas/whiteboard journey designer     | Overengineering — lista/flow ordenado suficiente |
+| Persona builder                        | Tool de UX design, nao operacional               |
+| CRM replication                        | GHL e o CRM — nao duplicar dados de contato      |
+| PDF export                             | Sem demanda imediata — screenshot funciona       |
+| Emotional journey lanes                | Conceito de UX design, nao operacional           |
+| Client portal (cliente ve sua jornada) | v3+ se houver demanda                            |
+| Drag-and-drop template editor          | Stage editor simples e suficiente                |
+| Direct GHL API calls from frontend     | Seguranca — tudo via n8n backend                 |
+| Realtime on journey_events table       | Performance — usar Broadcast channel             |
 
 ## Traceability
 
-> Populated by roadmap creation (maps REQ-IDs to phases)
-
-| REQ-ID    | Phase   | Status  |
-| --------- | ------- | ------- |
-| BOARD-01  | Phase 2 | Pending |
-| BOARD-02  | Phase 3 | Pending |
-| BOARD-03  | Phase 2 | Pending |
-| BOARD-04  | Phase 6 | Pending |
-| BOARD-05  | Phase 3 | Pending |
-| BOARD-06  | Phase 2 | Pending |
-| BOARD-07  | Phase 1 | Complete |
-| TABLE-01  | Phase 2 | Pending |
-| TABLE-02  | Phase 2 | Pending |
-| TABLE-03  | Phase 3 | Pending |
-| TABLE-04  | Phase 5 | Pending |
-| TABLE-05  | Phase 3 | Pending |
-| TABLE-06  | Phase 2 | Pending |
-| TABLE-07  | Phase 2 | Pending |
-| KANBAN-01 | Phase 4 | Pending |
-| KANBAN-02 | Phase 4 | Pending |
-| KANBAN-03 | Phase 4 | Pending |
-| KANBAN-04 | Phase 4 | Pending |
-| FILTER-01 | Phase 5 | Pending |
-| FILTER-02 | Phase 5 | Pending |
-| FILTER-03 | Phase 5 | Pending |
-| FILTER-04 | Phase 5 | Pending |
-| FILTER-05 | Phase 5 | Pending |
-| FILTER-06 | Phase 5 | Pending |
-| CRUD-01   | Phase 2 | Pending |
-| CRUD-02   | Phase 6 | Pending |
-| CRUD-03   | Phase 6 | Pending |
-| CRUD-04   | Phase 6 | Pending |
-| CRUD-05   | Phase 6 | Pending |
-| CRUD-06   | Phase 6 | Pending |
-| CRUD-07   | Phase 6 | Pending |
-| RT-01     | Phase 7 | Pending |
-| RT-02     | Phase 7 | Pending |
-| PERM-01   | Phase 7 | Pending |
-| PERM-02   | Phase 7 | Pending |
-| PERM-03   | Phase 7 | Pending |
-| NAV-01    | Phase 8 | Pending |
-| NAV-02    | Phase 2 | Pending |
-| NAV-03    | Phase 8 | Pending |
-| NAV-04    | Phase 8 | Pending |
-| TPL-01    | Phase 8 | Pending |
-| TPL-02    | Phase 8 | Pending |
-| MT-01     | Phase 8 | Pending |
-| MT-02     | Phase 8 | Pending |
-
----
+| REQ-ID  | Phase    | Status  |
+| ------- | -------- | ------- |
+| DATA-01 | Phase 9  | Pending |
+| DATA-02 | Phase 9  | Pending |
+| DATA-03 | Phase 9  | Pending |
+| DATA-04 | Phase 9  | Pending |
+| MAP-01  | Phase 10 | Complete |
+| MAP-02  | Phase 10 | Complete |
+| MAP-03  | Phase 10 | Complete |
+| MAP-04  | Phase 10 | Pending |
+| TIME-01 | Phase 11 | Pending |
+| TIME-02 | Phase 11 | Pending |
+| TIME-03 | Phase 11 | Pending |
+| TIME-04 | Phase 11 | Pending |
+| ANAL-01 | Phase 12 | Pending |
+| ANAL-02 | Phase 12 | Pending |
+| ANAL-03 | Phase 12 | Pending |
+| ANAL-04 | Phase 12 | Pending |
+| EDIT-01 | Phase 13 | Pending |
+| EDIT-02 | Phase 13 | Pending |
+| EDIT-03 | Phase 13 | Pending |
 
 ## Requirement Stats
 
-- **v1 Total:** 40 requirements
-- **Categories:** 10 (Board Engine, Table View, Kanban, Filter/Sort/Group, CRUD, Real-time, Permissions, Navigation, Templates, Multi-tenant)
-- **High Complexity:** BOARD-01, BOARD-06, TABLE-01
-- **Core Value Alignment:** BOARD-01 + TABLE-01 + KANBAN-01 = "Boards flexiveis com colunas tipadas e edicao inline"
+- **v2.0 Total:** 19 requirements
+- **Categories:** 5 (Data Pipeline, Journey Map Visual, Client Timeline, Analytics Dashboard, Stage Editor)
+- **High Complexity:** DATA-01 (GHL sync), ANAL-01 (Sankey), EDIT-03 (Health score)
+- **Core Value Alignment:** DATA-01 + MAP-01 + MAP-02 = "Visibilidade total da jornada"
+- **Gated Features:** ANAL-01 (min 30 eventos), EDIT-03 (reflection data quality)
 
 ---
 
-_Last updated: 2026-03-05 after roadmap creation_
+_Requirements defined: 2026-03-11_
+_Last updated: 2026-03-11 — traceability populated after roadmap creation_
