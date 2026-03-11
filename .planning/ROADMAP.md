@@ -1,191 +1,140 @@
-# Roadmap: MindFlow
+# Roadmap: Customer Journey Map v2.0
 
 ## Overview
 
-MindFlow delivers flexible project management boards with typed columns, inline editing, and multiple views inside the existing AI Factory app. The roadmap moves from database foundation through core table experience, drag-and-drop interactions, Kanban view, filtering/views infrastructure, item detail and CRUD richness, real-time collaboration and permissions, and finally navigation polish with templates and multi-tenant isolation. Each phase builds on the previous, and the system is usable from Phase 2 onward.
+Customer Journey Map v2.0 delivers full visibility into the MOTTIVME client journey — from prospecting to renewal/churn — by syncing 4 GHL pipelines into Supabase, rendering a live visual journey map, tracking per-client timelines with SLA monitoring, and surfacing analytics including Sankey flow and drop-off rates. The roadmap is strictly sequenced: data pipeline before UI, timeline before analytics, analytics before enrichment features.
+
+> **Note on v1.0 MindFlow:** Phases 1–8 were planned for MindFlow (project management boards). Phase 1 is complete (schema, types, column registry, hooks, routes). Phases 2–8 are pending and paused. This roadmap starts at Phase 9 and covers v2.0 only. MindFlow phases 1–8 are preserved in git history and can resume after v2.0 ships.
+
+---
 
 ## Phases
 
 **Phase Numbering:**
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases (1, 2, 3...): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (created via `/gsd:insert-phase`)
+- v1.0 MindFlow: Phases 1–8 (Phase 1 complete; Phases 2–8 paused)
+- v2.0 Customer Journey Map: Phases 9–13
 
-Decimal phases appear between their surrounding integers in numeric order.
+- [ ] **Phase 9: Foundation** - Supabase schema, SQL functions, TypeScript types, n8n event ingestion pipeline, GHL backfill
+- [ ] **Phase 10: Visual Journey Map** - CustomerJourney page, 4-pipeline tabs, live client positions, stage config, SLA color coding, Realtime
+- [ ] **Phase 11: Client Timeline + SLA Monitor** - Per-client event timeline, SLA breach indicators, alerts, onboarding checklist
+- [ ] **Phase 12: Analytics Dashboard + Sankey** - Drop-off rates, time-in-stage, Sankey flow chart, resizable widget dashboard
+- [ ] **Phase 13: Stage Editor + Health Score** - Drag-and-drop stage editor, health score computation, AI agent activity overlay
 
-- [x] **Phase 1: Foundation** - Database schema, types, column registry, route scaffolding, and Supabase hooks (completed 2026-03-05)
-- [ ] **Phase 2: Table View Core** - Board page with table view, inline editing, groups, and basic item creation
-- [ ] **Phase 3: Drag-and-Drop + Column Types** - DnD for items/groups/columns, remaining column types, bulk actions
-- [ ] **Phase 4: Kanban View** - Kanban cards grouped by status/column with DnD between columns
-- [ ] **Phase 5: Filtering, Sorting, and Views Infrastructure** - Filter builder, sort, group-by, view CRUD, saved view state
-- [ ] **Phase 6: Item Detail + CRUD Richness** - Item detail panel, subitems, duplicate, archive, activity trail
-- [ ] **Phase 7: Real-time + Permissions** - Supabase Realtime sync, presence indicators, role-based access with RLS
-- [ ] **Phase 8: Navigation, Templates, and Multi-tenant** - Command palette, sidebar navigation, board templates, multi-tenant isolation
+---
 
 ## Phase Details
 
-### Phase 1: Foundation
+### Phase 9: Foundation
 
-**Goal**: Database and infrastructure exist so all subsequent phases can build features on a solid schema
-**Depends on**: Nothing (first phase)
-**Requirements**: BOARD-07
+**Goal**: Live GHL pipeline events flow into Supabase with idempotency, timestamptz discipline, and business hours calculation — enabling every downstream phase to read reliable data
+**Depends on**: Nothing (first v2.0 phase)
+**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04
 **Success Criteria** (what must be TRUE):
 
-1. All 6 mindflow\_ tables exist in Supabase with correct columns, indexes, and GIN index on column_values
-2. TypeScript types for Board, Group, Item, View, Column are defined and importable
-3. Column registry exists with Text, Number, Status, Date column types registered (renderCell, renderEditor, validate, serialize, deserialize, sortComparator, filterOperators)
-4. MindFlow routes are lazy-loaded at /mindflow/\* with zero impact on existing 30+ pages (verified by unchanged bundle of non-mindflow routes)
-5. useBoard, useBoardItems, useBoardGroups hooks connect to Supabase and return data
+1. Sending an identical GHL webhook payload twice inserts exactly one row in `cjm_events` (idempotency via unique constraint on `contact_id, stage_key, source_event_id`)
+2. A stage transition in any of the 4 GHL pipelines (Prospects, Pre-Vendas, Sales Farming, CS/Retencao) appears in `cjm_events` within 30 seconds
+3. Historical GHL pipeline data for all 6 clients exists in `cjm_events` after backfill completes (queryable by `client_id`)
+4. `SELECT business_hours_diff('2026-03-07 18:00:00+03', '2026-03-09 09:00:00+03')` returns the correct business-hours count excluding the weekend
+**Plans**: 2 plans
+
+Plans:
+
+- [ ] 09-01-PLAN.md — Supabase schema (5 tabelas + business_calendar, 2 views, RLS, business_hours_diff() SQL function) + TypeScript types em apps/docs/src/types/cjm.ts
+- [ ] 09-02-PLAN.md — n8n CJM Event Ingester (live GHL webhook → idempotent INSERT) + CJM Backfill (bulk histórico 4 pipelines × 4 clientes com rate limiting)
+
+### Phase 10: Visual Journey Map
+
+**Goal**: Users see where every active client is across all 4 pipelines in real time, with SLA color coding and stage-level metrics on demand
+**Depends on**: Phase 9
+**Requirements**: MAP-01, MAP-02, MAP-03, MAP-04
+**Success Criteria** (what must be TRUE):
+
+1. User opens the Customer Journey page and sees a horizontal lane for each of the 4 pipelines, with every stage of that pipeline displayed as a column
+2. Each pipeline column shows the names and current-stage duration of all active clients positioned there (updated within 30 seconds of a GHL stage transition)
+3. Each stage column displays its configured owner, SLA threshold, and tools — all editable inline — without navigating away from the map
+4. Clicking or hovering on a stage reveals a panel with conversion rate, average time, current volume, and SLA compliance percentage drawn from Supabase views
    **Plans**: TBD
 
 Plans:
 
-- [x] 01-01: Database schema + migrations + indexes + RPC functions (Wave 1)
-- [x] 01-02: TypeScript types + column registry + Supabase hooks + route scaffolding (Wave 2, depends on 01-01)
+- [ ] 10-01: `pages/CustomerJourney/` module (tab router: Map / Analytics / SLA / Editor), lazy-loaded route in `App.tsx`, all 6 `useCjm*` hooks (`useCjmPipelineMap`, `useCjmClientPositions`, `useCjmStageConfig`, `useCjmSlaStatus`, `useCjmDropOff`, `useCjmRealtime`), Realtime Broadcast channel via `useCjmRealtime.ts` (modeled on `useSupervisionRealtime.ts`), sidebar entry
+- [ ] 10-02: `JourneyCanvas.tsx`, `PipelineLane.tsx`, `StageColumn.tsx`, `TouchpointCard.tsx`, `SlaIndicator.tsx` — swimlane renderer with 4-pipeline tabs, client position badges, SLA color coding (green/amber/red), stage config inline editing panel
 
-### Phase 2: Table View Core
+### Phase 11: Client Timeline + SLA Monitor
 
-**Goal**: User can create a board, add groups and items, and edit cell values inline in a functional table
-**Depends on**: Phase 1
-**Requirements**: BOARD-01, BOARD-03, BOARD-06, TABLE-01, TABLE-02, TABLE-06, TABLE-07, CRUD-01, NAV-02
+**Goal**: Users can drill into any client's full event history and act on SLA breaches before they escalate
+**Depends on**: Phase 10
+**Requirements**: TIME-01, TIME-02, TIME-03, TIME-04
 **Success Criteria** (what must be TRUE):
 
-1. User can create a board with name, description, and select typed columns (Text, Number, Status, Date)
-2. User can create collapsible, colorable groups within a board and add items inline at the bottom of each group
-3. User can click any cell and edit it with the appropriate type-specific editor (text input, number input, color-coded status dropdown, date picker)
-4. Table has sticky header and sticky first column, and virtualizes rows for 1000+ items without lag
-5. User can navigate between cells using Tab key
+1. Selecting a client on the journey map opens a timeline showing every event (stage change, message sent, appointment) in chronological order with timestamps and time-in-stage durations
+2. Each timeline event is color-coded: green (within SLA), amber (within 20% of breach), red (SLA breached) — calculated using `business_hours_diff()` not wall-clock time
+3. When a client's stage time exceeds the configured SLA, a notification appears in the UI within the next hourly SLA check cycle (max 60 minutes delay)
+4. The onboarding checklist for each new client (VTX Playbook 6 steps) shows completion status per step, and the current completion percentage is visible on the journey map
    **Plans**: TBD
 
 Plans:
 
-- [ ] 02-01: BoardProvider context + BoardPage + BoardHeader + board list page
-- [ ] 02-02: GroupContainer + ItemRow + inline editing + cell navigation + virtualization
+- [ ] 11-01: `TouchpointTimeline.tsx` (per-client ordered event list with icons, durations, SLA color indicators), `SlaMonitor.tsx` (breach table sorted by hours overdue, querying `vw_cjm_sla_status`), `useCjmSlaStatus` hook
+- [ ] 11-02: n8n hourly SLA checker workflow (UPDATE `cjm_journey_state.sla_status` + trigger Supabase Broadcast on breach), onboarding checklist component (`OnboardingChecklist.tsx`) with VTX Playbook steps per client
 
-### Phase 3: Drag-and-Drop + Column Types
+### Phase 12: Analytics Dashboard + Sankey
 
-**Goal**: User can rearrange everything via drag-and-drop and use all 7 MVP column types with bulk operations
-**Depends on**: Phase 2
-**Requirements**: BOARD-02, BOARD-05, TABLE-03, TABLE-05
+**Goal**: Users see where clients drop off and how long each stage takes — with a resizable widget dashboard they can arrange to their preference
+**Depends on**: Phase 11
+**Requirements**: ANAL-01, ANAL-02, ANAL-03, ANAL-04
 **Success Criteria** (what must be TRUE):
 
-1. User can reorder items within and between groups by dragging rows
-2. User can reorder columns by dragging column headers, and resize columns by dragging borders
-3. User can add, rename, reorder, and delete columns via column header menu
-4. User can select multiple rows (checkbox + Shift+click range) and perform bulk actions (delete, move, change status, assign) via floating toolbar
+1. When `cjm_events` has 30 or more stage transition events, the Sankey flow chart renders showing volume of client movement between stages; below 30 events a "collecting data" placeholder is shown instead
+2. The analytics tab shows a bar chart of drop-off rate per stage (percentage of clients who exited the pipeline at that point rather than advancing)
+3. Each stage displays average time-in-stage alongside its SLA threshold — stages where average time exceeds SLA are highlighted in red
+4. User can drag and resize dashboard widgets and the layout persists across sessions (stored in Supabase `user_preferences` JSONB)
    **Plans**: TBD
 
 Plans:
 
-- [ ] 03-01: @dnd-kit integration for item/group/column reorder + fractional indexing
-- [ ] 03-02: Person, Dropdown, Checkbox, URL, Rating column types + bulk selection + floating toolbar
+- [ ] 12-01: `vw_cjm_drop_off` Supabase view, `AnalyticsDashboard.tsx` with drop-off rate bar chart + time-in-stage chart (Recharts), `SankeyFlow.tsx` (Recharts `<Sankey>` wrapper with 30-event threshold guard and empty state)
+- [ ] 12-02: `react-grid-layout ^2.2.2` resizable widget grid (hooks API `useGridLayout`), layout persistence in `user_preferences` JSONB, CSS scoped with Tailwind `@layer` to prevent cascade conflicts with Tailwind v4
 
-### Phase 4: Kanban View
+### Phase 13: Stage Editor + Health Score
 
-**Goal**: User can visualize and manage board items as Kanban cards with drag-and-drop between status columns
-**Depends on**: Phase 3
-**Requirements**: KANBAN-01, KANBAN-02, KANBAN-03, KANBAN-04
+**Goal**: Users can reconfigure the journey map without code, and each client has an automatic health score surfacing risk before it becomes churn
+**Depends on**: Phase 12
+**Requirements**: EDIT-01, EDIT-02, EDIT-03
 **Success Criteria** (what must be TRUE):
 
-1. User can switch to Kanban view and see items as cards grouped by Status column
-2. User can drag cards between Kanban columns to change status (updates column_values in real-time)
-3. User can group Kanban by any Status, Person, or Dropdown column
-4. User can configure which fields appear on Kanban cards, and columns show card count and can be collapsed
+1. User can drag stage cards to reorder them in the Stage Editor and the visual map reflects the new order immediately (fractional-indexing for stable order)
+2. User can create a new stage, rename an existing one, set its owner, SLA, tools, color, and icon — all changes save without page reload
+3. Each active client has a health score (0–100) visible on the journey map that reflects: percentage of SLA time used, responded rate from `n8n_schedule_tracking`, and appointment completion rate (quality_score included when `agent_conversation_reflections` data is non-null; excluded with a UI note when NULL)
    **Plans**: TBD
 
 Plans:
 
-- [ ] 04-01: KanbanView component + DnD between columns + card layout config + view switching tabs
+- [ ] 13-01: `StageEditor.tsx` with `@dnd-kit/sortable` horizontal drag-and-drop + `useCjmStageEditor.ts` mutations (CREATE, UPDATE, REORDER, DELETE stage configs)
+- [ ] 13-02: Health score SQL function + `HealthScoreBadge.tsx` component (conditional: includes `quality_score` when populated, shows "limited data" badge when NULL), data audit step (confirm `agent_conversation_reflections.quality_score` coverage) must run before formula is finalized
 
-### Phase 5: Filtering, Sorting, and Views Infrastructure
-
-**Goal**: User can create multiple saved views with independent filter/sort/group-by settings
-**Depends on**: Phase 4
-**Requirements**: FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, TABLE-04
-**Success Criteria** (what must be TRUE):
-
-1. User can filter items by any column with type-appropriate operators (equals, contains, is empty, greater than, etc.) and combine filters with AND/OR logic
-2. User can sort items by any column (asc/desc) including multi-column sort
-3. User can group items by any column with collapsible group headers showing counts
-4. User can create, rename, and delete views; each view saves its own filter/sort/group-by/hidden columns independently
-5. User can search items by name via quick filter bar
-   **Plans**: TBD
-
-Plans:
-
-- [ ] 05-01: Filter builder UI + sort config + group-by picker + quick search
-- [ ] 05-02: View CRUD + saved state per view + hidden columns per view
-
-### Phase 6: Item Detail + CRUD Richness
-
-**Goal**: User can open item details, manage subitems, and perform advanced CRUD operations with full audit trail
-**Depends on**: Phase 2
-**Requirements**: BOARD-04, CRUD-02, CRUD-03, CRUD-04, CRUD-05, CRUD-06, CRUD-07
-**Success Criteria** (what must be TRUE):
-
-1. User can open an item detail panel (sidebar) showing all fields, rich text description, and activity log
-2. User can create subitems (1 level deep) under any item, visible as collapsible rows in table view
-3. User can duplicate, delete (with confirmation), and archive items
-4. User can move items between groups via context menu
-5. System logs changes per item (who changed what field, when) visible in the item detail activity tab
-   **Plans**: TBD
-
-Plans:
-
-- [ ] 06-01: Item detail sidebar + rich text description + activity trail
-- [ ] 06-02: Subitems + duplicate + delete + archive + move via context menu
-
-### Phase 7: Real-time + Permissions
-
-**Goal**: Multiple users can collaborate on the same board with real-time updates and role-based access control
-**Depends on**: Phase 5
-**Requirements**: RT-01, RT-02, PERM-01, PERM-02, PERM-03
-**Success Criteria** (what must be TRUE):
-
-1. Changes made by one user appear in real-time on other users' screens without page refresh
-2. Board shows presence indicators (avatars of users currently viewing the board)
-3. Board supports 3 roles (Admin, Member, Viewer) with Viewer unable to edit and Member unable to manage board settings
-4. Board owner can invite users and assign roles via a share dialog
-5. Supabase RLS enforces permissions at database level (verified by attempting unauthorized access)
-   **Plans**: TBD
-
-Plans:
-
-- [ ] 07-01: Supabase Realtime channel per board + optimistic update dedup + presence
-- [ ] 07-02: Permissions model (roles, invites, share dialog) + RLS policies
-
-### Phase 8: Navigation, Templates, and Multi-tenant
-
-**Goal**: User has polished navigation, can start from templates, and boards are isolated per tenant
-**Depends on**: Phase 7
-**Requirements**: NAV-01, NAV-03, NAV-04, TPL-01, TPL-02, MT-01, MT-02
-**Success Criteria** (what must be TRUE):
-
-1. MindFlow has a dedicated sidebar section with workspace/board navigation and breadcrumb showing current location
-2. Command palette (Cmd+K) allows quick navigation to any board, item, or action
-3. User can create a board from 4 pre-built templates (Projeto, CRM, Sprint, Onboarding) with pre-configured columns, groups, and sample items
-4. Boards are scoped to location_id with RLS policies ensuring client isolation
-5. Internal MOTTIVME workspace serves as first tenant and validates multi-tenant isolation
-   **Plans**: TBD
-
-Plans:
-
-- [ ] 08-01: Sidebar navigation + breadcrumbs + command palette (cmdk)
-- [ ] 08-02: Board templates (4 pre-built) + multi-tenant isolation (location_id RLS)
+---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
-Note: Phase 6 depends on Phase 2 (not Phase 5), so it CAN be parallelized with Phases 3-5 if desired.
+Phases execute strictly in sequence: 9 → 10 → 11 → 12 → 13
+Phase 9 is the unblockable prerequisite — no UI phase can start before the data pipeline is live.
+Phase 12 and Phase 13 can be parallelized after Phase 11 is complete if velocity allows.
 
-| Phase                                    | Plans Complete | Status      | Completed |
-| ---------------------------------------- | -------------- | ----------- | --------- |
-| 1. Foundation                            | 1/2            | Complete    | 2026-03-05 |
-| 2. Table View Core                       | 0/2            | Not started | -         |
-| 3. DnD + Column Types                    | 0/2            | Not started | -         |
-| 4. Kanban View                           | 0/1            | Not started | -         |
-| 5. Filtering + Views                     | 0/2            | Not started | -         |
-| 6. Item Detail + CRUD                    | 0/2            | Not started | -         |
-| 7. Real-time + Permissions               | 0/2            | Not started | -         |
-| 8. Navigation + Templates + Multi-tenant | 0/2            | Not started | -         |
+| Phase                             | Plans Complete | Status      | Completed |
+| --------------------------------- | -------------- | ----------- | --------- |
+| 9. Foundation                     | 0/2            | Not started | -         |
+| 10. Visual Journey Map            | 0/2            | Not started | -         |
+| 11. Client Timeline + SLA Monitor | 0/2            | Not started | -         |
+| 12. Analytics Dashboard + Sankey  | 0/2            | Not started | -         |
+| 13. Stage Editor + Health Score   | 0/2            | Not started | -         |
+
+---
+
+_Roadmap created: 2026-03-11_
+_Milestone: v2.0 Customer Journey Map_
+_Coverage: 19/19 requirements mapped_

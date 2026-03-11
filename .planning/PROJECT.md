@@ -1,12 +1,24 @@
-# MindFlow
+# AI Factory Platform
 
 ## What This Is
 
-MindFlow e um sistema de gerenciamento de projetos, tarefas e workflows integrado ao AI Factory (factorai.mottivme.com.br). Inspirado no Monday.com e ClickUp, oferece boards flexiveis com views multiplas (Table, Kanban, Calendar, Gantt), custom fields tipados, dashboards com widgets arrastaveis e automacoes. Comeca como ferramenta interna da MOTTIVME e evolui para feature multi-tenant disponivel para clientes do AI Factory.
+AI Factory (factorai.mottivme.com.br) e a plataforma interna da MOTTIVME para gestao de agentes IA, clientes, operacoes e analytics. Inclui modulos como SalesOps, Agendamentos, PromptEditor, Supervision, Brand Dashboard, e MindFlow (project management). O proximo modulo e o Customer Journey Map — sistema completo pra mapear, trackear e visualizar a jornada do cliente MOTTIVME ponta a ponta.
 
 ## Core Value
 
-Boards flexiveis com colunas tipadas e edicao inline — o usuario consegue criar qualquer tipo de board (projetos, CRM, ops, tracking) e visualizar os mesmos dados em multiplas views, sem depender de ferramentas externas como Monday.com ou ClickUp.
+Visibilidade total da jornada do cliente — da prospecao ate renovacao/churn — com tracking de cada touchpoint, owners claros, SLAs definidos e dashboard visual que mostra onde cada cliente esta e onde estao os gargalos.
+
+## Current Milestone: v2.0 Customer Journey Map
+
+**Goal:** Mapear, trackear e visualizar a jornada completa do cliente MOTTIVME no AI Factory, integrando dados de GHL, Supabase e n8n em um sistema visual e acionavel.
+
+**Target features:**
+
+- Mapa visual ponta-a-ponta da jornada (touchpoints, owners, ferramentas, SLAs por etapa)
+- Schema de tracking para cada evento/etapa da jornada (Supabase)
+- Editor visual de jornada com drag-and-drop de etapas
+- Dashboard analytics com Sankey flow, drop-off rates, SLA compliance
+- Integracao E2E com GHL pipelines + n8n workflows + Supabase em tempo real
 
 ## Requirements
 
@@ -45,17 +57,36 @@ Boards flexiveis com colunas tipadas e edicao inline — o usuario consegue cria
 
 ## Context
 
-### Pesquisa de Mercado Realizada (2026-03-04)
+### v1.0 MindFlow (pausado — Fase 1/8 completa)
 
-Pesquisa completa com 5 agentes paralelos cobrindo:
+Project management boards inspirado no Monday.com. Fase 1 Foundation completa (schema, types, column registry, hooks, routes). Fases 2-8 pendentes. Pausado para priorizar Customer Journey Map.
 
-- **Monday.com:** 30+ column types, 14+ views, 50+ automation triggers, Apps Framework, Vibe Design System
-- **ClickUp:** 22+ fields, 15+ views, hierarquia 7 niveis, Brain AI multi-LLM, Chat nativo
-- **18 projetos open-source:** Plane (46.2k stars, React+Django), Huly (24.8k, Svelte), OpenProject (14.5k, Rails)
-- **UX patterns:** Inline editing, DnD (@dnd-kit), command palette (cmdk), bulk selection, view switching
-- **Stack recomendada:** TanStack Table v8, @dnd-kit, TipTap v2, react-grid-layout, cmdk, Recharts
+### Customer Journey Map — Contexto Existente
 
-Documento completo: `~/pesquisa-pm-tool-2026.md`
+**4 Pipelines GHL (fonte de verdade):**
+
+- **Prospects** (`zay1uZBOKpheJKFlk2Il`) — Cadencia outbound 19 dias, 7 touchpoints (D1→D19→Ganho/Descartado)
+- **Pre-Vendas/Vendas** (`5LwcbrLUXG6TCLaP9wf3`) — 12 stages (Novo Lead→Qualificacao→Reuniao→Proposta→Ganho/Perdido)
+- **Sales Farming** (`cKc7qtxHdyVqG7aPkl3H`) — 14 stages, reativacao base dormida 2+ meses
+- **CS/Retencao** (`QMG7pyGM6hlbvHrDPBVD`) — 6 stages (Onboarding→Ativo→Upsell→Renovacao→Risco→Churned)
+
+**6 Clientes Ativos:** MOTTIVME, Dra. Gabriela, Instituto Amare, Dra. Carolina, Alberto (churned), Eline (churned)
+
+**Tracking Parcial Supabase:**
+
+- `n8n_schedule_tracking` — agendamentos, etapa_funil, responded
+- `agent_conversation_reflections` — reflection loop, quality_score
+- `clients` — metadata cliente (api_key, location_id, calendars)
+
+**Workflows n8n (3 principais):**
+
+- `HXWGWQFBY4KVfY64` — Fluxo Principal (40+ nodes, webhook→agent→send)
+- `IawOpB56MTFoEP3M` — Classificacao e Roteamento (36+ nodes)
+- `YlCtmyzCtGu2SmEx` — Reflection Loop (scheduled hourly)
+
+**Onboarding atual:** 10-14 dias (meta <48h). Playbook VTX 6 etapas internas.
+
+**Gaps conhecidos:** Multi-channel tracking incompleto, LLM timeout sem fallback, reflection credenciais NULL, onboarding >48h.
 
 ### Codebase Existente (AI Factory)
 
@@ -101,4 +132,4 @@ Codebase map: `.planning/codebase/`
 
 ---
 
-_Last updated: 2026-03-05 after initialization_
+_Last updated: 2026-03-11 after milestone v2.0 Customer Journey Map started_

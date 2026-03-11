@@ -1,72 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-last_updated: "2026-03-05T10:50:56.754Z"
+milestone: v2.0
+milestone_name: Customer Journey Map
+status: defining-requirements
+last_updated: "2026-03-11"
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-11)
 
-**Core value:** Boards flexiveis com colunas tipadas e edicao inline — o usuario consegue criar qualquer tipo de board e visualizar os mesmos dados em multiplas views, sem depender de ferramentas externas.
-**Current focus:** Phase 1: Foundation
+**Core value:** Visibilidade total da jornada do cliente — da prospecao ate renovacao/churn — com tracking de cada touchpoint, owners claros, SLAs definidos e dashboard visual.
+**Current focus:** Defining requirements for v2.0 Customer Journey Map
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation) -- COMPLETE
-Plan: 2 of 2 in current phase (all done)
-Status: Phase 1 Complete. Ready for Phase 2.
-Last activity: 2026-03-05 — Plan 01-02 complete (types, column registry, hooks, routes, sidebar)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-11 — Milestone v2.0 started
 
-Progress: [██░░░░░░░░] 14%
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 2
-- Average duration: 3min
-- Total execution time: 0.1 hours
-
-**By Phase:**
-
-| Phase        | Plans | Total | Avg/Plan |
-| ------------ | ----- | ----- | -------- |
-| 1-Foundation | 2     | 6min  | 3min     |
-
-**Recent Trend:**
-
-- Last 5 plans: 01-01 (2min), 01-02 (4min)
-- Trend: Consistent
-
-_Updated after each plan completion_
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Roadmap]: 8 phases derived from 40 requirements across 10 categories
-- [Roadmap]: Phase 6 (Item Detail + CRUD) depends on Phase 2 only, can parallelize with 3-5
-- [Research]: Column type registry pattern from day 1, virtualization from day 1, fractional indexing for positions
-- [Research]: All mindflow\_ tables prefixed, lazy-loaded routes, vendor-mindflow Vite chunk
-- [01-01]: JSONB atomic merge (||) prevents race conditions on concurrent column_values updates
-- [01-01]: create_board RPC creates board + default group + default view in single transaction
-- [01-01]: RLS uses subquery pattern for child table access cascading
-- [01-02]: Column type files use .tsx (JSX in renderCell/renderEditor)
-- [01-02]: MindFlow pages use export default (React.lazy requirement)
-- [01-02]: Column settings cast through unknown for type safety
+- [v2.0]: Customer Journey Map como novo milestone, pausando MindFlow v1.0
+- [v2.0]: 5 fases planejadas — Discovery, Schema, Journey Builder UI, Dashboard Analytics, Integracao E2E
+- [v2.0]: Dados de 4 pipelines GHL + Supabase tracking + n8n workflows como fontes
 
 ### Pending Todos
 
@@ -74,11 +43,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research flagged react-grid-layout class components may trigger React 19 warnings (Phase 6+ concern, not blocking now)
-- Existing codebase has zero tests and components of 1500+ lines — MindFlow should NOT inherit these patterns
+- MindFlow v1.0 pausado na Fase 1/8 — retomar apos v2.0
+- Tracking parcial existente (n8n_schedule_tracking) pode precisar de migracao/extensao
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed 01-02-PLAN.md (types+hooks+routes). Phase 1 Foundation COMPLETE. Ready for Phase 2.
-Resume file: .planning/phases/02-table-view/ (next phase)
+Last session: 2026-03-11
+Stopped at: Milestone v2.0 initialized. Proceeding to research + requirements + roadmap.
