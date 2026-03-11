@@ -67,30 +67,62 @@ export default function IGProspectorDashboard() {
     return map;
   }, [locations]);
 
-  // Fetch available locations from location_name_map
+  // Fetch available locations — try location_name_map first, fallback to prospector_campaigns
   useEffect(() => {
     if (!showClientSelector) return;
     if (!isSupabaseConfigured()) return;
 
-    supabase
-      .from("location_name_map")
-      .select("location_id, location_name")
-      .order("location_name")
-      .then(({ data, error }) => {
-        if (error) {
-          console.error(
-            "[IGProspectorDashboard] location_name_map error:",
-            error,
-          );
-          return;
-        }
+    const fetchLocations = async () => {
+      // Try location_name_map first (has friendly names)
+      const { data: nameMapData, error: nameMapErr } = await supabase
+        .from("location_name_map")
+        .select("location_id, location_name")
+        .order("location_name");
+
+      if (!nameMapErr && nameMapData && nameMapData.length > 0) {
         setLocations(
-          (data ?? []).map((row: Record<string, unknown>) => ({
+          nameMapData.map((row: Record<string, unknown>) => ({
             location_id: String(row.location_id ?? ""),
             location_name: String(row.location_name ?? ""),
           })),
         );
-      });
+        return;
+      }
+
+      // Fallback: get distinct locations from prospector_campaigns
+      const { data: campData, error: campErr } = await supabase
+        .from("prospector_campaigns")
+        .select("location_id, ig_account")
+        .not("location_id", "is", null);
+
+      if (campErr) {
+        console.error(
+          "[IGProspectorDashboard] campaigns query error:",
+          campErr,
+        );
+        return;
+      }
+
+      // Deduplicate by location_id
+      const seen = new Set<string>();
+      const unique: LocationOption[] = [];
+      for (const row of campData ?? []) {
+        const lid = String((row as Record<string, unknown>).location_id ?? "");
+        if (lid && !seen.has(lid)) {
+          seen.add(lid);
+          unique.push({
+            location_id: lid,
+            location_name: String(
+              (row as Record<string, unknown>).ig_account ?? lid,
+            ),
+          });
+        }
+      }
+      unique.sort((a, b) => a.location_name.localeCompare(b.location_name));
+      setLocations(unique);
+    };
+
+    fetchLocations();
   }, [showClientSelector]);
 
   // Pass override: empty string = no override (fall back to context), non-empty = filter
