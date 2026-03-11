@@ -100,6 +100,40 @@ VITE_SENTRY_DSN=your_sentry_dsn      # Optional: Sentry error tracking
 - `DateRange` → fonte unica: `src/components/DateRangePicker.tsx`. NUNCA exportar DateRange de hooks.
 - Hooks usam `DateRange` internamente (sem export). Paginas importam de `DateRangePicker`.
 
+## Visao Estrategica: 4 Obsessoes (NORTE DE TODAS AS DECISOES)
+
+Toda feature, refactor, automacao ou decisao tecnica DEVE convergir para os 4 pilares abaixo. Ao implementar qualquer mudanca, pergunte: "isso move a MOTTIVME em direcao a qual obsessao?"
+
+### 1. Lucro Extraordinario
+
+- **Meta:** Margem liquida >30%, receita previsivel, pricing baseado em valor
+- **O que temos:** 15 clientes ativos, AI agents gerando agendamentos, Assembly Line SaaS
+- **O que falta:** Pricing por ROI (nao por hora), upsell automatizado, dashboard financeiro com unit economics, meta de margem por cliente
+- **Ao implementar:** Priorizar features que aumentam ticket medio, reduzem churn, ou criam receita recorrente
+
+### 2. Entrega Extraordinaria
+
+- **Meta:** NPS >70, zero reclamacao, cliente vira case/referencia
+- **O que temos:** Agentes SDR com CRITICS, Assembly Line de conteudo, Brand System L1-L3
+- **O que falta:** Onboarding automatizado <48h, health score do cliente, SLA com metricas, portal do cliente, cases documentados
+- **Ao implementar:** Priorizar features que reduzem tempo de entrega, aumentam qualidade percebida, ou geram autonomia pro cliente
+
+### 3. Gestao de Classe Mundial
+
+- **Meta:** Empresa roda sem o fundador, processos documentados, time A-player
+- **O que temos:** n8n automations, CLAUDE.md + skills + agents, AI Factory dashboard
+- **O que falta:** SOPs por funcao, hiring scorecard, KPIs por pessoa, reunioes estruturadas (daily/weekly/monthly), organograma com accountability
+- **Ao implementar:** Priorizar features que documentam processos, criam dashboards de gestao, ou reduzem dependencia de pessoas especificas
+
+### 4. Caixa Extraordinario
+
+- **Meta:** 6 meses de runway, inadimplencia <5%, cobranca automatizada
+- **O que temos:** BPO financeiro basico, controle de custos LLM
+- **O que falta:** Fluxo de caixa projetado 90 dias, cobranca automatica pre-vencimento, dashboard cash flow, reserva de emergencia, politica de desconto documentada
+- **Ao implementar:** Priorizar features que melhoram previsibilidade de caixa, reduzem inadimplencia, ou automatizam cobranca
+
+**Dashboard de acompanhamento:** `src/pages/Obsessoes/index.tsx` — rota `/#/obsessoes`
+
 ## Notes
 
 - The app uses HashRouter for client-side routing compatibility
