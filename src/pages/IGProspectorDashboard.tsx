@@ -11,6 +11,13 @@ import {
   Flame,
   Send,
   TrendingUp,
+  ChevronRight,
+  Clock,
+  Heart,
+  Mail,
+  Calendar,
+  ChevronLeft,
+  X,
 } from "lucide-react";
 import {
   LineChart,
@@ -23,7 +30,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { DateRangePicker, DateRange } from "../components/DateRangePicker";
-import { useIGProspectorData } from "../hooks/useIGProspectorData";
+import {
+  useIGProspectorData,
+  useIGLeadList,
+  useIGLeadTimeline,
+  type IGLeadListItem,
+} from "../hooks/useIGProspectorData";
 import { useAccountData } from "../hooks/useAccountData";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
@@ -183,6 +195,42 @@ export default function IGProspectorDashboard() {
     effectiveDateRange,
     effectiveStageFilter,
   );
+
+  // LEAD-01 — Lista paginada de leads
+  const [leadPage, setLeadPage] = useState(0);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<IGLeadListItem | null>(null);
+
+  const {
+    leads,
+    total: leadsTotal,
+    loading: leadsLoading,
+    refetch: leadsRefetch,
+  } = useIGLeadList(
+    locationIdOverride ?? null,
+    effectiveStageFilter,
+    effectiveDateRange,
+    leadPage,
+  );
+
+  // LEAD-02/03 — Timeline do lead selecionado
+  const { events: timelineEvents, loading: timelineLoading } =
+    useIGLeadTimeline(selectedLeadId, selectedLead?.scheduled_at);
+
+  // Sincronizar selectedLead quando selectedLeadId muda
+  React.useEffect(() => {
+    if (!selectedLeadId) {
+      setSelectedLead(null);
+      return;
+    }
+    const found = leads.find((l) => l.lead_id === selectedLeadId);
+    if (found) setSelectedLead(found);
+  }, [selectedLeadId, leads]);
+
+  // Reset leadPage quando filtros mudam
+  React.useEffect(() => {
+    setLeadPage(0);
+  }, [locationIdOverride, effectiveStageFilter, effectiveDateRange]);
 
   // ============================================================================
   // Computed — KPI cards (DASH-01)
@@ -785,6 +833,407 @@ export default function IGProspectorDashboard() {
           </section>
         );
       })()}
+
+      {/* -------------------------------------------------------------------- */}
+      {/* Secao 5: Lista de Leads — LEAD-01 */}
+      {/* Lista paginada (20/pagina) ordenada por atividade mais recente */}
+      {/* -------------------------------------------------------------------- */}
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Users className="h-5 w-5 text-[#58a6ff]" />
+          <h2 className="text-lg font-semibold text-[#f0f6fc]">Leads</h2>
+          <span className="text-xs text-[#8b949e] ml-1">
+            ({leadsTotal.toLocaleString("pt-BR")} total)
+          </span>
+          <button
+            onClick={leadsRefetch}
+            className="ml-auto flex items-center gap-1.5 text-xs text-[#8b949e] hover:text-[#c9d1d9] border border-[#30363d] hover:border-[#58a6ff] px-2.5 py-1 rounded-lg transition-colors"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Atualizar
+          </button>
+        </div>
+
+        {leadsLoading ? (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-8 text-center">
+            <Loader2 className="h-6 w-6 animate-spin text-[#58a6ff] mx-auto mb-2" />
+            <p className="text-[#8b949e] text-sm">Carregando leads...</p>
+          </div>
+        ) : leads.length === 0 ? (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-8 text-center">
+            <Users className="h-10 w-10 text-[#30363d] mx-auto mb-3" />
+            <p className="text-[#8b949e] text-sm">Nenhum lead encontrado</p>
+            <p className="text-[#6e7681] text-xs mt-1">
+              Ajuste os filtros ou aguarde novos leads entrarem no pipeline
+            </p>
+          </div>
+        ) : (
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
+            {/* Cabecalho da tabela */}
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-3 border-b border-[#30363d] text-xs text-[#8b949e] font-medium">
+              <span>Usuario</span>
+              <span className="text-right">Stage</span>
+              <span className="text-right hidden sm:block">Score</span>
+              <span className="text-right hidden md:block">Ultima Acao</span>
+              <span></span>
+            </div>
+
+            {/* Linhas de lead */}
+            {leads.map((lead) => {
+              // Ultima acao = GREATEST de first_contact_at, replied_at, scheduled_at
+              const dates = [
+                lead.first_contact_at,
+                lead.replied_at,
+                lead.scheduled_at,
+              ]
+                .filter(Boolean)
+                .map((d) => new Date(d!).getTime());
+              const lastActionTs = dates.length > 0 ? Math.max(...dates) : null;
+              const lastActionLabel = lastActionTs
+                ? (() => {
+                    const diffMs = Date.now() - lastActionTs;
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    if (diffDays === 0) return "Hoje";
+                    if (diffDays === 1) return "Ontem";
+                    if (diffDays < 30) return `${diffDays}d atras`;
+                    const diffMonths = Math.floor(diffDays / 30);
+                    return `${diffMonths}m atras`;
+                  })()
+                : "—";
+
+              const stageColor = STAGE_COLORS[lead.funnel_stage] ?? "#8b949e";
+              const stageLabel =
+                STAGE_LABELS[lead.funnel_stage] ?? lead.funnel_stage;
+
+              // Score: barra de 0–100
+              const scoreColor =
+                lead.lead_score >= 70
+                  ? "#3fb950"
+                  : lead.lead_score >= 40
+                    ? "#d29922"
+                    : "#8b949e";
+
+              return (
+                <div
+                  key={lead.lead_id}
+                  onClick={() => setSelectedLeadId(lead.lead_id)}
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-[#21262d] last:border-0 hover:bg-[#21262d] cursor-pointer transition-colors"
+                >
+                  {/* Username */}
+                  <div className="min-w-0">
+                    <span className="text-sm text-[#c9d1d9] font-medium truncate block">
+                      @{lead.instagram_username}
+                    </span>
+                    {showingAllClients && lead.location_id && (
+                      <span className="text-xs text-[#6e7681]">
+                        {locationNameMap[lead.location_id] ?? lead.location_id}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Stage badge */}
+                  <span
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+                    style={{
+                      backgroundColor: stageColor + "22",
+                      color: stageColor,
+                    }}
+                  >
+                    {stageLabel}
+                  </span>
+
+                  {/* Score */}
+                  <div className="hidden sm:flex items-center gap-2 w-20 justify-end">
+                    <span
+                      className="text-xs font-mono font-semibold"
+                      style={{ color: scoreColor }}
+                    >
+                      {lead.lead_score}
+                    </span>
+                    <div className="w-10 h-1.5 bg-[#21262d] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(lead.lead_score, 100)}%`,
+                          backgroundColor: scoreColor,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ultima acao */}
+                  <span className="hidden md:block text-xs text-[#8b949e] whitespace-nowrap text-right">
+                    {lastActionLabel}
+                  </span>
+
+                  {/* Seta para abrir timeline */}
+                  <ChevronRight className="h-4 w-4 text-[#30363d] group-hover:text-[#58a6ff] flex-shrink-0" />
+                </div>
+              );
+            })}
+
+            {/* Paginacao */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[#30363d] text-xs text-[#8b949e]">
+              <span>
+                {leadPage * 20 + 1}–{Math.min((leadPage + 1) * 20, leadsTotal)}{" "}
+                de {leadsTotal.toLocaleString("pt-BR")} leads
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLeadPage((p) => Math.max(0, p - 1))}
+                  disabled={leadPage === 0}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#30363d] disabled:opacity-40 hover:not-disabled:border-[#58a6ff] hover:not-disabled:text-[#c9d1d9] transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </button>
+                <button
+                  onClick={() =>
+                    setLeadPage((p) => ((p + 1) * 20 < leadsTotal ? p + 1 : p))
+                  }
+                  disabled={(leadPage + 1) * 20 >= leadsTotal}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#30363d] disabled:opacity-40 hover:not-disabled:border-[#58a6ff] hover:not-disabled:text-[#c9d1d9] transition-colors"
+                >
+                  Proximo
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* Modal de Timeline — LEAD-02, LEAD-03 */}
+      {/* Overlay fixo com panel lateral direito */}
+      {/* -------------------------------------------------------------------- */}
+      {selectedLeadId && (
+        <>
+          {/* Overlay escuro */}
+          <div
+            className="fixed inset-0 z-50 bg-black/60"
+            onClick={() => setSelectedLeadId(null)}
+          />
+
+          {/* Panel lateral direito */}
+          <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-[#161b22] border-l border-[#30363d] overflow-y-auto p-6 z-50">
+            {/* Header do modal */}
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-[#f0f6fc]">
+                  @{selectedLead?.instagram_username ?? selectedLeadId}
+                </h3>
+                <p className="text-xs text-[#8b949e] mt-0.5">
+                  Timeline de acoes
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedLeadId(null)}
+                className="p-1.5 rounded-lg text-[#8b949e] hover:text-[#f0f6fc] hover:bg-[#21262d] transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Resumo do lead */}
+            {selectedLead && (
+              <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-4 mb-5 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[#6e7681] block mb-1">Stage</span>
+                  <span
+                    className="font-medium px-2 py-0.5 rounded-full text-[10px]"
+                    style={{
+                      backgroundColor:
+                        (STAGE_COLORS[selectedLead.funnel_stage] ?? "#8b949e") +
+                        "22",
+                      color:
+                        STAGE_COLORS[selectedLead.funnel_stage] ?? "#8b949e",
+                    }}
+                  >
+                    {STAGE_LABELS[selectedLead.funnel_stage] ??
+                      selectedLead.funnel_stage}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#6e7681] block mb-1">Lead Score</span>
+                  <span className="font-mono font-bold text-[#58a6ff]">
+                    {selectedLead.lead_score}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#6e7681] block mb-1">
+                    Primeiro contato
+                  </span>
+                  <span className="text-[#c9d1d9]">
+                    {selectedLead.first_contact_at
+                      ? new Date(
+                          selectedLead.first_contact_at,
+                        ).toLocaleDateString("pt-BR")
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#6e7681] block mb-1">Respondeu</span>
+                  <span className="text-[#c9d1d9]">
+                    {selectedLead.replied_at
+                      ? new Date(selectedLead.replied_at).toLocaleDateString(
+                          "pt-BR",
+                        )
+                      : "—"}
+                  </span>
+                </div>
+                {selectedLead.scheduled_at && (
+                  <div className="col-span-2">
+                    <span className="text-[#6e7681] block mb-1">
+                      Agendado para
+                    </span>
+                    <span className="text-[#3fb950] font-medium">
+                      {new Date(selectedLead.scheduled_at).toLocaleString(
+                        "pt-BR",
+                        { dateStyle: "medium", timeStyle: "short" },
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Timeline de eventos */}
+            <div>
+              <h4 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wide mb-4">
+                Historico de Interacoes
+              </h4>
+
+              {timelineLoading ? (
+                <div className="flex items-center gap-2 text-[#8b949e] text-sm py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando timeline...
+                </div>
+              ) : timelineEvents.length === 0 ? (
+                <div className="text-center py-8">
+                  <Clock className="h-8 w-8 text-[#30363d] mx-auto mb-2" />
+                  <p className="text-[#8b949e] text-sm">
+                    Nenhuma interacao registrada
+                  </p>
+                  <p className="text-[#6e7681] text-xs mt-1">
+                    As acoes aparecerão conforme o warm-up avança
+                  </p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Linha conectora vertical */}
+                  <div className="absolute left-[19px] top-2 bottom-2 w-px bg-[#30363d]" />
+
+                  <div className="space-y-4">
+                    {timelineEvents.map((event, idx) => {
+                      // Icone por tipo de evento
+                      const iconMap: Record<string, React.ReactElement> = {
+                        like: <Heart className="h-3.5 w-3.5 text-[#f85149]" />,
+                        comment: (
+                          <MessageCircle className="h-3.5 w-3.5 text-[#58a6ff]" />
+                        ),
+                        reply: (
+                          <MessageCircle className="h-3.5 w-3.5 text-[#3fb950]" />
+                        ),
+                        story_reply: (
+                          <Clock className="h-3.5 w-3.5 text-[#d29922]" />
+                        ),
+                        story_view: (
+                          <Clock className="h-3.5 w-3.5 text-[#8b949e]" />
+                        ),
+                        dm: <Mail className="h-3.5 w-3.5 text-[#58a6ff]" />,
+                        followup: (
+                          <Mail className="h-3.5 w-3.5 text-[#d29922]" />
+                        ),
+                        scheduled: (
+                          <Calendar className="h-3.5 w-3.5 text-[#3fb950]" />
+                        ),
+                      };
+
+                      // Label traduzido
+                      const labelMap: Record<string, string> = {
+                        like: "Curtida",
+                        comment: "Comentario",
+                        story_reply: "Story Reply",
+                        story_view: "Story Visualizado",
+                        dm: "DM enviado",
+                        followup: "Follow-up",
+                        reply: "Resposta recebida",
+                        scheduled: "Agendamento confirmado",
+                      };
+
+                      // Cor do circulo do icone
+                      const bgMap: Record<string, string> = {
+                        like: "#f85149",
+                        comment: "#58a6ff",
+                        reply: "#3fb950",
+                        story_reply: "#d29922",
+                        story_view: "#8b949e",
+                        dm: "#58a6ff",
+                        followup: "#d29922",
+                        scheduled: "#3fb950",
+                      };
+
+                      const bg = bgMap[event.event_type] ?? "#8b949e";
+                      const icon = iconMap[event.event_type] ?? (
+                        <Clock className="h-3.5 w-3.5 text-[#8b949e]" />
+                      );
+                      const label =
+                        labelMap[event.event_type] ?? event.event_type;
+
+                      // Formatar timestamp
+                      const ts = event.timestamp
+                        ? new Date(event.timestamp).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—";
+
+                      return (
+                        <div
+                          key={`${event.id}-${idx}`}
+                          className="flex gap-4 relative"
+                        >
+                          {/* Circulo com icone */}
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 z-10"
+                            style={{
+                              backgroundColor: bg + "22",
+                              border: `1px solid ${bg}44`,
+                            }}
+                          >
+                            {icon}
+                          </div>
+
+                          {/* Conteudo do evento */}
+                          <div className="flex-1 pb-4 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-sm font-medium text-[#c9d1d9]">
+                                {label}
+                              </span>
+                              <span className="text-xs text-[#6e7681] whitespace-nowrap flex-shrink-0">
+                                {ts}
+                              </span>
+                            </div>
+                            {event.notes && (
+                              <p className="text-xs text-[#8b949e] mt-1 line-clamp-2">
+                                {event.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* -------------------------------------------------------------------- */}
       {/* Secao 4: Custo por Lead e Agendamento — METR-02 */}
