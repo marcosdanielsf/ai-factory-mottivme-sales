@@ -8,7 +8,11 @@ import {
   X,
   ZoomIn,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "../lib/supabase";
+
+const BRAND_ID = "96ca4177-502e-4a13-a087-37c0156f6e8d";
 
 interface LogoOption {
   id: string;
@@ -377,21 +381,42 @@ export const LogoApproval: React.FC = () => {
     setConfirmed(true);
   };
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const selectedLogo = LOGO_OPTIONS.find((l) => l.id === selected);
+
   const handleSubmit = async () => {
-    if (!selected) return;
-    const approval = {
-      logoId: selected,
-      logoName: LOGO_OPTIONS.find((l) => l.id === selected)?.name,
-      comment,
-      timestamp: new Date().toISOString(),
-      brand: "MEDPRIME",
-    };
-    localStorage.setItem("medprime-logo-approval", JSON.stringify(approval));
-    setSubmitted(true);
+    if (!selected || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const { error } = await supabase.from("brand_logo_approvals").insert({
+        brand_id: BRAND_ID,
+        logo_id: selected,
+        logo_name: selectedLogo?.name || selected,
+        comment: comment || null,
+        metadata: {
+          concept: selectedLogo?.concept,
+          imageUrl: selectedLogo?.imageUrl,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+
+      // Notificacao via DB trigger (pg_net → Telegram) — token server-side only
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao enviar";
+      setSubmitError(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
-    const chosen = LOGO_OPTIONS.find((l) => l.id === selected);
+    const chosen = selectedLogo;
     return (
       <div className="min-h-screen bg-[#0D0D14] flex items-center justify-center p-6">
         <div className="max-w-lg text-center space-y-6">
@@ -417,8 +442,17 @@ export const LogoApproval: React.FC = () => {
               &ldquo;{comment}&rdquo;
             </p>
           )}
-          <p className="text-white/30 text-xs">
-            A equipe MOTTIVME sera notificada da sua escolha.
+          <div className="pt-4 border-t border-white/[0.06]">
+            <p className="text-[#C9A96E]/60 text-xs font-medium tracking-wider uppercase">
+              Proximo passo
+            </p>
+            <p className="text-white/40 text-sm mt-1">
+              Nossa equipe vai aplicar a logo escolhida em todos os materiais da
+              marca. Voce sera notificado quando estiver pronto.
+            </p>
+          </div>
+          <p className="text-white/20 text-xs">
+            MEDPRIME &mdash; Medicina de excelencia. Carreira de impacto.
           </p>
         </div>
       </div>
@@ -432,21 +466,36 @@ export const LogoApproval: React.FC = () => {
         <ZoomModal logo={zoomLogo} onClose={() => setZoomLogo(null)} />
       )}
 
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0D0D14]/95 backdrop-blur-md border-b border-white/[0.06]">
+      {/* Header with MEDPRIME branding */}
+      <div className="sticky top-0 z-20 bg-[#0D0D14]/95 backdrop-blur-md border-b border-[#7A2E3B]/20">
         <div className="max-w-6xl mx-auto px-4 py-5">
-          <div className="flex items-center gap-3">
-            <Crown size={20} className="text-[#C9A96E]" />
-            <div>
-              <h1 className="text-lg font-semibold text-white tracking-tight">
-                MEDPRIME — Aprovacao de Logo
-              </h1>
-              <p className="text-white/40 text-sm">
-                Selecione a opcao que melhor representa a marca
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#7A2E3B]/20 flex items-center justify-center">
+                <Crown size={20} className="text-[#C9A96E]" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-white tracking-tight">
+                  <span className="text-[#C9A96E]">MEDPRIME</span> — Aprovacao
+                  de Logo
+                </h1>
+                <p className="text-white/40 text-sm">
+                  Dr. Luiz Augusto Jr &amp; Dra. Carolina Simonato
+                </p>
+              </div>
+            </div>
+            <div className="hidden sm:block text-right">
+              <p className="text-[#C9A96E]/40 text-[10px] font-medium tracking-[0.2em] uppercase">
+                Medicina de excelencia
+              </p>
+              <p className="text-[#7A2E3B]/60 text-[10px] font-medium tracking-[0.2em] uppercase">
+                Carreira de impacto
               </p>
             </div>
           </div>
         </div>
+        {/* Marsala accent bar */}
+        <div className="h-[2px] bg-gradient-to-r from-[#7A2E3B] via-[#C9A96E] to-[#7A2E3B]" />
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -494,21 +543,23 @@ export const LogoApproval: React.FC = () => {
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center gap-4 mb-4">
                 <img
-                  src={
-                    LOGO_OPTIONS.find((l) => l.id === selected)?.imageUrl || ""
-                  }
+                  src={selectedLogo?.imageUrl || ""}
                   alt="Selected"
                   className="w-20 h-14 object-contain rounded-lg bg-[#0A0A10] border border-white/10 p-1"
                 />
                 <div className="flex-1">
                   <p className="text-white/90 font-medium text-sm">
-                    {LOGO_OPTIONS.find((l) => l.id === selected)?.name}
+                    {selectedLogo?.name}
                   </p>
                   <p className="text-white/40 text-xs">
-                    {LOGO_OPTIONS.find((l) => l.id === selected)?.concept}
+                    {selectedLogo?.concept}
                   </p>
                 </div>
               </div>
+
+              {submitError && (
+                <p className="text-red-400 text-xs mb-2">{submitError}</p>
+              )}
 
               {!confirmed ? (
                 <button
@@ -528,10 +579,20 @@ export const LogoApproval: React.FC = () => {
                   />
                   <button
                     onClick={handleSubmit}
-                    className="w-full py-3 rounded-xl bg-[#C9A96E] text-[#0D0D14] font-semibold text-sm hover:bg-[#D4B87A] transition-colors flex items-center justify-center gap-2"
+                    disabled={submitting}
+                    className="w-full py-3 rounded-xl bg-[#C9A96E] text-[#0D0D14] font-semibold text-sm hover:bg-[#D4B87A] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Send size={16} />
-                    Enviar aprovacao
+                    {submitting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        Enviar aprovacao
+                      </>
+                    )}
                   </button>
                 </div>
               )}
