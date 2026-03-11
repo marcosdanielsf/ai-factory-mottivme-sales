@@ -13,6 +13,7 @@ import StageConfigPanel from "./components/StageConfigPanel";
 import AnalyticsTab from "./components/AnalyticsTab";
 import SlaTab from "./components/SlaTab";
 import EditorTab from "./components/EditorTab";
+import ClientDetailPanel from "./components/ClientDetailPanel";
 
 const TABS: { key: CjmTab; label: string }[] = [
   { key: "map", label: "Mapa" },
@@ -24,6 +25,10 @@ const TABS: { key: CjmTab; label: string }[] = [
 const CustomerJourney = () => {
   const [activeTab, setActiveTab] = useState<CjmTab>("map");
   const [selectedStageKey, setSelectedStageKey] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Data hooks — locationId null = all locations
   const {
@@ -192,6 +197,7 @@ const CustomerJourney = () => {
               <JourneyCanvas
                 pipelines={pipelinesWithClients}
                 onConfigClick={setSelectedStageKey}
+                onClientClick={(id, name) => setSelectedClient({ id, name })}
               />
             </div>
           )}
@@ -201,7 +207,13 @@ const CustomerJourney = () => {
       {activeTab === "analytics" && (
         <AnalyticsTab pipelines={pipelinesWithClients} />
       )}
-      {activeTab === "sla" && <SlaTab />}
+      {activeTab === "sla" && (
+        <SlaTab
+          onClientSelect={(id) =>
+            setSelectedClient({ id, name: id.substring(0, 8) })
+          }
+        />
+      )}
       {activeTab === "editor" && (
         <EditorTab stageConfigs={stageConfigs} onEdit={setSelectedStageKey} />
       )}
@@ -211,6 +223,13 @@ const CustomerJourney = () => {
         stageConfig={selectedConfig}
         onClose={() => setSelectedStageKey(null)}
         onSave={handleConfigSave}
+      />
+
+      {/* Client Detail Panel */}
+      <ClientDetailPanel
+        contactId={selectedClient?.id ?? null}
+        contactName={selectedClient?.name ?? null}
+        onClose={() => setSelectedClient(null)}
       />
     </div>
   );

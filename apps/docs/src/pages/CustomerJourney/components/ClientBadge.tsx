@@ -5,6 +5,7 @@ interface ClientBadgeProps {
   contactName: string;
   hoursInStage: number;
   slaHours: number | null;
+  onClick?: () => void;
 }
 
 function computeSlaStatus(
@@ -27,11 +28,15 @@ const ClientBadge = ({
   contactName,
   hoursInStage,
   slaHours,
+  onClick,
 }: ClientBadgeProps) => {
   const slaStatus = computeSlaStatus(hoursInStage, slaHours);
 
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-bg-secondary text-sm hover:bg-bg-hover cursor-default">
+    <div
+      className={`flex items-center gap-2 px-2 py-1.5 rounded-md bg-bg-secondary text-sm hover:bg-bg-tertiary transition-colors ${onClick ? "cursor-pointer" : "cursor-default"}`}
+      onClick={onClick}
+    >
       <SlaIndicator status={slaStatus} />
       <span className="truncate max-w-[120px] text-text-primary">
         {contactName}

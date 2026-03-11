@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Eye } from "lucide-react";
 import { useCjmSlaStatus } from "../../../hooks/useCjmSlaStatus";
 import SlaIndicator from "./SlaIndicator";
 import type { CjmSlaStatus } from "../../../types/cjm";
@@ -20,7 +21,11 @@ const STATUS_LABELS: Record<CjmSlaStatus, string> = {
 
 type FilterOption = "all" | CjmSlaStatus;
 
-const SlaTab = () => {
+interface SlaTabProps {
+  onClientSelect?: (contactId: string) => void;
+}
+
+const SlaTab = ({ onClientSelect }: SlaTabProps) => {
   const { slaItems, loading, error } = useCjmSlaStatus(null);
   const [activeFilter, setActiveFilter] = useState<FilterOption>("all");
 
@@ -129,6 +134,7 @@ const SlaTab = () => {
                 <th className="px-4 py-3 text-right text-xs text-text-muted font-medium">
                   Atraso
                 </th>
+                <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -172,6 +178,18 @@ const SlaTab = () => {
                       </span>
                     ) : (
                       <span className="text-text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {onClientSelect && (
+                      <button
+                        onClick={() => onClientSelect(item.contact_id)}
+                        className="p-1 rounded hover:bg-bg-primary text-text-muted hover:text-text-primary transition-colors"
+                        title="Ver detalhes"
+                        aria-label="Ver detalhes do contato"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     )}
                   </td>
                 </tr>

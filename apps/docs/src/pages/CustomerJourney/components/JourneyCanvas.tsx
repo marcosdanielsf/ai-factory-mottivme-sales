@@ -6,9 +6,14 @@ import StageMetricsPopover from "./StageMetricsPopover";
 interface JourneyCanvasProps {
   pipelines: PipelineMapData[];
   onConfigClick: (stageKey: string) => void;
+  onClientClick?: (contactId: string, contactName: string) => void;
 }
 
-const JourneyCanvas = ({ pipelines, onConfigClick }: JourneyCanvasProps) => {
+const JourneyCanvas = ({
+  pipelines,
+  onConfigClick,
+  onClientClick,
+}: JourneyCanvasProps) => {
   const [selectedPipeline, setSelectedPipeline] = useState(0);
   const [metricsPopover, setMetricsPopover] = useState<{
     stage: CjmPipelineFlowRow;
@@ -79,6 +84,7 @@ const JourneyCanvas = ({ pipelines, onConfigClick }: JourneyCanvasProps) => {
           onConfigClick={onConfigClick}
           onMetricsHover={handleMetricsHover}
           onMetricsLeave={handleMetricsLeave}
+          onClientClick={onClientClick}
         />
       )}
 

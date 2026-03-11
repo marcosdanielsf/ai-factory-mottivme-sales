@@ -8,6 +8,7 @@ interface StageColumnProps {
   onConfigClick: (stageKey: string) => void;
   onMetricsHover: (stage: CjmPipelineFlowRow, rect: DOMRect) => void;
   onMetricsLeave: () => void;
+  onClientClick?: (contactId: string, contactName: string) => void;
 }
 
 const StageColumn = ({
@@ -15,6 +16,7 @@ const StageColumn = ({
   onConfigClick,
   onMetricsHover,
   onMetricsLeave,
+  onClientClick,
 }: StageColumnProps) => {
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +66,11 @@ const StageColumn = ({
               contactName={client.contact_name}
               hoursInStage={client.hours_in_stage}
               slaHours={stage.sla_hours}
+              onClick={
+                onClientClick
+                  ? () => onClientClick(client.contact_id, client.contact_name)
+                  : undefined
+              }
             />
           ))
         )}
