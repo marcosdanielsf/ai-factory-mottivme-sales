@@ -35,7 +35,7 @@ export function useRagChat() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/rag/stats");
+      const res = await fetch("/api/rag?action=stats");
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -67,7 +67,7 @@ export function useRagChat() {
       setLoading(true);
 
       try {
-        const res = await fetch("/api/rag/search", {
+        const res = await fetch("/api/rag?action=search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message, topK: 5 }),
@@ -118,7 +118,7 @@ export function useRagChat() {
       setError(null);
       try {
         const ingestSecret = import.meta.env.VITE_INGEST_SECRET || "";
-        const res = await fetch("/api/rag/ingest", {
+        const res = await fetch("/api/rag?action=ingest", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
