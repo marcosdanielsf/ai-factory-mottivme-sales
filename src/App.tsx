@@ -1712,7 +1712,7 @@ const App = () => {
 
                     {/* Onboarding Tracker — SLA <48h */}
                     <Route
-                      path="/onboarding"
+                      path="/onboarding-tracker"
                       element={
                         <ProtectedRoute>
                           <Layout>

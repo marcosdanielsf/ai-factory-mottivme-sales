@@ -648,7 +648,7 @@ const navSections: NavSection[] = [
       {
         icon: ClipboardCheck,
         label: "Onboarding",
-        to: "/onboarding",
+        to: "/onboarding-tracker",
         permission: "canViewAllClients",
       },
       {
