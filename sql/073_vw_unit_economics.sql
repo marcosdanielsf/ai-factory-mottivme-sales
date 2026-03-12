@@ -21,12 +21,14 @@ WITH billing_summary AS (
     GROUP BY location_id, location_name, is_active, acquisition_date, acquisition_cost_brl, churn_date
 ),
 cost_summary AS (
+    -- Agregar direto de llm_costs por location_id (evita duplicatas por nome)
     SELECT
-        location_name,
-        SUM(total_cost_usd) AS total_cost_usd,
-        SUM(total_cost_usd) * 5.5 AS total_cost_brl -- conversao USD->BRL aproximada
-    FROM vw_client_costs_summary
-    GROUP BY location_name
+        location_id,
+        SUM(custo_usd) AS total_cost_usd,
+        SUM(custo_usd) * 5.5 AS total_cost_brl
+    FROM llm_costs
+    WHERE location_id IS NOT NULL AND TRIM(location_id) != ''
+    GROUP BY location_id
 )
 SELECT
     b.location_id,
@@ -61,7 +63,7 @@ SELECT
     b.last_billing_month,
     b.first_billing_month
 FROM billing_summary b
-LEFT JOIN cost_summary c ON b.location_name = c.location_name
+LEFT JOIN cost_summary c ON b.location_id = c.location_id
 ORDER BY b.avg_monthly_revenue_brl DESC;
 
 -- View: resumo global de unit economics

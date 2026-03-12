@@ -88,11 +88,12 @@ monthly_costs AS (
     -- Custo medio mensal (total / meses distintos) em vez de custo acumulado
     SELECT
         COALESCE(
-            SUM(total_cost_usd) * 5.5 / NULLIF(
+            SUM(custo_usd) * 5.5 / NULLIF(
                 (SELECT COUNT(DISTINCT DATE_TRUNC('month', created_at)) FROM llm_costs), 0
             ),
             0
         ) AS monthly_cost_brl
+    FROM llm_costs
 ),
 burn_rate AS (
     SELECT
