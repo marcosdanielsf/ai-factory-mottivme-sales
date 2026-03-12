@@ -328,6 +328,15 @@ const Obsessoes = lazy(() =>
   import("./pages/Obsessoes").then((m) => ({ default: m.Obsessoes })),
 );
 
+// 3 Obsessoes — Unit Economics, Health Score, Onboarding
+const UnitEconomics = lazy(() =>
+  import("./pages/UnitEconomics").then((m) => ({
+    default: m.UnitEconomics,
+  })),
+);
+const HealthScore = lazy(() => import("./pages/HealthScore"));
+const OnboardingTracker = lazy(() => import("./pages/Onboarding"));
+
 // System v4.0 Dashboard
 const SystemV4 = lazy(() => import("./pages/SystemV4"));
 
@@ -1667,6 +1676,48 @@ const App = () => {
                           <Layout>
                             <Suspense fallback={<LoadingFallback />}>
                               <Obsessoes />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Unit Economics — Margem, MRR, Churn, Runway */}
+                    <Route
+                      path="/unit-economics"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <UnitEconomics />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Health Score — Saude dos clientes */}
+                    <Route
+                      path="/health-score"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <HealthScore />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Onboarding Tracker — SLA <48h */}
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <OnboardingTracker />
                             </Suspense>
                           </Layout>
                         </ProtectedRoute>

@@ -634,6 +634,24 @@ const navSections: NavSection[] = [
         permission: "canViewAllClients",
       },
       {
+        icon: DollarSign,
+        label: "Unit Economics",
+        to: "/unit-economics",
+        permission: "canViewAllClients",
+      },
+      {
+        icon: Activity,
+        label: "Health Score",
+        to: "/health-score",
+        permission: "canViewAllClients",
+      },
+      {
+        icon: ClipboardCheck,
+        label: "Onboarding",
+        to: "/onboarding",
+        permission: "canViewAllClients",
+      },
+      {
         icon: Cpu,
         label: "System v4",
         to: "/system-v4",
