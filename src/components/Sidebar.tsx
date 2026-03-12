@@ -118,6 +118,7 @@ interface SubItemConfig {
   icon: LucideIcon;
   label: string;
   to: string;
+  group?: string; // Grupo visual — primeiro item com esse group renderiza o header
 }
 
 interface NavItemConfig {
@@ -140,6 +141,7 @@ interface NavSection {
 // ============================================
 
 const navSections: NavSection[] = [
+  // ─── COCKPIT (no title, always visible) ───
   {
     title: "",
     items: [
@@ -147,12 +149,6 @@ const navSections: NavSection[] = [
         icon: Home,
         label: "Control Tower",
         to: "/",
-        permission: "canAccessDashboard",
-      },
-      {
-        icon: Layers,
-        label: "Sales Hub",
-        to: "/sales-hub",
         permission: "canAccessDashboard",
       },
       {
@@ -171,9 +167,16 @@ const navSections: NavSection[] = [
       },
     ],
   },
+  // ─── RECEITA (Obsessão 1: Lucro Extraordinário) ───
   {
-    title: "SALES OS",
+    title: "RECEITA",
     items: [
+      {
+        icon: Layers,
+        label: "Sales Hub",
+        to: "/sales-hub",
+        permission: "canAccessDashboard",
+      },
       {
         icon: BarChart3,
         label: "Sales Ops",
@@ -181,90 +184,15 @@ const navSections: NavSection[] = [
         permission: "canAccessDashboard",
       },
       {
-        icon: Eye,
-        label: "Supervisão IA",
-        to: "/supervision",
-        permission: "canAccessSupervision",
+        icon: CalendarCheck,
+        label: "Agendamentos",
+        to: "/agendamentos",
+        permission: "canAccessAgendamentos",
       },
       {
-        icon: Users,
-        label: "Atendentes",
-        to: "/atendentes",
-        permission: "canAccessSupervision",
-      },
-      {
-        icon: PhoneCall,
-        label: "Cold Calls",
-        to: "/cold-calls",
-        permission: "canAccessCalls",
-        subItems: [
-          { icon: LayoutDashboard, label: "Dashboard", to: "/cold-calls" },
-          { icon: PhoneOutgoing, label: "Nova Ligação", to: "/cold-calls/new" },
-          { icon: Megaphone, label: "Campanhas", to: "/cold-calls/campaigns" },
-          { icon: FileText, label: "Prompts", to: "/cold-calls/prompts" },
-        ],
-      },
-      {
-        icon: Target,
-        label: "Prospecção",
-        to: "/prospector",
-        permission: "canAccessCalls",
-        subItems: [
-          { icon: LayoutDashboard, label: "Dashboard", to: "/prospector" },
-          { icon: Inbox, label: "LinkedIn Inbox", to: "/prospector/inbox" },
-          { icon: Bot, label: "AI SDR", to: "/prospector/ai" },
-          {
-            icon: UserCog,
-            label: "Contas LinkedIn",
-            to: "/prospector/accounts",
-          },
-          { icon: Users, label: "Fila", to: "/prospector/queue" },
-          { icon: FileText, label: "Templates", to: "/prospector/templates" },
-          { icon: TrendingUp, label: "Analytics", to: "/prospector/analytics" },
-          {
-            icon: BarChart3,
-            label: "Crescimento IG",
-            to: "/prospector/ig-growth",
-          },
-          {
-            icon: Activity,
-            label: "Instagram Prospector",
-            to: "/prospector/ig-prospector",
-          },
-          {
-            icon: Search,
-            label: "LinkedIn Posts",
-            to: "/leadgen/linkedin-posts",
-          },
-          {
-            icon: Globe,
-            label: "LinkedIn Search",
-            to: "/leadgen/linkedin-search",
-          },
-          { icon: Rocket, label: "Apollo Scraper", to: "/leadgen/apollo" },
-          { icon: MapPin, label: "GMaps Search", to: "/leadgen/gmaps" },
-          { icon: Users, label: "Leads People", to: "/leadgen/leads-people" },
-          {
-            icon: Building2,
-            label: "Leads Company",
-            to: "/leadgen/leads-company",
-          },
-        ],
-      },
-      {
-        icon: Video,
-        label: "Video Producer",
-        to: "/video-producer",
-        permission: "canAccessCalls",
-        subItems: [
-          { icon: LayoutDashboard, label: "Dashboard", to: "/video-producer" },
-          { icon: Plus, label: "Novo Vídeo", to: "/video-producer/new" },
-        ],
-      },
-      {
-        icon: Layers,
-        label: "Operações",
-        to: "/operacoes",
+        icon: Flame,
+        label: "CRM Insights",
+        to: "/crm-insights",
         permission: "canAccessAgendamentos",
         subItems: [
           { icon: CalendarCheck, label: "Agendamentos", to: "/agendamentos" },
@@ -302,10 +230,170 @@ const navSections: NavSection[] = [
       },
     ],
   },
+  // ─── AQUISIÇÃO (O que alimenta Receita) ───
+  // Ordem: Canais ativos → Canais passivos → Gestão de leads → Análise
   {
-    title: "AI FACTORY",
-    permission: "canAccessPromptEditor",
+    title: "AQUISIÇÃO",
     items: [
+      // --- Outbound (você vai atrás) ---
+      {
+        icon: Target,
+        label: "Prospecção",
+        to: "/prospector",
+        permission: "canAccessCalls",
+        subItems: [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            to: "/prospector",
+            group: "Geral",
+          },
+          { icon: Bot, label: "AI SDR", to: "/prospector/ai", group: "Geral" },
+          {
+            icon: Users,
+            label: "Fila de Leads",
+            to: "/prospector/queue",
+            group: "Geral",
+          },
+          {
+            icon: Inbox,
+            label: "Inbox",
+            to: "/prospector/inbox",
+            group: "LinkedIn",
+          },
+          {
+            icon: UserCog,
+            label: "Contas",
+            to: "/prospector/accounts",
+            group: "LinkedIn",
+          },
+          {
+            icon: Activity,
+            label: "Prospector",
+            to: "/prospector/ig-prospector",
+            group: "Instagram",
+          },
+          {
+            icon: BarChart3,
+            label: "Crescimento",
+            to: "/prospector/ig-growth",
+            group: "Instagram",
+          },
+          {
+            icon: Search,
+            label: "LinkedIn Posts",
+            to: "/leadgen/linkedin-posts",
+            group: "Scrapers",
+          },
+          {
+            icon: Globe,
+            label: "LinkedIn Search",
+            to: "/leadgen/linkedin-search",
+            group: "Scrapers",
+          },
+          {
+            icon: Rocket,
+            label: "Apollo",
+            to: "/leadgen/apollo",
+            group: "Scrapers",
+          },
+          {
+            icon: MapPin,
+            label: "Google Maps",
+            to: "/leadgen/gmaps",
+            group: "Scrapers",
+          },
+          {
+            icon: Users,
+            label: "People",
+            to: "/leadgen/leads-people",
+            group: "Base de Leads",
+          },
+          {
+            icon: Building2,
+            label: "Companies",
+            to: "/leadgen/leads-company",
+            group: "Base de Leads",
+          },
+          {
+            icon: FileText,
+            label: "Templates",
+            to: "/prospector/templates",
+            group: "Base de Leads",
+          },
+          {
+            icon: TrendingUp,
+            label: "Analytics",
+            to: "/prospector/analytics",
+            group: "Métricas",
+          },
+        ],
+      },
+      {
+        icon: PhoneCall,
+        label: "Cold Calls",
+        to: "/cold-calls",
+        permission: "canAccessCalls",
+        subItems: [
+          { icon: LayoutDashboard, label: "Dashboard", to: "/cold-calls" },
+          { icon: PhoneOutgoing, label: "Nova Ligação", to: "/cold-calls/new" },
+          { icon: Megaphone, label: "Campanhas", to: "/cold-calls/campaigns" },
+          { icon: FileText, label: "Prompts", to: "/cold-calls/prompts" },
+        ],
+      },
+      // --- Inbound (lead vem até você) ---
+      {
+        icon: Megaphone,
+        label: "Social Selling",
+        to: "/social-selling",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: BarChart3,
+        label: "Ads Performance",
+        to: "/ads-performance",
+        permission: "canAccessAgendamentos",
+      },
+      // --- Gestão e Análise ---
+      {
+        icon: Sparkles,
+        label: "Kanban Prospect",
+        to: "/kanban-prospect",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: FlaskConical,
+        label: "Metrics Lab",
+        to: "/metrics-lab",
+        permission: "canAccessAgendamentos",
+      },
+    ],
+  },
+  // ─── ENTREGA (Obsessão 2: Entrega Extraordinária) ───
+  // Ordem: Monitorar performance → Configurar agentes → Recursos do agente
+  {
+    title: "ENTREGA",
+    items: [
+      // --- Monitoramento (olhar todo dia) ---
+      {
+        icon: Eye,
+        label: "Supervisão IA",
+        to: "/supervision",
+        permission: "canAccessSupervision",
+      },
+      {
+        icon: Users,
+        label: "Atendentes",
+        to: "/atendentes",
+        permission: "canAccessSupervision",
+      },
+      {
+        icon: CheckCircle,
+        label: "Central de Status",
+        to: "/status",
+        permission: "canAccessAgendamentos",
+      },
+      // --- Construir e ajustar agentes ---
       {
         icon: Box,
         label: "Prompt Studio",
@@ -324,21 +412,17 @@ const navSections: NavSection[] = [
         ],
       },
       {
-        icon: Database,
-        label: "Dados",
-        to: "/dados",
+        icon: Bot,
+        label: "Squad AI",
+        to: "/squad-ai",
         permission: "canAccessPromptEditor",
-        subItems: [
-          { icon: Send, label: "Follow-ups", to: "/follow-ups" },
-          { icon: ScrollText, label: "Logs de Conversa", to: "/logs" },
-          { icon: Database, label: "Artifacts & Docs", to: "/knowledge-base" },
-        ],
       },
+      // --- Recursos do agente ---
       {
-        icon: Palette,
-        label: "Brand Assets",
-        to: "/brand",
-        permission: "canAccessBrand",
+        icon: Package,
+        label: "Catálogo",
+        to: "/produtos",
+        permission: "canAccessPromptEditor",
       },
       {
         icon: Layers,
@@ -347,59 +431,41 @@ const navSections: NavSection[] = [
         permission: "canAccessPromptEditor",
       },
       {
-        icon: Package,
-        label: "Catálogo",
-        to: "/produtos",
-        permission: "canAccessPromptEditor",
-      },
-      {
-        icon: ClipboardCheck,
-        label: "Auditoria",
-        to: "/agent-audit",
-        permission: "canAccessPromptEditor",
-      },
-      {
-        icon: Wrench,
-        label: "Ferramentas IA",
-        to: "/tool-monitor",
-        permission: "canAccessPromptEditor",
-      },
-      {
-        icon: Bot,
-        label: "Squad AI",
-        to: "/squad-ai",
-        permission: "canAccessPromptEditor",
+        icon: Palette,
+        label: "Brand Assets",
+        to: "/brand",
+        permission: "canAccessBrand",
       },
     ],
   },
+  // ─── INTELIGÊNCIA (Cérebro do sistema) ───
+  // Ordem: Base de conhecimento → Criação de conteúdo → IA avançada → Dados
   {
-    title: "AIOS",
-    permission: "canAccessAios",
+    title: "INTELIGÊNCIA",
+    permission: "canAccessPromptEditor",
     items: [
-      {
-        icon: Bot,
-        label: "Produção",
-        to: "/aios/producao",
-        permission: "canAccessAios",
-        subItems: [
-          { icon: Bot, label: "Agentes", to: "/aios/agents" },
-          { icon: BookMarked, label: "Stories", to: "/aios/stories" },
-          { icon: CheckCircle, label: "Tasks", to: "/aios/tasks" },
-          { icon: Wallet, label: "Custos", to: "/aios/costs" },
-          { icon: Network, label: "Squads", to: "/aios/squads" },
-        ],
-      },
+      // --- Base de conhecimento ---
       {
         icon: Brain,
-        label: "Inteligência",
-        to: "/aios/inteligencia",
-        permission: "canAccessAios",
+        label: "Mega Brain",
+        to: "/brain",
+        permission: "canAccessPromptEditor",
         subItems: [
-          { icon: Palette, label: "Experts", to: "/aios/experts" },
-          { icon: Activity, label: "Synapse", to: "/aios/synapse" },
-          { icon: Swords, label: "Arena", to: "/aios/arena" },
+          { icon: Upload, label: "Ingestão", to: "/brain/ingest" },
+          { icon: Users, label: "Entidades", to: "/brain/entities" },
+          { icon: Cpu, label: "DNA", to: "/brain/dna" },
+          { icon: Sparkles, label: "Skills", to: "/brain/skills" },
+          { icon: Activity, label: "Saúde", to: "/brain/health" },
+          { icon: Swords, label: "Conclave", to: "/brain/conclave" },
         ],
       },
+      {
+        icon: Network,
+        label: "MindFlow",
+        to: "/mindflow",
+        permission: "canAccessPromptEditor",
+      },
+      // --- Criação de conteúdo ---
       {
         icon: Palette,
         label: "Content Studio",
@@ -412,8 +478,127 @@ const navSections: NavSection[] = [
         to: "/content-pipeline",
         permission: "canAccessAios",
       },
+      {
+        icon: Video,
+        label: "Video Producer",
+        to: "/video-producer",
+        permission: "canAccessCalls",
+        subItems: [
+          { icon: LayoutDashboard, label: "Dashboard", to: "/video-producer" },
+          { icon: Plus, label: "Novo Vídeo", to: "/video-producer/new" },
+        ],
+      },
+      // --- IA avançada ---
+      {
+        icon: Palette,
+        label: "Experts",
+        to: "/aios/experts",
+        permission: "canAccessAios",
+      },
+      {
+        icon: Activity,
+        label: "Synapse",
+        to: "/aios/synapse",
+        permission: "canAccessAios",
+      },
+      {
+        icon: Swords,
+        label: "Arena",
+        to: "/aios/arena",
+        permission: "canAccessAios",
+      },
+      // --- Dados e logs ---
+      {
+        icon: Database,
+        label: "Dados",
+        to: "/dados",
+        permission: "canAccessPromptEditor",
+        subItems: [
+          { icon: Send, label: "Follow-ups", to: "/follow-ups" },
+          { icon: ScrollText, label: "Logs de Conversa", to: "/logs" },
+          { icon: Database, label: "Artifacts & Docs", to: "/knowledge-base" },
+        ],
+      },
     ],
   },
+  // ─── OPERAÇÕES (Obsessão 3: Gestão Classe Mundial) ───
+  // Ordem: Gestão de projetos → Infraestrutura técnica → Auditorias
+  {
+    title: "OPERAÇÕES",
+    items: [
+      // --- Gestão de projetos ---
+      {
+        icon: FolderKanban,
+        label: "Projetos",
+        to: "/projetos",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: LayoutGrid,
+        label: "Boards",
+        to: "/boards",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: Calculator,
+        label: "Planejamento",
+        to: "/planejamento",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: Target,
+        label: "Metas",
+        to: "/metas",
+        permission: "canAccessAgendamentos",
+      },
+      // --- Infraestrutura (workflows, integrações) ---
+      {
+        icon: Workflow,
+        label: "Hub Ops",
+        to: "/workflows",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: Server,
+        label: "GHL Ops",
+        to: "/ghl-ops",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: Bot,
+        label: "AIOS",
+        to: "/aios/producao",
+        permission: "canAccessAios",
+        subItems: [
+          { icon: Bot, label: "Agentes", to: "/aios/agents" },
+          { icon: BookMarked, label: "Stories", to: "/aios/stories" },
+          { icon: CheckCircle, label: "Tasks", to: "/aios/tasks" },
+          { icon: Wallet, label: "Custos", to: "/aios/costs" },
+          { icon: Network, label: "Squads", to: "/aios/squads" },
+        ],
+      },
+      // --- Auditorias e monitoramento ---
+      {
+        icon: ClipboardCheck,
+        label: "Auditoria n8n",
+        to: "/n8n-audit",
+        permission: "canAccessAgendamentos",
+      },
+      {
+        icon: ClipboardCheck,
+        label: "Auditoria Agente",
+        to: "/agent-audit",
+        permission: "canAccessPromptEditor",
+      },
+      {
+        icon: Wrench,
+        label: "Ferramentas IA",
+        to: "/tool-monitor",
+        permission: "canAccessPromptEditor",
+      },
+    ],
+  },
+  // ─── IMOBILIÁRIA (Vertical específica) ───
   {
     title: "IMOBILIÁRIA",
     items: [
@@ -431,39 +616,14 @@ const navSections: NavSection[] = [
       },
     ],
   },
-  {
-    title: "MEGA BRAIN",
-    permission: "canAccessPromptEditor",
-    items: [
-      {
-        icon: Brain,
-        label: "Mega Brain",
-        to: "/brain",
-        permission: "canAccessPromptEditor",
-        subItems: [
-          { icon: Upload, label: "Ingestão", to: "/brain/ingest" },
-          { icon: Users, label: "Entidades", to: "/brain/entities" },
-          { icon: Cpu, label: "DNA", to: "/brain/dna" },
-          { icon: Swords, label: "Conclave", to: "/brain/conclave" },
-          { icon: Sparkles, label: "Skills", to: "/brain/skills" },
-          { icon: Activity, label: "Saúde", to: "/brain/health" },
-        ],
-      },
-      {
-        icon: Network,
-        label: "MindFlow",
-        to: "/mindflow",
-        permission: "canAccessPromptEditor",
-      },
-    ],
-  },
+  // ─── SISTEMA (Obsessão 4: Caixa + Admin) ───
   {
     title: "SISTEMA",
     permission: "canViewAllClients",
     items: [
       {
         icon: Flame,
-        label: "4 Obsessoes",
+        label: "4 Obsessões",
         to: "/obsessoes",
         permission: "canViewAllClients",
       },
@@ -631,6 +791,243 @@ const SidebarItem = ({
 // SUBMENU EXPANDÍVEL
 // ============================================
 
+// Brand icons para group headers
+const groupBrandIcons: Record<string, React.ReactNode> = {
+  LinkedIn: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="w-3 h-3 text-[#0A66C2]"
+    >
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+    </svg>
+  ),
+  Instagram: (
+    <svg viewBox="0 0 24 24" fill="url(#ig-gradient)" className="w-3 h-3">
+      <defs>
+        <linearGradient id="ig-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#FFDC80" />
+          <stop offset="25%" stopColor="#F77737" />
+          <stop offset="50%" stopColor="#E1306C" />
+          <stop offset="75%" stopColor="#C13584" />
+          <stop offset="100%" stopColor="#833AB4" />
+        </linearGradient>
+      </defs>
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+    </svg>
+  ),
+  Scrapers: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-3 h-3 text-orange-400"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  ),
+  "Base de Leads": (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-3 h-3 text-green-400"
+    >
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
+      <path d="M3 12c0 1.657 4.03 3 9 3s9-1.343 9-3" />
+    </svg>
+  ),
+  Métricas: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-3 h-3 text-cyan-400"
+    >
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  ),
+  Geral: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-3 h-3 text-slate-400"
+    >
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  ),
+};
+
+// ============================================
+// SUB-GROUP ACCORDION (nested collapsible groups)
+// ============================================
+
+interface SubGroupAccordionProps {
+  groupName: string;
+  items: SubItemConfig[];
+  onNavigate?: () => void;
+  defaultExpanded: boolean;
+  dragHandleListeners?: Record<string, unknown>;
+  dragHandleAttributes?: Record<string, unknown>;
+  isDragging?: boolean;
+}
+
+const SubGroupAccordion = ({
+  groupName,
+  items,
+  onNavigate,
+  defaultExpanded,
+  dragHandleListeners,
+  dragHandleAttributes,
+  isDragging,
+}: SubGroupAccordionProps) => {
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(defaultExpanded);
+
+  // Auto-expand when a child route becomes active
+  const hasActiveChild = items.some(
+    (item) =>
+      location.pathname === item.to ||
+      location.pathname.startsWith(item.to + "/"),
+  );
+
+  useEffect(() => {
+    if (hasActiveChild && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [hasActiveChild]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const icon = groupBrandIcons[groupName];
+
+  return (
+    <div className={`mt-1 ${isDragging ? "opacity-50" : ""}`}>
+      {/* Group header — clickable accordion toggle */}
+      <div className="flex items-center group/subgroup">
+        {/* Drag handle — visible on hover */}
+        <button
+          className="flex-shrink-0 w-4 ml-2 opacity-0 group-hover/subgroup:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing text-text-muted transition-opacity"
+          {...(dragHandleListeners ?? {})}
+          {...(dragHandleAttributes ?? {})}
+          tabIndex={-1}
+          aria-label={`Reordenar grupo ${groupName}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={12} />
+        </button>
+
+        <button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex-1 flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-bg-hover/60 min-w-0"
+        >
+          {icon && <span className="flex-shrink-0">{icon}</span>}
+          <span className="font-semibold tracking-widest uppercase text-text-muted/60 truncate">
+            {groupName}
+          </span>
+          <ChevronRight
+            size={11}
+            className={`ml-auto flex-shrink-0 text-text-muted/40 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+          />
+        </button>
+      </div>
+
+      {/* Collapsible items — indented inside group */}
+      <div
+        className="overflow-hidden transition-[max-height] duration-200 ease-in-out"
+        style={{ maxHeight: isOpen ? `${items.length * 40}px` : "0px" }}
+      >
+        <div className="ml-6 pl-2 mt-0.5 space-y-0.5 border-l border-border-default/30">
+          {items.map((sub) => {
+            const SubIcon = sub.icon;
+            const isSubActive =
+              location.pathname === sub.to ||
+              location.pathname.startsWith(sub.to + "/");
+            return (
+              <NavLink
+                key={sub.to}
+                to={sub.to}
+                onClick={onNavigate}
+                className={`
+                  flex items-center gap-2 px-3 py-1.5 mr-2 rounded-md text-sm transition-colors
+                  ${
+                    isSubActive
+                      ? "bg-accent-primary/10 text-accent-primary"
+                      : "text-text-muted hover:bg-bg-hover hover:text-text-secondary"
+                  }
+                `}
+              >
+                <SubIcon size={14} className="flex-shrink-0" />
+                <span className="truncate">{sub.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Sortable wrapper for SubGroupAccordion
+const SortableSubGroup = ({
+  id,
+  groupName,
+  items,
+  onNavigate,
+  defaultExpanded,
+}: {
+  id: string;
+  groupName: string;
+  items: SubItemConfig[];
+  onNavigate?: () => void;
+  defaultExpanded: boolean;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SubGroupAccordion
+        groupName={groupName}
+        items={items}
+        onNavigate={onNavigate}
+        defaultExpanded={defaultExpanded}
+        dragHandleListeners={listeners as Record<string, unknown>}
+        dragHandleAttributes={attributes as Record<string, unknown>}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+};
+
 const SidebarExpandableItem = ({
   icon: Icon,
   label,
@@ -656,6 +1053,83 @@ const SidebarExpandableItem = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
 
+  // Separate ungrouped from grouped items
+  const ungroupedItems = subItems.filter((sub) => !sub.group);
+  const groupedItems = subItems.filter((sub) => !!sub.group);
+
+  // Collect unique group names preserving insertion order
+  const groupNames = Array.from(new Set(groupedItems.map((sub) => sub.group!)));
+
+  // Map group name → its items
+  const groupMap: Record<string, SubItemConfig[]> = {};
+  groupedItems.forEach((sub) => {
+    if (!groupMap[sub.group!]) groupMap[sub.group!] = [];
+    groupMap[sub.group!].push(sub);
+  });
+
+  // Determine which groups have an active child (for defaultExpanded)
+  const activeGroupNames = new Set(
+    groupedItems
+      .filter(
+        (sub) =>
+          location.pathname === sub.to ||
+          location.pathname.startsWith(sub.to + "/"),
+      )
+      .map((sub) => sub.group!),
+  );
+
+  // localStorage key for group order persistence
+  const storageKey = `sidebar-group-order-${label}`;
+
+  const [groupOrder, setGroupOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        // Merge: keep saved order for known groups, append any new ones
+        const merged = parsed.filter((g) => groupNames.includes(g));
+        groupNames.forEach((g) => {
+          if (!merged.includes(g)) merged.push(g);
+        });
+        return merged;
+      }
+    } catch {
+      // ignore
+    }
+    return groupNames;
+  });
+
+  // Keep groupOrder in sync if groupNames change (new items added)
+  useEffect(() => {
+    setGroupOrder((prev) => {
+      const merged = prev.filter((g) => groupNames.includes(g));
+      groupNames.forEach((g) => {
+        if (!merged.includes(g)) merged.push(g);
+      });
+      return merged;
+    });
+  }, [groupNames.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // DnD sensors for sub-group reordering
+  const subGroupSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleSubGroupDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = groupOrder.indexOf(String(active.id));
+    const newIndex = groupOrder.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(groupOrder, oldIndex, newIndex);
+    setGroupOrder(newOrder);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newOrder));
+    } catch {
+      // ignore
+    }
+  };
+
   // Auto-expand when navigating into this section
   useEffect(() => {
     if (isAnyChildActive && !isExpanded) {
@@ -663,12 +1137,17 @@ const SidebarExpandableItem = ({
     }
   }, [isAnyChildActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Measure content height for animation
+  // Measure content height with ResizeObserver — reacts to sub-group toggles in real time
   useEffect(() => {
-    if (contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
-    }
-  }, [subItems]);
+    const el = contentRef.current;
+    if (!el) return;
+    setContentHeight(el.scrollHeight);
+    const observer = new ResizeObserver(() => {
+      setContentHeight(el.scrollHeight);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Collapsed state — show icon only with flyout on hover
   if (isCollapsed) {
@@ -683,27 +1162,45 @@ const SidebarExpandableItem = ({
         >
           <Icon size={18} />
         </div>
-        {/* Flyout submenu */}
+        {/* Flyout submenu — flat list with group headers (no sub-accordions needed here) */}
         <div className="absolute left-full top-0 ml-2 py-1 bg-bg-tertiary border border-border-default rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
           <div className="px-3 py-1.5 text-xs font-medium text-text-muted border-b border-border-default mb-1">
             {label}
           </div>
-          {subItems.map((sub) => {
+          {subItems.map((sub, idx) => {
             const SubIcon = sub.icon;
             const isSubActive = location.pathname === sub.to;
+            const showGroupHeader =
+              sub.group && (idx === 0 || subItems[idx - 1].group !== sub.group);
             return (
-              <NavLink
-                key={sub.to}
-                to={sub.to}
-                onClick={onNavigate}
-                className={`
-                  flex items-center gap-2 px-3 py-1.5 text-sm transition-colors
-                  ${isSubActive ? "text-accent-primary bg-accent-primary/10" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"}
-                `}
-              >
-                <SubIcon size={14} />
-                <span>{sub.label}</span>
-              </NavLink>
+              <React.Fragment key={sub.to}>
+                {showGroupHeader && (
+                  <div
+                    className={`
+                      flex items-center gap-1.5 px-3 pt-2 pb-0.5 text-[9px] font-semibold tracking-widest uppercase text-text-muted/50
+                      ${idx > 0 ? "border-t border-border-default/30 mt-1" : ""}
+                    `}
+                  >
+                    {groupBrandIcons[sub.group!] && (
+                      <span className="flex-shrink-0">
+                        {groupBrandIcons[sub.group!]}
+                      </span>
+                    )}
+                    {sub.group}
+                  </div>
+                )}
+                <NavLink
+                  to={sub.to}
+                  onClick={onNavigate}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 text-sm transition-colors
+                    ${isSubActive ? "text-accent-primary bg-accent-primary/10" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"}
+                  `}
+                >
+                  <SubIcon size={14} />
+                  <span>{sub.label}</span>
+                </NavLink>
+              </React.Fragment>
             );
           })}
         </div>
@@ -730,15 +1227,18 @@ const SidebarExpandableItem = ({
         />
       </button>
 
-      {/* Animated submenu */}
+      {/* Animated submenu — use 'none' when fully expanded to avoid flicker on route changes */}
       <div
-        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
-        style={{ maxHeight: isExpanded ? `${contentHeight}px` : "0px" }}
+        className={`overflow-hidden ${isExpanded ? "" : "transition-[max-height] duration-300 ease-in-out"}`}
+        style={{ maxHeight: isExpanded ? "none" : "0px" }}
       >
         <div ref={contentRef} className="pl-4 mt-0.5 space-y-0.5">
-          {subItems.map((sub) => {
+          {/* 1. Ungrouped items first */}
+          {ungroupedItems.map((sub) => {
             const SubIcon = sub.icon;
-            const isSubActive = location.pathname === sub.to;
+            const isSubActive =
+              location.pathname === sub.to ||
+              location.pathname.startsWith(sub.to + "/");
             return (
               <NavLink
                 key={sub.to}
@@ -758,10 +1258,98 @@ const SidebarExpandableItem = ({
               </NavLink>
             );
           })}
+
+          {/* 2. Grouped items as collapsible sub-accordions with DnD reordering */}
+          {groupOrder.length > 0 && (
+            <DndContext
+              sensors={subGroupSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSubGroupDragEnd}
+            >
+              <SortableContext
+                items={groupOrder}
+                strategy={verticalListSortingStrategy}
+              >
+                {groupOrder.map((groupName) => {
+                  const items = groupMap[groupName];
+                  if (!items) return null;
+                  return (
+                    <SortableSubGroup
+                      key={groupName}
+                      id={groupName}
+                      groupName={groupName}
+                      items={items}
+                      onNavigate={onNavigate}
+                      defaultExpanded={activeGroupNames.has(groupName)}
+                    />
+                  );
+                })}
+              </SortableContext>
+            </DndContext>
+          )}
         </div>
       </div>
     </div>
   );
+};
+
+// ============================================
+// SECTION TITLE STYLES
+// ============================================
+
+const sectionStyles: Record<
+  string,
+  { color: string; bgColor: string; borderColor: string; dotColor: string }
+> = {
+  RECEITA: {
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/40",
+    dotColor: "bg-emerald-400",
+  },
+  AQUISIÇÃO: {
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/40",
+    dotColor: "bg-blue-400",
+  },
+  ENTREGA: {
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/40",
+    dotColor: "bg-amber-400",
+  },
+  INTELIGÊNCIA: {
+    color: "text-purple-400",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/40",
+    dotColor: "bg-purple-400",
+  },
+  OPERAÇÕES: {
+    color: "text-slate-300",
+    bgColor: "bg-slate-500/10",
+    borderColor: "border-slate-500/40",
+    dotColor: "bg-slate-400",
+  },
+  IMOBILIÁRIA: {
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/10",
+    borderColor: "border-cyan-500/40",
+    dotColor: "bg-cyan-400",
+  },
+  SISTEMA: {
+    color: "text-rose-400",
+    bgColor: "bg-rose-500/10",
+    borderColor: "border-rose-500/40",
+    dotColor: "bg-rose-400",
+  },
+};
+
+const defaultSectionStyle = {
+  color: "text-text-muted",
+  bgColor: "bg-transparent",
+  borderColor: "border-border-default",
+  dotColor: "bg-text-muted",
 };
 
 const SectionTitle = ({
@@ -777,19 +1365,45 @@ const SectionTitle = ({
 }) => {
   if (!title) return null;
 
+  const style = sectionStyles[title] ?? defaultSectionStyle;
+
   if (isCollapsed) {
-    return <div className="pt-2 border-t border-border-default mx-2 mt-2" />;
+    return (
+      <div className="flex justify-center py-2 mt-1 mb-0.5">
+        <div
+          className={`w-1.5 h-1.5 rounded-full ${style.dotColor} opacity-70`}
+          title={title}
+        />
+      </div>
+    );
   }
 
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between pt-4 pb-1 px-4 text-xs font-medium text-text-muted hover:text-text-secondary transition-colors"
+      className={`
+        w-full flex items-center justify-between
+        mt-3 mb-0.5 mx-2 px-2 py-1
+        rounded-md
+        border-l-2 ${style.borderColor}
+        ${style.bgColor}
+        transition-colors group
+      `}
+      style={{ width: "calc(100% - 16px)" }}
     >
-      <span>{title}</span>
+      <div className="flex items-center gap-1.5">
+        <div
+          className={`w-1.5 h-1.5 rounded-full ${style.dotColor} flex-shrink-0`}
+        />
+        <span
+          className={`text-[11px] font-semibold tracking-widest uppercase ${style.color} group-hover:brightness-125 transition-all`}
+        >
+          {title}
+        </span>
+      </div>
       <ChevronDown
-        size={12}
-        className={`transition-transform duration-200 ${isSectionExpanded ? "" : "-rotate-90"}`}
+        size={11}
+        className={`${style.color} opacity-60 transition-transform duration-200 flex-shrink-0 ${isSectionExpanded ? "" : "-rotate-90"}`}
       />
     </button>
   );
