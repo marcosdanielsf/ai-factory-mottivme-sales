@@ -544,7 +544,6 @@ export const useMetricsLab = (
   const [rawConversionTime, setRawConversionTime] = useState<
     ConversionTimeStats[]
   >([]);
-  const [rawAnomalies, setRawAnomalies] = useState<AnomalyRow[]>([]);
   const [unattributedCount, setUnattributedCount] = useState(0);
   const [mappedAccounts, setMappedAccounts] = useState<string[]>([]);
   const [adNameCache, setAdNameCache] = useState<
@@ -985,26 +984,9 @@ export const useMetricsLab = (
         console.warn("[MetricsLab] vw_conversion_time_stats nao existe ainda");
       }
 
-      // Q7: Anomaly detection — fallback gracioso se view nao existir
-      try {
-        const anomalyResult = await supabase
-          .from("vw_ads_anomaly_detection")
-          .select("*")
-          .eq("is_anomaly", true)
-          .limit(100);
-        if (!anomalyResult.error) {
-          setRawAnomalies(
-            (anomalyResult.data ?? []) as unknown as AnomalyRow[],
-          );
-        } else {
-          console.warn(
-            "[MetricsLab] vw_ads_anomaly_detection indisponivel:",
-            anomalyResult.error.message,
-          );
-        }
-      } catch {
-        console.warn("[MetricsLab] vw_ads_anomaly_detection nao existe ainda");
-      }
+      // Q7: Anomaly detection — computado client-side no useMemo
+      // (usa rawAds como periodo recente e rawAdsPrev como baseline,
+      //  assim respeita o DateRange do usuario)
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erro ao carregar Metrics Lab";
@@ -1335,6 +1317,114 @@ export const useMetricsLab = (
         ? new Map(rawConversionTime.map((r) => [r.ad_id, r]))
         : null;
 
+    // ─── Anomaly Detection (computed from rawAds vs rawAdsPrev — respeita DateRange) ───
+    const anomalies: AnomalyRow[] = (() => {
+      if (rawAds.length === 0 || rawAdsPrev.length === 0) return [];
+
+      // Agregar periodo atual por ad_id
+      const recentMap = new Map<
+        string,
+        {
+          spend: number;
+          impressions: number;
+          clicks: number;
+          leads: number;
+          ad_name: string;
+        }
+      >();
+      for (const r of rawAds) {
+        if (!r.ad_id || r.ad_id.trim() === "") continue;
+        const ex = recentMap.get(r.ad_id);
+        if (ex) {
+          ex.spend += Number(r.spend) || 0;
+          ex.impressions += Number(r.impressions) || 0;
+          ex.clicks += Number(r.clicks) || 0;
+          ex.leads += Number(r.conversas_iniciadas) || 0;
+        } else {
+          recentMap.set(r.ad_id, {
+            spend: Number(r.spend) || 0,
+            impressions: Number(r.impressions) || 0,
+            clicks: Number(r.clicks) || 0,
+            leads: Number(r.conversas_iniciadas) || 0,
+            ad_name: r.ad_name ?? "Sem nome",
+          });
+        }
+      }
+
+      // Agregar baseline (periodo anterior) por ad_id
+      const baselineMap = new Map<
+        string,
+        { spend: number; impressions: number; clicks: number; leads: number }
+      >();
+      for (const r of rawAdsPrev) {
+        if (!r.ad_id || r.ad_id.trim() === "") continue;
+        const ex = baselineMap.get(r.ad_id);
+        if (ex) {
+          ex.spend += Number(r.spend) || 0;
+          ex.impressions += Number(r.impressions) || 0;
+          ex.clicks += Number(r.clicks) || 0;
+          ex.leads += Number(r.conversas_iniciadas) || 0;
+        } else {
+          baselineMap.set(r.ad_id, {
+            spend: Number(r.spend) || 0,
+            impressions: Number(r.impressions) || 0,
+            clicks: Number(r.clicks) || 0,
+            leads: Number(r.conversas_iniciadas) || 0,
+          });
+        }
+      }
+
+      const result: AnomalyRow[] = [];
+      for (const [adId, recent] of recentMap.entries()) {
+        const baseline = baselineMap.get(adId);
+        if (!baseline || baseline.spend === 0) continue;
+
+        const cplRecent = recent.leads > 0 ? recent.spend / recent.leads : null;
+        const cplBaseline =
+          baseline.leads > 0 ? baseline.spend / baseline.leads : null;
+        const ctrRecent =
+          recent.impressions > 0
+            ? (recent.clicks / recent.impressions) * 100
+            : null;
+        const ctrBaseline =
+          baseline.impressions > 0
+            ? (baseline.clicks / baseline.impressions) * 100
+            : null;
+
+        const cplDelta =
+          cplRecent !== null && cplBaseline !== null && cplBaseline > 0
+            ? ((cplRecent - cplBaseline) / cplBaseline) * 100
+            : null;
+        const ctrDelta =
+          ctrRecent !== null && ctrBaseline !== null && ctrBaseline > 0
+            ? ((ctrRecent - ctrBaseline) / ctrBaseline) * 100
+            : null;
+
+        const isAnomaly =
+          (cplDelta !== null && Math.abs(cplDelta) > 50) ||
+          (ctrDelta !== null && Math.abs(ctrDelta) > 50);
+        if (!isAnomaly) continue;
+
+        result.push({
+          ad_id: adId,
+          ad_name: recent.ad_name,
+          cpl_7d: cplRecent !== null ? Number(cplRecent.toFixed(2)) : 0,
+          cpl_30d: cplBaseline !== null ? Number(cplBaseline.toFixed(2)) : 0,
+          cpl_delta_pct: cplDelta !== null ? Number(cplDelta.toFixed(2)) : 0,
+          ctr_7d: ctrRecent !== null ? Number(ctrRecent.toFixed(4)) : 0,
+          ctr_30d: ctrBaseline !== null ? Number(ctrBaseline.toFixed(4)) : 0,
+          ctr_delta_pct: ctrDelta !== null ? Number(ctrDelta.toFixed(2)) : 0,
+          spend_7d: Number(recent.spend.toFixed(2)),
+          spend_30d: Number(baseline.spend.toFixed(2)),
+          is_anomaly: true,
+        });
+      }
+
+      return result.sort(
+        (a, b) => Math.abs(b.cpl_delta_pct) - Math.abs(a.cpl_delta_pct),
+      );
+    })();
+
     return {
       leadScoreRows,
       criativosARC,
@@ -1342,6 +1432,7 @@ export const useMetricsLab = (
       accounts,
       periodDeltas,
       conversionTimeMap,
+      anomalies,
     };
   }, [
     rawAds,
@@ -1457,7 +1548,7 @@ export const useMetricsLab = (
     accounts: computed.accounts,
     periodDeltas: computed.periodDeltas,
     conversionTimeMap: computed.conversionTimeMap,
-    anomalies: rawAnomalies,
+    anomalies: computed.anomalies,
     loading,
     error,
     refetch: fetchData,
