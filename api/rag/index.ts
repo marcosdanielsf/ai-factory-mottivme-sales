@@ -6,7 +6,8 @@ const PINECONE_API_KEY = process.env.PINECONE_API_KEY || "";
 const PINECONE_INDEX_HOST = process.env.PINECONE_INDEX_HOST || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-const INGEST_SECRET = process.env.INGEST_SECRET || "";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || "";
 const ALLOWED_ORIGIN =
   process.env.ALLOWED_ORIGIN || "https://factorai.mottivme.com.br";
 
@@ -194,10 +195,20 @@ async function handleIngest(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
 
-  // Auth: Bearer token
+  // Auth: validate Supabase JWT
   const authHeader = req.headers.authorization;
-  if (!INGEST_SECRET || authHeader !== `Bearer ${INGEST_SECRET}`) {
+  const token = authHeader?.replace("Bearer ", "");
+  if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
+  });
+  if (!userRes.ok) {
+    return res.status(401).json({ error: "Invalid token" });
   }
 
   const { title, content, tags } = req.body || {};

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { getErrorMessage } from "@/lib/getErrorMessage";
+import { supabase } from "@/lib/supabase";
 
 interface RagSource {
   id: string;
@@ -117,12 +118,13 @@ export function useRagChat() {
       setIngesting(true);
       setError(null);
       try {
-        const ingestSecret = import.meta.env.VITE_INGEST_SECRET || "";
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token || "";
         const res = await fetch("/api/rag?action=ingest", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${ingestSecret}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ title, content, tags }),
         });
