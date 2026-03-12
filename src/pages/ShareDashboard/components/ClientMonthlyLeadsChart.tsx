@@ -34,6 +34,8 @@ interface MonthBucket {
   label: string;
   leads: number;
   agendamentos: number;
+  leadsDisplay: number;
+  agendDisplay: number;
 }
 
 const MONTH_NAMES = [
@@ -65,6 +67,8 @@ function generateMonthRange(start: Date, end: Date): MonthBucket[] {
       label: `${MONTH_NAMES[m]}/${y}`,
       leads: 0,
       agendamentos: 0,
+      leadsDisplay: 0,
+      agendDisplay: 0,
     });
     cursor.setMonth(cursor.getMonth() + 1);
   }
@@ -84,25 +88,33 @@ const CustomTooltip = ({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ color: string; name: string; value: number }>;
+  payload?: Array<{
+    color: string;
+    name: string;
+    value: number;
+    payload: MonthBucket;
+  }>;
   label?: string;
 }) => {
   if (!active || !payload || !payload.length) return null;
+  const bucket = payload[0].payload;
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl text-sm">
       <p className="text-zinc-400 mb-2">{label}</p>
-      {payload.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-zinc-300">{entry.name}:</span>
-          <span className="text-white font-medium">
-            {formatNumber(entry.value)}
-          </span>
-        </div>
-      ))}
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <span className="text-zinc-300">Leads:</span>
+        <span className="text-white font-medium">
+          {formatNumber(bucket.leads)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-purple-500" />
+        <span className="text-zinc-300">Agendamentos:</span>
+        <span className="text-white font-medium">
+          {formatNumber(bucket.agendamentos)}
+        </span>
+      </div>
     </div>
   );
 };
@@ -131,6 +143,14 @@ export const ClientMonthlyLeadsChart: React.FC<
         bucket.leads += Number(day.total_leads) || 0;
         bucket.agendamentos += Number(day.agendaram) || 0;
       }
+    }
+
+    // Compute minimum bar height (3% of max) so zero-months are visible
+    const maxVal = Math.max(...allMonths.map((m) => m.leads), 1);
+    const minBar = Math.max(Math.ceil(maxVal * 0.03), 1);
+    for (const m of allMonths) {
+      m.leadsDisplay = m.leads === 0 ? minBar : m.leads;
+      m.agendDisplay = m.agendamentos === 0 ? minBar : m.agendamentos;
     }
 
     return allMonths;
@@ -174,7 +194,7 @@ export const ClientMonthlyLeadsChart: React.FC<
             cursor={{ fill: "rgba(255,255,255,0.03)" }}
           />
           <Bar
-            dataKey="leads"
+            dataKey="leadsDisplay"
             name="Leads"
             radius={[4, 4, 0, 0]}
             maxBarSize={48}
@@ -184,7 +204,6 @@ export const ClientMonthlyLeadsChart: React.FC<
               position="top"
               fill="#a1a1aa"
               fontSize={11}
-              formatter={(v: number) => (v > 0 ? v : "")}
             />
             {monthlyData.map((entry) => (
               <Cell
@@ -200,7 +219,7 @@ export const ClientMonthlyLeadsChart: React.FC<
             ))}
           </Bar>
           <Bar
-            dataKey="agendamentos"
+            dataKey="agendDisplay"
             name="Agendamentos"
             radius={[4, 4, 0, 0]}
             maxBarSize={48}
@@ -212,7 +231,6 @@ export const ClientMonthlyLeadsChart: React.FC<
               position="top"
               fill="#a78bfa"
               fontSize={11}
-              formatter={(v: number) => (v > 0 ? v : "")}
             />
           </Bar>
         </BarChart>
