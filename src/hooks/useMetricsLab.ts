@@ -982,88 +982,104 @@ export const useMetricsLab = (
       }
     }
 
+    // Inject tracking-only ads into adAggMap (leads exist but no FB ads data for this period)
+    for (const [adId] of trackingMap.entries()) {
+      if (adId === "__unattributed_inferred__") continue;
+      if (!adAggMap.has(adId)) {
+        adAggMap.set(adId, {
+          ad_name: null,
+          adset_name: null,
+          campaign_name: null,
+          sumSpend: 0,
+          sumConversas: 0,
+          ctrLinkSum: 0,
+          count: 0,
+        });
+      }
+    }
+
     // Calculate score per ad_id using real leads from n8n_schedule_tracking
-    const leadScoreRows: LeadScoreRow[] =
-      rawAds.length > 0
-        ? Array.from(adAggMap.entries())
-            .map(([adId, agg]) => {
-              const tracking = trackingMap.get(adId);
-              // leads = real GHL leads from n8n_schedule_tracking (not clicks)
-              const realLeads = tracking?.total_leads ?? 0;
-              const responded = tracking?.em_contato ?? 0;
-              const won = tracking?.won ?? 0;
-              const wonValue = tracking?.won_value ?? 0;
-              const spend = agg.sumSpend;
-              const cpl = realLeads > 0 ? spend / realLeads : 0;
-              const respPct = realLeads > 0 ? (responded / realLeads) * 100 : 0;
-              const avgCtrLink = agg.count > 0 ? agg.ctrLinkSum / agg.count : 0;
+    const hasAnyData = adAggMap.size > 0;
+    const leadScoreRows: LeadScoreRow[] = hasAnyData
+      ? Array.from(adAggMap.entries())
+          .map(([adId, agg]) => {
+            const tracking = trackingMap.get(adId);
+            // leads = real GHL leads from n8n_schedule_tracking (not clicks)
+            const realLeads = tracking?.total_leads ?? 0;
+            const responded = tracking?.em_contato ?? 0;
+            const won = tracking?.won ?? 0;
+            const wonValue = tracking?.won_value ?? 0;
+            const spend = agg.sumSpend;
+            const cpl = realLeads > 0 ? spend / realLeads : 0;
+            const respPct = realLeads > 0 ? (responded / realLeads) * 100 : 0;
+            const avgCtrLink = agg.count > 0 ? agg.ctrLinkSum / agg.count : 0;
 
-              // Score 0-100 (4 components x 25pts each)
-              // C1: CTR de link (3% = 25pts)
-              const comp1 = Math.min(25, avgCtrLink * 8);
-              // C2: Taxa de resposta (100% = 25pts)
-              const comp2 = Math.min(25, respPct / 4);
-              // C3: Taxa de fechamento (5% close = 25pts)
-              const wonRate = realLeads > 0 ? (won / realLeads) * 100 : 0;
-              const comp3 = Math.min(25, wonRate * 5);
-              // C4: Eficiencia CPL (R$0 = 25pts, R$100+ = 0pts)
-              const comp4 =
-                spend > 0 && realLeads > 0
-                  ? Math.min(25, 25 - Math.min(25, cpl / 4))
-                  : 0;
+            // Score 0-100 (4 components x 25pts each)
+            // C1: CTR de link (3% = 25pts)
+            const comp1 = Math.min(25, avgCtrLink * 8);
+            // C2: Taxa de resposta (100% = 25pts)
+            const comp2 = Math.min(25, respPct / 4);
+            // C3: Taxa de fechamento (5% close = 25pts)
+            const wonRate = realLeads > 0 ? (won / realLeads) * 100 : 0;
+            const comp3 = Math.min(25, wonRate * 5);
+            // C4: Eficiencia CPL (R$0 = 25pts, R$100+ = 0pts)
+            const comp4 =
+              spend > 0 && realLeads > 0
+                ? Math.min(25, 25 - Math.min(25, cpl / 4))
+                : 0;
 
-              const score = Math.min(
-                100,
-                Math.max(0, Math.round(comp1 + comp2 + comp3 + comp4)),
-              );
-              const potencial: LeadScoreRow["potencial"] =
-                score >= 70
-                  ? "alto"
-                  : score >= 40
-                    ? "medio"
-                    : score >= 20
-                      ? "baixo"
-                      : "desqualificado";
+            const score = Math.min(
+              100,
+              Math.max(0, Math.round(comp1 + comp2 + comp3 + comp4)),
+            );
+            const potencial: LeadScoreRow["potencial"] =
+              score >= 70
+                ? "alto"
+                : score >= 40
+                  ? "medio"
+                  : score >= 20
+                    ? "baixo"
+                    : "desqualificado";
 
-              const roas = spend > 0 && wonValue > 0 ? wonValue / spend : 0;
-              const drivers =
-                won > 0
-                  ? [
-                      {
-                        label: `${won} fechamentos GHL`,
-                        value: won,
-                        pct: Math.round(wonRate),
-                      },
-                      ...(roas > 0
-                        ? [
-                            {
-                              label: `ROAS ${roas.toFixed(1)}x`,
-                              value: roas,
-                              pct: Math.round(roas * 10),
-                            },
-                          ]
-                        : []),
-                    ]
-                  : [];
+            const roas = spend > 0 && wonValue > 0 ? wonValue / spend : 0;
+            const drivers =
+              won > 0
+                ? [
+                    {
+                      label: `${won} fechamentos GHL`,
+                      value: won,
+                      pct: Math.round(wonRate),
+                    },
+                    ...(roas > 0
+                      ? [
+                          {
+                            label: `ROAS ${roas.toFixed(1)}x`,
+                            value: roas,
+                            pct: Math.round(roas * 10),
+                          },
+                        ]
+                      : []),
+                  ]
+                : [];
 
-              return {
-                ad_id: adId,
-                ad_name: agg.ad_name ?? "Sem nome",
-                adset_name: agg.adset_name ?? "N/A",
-                campaign_name: agg.campaign_name ?? "N/A",
-                gasto: spend,
-                leads: realLeads,
-                cpl,
-                resp_pct: respPct,
-                score,
-                potencial,
-                top_drivers: drivers.slice(0, 3),
-                top_detractors: [],
-                thumbnail_url: thumbnailMap.get(adId) ?? null,
-              };
-            })
-            .sort((a, b) => b.score - a.score)
-        : [];
+            return {
+              ad_id: adId,
+              ad_name: agg.ad_name ?? "Sem nome",
+              adset_name: agg.adset_name ?? "N/A",
+              campaign_name: agg.campaign_name ?? "N/A",
+              gasto: spend,
+              leads: realLeads,
+              cpl,
+              resp_pct: respPct,
+              score,
+              potencial,
+              top_drivers: drivers.slice(0, 3),
+              top_detractors: [],
+              thumbnail_url: thumbnailMap.get(adId) ?? null,
+            };
+          })
+          .sort((a, b) => b.score - a.score)
+      : [];
 
     // Period deltas — compare current vs previous period aggregates
     let periodDeltas: PeriodDeltas | null = null;
@@ -1098,10 +1114,11 @@ export const useMetricsLab = (
     const criativosARC: CriativoARC[] =
       rawAds.length > 0 ? buildCriativosARC(rawAds) : [];
 
-    // Funil por Anuncio — fall back to mock if empty
+    // Funil por Anuncio — show if FB ads OR tracking data exists
     const UNATTRIBUTED_INFERRED_ID = "__unattributed_inferred__";
-    const baseFunnelAds: FunnelAd[] =
-      rawAds.length > 0 ? buildFunnelAds(rawAds, trackingMap) : [];
+    const baseFunnelAds: FunnelAd[] = hasAnyData
+      ? buildFunnelAds(rawAds, trackingMap)
+      : [];
 
     // Injetar entrada de leads "Paid (nao rastreado)" se existirem leads unattributed_inferred
     const unattributedTracking = trackingMap.get(UNATTRIBUTED_INFERRED_ID);
