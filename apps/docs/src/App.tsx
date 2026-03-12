@@ -31,6 +31,11 @@ const BoardPage = React.lazy(() => import("./pages/mindflow/BoardPage"));
 // Customer Journey Map - lazy loaded
 const CustomerJourney = React.lazy(() => import("./pages/CustomerJourney"));
 
+// Share Dashboard (link publico cliente-facing, sem login)
+const ShareDashboard = React.lazy(() =>
+  import("./pages/ShareDashboard").then((m) => ({ default: m.ShareDashboard })),
+);
+
 const App = () => {
   return (
     <AuthProvider>
@@ -41,6 +46,20 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<OnboardingWizard />} />
             <Route path="/welcome" element={<OnboardingWizard skipIntro />} />
+            <Route
+              path="/share/:token"
+              element={
+                <React.Suspense
+                  fallback={
+                    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+                      <div className="h-8 w-48 bg-zinc-800 rounded animate-pulse" />
+                    </div>
+                  }
+                >
+                  <ShareDashboard />
+                </React.Suspense>
+              }
+            />
 
             {/* Protected Routes */}
             <Route

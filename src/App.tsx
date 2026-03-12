@@ -259,6 +259,11 @@ const SalesHub = lazy(() =>
 // Planejamento Publico (link unico para clientes)
 const PlanejamentoPublico = lazy(() => import("./pages/PlanejamentoPublico"));
 
+// Share Dashboard (link publico cliente-facing, sem login)
+const ShareDashboard = lazy(() =>
+  import("./pages/ShareDashboard").then((m) => ({ default: m.ShareDashboard })),
+);
+
 // JARVIS Command Center + sub-pages
 const JarvisCommand = lazy(() => import("./pages/JarvisCommand"));
 const JarvisMemory = lazy(() => import("./pages/JarvisMemory"));
@@ -455,6 +460,14 @@ const App = () => {
                       element={
                         <Suspense fallback={<LoadingFallback />}>
                           <PlanejamentoPublico />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/share/:token"
+                      element={
+                        <Suspense fallback={<LoadingFallback />}>
+                          <ShareDashboard />
                         </Suspense>
                       }
                     />

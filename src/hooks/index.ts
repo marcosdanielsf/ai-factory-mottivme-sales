@@ -66,3 +66,6 @@ export type { GHLLocation, GHLOpsStats, UseGHLOpsReturn } from "./useGHLOps";
 // Board Engine
 export { useBoards } from "./useBoards";
 export { useBoardData } from "./useBoardData";
+
+export * from "./useSharedDashboards";
+export * from "./useClientFunnel";
