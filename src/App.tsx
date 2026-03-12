@@ -370,6 +370,11 @@ const LeadsListCompany = lazy(() => import("./pages/LeadGen/LeadsListCompany"));
 // Agent Builder (visual flow editor)
 const AgentBuilder = lazy(() => import("./pages/AgentBuilder"));
 
+// Customer Journey Map (from apps/docs workspace)
+const CustomerJourney = lazy(
+  () => import("../apps/docs/src/pages/CustomerJourney"),
+);
+
 // MindFlow (mapas mentais interativos com IA)
 const MindFlowList = lazy(() =>
   import("./pages/MindFlow").then((m) => ({ default: m.MindFlowList })),
@@ -507,6 +512,19 @@ const App = () => {
                           <ConditionalLayout>
                             <Suspense fallback={<LoadingFallback />}>
                               <Agendamentos />
+                            </Suspense>
+                          </ConditionalLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* Customer Journey Map */}
+                    <Route
+                      path="/customer-journey"
+                      element={
+                        <ProtectedRoute>
+                          <ConditionalLayout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <CustomerJourney />
                             </Suspense>
                           </ConditionalLayout>
                         </ProtectedRoute>

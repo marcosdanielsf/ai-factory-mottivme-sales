@@ -91,6 +91,7 @@ import {
   ArrowRight,
   MoreHorizontal,
   LayoutGrid,
+  Route,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions, Permissions } from "../hooks/usePermissions";
@@ -280,6 +281,7 @@ const navSections: NavSection[] = [
           { icon: Workflow, label: "Hub Ops", to: "/workflows" },
           { icon: ClipboardCheck, label: "Auditoria n8n", to: "/n8n-audit" },
           { icon: Server, label: "GHL Ops", to: "/ghl-ops" },
+          { icon: Route, label: "Jornada do Cliente", to: "/customer-journey" },
         ],
       },
       {
