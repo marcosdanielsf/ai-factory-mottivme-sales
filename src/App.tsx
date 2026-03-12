@@ -296,6 +296,11 @@ const BrainHealth = lazy(() =>
   import("./pages/Brain/Health").then((m) => ({ default: m.BrainHealth })),
 );
 
+// RAG Chat (Multimodal)
+const RagChat = lazy(() =>
+  import("./pages/RagChat").then((m) => ({ default: m.RagChat })),
+);
+
 // Projetos (Kanban + Project Board)
 const Projetos = lazy(() => import("./pages/Projetos"));
 
@@ -1858,6 +1863,20 @@ const App = () => {
                           <Layout>
                             <Suspense fallback={<LoadingFallback />}>
                               <BrainHealth />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* RAG Chat */}
+                    <Route
+                      path="/rag"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <RagChat />
                             </Suspense>
                           </Layout>
                         </ProtectedRoute>

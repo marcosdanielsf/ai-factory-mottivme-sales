@@ -419,6 +419,12 @@ const navSections: NavSection[] = [
       },
       // --- Recursos do agente ---
       {
+        icon: Search,
+        label: "RAG Multimodal",
+        to: "/rag",
+        permission: "canAccessPromptEditor",
+      },
+      {
         icon: Package,
         label: "Catálogo",
         to: "/produtos",
