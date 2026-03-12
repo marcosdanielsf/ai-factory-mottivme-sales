@@ -109,6 +109,42 @@ export function useRagChat() {
     setError(null);
   }, []);
 
+  const [ingesting, setIngesting] = useState(false);
+
+  const ingestContent = useCallback(
+    async (title: string, content: string, tags?: string) => {
+      if (!title.trim() || !content.trim() || ingesting) return;
+      setIngesting(true);
+      setError(null);
+      try {
+        const ingestSecret = import.meta.env.VITE_INGEST_SECRET || "";
+        const res = await fetch("/api/rag/ingest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${ingestSecret}`,
+          },
+          body: JSON.stringify({ title, content, tags }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(
+            errData.message || errData.error || `HTTP ${res.status}`,
+          );
+        }
+        const data = await res.json();
+        fetchStats();
+        return data;
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
+        throw err;
+      } finally {
+        setIngesting(false);
+      }
+    },
+    [ingesting, fetchStats],
+  );
+
   return {
     messages,
     loading,
@@ -117,5 +153,7 @@ export function useRagChat() {
     sendMessage,
     clearMessages,
     refetchStats: fetchStats,
+    ingesting,
+    ingestContent,
   };
 }
