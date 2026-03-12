@@ -85,6 +85,13 @@ function buildCriativosARC(rows: RawAdRow[]): CriativoARC[] {
       sumSpend: number;
       sumConversions: number;
       sumConversionValue: number;
+      // Campos brutos para media ponderada por volume (nao media simples de rates)
+      sumImpressions: number;
+      sumVideo3s: number;
+      sumVideoP75: number;
+      sumOutbound: number;
+      sumClicks: number;
+      // Fallback: acumula rates pre-calculados caso campos brutos sejam nulos
       hookRateSum: number;
       holdRateSum: number;
       bodyRateSum: number;
@@ -99,6 +106,11 @@ function buildCriativosARC(rows: RawAdRow[]): CriativoARC[] {
       existing.sumSpend += Number(row.spend) || 0;
       existing.sumConversions += Number(row.conversions) || 0;
       existing.sumConversionValue += Number(row.conversion_value) || 0;
+      existing.sumImpressions += Number(row.impressions) || 0;
+      existing.sumVideo3s += Number(row.video_views_3s) || 0;
+      existing.sumVideoP75 += Number(row.video_p75) || 0;
+      existing.sumOutbound += Number(row.outbound_clicks) || 0;
+      existing.sumClicks += Number(row.clicks) || 0;
       existing.hookRateSum += Number(row.hook_rate) || 0;
       existing.holdRateSum += Number(row.hold_rate) || 0;
       existing.bodyRateSum += Number(row.body_rate) || 0;
@@ -111,6 +123,11 @@ function buildCriativosARC(rows: RawAdRow[]): CriativoARC[] {
         sumSpend: Number(row.spend) || 0,
         sumConversions: Number(row.conversions) || 0,
         sumConversionValue: Number(row.conversion_value) || 0,
+        sumImpressions: Number(row.impressions) || 0,
+        sumVideo3s: Number(row.video_views_3s) || 0,
+        sumVideoP75: Number(row.video_p75) || 0,
+        sumOutbound: Number(row.outbound_clicks) || 0,
+        sumClicks: Number(row.clicks) || 0,
         hookRateSum: Number(row.hook_rate) || 0,
         holdRateSum: Number(row.hold_rate) || 0,
         bodyRateSum: Number(row.body_rate) || 0,
@@ -121,20 +138,46 @@ function buildCriativosARC(rows: RawAdRow[]): CriativoARC[] {
   }
 
   return Array.from(map.entries())
-    .map(([adId, m]) =>
-      mapCriativoARC(
+    .map(([adId, m]) => {
+      // Media ponderada por volume: usar campos brutos quando disponiveis,
+      // fallback para media simples dos rates pre-calculados quando nao ha dados brutos.
+      const hookRate =
+        m.sumImpressions > 0
+          ? (m.sumVideo3s / m.sumImpressions) * 100
+          : m.count > 0
+            ? m.hookRateSum / m.count
+            : 0;
+      const holdRate =
+        m.sumVideo3s > 0
+          ? (m.sumVideoP75 / m.sumVideo3s) * 100
+          : m.count > 0
+            ? m.holdRateSum / m.count
+            : 0;
+      const bodyRate =
+        m.sumImpressions > 0
+          ? (m.sumOutbound / m.sumImpressions) * 100
+          : m.count > 0
+            ? m.bodyRateSum / m.count
+            : 0;
+      const ctrLink =
+        m.sumImpressions > 0
+          ? (m.sumClicks / m.sumImpressions) * 100
+          : m.count > 0
+            ? m.ctrLinkSum / m.count
+            : 0;
+      return mapCriativoARC(
         adId,
         m.ad_name,
         m.campaign_name,
         m.sumSpend,
         m.sumConversions,
         m.sumConversionValue,
-        m.count > 0 ? m.hookRateSum / m.count : 0,
-        m.count > 0 ? m.holdRateSum / m.count : 0,
-        m.count > 0 ? m.bodyRateSum / m.count : 0,
-        m.count > 0 ? m.ctrLinkSum / m.count : 0,
-      ),
-    )
+        hookRate,
+        holdRate,
+        bodyRate,
+        ctrLink,
+      );
+    })
     .sort((a, b) => b.gasto - a.gasto);
 }
 
@@ -204,6 +247,7 @@ function buildFunnelAds(
     let sumOutbound = 0;
     let sumConversas = 0;
     let sumConversions = 0;
+    // Fallback: acumula rates pre-calculados para uso quando campos brutos sao nulos
     let ctrLinkSum = 0;
     let hookRateSum = 0;
     let holdRateSum = 0;
@@ -227,10 +271,31 @@ function buildFunnelAds(
       rateCount += 1;
     }
 
-    const avgCtrLink = rateCount > 0 ? ctrLinkSum / rateCount : 0;
-    const avgHookRate = rateCount > 0 ? hookRateSum / rateCount : 0;
-    const avgHoldRate = rateCount > 0 ? holdRateSum / rateCount : 0;
-    const avgBodyRate = rateCount > 0 ? bodyRateSum / rateCount : 0;
+    // Media ponderada por volume (campos brutos) com fallback para media simples
+    const avgCtrLink =
+      sumImpressions > 0
+        ? (sumClicks / sumImpressions) * 100
+        : rateCount > 0
+          ? ctrLinkSum / rateCount
+          : 0;
+    const avgHookRate =
+      sumImpressions > 0
+        ? (sumVideo3s / sumImpressions) * 100
+        : rateCount > 0
+          ? hookRateSum / rateCount
+          : 0;
+    const avgHoldRate =
+      sumVideo3s > 0
+        ? (sumVideoP75 / sumVideo3s) * 100
+        : rateCount > 0
+          ? holdRateSum / rateCount
+          : 0;
+    const avgBodyRate =
+      sumImpressions > 0
+        ? (sumOutbound / sumImpressions) * 100
+        : rateCount > 0
+          ? bodyRateSum / rateCount
+          : 0;
     const cpm = sumImpressions > 0 ? (sumSpend / sumImpressions) * 1000 : 0;
     const cpc = sumClicks > 0 ? sumSpend / sumClicks : 0;
     const cpa = sumConversions > 0 ? sumSpend / sumConversions : 0;
@@ -482,6 +547,12 @@ export const useMetricsLab = (
   const [rawAnomalies, setRawAnomalies] = useState<AnomalyRow[]>([]);
   const [unattributedCount, setUnattributedCount] = useState(0);
   const [mappedAccounts, setMappedAccounts] = useState<string[]>([]);
+  const [adNameCache, setAdNameCache] = useState<
+    Map<
+      string,
+      { ad_name: string; campaign_name: string; account_name: string }
+    >
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -599,15 +670,17 @@ export const useMetricsLab = (
         .limit(5000);
 
       if (dateRange?.startDate) {
-        trackingQuery = trackingQuery.gte(
-          "created_at",
-          dateRange.startDate.toISOString(),
-        );
+        // Fix timezone: alinhar com data_relatorio DATE do FB Ads (que e UTC midnight).
+        // setUTCHours(0,0,0,0) garante que o start seja 00:00 UTC do mesmo dia calendario.
+        const startUTC = new Date(dateRange.startDate);
+        startUTC.setUTCHours(0, 0, 0, 0);
+        trackingQuery = trackingQuery.gte("created_at", startUTC.toISOString());
       }
       if (dateRange?.endDate) {
-        const endOfDay = new Date(dateRange.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        trackingQuery = trackingQuery.lte("created_at", endOfDay.toISOString());
+        // setUTCHours(23,59,59,999) cobre o dia inteiro em UTC — mesmo dia que data_relatorio.
+        const endUTC = new Date(dateRange.endDate);
+        endUTC.setUTCHours(23, 59, 59, 999);
+        trackingQuery = trackingQuery.lte("created_at", endUTC.toISOString());
       }
 
       // Q3b: Leads sem ad_id mas com agente_ia SDR/Instagram — "Paid (nao rastreado)"
@@ -627,17 +700,19 @@ export const useMetricsLab = (
         .limit(2000);
 
       if (dateRange?.startDate) {
+        const startUTC = new Date(dateRange.startDate);
+        startUTC.setUTCHours(0, 0, 0, 0);
         unattributedInferredQuery = unattributedInferredQuery.gte(
           "created_at",
-          dateRange.startDate.toISOString(),
+          startUTC.toISOString(),
         );
       }
       if (dateRange?.endDate) {
-        const endOfDay = new Date(dateRange.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        const endUTC = new Date(dateRange.endDate);
+        endUTC.setUTCHours(23, 59, 59, 999);
         unattributedInferredQuery = unattributedInferredQuery.lte(
           "created_at",
-          endOfDay.toISOString(),
+          endUTC.toISOString(),
         );
       }
 
@@ -840,6 +915,45 @@ export const useMetricsLab = (
         };
       });
       setRawTracking(aggregatedTracking);
+
+      // Lookup ad names for tracking-only ad_ids (not in current period's fb_ads_performance)
+      const currentAdIds = new Set(
+        (adsResult.data ?? []).map((r: { ad_id: string }) => r.ad_id),
+      );
+      const trackingOnlyIds = Array.from(trackingAgg.keys()).filter(
+        (id) => id !== "__unattributed_inferred__" && !currentAdIds.has(id),
+      );
+      if (trackingOnlyIds.length > 0) {
+        try {
+          const { data: nameRows } = await supabase
+            .from("fb_ads_performance")
+            .select("ad_id, ad_name, campaign_name, account_name")
+            .in("ad_id", trackingOnlyIds)
+            .not("ad_name", "is", null)
+            .limit(500);
+          if (nameRows && nameRows.length > 0) {
+            const cache = new Map(adNameCache);
+            for (const r of nameRows as {
+              ad_id: string;
+              ad_name: string;
+              campaign_name: string;
+              account_name: string;
+            }[]) {
+              if (!cache.has(r.ad_id) && r.ad_name) {
+                cache.set(r.ad_id, {
+                  ad_name: r.ad_name,
+                  campaign_name: r.campaign_name ?? "N/A",
+                  account_name: r.account_name ?? "N/A",
+                });
+              }
+            }
+            setAdNameCache(cache);
+          }
+        } catch {
+          console.warn("[MetricsLab] ad name lookup falhou");
+        }
+      }
+
       // Heatmap: fallback gracioso se view nao existir (retorna [] sem lancar erro)
       if (!heatmapResult.error) {
         setHeatmapData((heatmapResult.data ?? []) as unknown as HeatmapRow[]);
@@ -986,10 +1100,11 @@ export const useMetricsLab = (
     for (const [adId] of trackingMap.entries()) {
       if (adId === "__unattributed_inferred__") continue;
       if (!adAggMap.has(adId)) {
+        const cached = adNameCache.get(adId);
         adAggMap.set(adId, {
-          ad_name: null,
+          ad_name: cached?.ad_name ?? null,
           adset_name: null,
-          campaign_name: null,
+          campaign_name: cached?.campaign_name ?? null,
           sumSpend: 0,
           sumConversas: 0,
           ctrLinkSum: 0,
@@ -1228,7 +1343,14 @@ export const useMetricsLab = (
       periodDeltas,
       conversionTimeMap,
     };
-  }, [rawAds, rawAdsPrev, rawTracking, rawConversionTime, mappedAccounts]);
+  }, [
+    rawAds,
+    rawAdsPrev,
+    rawTracking,
+    rawConversionTime,
+    mappedAccounts,
+    adNameCache,
+  ]);
 
   // ─── Drill-down: busca leads individuais de um anuncio ──────────────────────
   // Query em 2 etapas: (1) n8n_schedule_tracking, (2) enriquecer com ghl_opportunities
