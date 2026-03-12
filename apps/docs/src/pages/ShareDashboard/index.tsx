@@ -76,7 +76,11 @@ export const ShareDashboard: React.FC = () => {
       <ShareHeader dateRange={dateRange} onDateRangeChange={setDateRange} />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-8">
         <ClientKPIs kpis={kpis} loading={loading} />
-        <ClientMonthlyLeadsChart data={funnelData} loading={loading} />
+        <ClientMonthlyLeadsChart
+          data={funnelData}
+          dateRange={dateRange}
+          loading={loading}
+        />
         <ClientFunnel totals={totals} loading={loading} />
         <ClientDailyChart data={funnelData} loading={loading} />
         <ClientDailyTable data={funnelData} loading={loading} />

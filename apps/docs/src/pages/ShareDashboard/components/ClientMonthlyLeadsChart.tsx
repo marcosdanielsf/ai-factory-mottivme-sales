@@ -18,8 +18,14 @@ interface FunnelDay {
   agendaram: number;
 }
 
+interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
 interface ClientMonthlyLeadsChartProps {
   data: FunnelDay[];
+  dateRange: DateRange;
   loading: boolean;
 }
 
@@ -44,6 +50,26 @@ const MONTH_NAMES = [
   "Nov",
   "Dez",
 ];
+
+/** Generate all months between two dates (inclusive) */
+function generateMonthRange(start: Date, end: Date): MonthBucket[] {
+  const months: MonthBucket[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+
+  while (cursor <= last) {
+    const y = cursor.getFullYear();
+    const m = cursor.getMonth();
+    months.push({
+      month: `${y}-${String(m + 1).padStart(2, "0")}`,
+      label: `${MONTH_NAMES[m]}/${y}`,
+      leads: 0,
+      agendamentos: 0,
+    });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
 
 const SkeletonChart = () => (
   <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
@@ -83,33 +109,32 @@ const CustomTooltip = ({
 
 export const ClientMonthlyLeadsChart: React.FC<
   ClientMonthlyLeadsChartProps
-> = ({ data, loading }) => {
+> = ({ data, dateRange, loading }) => {
   if (loading) return <SkeletonChart />;
 
   const monthlyData = useMemo<MonthBucket[]>(() => {
-    const buckets = new Map<string, MonthBucket>();
+    if (!dateRange.startDate || !dateRange.endDate) return [];
 
+    // Generate all months in range
+    const allMonths = generateMonthRange(
+      dateRange.startDate,
+      dateRange.endDate,
+    );
+    const monthMap = new Map(allMonths.map((m) => [m.month, m]));
+
+    // Fill with actual data
     for (const day of data) {
       const d = new Date(day.dia + "T00:00:00");
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const existing = buckets.get(key);
-      if (existing) {
-        existing.leads += Number(day.total_leads) || 0;
-        existing.agendamentos += Number(day.agendaram) || 0;
-      } else {
-        buckets.set(key, {
-          month: key,
-          label: `${MONTH_NAMES[d.getMonth()]}/${d.getFullYear()}`,
-          leads: Number(day.total_leads) || 0,
-          agendamentos: Number(day.agendaram) || 0,
-        });
+      const bucket = monthMap.get(key);
+      if (bucket) {
+        bucket.leads += Number(day.total_leads) || 0;
+        bucket.agendamentos += Number(day.agendaram) || 0;
       }
     }
 
-    return Array.from(buckets.values())
-      .filter((b) => b.leads > 0 || b.agendamentos > 0)
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [data]);
+    return allMonths;
+  }, [data, dateRange.startDate, dateRange.endDate]);
 
   if (monthlyData.length === 0) return null;
 
@@ -123,7 +148,7 @@ export const ClientMonthlyLeadsChart: React.FC<
       <ResponsiveContainer width="100%" height={260}>
         <BarChart
           data={monthlyData}
-          margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 12, left: 0, bottom: 0 }}
           barGap={4}
         >
           <CartesianGrid
@@ -164,7 +189,13 @@ export const ClientMonthlyLeadsChart: React.FC<
             {monthlyData.map((entry) => (
               <Cell
                 key={entry.month}
-                fill={entry.leads === maxLeads ? "#3b82f6" : "#3b82f680"}
+                fill={
+                  entry.leads === 0
+                    ? "#3f3f46"
+                    : entry.leads === maxLeads
+                      ? "#3b82f6"
+                      : "#3b82f680"
+                }
               />
             ))}
           </Bar>
