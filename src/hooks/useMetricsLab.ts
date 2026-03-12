@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
-import {
-  MOCK_LEAD_SCORE_ROWS,
-  MOCK_CRIATIVOS_ARC,
-  MOCK_FUNNEL_ADS,
-} from "../pages/MetricsLab/mockData";
+// Mock data removed — empty state when no ads data for selected period
 import type {
   LeadScoreRow,
   CriativoARC,
@@ -485,6 +481,7 @@ export const useMetricsLab = (
   >([]);
   const [rawAnomalies, setRawAnomalies] = useState<AnomalyRow[]>([]);
   const [unattributedCount, setUnattributedCount] = useState(0);
+  const [mappedAccounts, setMappedAccounts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -522,6 +519,7 @@ export const useMetricsLab = (
       const allowedAccounts = (mappingRows ?? []).map(
         (r: { account_name: string }) => r.account_name,
       );
+      setMappedAccounts(allowedAccounts);
 
       // Se nao ha contas mapeadas, nada a mostrar
       if (allowedAccounts.length === 0) {
@@ -912,12 +910,8 @@ export const useMetricsLab = (
   }, [fetchData]);
 
   const computed = useMemo(() => {
-    // Unique account names from rawAds
-    const accountSet = new Set<string>();
-    for (const r of rawAds) {
-      if (r.account_name) accountSet.add(r.account_name);
-    }
-    const accounts = Array.from(accountSet).sort();
+    // Accounts from ad_account_mapping (always available, not dependent on date range)
+    const accounts = [...mappedAccounts].sort();
 
     // Build tracking map FIRST — needed by score calculation and funnelAds
     const trackingMap = new Map<string, MergedFunnelTracking>();
@@ -1069,7 +1063,7 @@ export const useMetricsLab = (
               };
             })
             .sort((a, b) => b.score - a.score)
-        : MOCK_LEAD_SCORE_ROWS;
+        : [];
 
     // Period deltas — compare current vs previous period aggregates
     let periodDeltas: PeriodDeltas | null = null;
@@ -1102,12 +1096,12 @@ export const useMetricsLab = (
 
     // Criativos ARC — fall back to mock if empty
     const criativosARC: CriativoARC[] =
-      rawAds.length > 0 ? buildCriativosARC(rawAds) : MOCK_CRIATIVOS_ARC;
+      rawAds.length > 0 ? buildCriativosARC(rawAds) : [];
 
     // Funil por Anuncio — fall back to mock if empty
     const UNATTRIBUTED_INFERRED_ID = "__unattributed_inferred__";
     const baseFunnelAds: FunnelAd[] =
-      rawAds.length > 0 ? buildFunnelAds(rawAds, trackingMap) : MOCK_FUNNEL_ADS;
+      rawAds.length > 0 ? buildFunnelAds(rawAds, trackingMap) : [];
 
     // Injetar entrada de leads "Paid (nao rastreado)" se existirem leads unattributed_inferred
     const unattributedTracking = trackingMap.get(UNATTRIBUTED_INFERRED_ID);
@@ -1217,7 +1211,7 @@ export const useMetricsLab = (
       periodDeltas,
       conversionTimeMap,
     };
-  }, [rawAds, rawAdsPrev, rawTracking, rawConversionTime]);
+  }, [rawAds, rawAdsPrev, rawTracking, rawConversionTime, mappedAccounts]);
 
   // ─── Drill-down: busca leads individuais de um anuncio ──────────────────────
   // Query em 2 etapas: (1) n8n_schedule_tracking, (2) enriquecer com ghl_opportunities
