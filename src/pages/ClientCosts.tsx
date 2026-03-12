@@ -11,6 +11,11 @@ import {
   Pie,
   Cell,
   Treemap,
+  BarChart,
+  Bar,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from "recharts";
 import {
   DollarSign,
@@ -32,6 +37,9 @@ import {
   Search,
   ExternalLink,
   GitBranch,
+  Activity,
+  Target,
+  Layers,
 } from "lucide-react";
 import { useToast } from "../hooks/useToast";
 import {
@@ -46,8 +54,56 @@ import {
   WorkflowCostSummary,
 } from "../hooks/useWorkflowCosts";
 import { useCostAnalytics } from "../hooks/useCostAnalytics";
+import {
+  useLeadCostAnalysis,
+  getLocationColor,
+} from "../hooks/useLeadCostAnalysis";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { DateRangePicker, DateRange } from "../components/DateRangePicker";
+
+// ===== CollapsibleSection Component =====
+interface CollapsibleSectionProps {
+  title: string;
+  badge?: string;
+  icon?: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
+  title,
+  badge,
+  icon,
+  isOpen,
+  onToggle,
+  children,
+}) => {
+  return (
+    <div className="border border-gray-800 rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full p-4 flex items-center justify-between cursor-pointer hover:bg-gray-800/50 transition-colors bg-[#0d1117]"
+      >
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-text-muted">{icon}</span>}
+          <span className="text-sm font-bold text-text-primary">{title}</span>
+          {badge && (
+            <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">
+              {badge}
+            </span>
+          )}
+        </div>
+        <ChevronRight
+          size={16}
+          className="text-gray-400 transition-transform duration-200 flex-shrink-0"
+          style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+        />
+      </button>
+      {isOpen && <div className="border-t border-gray-800">{children}</div>}
+    </div>
+  );
+};
 
 export const ClientCosts = () => {
   const { showToast } = useToast();
@@ -70,6 +126,19 @@ export const ClientCosts = () => {
   // Workflow state
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<WorkflowCostSummary | null>(null);
+
+  // Analytics accordion state (default: all closed)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    byMode: false,
+    byAgent: false,
+    abTest: false,
+    byFase: false,
+    byLead: false,
+  });
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // Novos filtros
   const [clientFilter, setClientFilter] = useState<string>(""); // Filtro por cliente específico
@@ -99,7 +168,17 @@ export const ClientCosts = () => {
     showInactive,
     inactiveDays: 30,
   });
-  const { summary, loading: loadingSummary } = useGlobalCostSummary();
+  // Converter dateRange (Date | null) para string range aceito pelos hooks de analytics
+  const analyticsDateRange =
+    dateRange.startDate && dateRange.endDate
+      ? {
+          start: dateRange.startDate.toISOString(),
+          end: dateRange.endDate.toISOString(),
+        }
+      : undefined;
+
+  const { summary, loading: loadingSummary } =
+    useGlobalCostSummary(analyticsDateRange);
   const {
     costs: clientDetails,
     dailyCosts,
@@ -131,7 +210,10 @@ export const ClientCosts = () => {
     daily,
     loading: loadingAnalytics,
     hasData: hasAnalyticsData,
-  } = useCostAnalytics();
+  } = useCostAnalytics(analyticsDateRange);
+
+  // Lead cost analysis — só busca quando dateRange estiver selecionado
+  const leadAnalysis = useLeadCostAnalysis(analyticsDateRange);
 
   // Chart data: daily costs aggregated by date
   const dailyChartData = useMemo(() => {
@@ -1280,282 +1362,205 @@ export const ClientCosts = () => {
             </div>
           ) : (
             <>
-              {/* ===== CHARTS ROW ===== */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                {/* 1. Daily Cost Trend — AreaChart */}
-                {dailyChartData.length > 0 && (
-                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm lg:col-span-2">
-                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                        <TrendingUp size={16} />
-                        Custo Diario
-                      </h2>
-                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                        Tendencia de gasto por dia (ultimos 60 dias)
-                      </p>
-                    </div>
-                    <div
-                      className="p-3 md:p-4"
-                      style={{ height: isMobile ? 200 : 280 }}
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                          data={dailyChartData}
-                          margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
-                        >
-                          <defs>
-                            <linearGradient
-                              id="costGradient"
-                              x1="0"
-                              y1="0"
-                              x2="0"
-                              y2="1"
-                            >
-                              <stop
-                                offset="5%"
-                                stopColor="#8b5cf6"
-                                stopOpacity={0.3}
-                              />
-                              <stop
-                                offset="95%"
-                                stopColor="#8b5cf6"
-                                stopOpacity={0}
-                              />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="rgba(255,255,255,0.06)"
-                          />
-                          <XAxis
-                            dataKey="dia"
-                            tick={{
-                              fontSize: 10,
-                              fill: "rgba(255,255,255,0.4)",
-                            }}
-                            tickLine={false}
-                            axisLine={false}
-                            interval={isMobile ? 6 : 3}
-                          />
-                          <YAxis
-                            tick={{
-                              fontSize: 10,
-                              fill: "rgba(255,255,255,0.4)",
-                            }}
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(v: number) => `$${v.toFixed(2)}`}
-                            width={55}
-                          />
-                          <ReTooltip
-                            contentStyle={{
-                              backgroundColor: "rgba(20,20,30,0.95)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                              borderRadius: 8,
-                              fontSize: 12,
-                            }}
-                            formatter={(value: number) => [
-                              `$${value.toFixed(4)}`,
-                              "Custo",
-                            ]}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="total"
-                            stroke="#8b5cf6"
-                            strokeWidth={2}
-                            fill="url(#costGradient)"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
+              {/* ===== ALWAYS VISIBLE: KPI + CHARTS OVERVIEW ===== */}
 
-                {/* 2. Treemap — Custo por Agente */}
-                {agentTreemapData.length > 0 && (
-                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                        <Users size={16} />
-                        Custo por Agente
-                      </h2>
-                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                        Tamanho proporcional ao custo total
-                      </p>
-                    </div>
-                    <div
-                      className="p-3 md:p-4"
-                      style={{ height: isMobile ? 220 : 300 }}
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <Treemap
-                          data={agentTreemapData}
-                          dataKey="size"
-                          aspectRatio={4 / 3}
-                          stroke="rgba(0,0,0,0.3)"
-                          content={({
-                            x,
-                            y,
-                            width,
-                            height,
-                            name,
-                            index,
-                          }: {
-                            x: number;
-                            y: number;
-                            width: number;
-                            height: number;
-                            name?: string;
-                            index?: number;
-                          }) => {
-                            const color =
-                              CHART_COLORS[(index ?? 0) % CHART_COLORS.length];
-                            const item = agentTreemapData.find(
-                              (d) => d.name === name,
-                            );
-                            const showLabel = width > 50 && height > 35;
-                            return (
-                              <g>
-                                <rect
-                                  x={x}
-                                  y={y}
-                                  width={width}
-                                  height={height}
-                                  fill={color}
-                                  fillOpacity={0.7}
-                                  rx={4}
-                                  stroke="rgba(0,0,0,0.4)"
-                                  strokeWidth={1}
-                                />
-                                {showLabel && (
-                                  <>
-                                    <text
-                                      x={x + width / 2}
-                                      y={y + height / 2 - 6}
-                                      textAnchor="middle"
-                                      fill="#fff"
-                                      fontSize={11}
-                                      fontWeight="bold"
-                                    >
-                                      {name}
-                                    </text>
-                                    <text
-                                      x={x + width / 2}
-                                      y={y + height / 2 + 10}
-                                      textAnchor="middle"
-                                      fill="rgba(255,255,255,0.7)"
-                                      fontSize={10}
-                                    >
-                                      ${item?.size.toFixed(2)}
-                                    </text>
-                                  </>
-                                )}
-                              </g>
-                            );
-                          }}
-                        />
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Donut — A/B Test */}
-                {abDonutData.length > 0 && (
-                  <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-                    <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                      <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                        <Zap size={16} />
-                        A/B Test — Pro vs Flash
-                      </h2>
-                      <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                        Distribuicao de custo entre variantes
-                      </p>
-                    </div>
-                    <div
-                      className="p-3 md:p-4 flex items-center justify-center"
-                      style={{ height: isMobile ? 220 : 300 }}
-                    >
-                      <div className="w-full flex items-center justify-center gap-6">
-                        <ResponsiveContainer
-                          width="60%"
-                          height={isMobile ? 180 : 240}
-                        >
-                          <PieChart>
-                            <Pie
-                              data={abDonutData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={isMobile ? 40 : 60}
-                              outerRadius={isMobile ? 70 : 95}
-                              paddingAngle={3}
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              {abDonutData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={i === 0 ? "#8b5cf6" : "#22c55e"}
-                                />
-                              ))}
-                            </Pie>
-                            <ReTooltip
-                              contentStyle={{
-                                backgroundColor: "rgba(20,20,30,0.95)",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                borderRadius: 8,
-                                fontSize: 12,
-                              }}
-                              formatter={(value: number) => [
-                                `$${value.toFixed(4)}`,
-                                "Custo",
-                              ]}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="space-y-3">
-                          {abDonutData.map((d, i) => (
-                            <div
-                              key={d.name}
-                              className="flex items-center gap-2"
-                            >
-                              <div
-                                className="w-3 h-3 rounded-full flex-shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    i === 0 ? "#8b5cf6" : "#22c55e",
-                                }}
-                              />
-                              <div>
-                                <p className="text-xs font-bold text-text-primary uppercase">
-                                  {d.name}
-                                </p>
-                                <p className="text-[10px] text-text-muted">
-                                  ${d.value.toFixed(4)} ·{" "}
-                                  {formatNumber(d.calls)} chamadas
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* By Agent Mode */}
-              {byAgentMode.length > 0 && (
+              {/* Daily Cost Trend — AreaChart (full width, always visible) */}
+              {dailyChartData.length > 0 && (
                 <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
                   <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
                     <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <MessageSquare size={16} />
-                      Custo por Modo do Agente
+                      <TrendingUp size={16} />
+                      Custo Diario
                     </h2>
                     <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                      sdr_inbound, social_seller, followuper, etc.
+                      Tendencia de gasto por dia (ultimos 60 dias)
                     </p>
                   </div>
+                  <div
+                    className="p-3 md:p-4"
+                    style={{ height: isMobile ? 200 : 260 }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={dailyChartData}
+                        margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="costGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor="#8b5cf6"
+                              stopOpacity={0.3}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor="#8b5cf6"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="rgba(255,255,255,0.06)"
+                        />
+                        <XAxis
+                          dataKey="dia"
+                          tick={{
+                            fontSize: 10,
+                            fill: "rgba(255,255,255,0.4)",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                          interval={isMobile ? 6 : 3}
+                        />
+                        <YAxis
+                          tick={{
+                            fontSize: 10,
+                            fill: "rgba(255,255,255,0.4)",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+                          width={55}
+                        />
+                        <ReTooltip
+                          contentStyle={{
+                            backgroundColor: "rgba(20,20,30,0.95)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                          formatter={(value: number) => [
+                            `$${value.toFixed(4)}`,
+                            "Custo",
+                          ]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="total"
+                          stroke="#8b5cf6"
+                          strokeWidth={2}
+                          fill="url(#costGradient)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Treemap + Donut side by side (always visible) */}
+              {(agentTreemapData.length > 0 || abDonutData.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                  {agentTreemapData.length > 0 && (
+                    <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                      <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                        <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                          <Users size={16} />
+                          Custo por Agente
+                        </h2>
+                        <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                          Tamanho proporcional ao custo total
+                        </p>
+                      </div>
+                      <div
+                        className="p-3 md:p-4"
+                        style={{ height: isMobile ? 220 : 260 }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <Treemap
+                            data={agentTreemapData}
+                            dataKey="size"
+                            aspectRatio={4 / 3}
+                            stroke="rgba(0,0,0,0.3)"
+                            content={({
+                              x,
+                              y,
+                              width,
+                              height,
+                              name,
+                              index,
+                            }: {
+                              x: number;
+                              y: number;
+                              width: number;
+                              height: number;
+                              name?: string;
+                              index?: number;
+                            }) => {
+                              const color =
+                                CHART_COLORS[
+                                  (index ?? 0) % CHART_COLORS.length
+                                ];
+                              const item = agentTreemapData.find(
+                                (d) => d.name === name,
+                              );
+                              const showLabel = width > 50 && height > 35;
+                              return (
+                                <g>
+                                  <rect
+                                    x={x}
+                                    y={y}
+                                    width={width}
+                                    height={height}
+                                    fill={color}
+                                    fillOpacity={0.7}
+                                    rx={4}
+                                    stroke="rgba(0,0,0,0.4)"
+                                    strokeWidth={1}
+                                  />
+                                  {showLabel && (
+                                    <>
+                                      <text
+                                        x={x + width / 2}
+                                        y={y + height / 2 - 6}
+                                        textAnchor="middle"
+                                        fill="#fff"
+                                        fontSize={11}
+                                        fontWeight="bold"
+                                      >
+                                        {name}
+                                      </text>
+                                      <text
+                                        x={x + width / 2}
+                                        y={y + height / 2 + 10}
+                                        textAnchor="middle"
+                                        fill="rgba(255,255,255,0.7)"
+                                        fontSize={10}
+                                      >
+                                        ${item?.size.toFixed(2)}
+                                      </text>
+                                    </>
+                                  )}
+                                </g>
+                              );
+                            }}
+                          />
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* A/B Test donut removido — sem dados reais de A/B */}
+                </div>
+              )}
+
+              {/* ===== COLLAPSIBLE SECTIONS ===== */}
+
+              {/* 1. Custo por Modo do Agente */}
+              {byAgentMode.length > 0 && (
+                <CollapsibleSection
+                  title="Custo por Modo do Agente"
+                  badge={`${byAgentMode.length} modos • ${formatUSD(byAgentMode.reduce((s, r) => s + r.total_usd, 0))}`}
+                  icon={<MessageSquare size={15} />}
+                  isOpen={openSections.byMode}
+                  onToggle={() => toggleSection("byMode")}
+                >
                   {isMobile ? (
                     <div className="divide-y divide-border-default">
                       {byAgentMode.map((item) => (
@@ -1655,21 +1660,18 @@ export const ClientCosts = () => {
                       </tbody>
                     </table>
                   )}
-                </div>
+                </CollapsibleSection>
               )}
 
-              {/* By Agent Name */}
+              {/* 2. Custo por Agente */}
               {byAgent.length > 0 && (
-                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <Users size={16} />
-                      Custo por Agente
-                    </h2>
-                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                      Marina, Rafael, Isabella, etc.
-                    </p>
-                  </div>
+                <CollapsibleSection
+                  title="Custo por Agente"
+                  badge={`${new Set(byAgent.map((a) => a.agent_name)).size} agentes • ${formatUSD(byAgent.reduce((s, r) => s + r.total_usd, 0))}`}
+                  icon={<Users size={15} />}
+                  isOpen={openSections.byAgent}
+                  onToggle={() => toggleSection("byAgent")}
+                >
                   {isMobile ? (
                     <div className="divide-y divide-border-default">
                       {byAgent.map((item) => (
@@ -1751,21 +1753,18 @@ export const ClientCosts = () => {
                       </tbody>
                     </table>
                   )}
-                </div>
+                </CollapsibleSection>
               )}
 
-              {/* A/B Test */}
-              {abTest.length > 0 && (
-                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <TrendingUp size={16} />
-                      A/B Test — Pro vs Flash
-                    </h2>
-                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                      Comparativo de custo entre variantes
-                    </p>
-                  </div>
+              {/* A/B Test accordion removido — sem dados reais de A/B */}
+              {false && abTest.length > 0 && (
+                <CollapsibleSection
+                  title="A/B Test — Pro vs Flash (detalhado)"
+                  badge={`${new Set(abTest.map((a: { ab_variant: string }) => a.ab_variant)).size} variantes`}
+                  icon={<TrendingUp size={15} />}
+                  isOpen={openSections.abTest}
+                  onToggle={() => toggleSection("abTest")}
+                >
                   {isMobile ? (
                     <div className="divide-y divide-border-default">
                       {abTest.map((item) => (
@@ -1856,21 +1855,18 @@ export const ClientCosts = () => {
                       </tbody>
                     </table>
                   )}
-                </div>
+                </CollapsibleSection>
               )}
 
-              {/* By Fase */}
+              {/* 4. Custo por Fase da Conversa */}
               {byFase.length > 0 && (
-                <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
-                  <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
-                    <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <Zap size={16} />
-                      Custo por Fase da Conversa
-                    </h2>
-                    <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
-                      acolhimento, discovery, pitch, confirmacao, etc.
-                    </p>
-                  </div>
+                <CollapsibleSection
+                  title="Custo por Fase da Conversa"
+                  badge={`${new Set(byFase.map((f) => f.fase_detectada)).size} fases`}
+                  icon={<Zap size={15} />}
+                  isOpen={openSections.byFase}
+                  onToggle={() => toggleSection("byFase")}
+                >
                   {isMobile ? (
                     <div className="divide-y divide-border-default">
                       {byFase.map((item) => (
@@ -1969,6 +1965,760 @@ export const ClientCosts = () => {
                       </tbody>
                     </table>
                   )}
+                </CollapsibleSection>
+              )}
+
+              {/* 5. Analise por Lead */}
+              {analyticsDateRange ? (
+                <CollapsibleSection
+                  title="Analise por Lead"
+                  badge={
+                    leadAnalysis.loading
+                      ? "carregando..."
+                      : leadAnalysis.totalLeads > 0
+                        ? `${formatNumber(leadAnalysis.totalLeads)} leads • ${formatUSD(leadAnalysis.avgCostPerLead)}/lead`
+                        : "sem dados"
+                  }
+                  icon={<Activity size={15} />}
+                  isOpen={openSections.byLead}
+                  onToggle={() => toggleSection("byLead")}
+                >
+                  {leadAnalysis.loading ? (
+                    <div className="flex items-center justify-center py-16">
+                      <RefreshCw
+                        className="animate-spin text-text-muted"
+                        size={22}
+                      />
+                      <span className="ml-3 text-sm text-text-muted">
+                        Carregando dados de leads...
+                      </span>
+                    </div>
+                  ) : leadAnalysis.error ? (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
+                      <AlertCircle
+                        className="text-red-500 flex-shrink-0"
+                        size={18}
+                      />
+                      <p className="text-red-400 text-sm">
+                        {leadAnalysis.error}
+                      </p>
+                    </div>
+                  ) : leadAnalysis.totalLeads === 0 ? (
+                    <div className="border border-border-default rounded-lg bg-bg-secondary p-8 flex flex-col items-center text-center">
+                      <Users
+                        size={32}
+                        className="text-text-muted opacity-30 mb-3"
+                      />
+                      <p className="text-sm text-text-muted">
+                        Nenhum lead com contact_id encontrado no periodo
+                        selecionado.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* KPI Cards */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+                          <div className="flex items-center justify-between mb-2 md:mb-3">
+                            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                              Custo Medio/Lead
+                            </span>
+                            <div className="p-1.5 md:p-2 bg-[#58a6ff]/10 rounded-lg">
+                              <DollarSign
+                                size={14}
+                                className="text-[#58a6ff]"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-lg md:text-2xl font-bold text-[#58a6ff] truncate font-mono">
+                            {formatUSD(leadAnalysis.avgCostPerLead)}
+                          </div>
+                          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                            Media de gasto por contato unico
+                          </p>
+                        </div>
+
+                        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+                          <div className="flex items-center justify-between mb-2 md:mb-3">
+                            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                              Mediana Chamadas
+                            </span>
+                            <div className="p-1.5 md:p-2 bg-[#3fb950]/10 rounded-lg">
+                              <Activity size={14} className="text-[#3fb950]" />
+                            </div>
+                          </div>
+                          <div className="text-lg md:text-2xl font-bold text-[#3fb950]">
+                            {leadAnalysis.medianCalls}
+                          </div>
+                          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                            Chamadas por lead (mediana)
+                          </p>
+                        </div>
+
+                        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+                          <div className="flex items-center justify-between mb-2 md:mb-3">
+                            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                              Leads &gt;10 Chamadas
+                            </span>
+                            <div className="p-1.5 md:p-2 bg-[#f78166]/10 rounded-lg">
+                              <Target size={14} className="text-[#f78166]" />
+                            </div>
+                          </div>
+                          <div className="text-lg md:text-2xl font-bold text-[#f78166]">
+                            {leadAnalysis.pctLeadsOver10.toFixed(1)}%
+                          </div>
+                          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                            Alta interacao (acima de 10 req)
+                          </p>
+                        </div>
+
+                        <div className="bg-bg-secondary border border-border-default rounded-xl p-3 md:p-5 shadow-sm">
+                          <div className="flex items-center justify-between mb-2 md:mb-3">
+                            <span className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-wider">
+                              Total Leads
+                            </span>
+                            <div className="p-1.5 md:p-2 bg-[#d2a8ff]/10 rounded-lg">
+                              <Users size={14} className="text-[#d2a8ff]" />
+                            </div>
+                          </div>
+                          <div className="text-lg md:text-2xl font-bold text-[#d2a8ff]">
+                            {formatNumber(leadAnalysis.totalLeads)}
+                          </div>
+                          <p className="text-[10px] md:text-xs text-text-muted mt-1 hidden md:block">
+                            Contatos unicos com custo IA
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Histograma + Scatter em grid */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                        {/* Histograma de Distribuicao */}
+                        {leadAnalysis.distribution.length > 0 && (
+                          <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                            <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                              <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                <Layers size={15} className="text-[#58a6ff]" />
+                                Distribuicao por Faixa de Chamadas
+                              </h2>
+                              <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                                Quantidade de leads por volume de interacoes
+                              </p>
+                            </div>
+                            <div
+                              className="p-3 md:p-4"
+                              style={{ height: isMobile ? 220 : 280 }}
+                            >
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={leadAnalysis.distribution}
+                                  margin={{
+                                    top: 5,
+                                    right: 10,
+                                    left: 0,
+                                    bottom: 5,
+                                  }}
+                                >
+                                  <defs>
+                                    <linearGradient
+                                      id="barGrad1"
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor="#58a6ff"
+                                        stopOpacity={0.9}
+                                      />
+                                      <stop
+                                        offset="100%"
+                                        stopColor="#1f6feb"
+                                        stopOpacity={0.6}
+                                      />
+                                    </linearGradient>
+                                    <linearGradient
+                                      id="barGrad2"
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor="#3fb950"
+                                        stopOpacity={0.9}
+                                      />
+                                      <stop
+                                        offset="100%"
+                                        stopColor="#238636"
+                                        stopOpacity={0.6}
+                                      />
+                                    </linearGradient>
+                                    <linearGradient
+                                      id="barGrad3"
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor="#e3b341"
+                                        stopOpacity={0.9}
+                                      />
+                                      <stop
+                                        offset="100%"
+                                        stopColor="#9e6a03"
+                                        stopOpacity={0.6}
+                                      />
+                                    </linearGradient>
+                                    <linearGradient
+                                      id="barGrad4"
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor="#f78166"
+                                        stopOpacity={0.9}
+                                      />
+                                      <stop
+                                        offset="100%"
+                                        stopColor="#b22f1f"
+                                        stopOpacity={0.6}
+                                      />
+                                    </linearGradient>
+                                  </defs>
+                                  <CartesianGrid
+                                    strokeDasharray="3 3"
+                                    stroke="rgba(255,255,255,0.06)"
+                                  />
+                                  <XAxis
+                                    dataKey="faixa"
+                                    tick={{
+                                      fontSize: 11,
+                                      fill: "rgba(255,255,255,0.5)",
+                                    }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis
+                                    tick={{
+                                      fontSize: 10,
+                                      fill: "rgba(255,255,255,0.4)",
+                                    }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    width={35}
+                                  />
+                                  <ReTooltip
+                                    contentStyle={{
+                                      backgroundColor: "#161b22",
+                                      border: "1px solid rgba(255,255,255,0.1)",
+                                      borderRadius: "8px",
+                                      fontSize: "12px",
+                                    }}
+                                    formatter={(
+                                      value: unknown,
+                                      name: string,
+                                    ) => {
+                                      if (name === "leads")
+                                        return [String(value), "Leads"];
+                                      return [String(value), name];
+                                    }}
+                                    content={({ active, payload }) => {
+                                      if (
+                                        !active ||
+                                        !payload ||
+                                        payload.length === 0
+                                      )
+                                        return null;
+                                      const d = payload[0]?.payload as
+                                        | {
+                                            faixa: string;
+                                            leads: number;
+                                            avgCost: number;
+                                            totalCost: number;
+                                          }
+                                        | undefined;
+                                      if (!d) return null;
+                                      return (
+                                        <div
+                                          style={{
+                                            backgroundColor: "#161b22",
+                                            border:
+                                              "1px solid rgba(255,255,255,0.1)",
+                                            borderRadius: 8,
+                                            padding: "10px 14px",
+                                            fontSize: 12,
+                                          }}
+                                        >
+                                          <p
+                                            style={{
+                                              color: "#e6edf3",
+                                              fontWeight: 700,
+                                              marginBottom: 6,
+                                            }}
+                                          >
+                                            {d.faixa} chamadas
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Leads:{" "}
+                                            <span
+                                              style={{
+                                                color: "#58a6ff",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {d.leads}
+                                            </span>
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Custo total:{" "}
+                                            <span
+                                              style={{
+                                                color: "#3fb950",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              ${d.totalCost.toFixed(4)}
+                                            </span>
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Avg/lead:{" "}
+                                            <span
+                                              style={{
+                                                color: "#e3b341",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              ${d.avgCost.toFixed(4)}
+                                            </span>
+                                          </p>
+                                        </div>
+                                      );
+                                    }}
+                                  />
+                                  <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
+                                    {leadAnalysis.distribution.map(
+                                      (_, index) => {
+                                        const grads = [
+                                          "url(#barGrad1)",
+                                          "url(#barGrad2)",
+                                          "url(#barGrad3)",
+                                          "url(#barGrad4)",
+                                        ];
+                                        return (
+                                          <Cell
+                                            key={`cell-${index}`}
+                                            fill={grads[index % grads.length]}
+                                          />
+                                        );
+                                      },
+                                    )}
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Scatter Plot: Chamadas x Custo */}
+                        {leadAnalysis.scatterData.length > 0 && (
+                          <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                            <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary">
+                              <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                <Activity
+                                  size={15}
+                                  className="text-[#3fb950]"
+                                />
+                                Chamadas x Custo por Lead
+                              </h2>
+                              <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                                Cada ponto = 1 lead. Cor por cliente.{" "}
+                                {leadAnalysis.scatterData.length <
+                                  leadAnalysis.totalLeads && (
+                                  <span className="text-[#e3b341]">
+                                    Amostra: {leadAnalysis.scatterData.length}/
+                                    {leadAnalysis.totalLeads}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div
+                              className="p-3 md:p-4"
+                              style={{ height: isMobile ? 220 : 280 }}
+                            >
+                              <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart
+                                  margin={{
+                                    top: 5,
+                                    right: 10,
+                                    left: 0,
+                                    bottom: 5,
+                                  }}
+                                >
+                                  <CartesianGrid
+                                    strokeDasharray="3 3"
+                                    stroke="rgba(255,255,255,0.06)"
+                                  />
+                                  <XAxis
+                                    dataKey="chamadas"
+                                    name="Chamadas"
+                                    type="number"
+                                    tick={{
+                                      fontSize: 10,
+                                      fill: "rgba(255,255,255,0.4)",
+                                    }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    label={{
+                                      value: "Chamadas",
+                                      position: "insideBottom",
+                                      offset: -2,
+                                      fontSize: 10,
+                                      fill: "rgba(255,255,255,0.3)",
+                                    }}
+                                  />
+                                  <YAxis
+                                    dataKey="custoTotal"
+                                    name="Custo USD"
+                                    type="number"
+                                    tick={{
+                                      fontSize: 10,
+                                      fill: "rgba(255,255,255,0.4)",
+                                    }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    width={50}
+                                    tickFormatter={(v: number) =>
+                                      `$${v.toFixed(3)}`
+                                    }
+                                  />
+                                  <ZAxis range={[30, 30]} />
+                                  <ReTooltip
+                                    cursor={{
+                                      strokeDasharray: "3 3",
+                                      stroke: "rgba(255,255,255,0.1)",
+                                    }}
+                                    content={({ active, payload }) => {
+                                      if (
+                                        !active ||
+                                        !payload ||
+                                        payload.length === 0
+                                      )
+                                        return null;
+                                      const d = payload[0]?.payload as
+                                        | {
+                                            contactName: string;
+                                            locationName: string;
+                                            chamadas: number;
+                                            custoTotal: number;
+                                          }
+                                        | undefined;
+                                      if (!d) return null;
+                                      return (
+                                        <div
+                                          style={{
+                                            backgroundColor: "#161b22",
+                                            border:
+                                              "1px solid rgba(255,255,255,0.1)",
+                                            borderRadius: 8,
+                                            padding: "10px 14px",
+                                            fontSize: 12,
+                                            maxWidth: 220,
+                                          }}
+                                        >
+                                          <p
+                                            style={{
+                                              color: "#e6edf3",
+                                              fontWeight: 700,
+                                              marginBottom: 6,
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                          >
+                                            {d.contactName}
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Cliente:{" "}
+                                            <span
+                                              style={{
+                                                color: "#d2a8ff",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {d.locationName}
+                                            </span>
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Chamadas:{" "}
+                                            <span
+                                              style={{
+                                                color: "#58a6ff",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {d.chamadas}
+                                            </span>
+                                          </p>
+                                          <p style={{ color: "#8b949e" }}>
+                                            Custo:{" "}
+                                            <span
+                                              style={{
+                                                color: "#3fb950",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              ${d.custoTotal.toFixed(4)}
+                                            </span>
+                                          </p>
+                                        </div>
+                                      );
+                                    }}
+                                  />
+                                  {/* Agrupar por location para colorir */}
+                                  {Array.from(
+                                    new Set(
+                                      leadAnalysis.scatterData.map(
+                                        (d) => d.locationName,
+                                      ),
+                                    ),
+                                  ).map((loc) => (
+                                    <Scatter
+                                      key={loc}
+                                      name={loc}
+                                      data={leadAnalysis.scatterData.filter(
+                                        (d) => d.locationName === loc,
+                                      )}
+                                      fill={getLocationColor(loc)}
+                                      fillOpacity={0.7}
+                                    />
+                                  ))}
+                                </ScatterChart>
+                              </ResponsiveContainer>
+                            </div>
+                            {/* Legenda de cores */}
+                            <div className="px-3 md:px-4 pb-3 flex flex-wrap gap-2">
+                              {Array.from(
+                                new Set(
+                                  leadAnalysis.scatterData.map(
+                                    (d) => d.locationName,
+                                  ),
+                                ),
+                              ).map((loc) => (
+                                <div
+                                  key={loc}
+                                  className="flex items-center gap-1.5"
+                                >
+                                  <span
+                                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{
+                                      backgroundColor: getLocationColor(loc),
+                                    }}
+                                  />
+                                  <span className="text-[10px] text-text-muted truncate max-w-[120px]">
+                                    {loc}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tabela Top 15 Leads Mais Caros */}
+                      {leadAnalysis.topLeads.length > 0 && (
+                        <div className="border border-border-default rounded-lg bg-bg-secondary overflow-hidden shadow-sm">
+                          <div className="p-3 md:p-4 border-b border-border-default bg-bg-tertiary flex items-center justify-between">
+                            <div>
+                              <h2 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                                <Target size={15} className="text-[#f78166]" />
+                                Top 15 Leads Mais Caros
+                              </h2>
+                              <p className="text-[10px] md:text-xs text-text-muted mt-0.5">
+                                Leads com maior custo total de IA no periodo
+                              </p>
+                            </div>
+                          </div>
+                          {isMobile ? (
+                            <div className="divide-y divide-border-default">
+                              {leadAnalysis.topLeads.map((lead, idx) => (
+                                <div
+                                  key={lead.contactId}
+                                  className="p-3 space-y-1.5"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-[10px] font-bold text-text-muted w-5 flex-shrink-0">
+                                        #{idx + 1}
+                                      </span>
+                                      <span className="text-sm font-medium text-text-primary truncate">
+                                        {lead.contactName}
+                                      </span>
+                                    </div>
+                                    <span className="text-sm font-bold text-[#58a6ff] font-mono flex-shrink-0 ml-2">
+                                      {formatUSD(lead.custoTotal)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 pl-7">
+                                    <span
+                                      className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+                                      style={{
+                                        color: getLocationColor(
+                                          lead.locationName,
+                                        ),
+                                        borderColor: `${getLocationColor(lead.locationName)}40`,
+                                        backgroundColor: `${getLocationColor(lead.locationName)}15`,
+                                      }}
+                                    >
+                                      {lead.locationName}
+                                    </span>
+                                    <span className="text-[10px] text-text-muted">
+                                      {lead.chamadas} chamadas
+                                    </span>
+                                    <span className="text-[10px] text-text-muted">
+                                      {lead.diasAtivos}d ativos
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border-default">
+                                  <th className="p-3 text-left text-[10px] font-bold text-text-muted uppercase tracking-wider w-8">
+                                    #
+                                  </th>
+                                  <th className="p-3 text-left text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Lead
+                                  </th>
+                                  <th className="p-3 text-left text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Cliente
+                                  </th>
+                                  <th className="p-3 text-right text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Chamadas
+                                  </th>
+                                  <th className="p-3 text-right text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Custo Total
+                                  </th>
+                                  <th className="p-3 text-right text-[10px] font-bold text-text-muted uppercase tracking-wider hidden lg:table-cell">
+                                    Avg/Chamada
+                                  </th>
+                                  <th className="p-3 text-right text-[10px] font-bold text-text-muted uppercase tracking-wider hidden lg:table-cell">
+                                    Dias Ativos
+                                  </th>
+                                  <th className="p-3 text-left text-[10px] font-bold text-text-muted uppercase tracking-wider hidden xl:table-cell">
+                                    Modos
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border-default">
+                                {leadAnalysis.topLeads.map((lead, idx) => {
+                                  const maxCost =
+                                    leadAnalysis.topLeads[0]?.custoTotal || 1;
+                                  const barWidth = Math.max(
+                                    4,
+                                    (lead.custoTotal / maxCost) * 100,
+                                  );
+                                  return (
+                                    <tr
+                                      key={lead.contactId}
+                                      className="hover:bg-bg-tertiary/50 transition-colors"
+                                    >
+                                      <td className="p-3 text-[10px] font-bold text-text-muted">
+                                        {idx + 1}
+                                      </td>
+                                      <td className="p-3">
+                                        <div className="flex items-center gap-2">
+                                          <div className="min-w-0">
+                                            <p className="font-medium text-text-primary truncate max-w-[180px]">
+                                              {lead.contactName}
+                                            </p>
+                                            <div className="mt-1 h-1 rounded-full bg-bg-tertiary w-32 overflow-hidden">
+                                              <div
+                                                className="h-full rounded-full bg-gradient-to-r from-[#58a6ff] to-[#1f6feb] transition-all"
+                                                style={{
+                                                  width: `${barWidth}%`,
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="p-3">
+                                        <span
+                                          className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+                                          style={{
+                                            color: getLocationColor(
+                                              lead.locationName,
+                                            ),
+                                            borderColor: `${getLocationColor(lead.locationName)}40`,
+                                            backgroundColor: `${getLocationColor(lead.locationName)}15`,
+                                          }}
+                                        >
+                                          {lead.locationName}
+                                        </span>
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted font-mono">
+                                        {lead.chamadas}
+                                      </td>
+                                      <td className="p-3 text-right text-[#58a6ff] font-mono font-bold">
+                                        {formatUSD(lead.custoTotal)}
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted font-mono hidden lg:table-cell">
+                                        {formatUSD(lead.avgPerCall)}
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted hidden lg:table-cell">
+                                        {lead.diasAtivos}d
+                                      </td>
+                                      <td className="p-3 hidden xl:table-cell">
+                                        <div className="flex flex-wrap gap-1">
+                                          {lead.modos.split(", ").map((m) => (
+                                            <span
+                                              key={m}
+                                              className="text-[9px] px-1.5 py-0.5 rounded bg-accent-primary/10 text-accent-primary border border-accent-primary/20 font-medium uppercase truncate max-w-[80px]"
+                                            >
+                                              {m}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CollapsibleSection>
+              ) : (
+                <div className="border border-gray-800 rounded-lg">
+                  <button
+                    disabled
+                    className="w-full p-4 flex items-center justify-between bg-[#0d1117] rounded-lg opacity-50 cursor-not-allowed"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-muted">
+                        <Activity size={15} />
+                      </span>
+                      <span className="text-sm font-bold text-text-primary">
+                        Analise por Lead
+                      </span>
+                      <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
+                        selecione um periodo
+                      </span>
+                    </div>
+                    <ChevronRight size={16} className="text-gray-600" />
+                  </button>
                 </div>
               )}
             </>
