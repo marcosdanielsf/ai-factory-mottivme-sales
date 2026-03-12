@@ -67,5 +67,16 @@ export type { GHLLocation, GHLOpsStats, UseGHLOpsReturn } from "./useGHLOps";
 export { useBoards } from "./useBoards";
 export { useBoardData } from "./useBoardData";
 
+// Unit Economics
+export * from "./useUnitEconomics";
+
+// Health Score
+export { useHealthScore } from "./useHealthScore";
+export type {
+  ClientHealth,
+  HealthSnapshot,
+  HealthSummary,
+} from "./useHealthScore";
+
 export * from "./useSharedDashboards";
 export * from "./useClientFunnel";
