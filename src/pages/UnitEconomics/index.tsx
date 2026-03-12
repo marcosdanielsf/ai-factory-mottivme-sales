@@ -15,6 +15,7 @@ import {
   PiggyBank,
   BarChart3,
 } from "lucide-react";
+import { DateRangePicker, DateRange } from "../../components/DateRangePicker";
 import {
   Area,
   BarChart,
@@ -33,7 +34,6 @@ import {
 import { MetricCard } from "../../components/MetricCard";
 import {
   useUnitEconomicsClients,
-  useUnitEconomicsSummary,
   useMRREvolution,
   useMonthlyChurn,
   useRunwayProjection,
@@ -151,26 +151,115 @@ function ChartTooltip({
 
 // ========== Main Component ==========
 
+// Helper: formata Date como "YYYY-MM-01" para comparação com campos `month` das views
+function toMonthString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}-01`;
+}
+
+// Default: primeiro dia 3 meses atrás até hoje
+function getDefaultDateRange(): DateRange {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date();
+  start.setMonth(start.getMonth() - 3);
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return { startDate: start, endDate: end };
+}
+
 export function UnitEconomics() {
-  const { data: summary, loading: loadingSummary } = useUnitEconomicsSummary();
   const { data: clients, loading: loadingClients } = useUnitEconomicsClients();
   const { data: mrrData, loading: loadingMRR } = useMRREvolution();
   const { data: churnData, loading: loadingChurn } = useMonthlyChurn();
   const { data: runway, loading: loadingRunway } = useRunwayProjection();
 
   const [sortBy, setSortBy] = useState<"margin" | "revenue" | "ltv">("revenue");
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange);
 
   const isLoading =
-    loadingSummary ||
-    loadingClients ||
-    loadingMRR ||
-    loadingChurn ||
-    loadingRunway;
+    loadingClients || loadingMRR || loadingChurn || loadingRunway;
+
+  // Filtered clients: manter clientes que têm billing no período selecionado
+  const filteredClients = useMemo(() => {
+    if (!clients.length) return [];
+    if (!dateRange.startDate || !dateRange.endDate) return clients;
+    const startMonth = toMonthString(dateRange.startDate);
+    const endMonth = toMonthString(dateRange.endDate);
+    return clients.filter((c) => {
+      // cliente tem overlap se first_billing_month <= endMonth E last_billing_month >= startMonth
+      const first = c.first_billing_month ?? "";
+      const last = c.last_billing_month ?? "";
+      return first <= endMonth && last >= startMonth;
+    });
+  }, [clients, dateRange]);
+
+  // Filtered MRR data
+  const filteredMRR = useMemo(() => {
+    if (!mrrData.length) return mrrData;
+    if (!dateRange.startDate || !dateRange.endDate) return mrrData;
+    const startMonth = toMonthString(dateRange.startDate);
+    const endMonth = toMonthString(dateRange.endDate);
+    return mrrData.filter((m) => m.month >= startMonth && m.month <= endMonth);
+  }, [mrrData, dateRange]);
+
+  // Filtered churn data
+  const filteredChurn = useMemo(() => {
+    if (!churnData.length) return churnData;
+    if (!dateRange.startDate || !dateRange.endDate) return churnData;
+    const startMonth = toMonthString(dateRange.startDate);
+    const endMonth = toMonthString(dateRange.endDate);
+    return churnData.filter(
+      (c) => c.month >= startMonth && c.month <= endMonth,
+    );
+  }, [churnData, dateRange]);
+
+  // Recalcular summary dos clients filtrados
+  const summary = useMemo(() => {
+    const active = filteredClients.filter((c) => c.is_active);
+    const churned = filteredClients.filter((c) => !c.is_active);
+    const mrrBrl = active.reduce((s, c) => s + c.avg_monthly_revenue_brl, 0);
+    const avgTicket = active.length > 0 ? mrrBrl / active.length : 0;
+    const avgMargin =
+      filteredClients.length > 0
+        ? filteredClients.reduce((s, c) => s + c.margin_pct, 0) /
+          filteredClients.length
+        : 0;
+    const avgLtv =
+      filteredClients.length > 0
+        ? filteredClients.reduce((s, c) => s + c.ltv_brl, 0) /
+          filteredClients.length
+        : 0;
+    const avgCac =
+      filteredClients.length > 0
+        ? filteredClients.reduce((s, c) => s + c.cac_brl, 0) /
+          filteredClients.length
+        : 0;
+    const avgLtvCac = avgCac > 0 ? avgLtv / avgCac : null;
+    const churnRatePct =
+      filteredClients.length > 0
+        ? (churned.length / filteredClients.length) * 100
+        : 0;
+    return {
+      active_clients: active.length,
+      churned_clients: churned.length,
+      total_clients: filteredClients.length,
+      mrr_brl: mrrBrl,
+      arr_brl: mrrBrl * 12,
+      avg_margin_pct: avgMargin,
+      avg_ticket_brl: avgTicket,
+      avg_ltv_brl: avgLtv,
+      avg_cac_brl: avgCac,
+      avg_ltv_cac_ratio: avgLtvCac,
+      churn_rate_pct: churnRatePct,
+    };
+  }, [filteredClients]);
 
   // Sorted clients for table
   const sortedClients = useMemo(() => {
-    if (!clients.length) return [];
-    return [...clients].sort((a, b) => {
+    if (!filteredClients.length) return [];
+    return [...filteredClients].sort((a, b) => {
       switch (sortBy) {
         case "margin":
           return b.margin_pct - a.margin_pct;
@@ -180,7 +269,7 @@ export function UnitEconomics() {
           return b.avg_monthly_revenue_brl - a.avg_monthly_revenue_brl;
       }
     });
-  }, [clients, sortBy]);
+  }, [filteredClients, sortBy]);
 
   // Chart data for margin by client (horizontal bar)
   const marginChartData = useMemo(
@@ -203,26 +292,26 @@ export function UnitEconomics() {
   // MRR chart data
   const mrrChartData = useMemo(
     () =>
-      mrrData.map((m) => ({
+      filteredMRR.map((m) => ({
         month: fmt.month(m.month),
         mrr: m.mrr_brl,
         clients: m.active_clients,
         growth: m.mrr_growth_pct,
         ticket: m.avg_ticket_brl,
       })),
-    [mrrData],
+    [filteredMRR],
   );
 
   // Churn chart data
   const churnChartData = useMemo(
     () =>
-      churnData.map((c) => ({
+      filteredChurn.map((c) => ({
         month: fmt.month(c.month),
         churned: c.churned_clients,
         rate: c.churn_rate_pct,
         mrrLost: c.churned_mrr_brl,
       })),
-    [churnData],
+    [filteredChurn],
   );
 
   if (isLoading) return <LoadingState />;
@@ -230,7 +319,7 @@ export function UnitEconomics() {
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-text-primary">
             Unit Economics
@@ -241,8 +330,18 @@ export function UnitEconomics() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-muted bg-bg-tertiary px-2 py-1 rounded">
-            {summary?.active_clients ?? 0} clientes ativos
+            {summary.active_clients} clientes ativos
           </span>
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            presets={[
+              { label: "Este mes", days: -1 },
+              { label: "3 meses", days: 90 },
+              { label: "6 meses", days: 180 },
+              { label: "12 meses", days: 365 },
+            ]}
+          />
         </div>
       </div>
 
@@ -250,65 +349,51 @@ export function UnitEconomics() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard
           title="MRR"
-          value={fmt.brl(summary?.mrr_brl)}
+          value={fmt.brl(summary.mrr_brl)}
           icon={DollarSign}
-          subtext={`ARR ${fmt.brl(summary?.arr_brl)}`}
-          trend={summary?.mrr_brl ? "+ativo" : undefined}
+          subtext={`ARR ${fmt.brl(summary.arr_brl)}`}
+          trend={summary.mrr_brl ? "+ativo" : undefined}
           trendDirection="up"
         />
         <MetricCard
           title="Ticket Medio"
-          value={fmt.brl(summary?.avg_ticket_brl)}
+          value={fmt.brl(summary.avg_ticket_brl)}
           icon={Target}
           subtext="por cliente/mes"
         />
         <MetricCard
           title="Margem Media"
-          value={fmt.pct(summary?.avg_margin_pct)}
+          value={fmt.pct(summary.avg_margin_pct)}
           icon={TrendingUp}
           subtext={`Meta: >30%`}
           trend={
-            summary?.avg_margin_pct && summary.avg_margin_pct >= 30
-              ? "Meta atingida"
-              : "Abaixo da meta"
+            summary.avg_margin_pct >= 30 ? "Meta atingida" : "Abaixo da meta"
           }
-          trendDirection={
-            summary?.avg_margin_pct && summary.avg_margin_pct >= 30
-              ? "up"
-              : "down"
-          }
+          trendDirection={summary.avg_margin_pct >= 30 ? "up" : "down"}
         />
         <MetricCard
           title="LTV/CAC"
-          value={fmt.ratio(summary?.avg_ltv_cac_ratio)}
+          value={fmt.ratio(summary.avg_ltv_cac_ratio)}
           icon={Zap}
           subtext="Saudavel: >3x"
           trend={
-            summary?.avg_ltv_cac_ratio && summary.avg_ltv_cac_ratio >= 3
+            summary.avg_ltv_cac_ratio != null && summary.avg_ltv_cac_ratio >= 3
               ? "Saudavel"
               : "Atencao"
           }
           trendDirection={
-            summary?.avg_ltv_cac_ratio && summary.avg_ltv_cac_ratio >= 3
+            summary.avg_ltv_cac_ratio != null && summary.avg_ltv_cac_ratio >= 3
               ? "up"
               : "down"
           }
         />
         <MetricCard
           title="Churn Rate"
-          value={fmt.pct(summary?.churn_rate_pct)}
+          value={fmt.pct(summary.churn_rate_pct)}
           icon={AlertTriangle}
-          subtext={`${summary?.churned_clients ?? 0} clientes perdidos`}
-          trend={
-            summary?.churn_rate_pct && summary.churn_rate_pct <= 5
-              ? "Saudavel"
-              : "Alto"
-          }
-          trendDirection={
-            summary?.churn_rate_pct && summary.churn_rate_pct <= 5
-              ? "up"
-              : "down"
-          }
+          subtext={`${summary.churned_clients} clientes perdidos`}
+          trend={summary.churn_rate_pct <= 5 ? "Saudavel" : "Alto"}
+          trendDirection={summary.churn_rate_pct <= 5 ? "up" : "down"}
         />
         <MetricCard
           title="Margem Operacional"
