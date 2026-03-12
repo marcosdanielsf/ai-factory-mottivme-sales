@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts";
 import { formatNumber } from "../helpers";
 
@@ -105,9 +106,9 @@ export const ClientMonthlyLeadsChart: React.FC<
       }
     }
 
-    return Array.from(buckets.values()).sort((a, b) =>
-      a.month.localeCompare(b.month),
-    );
+    return Array.from(buckets.values())
+      .filter((b) => b.leads > 0 || b.agendamentos > 0)
+      .sort((a, b) => a.month.localeCompare(b.month));
   }, [data]);
 
   if (monthlyData.length === 0) return null;
@@ -153,6 +154,13 @@ export const ClientMonthlyLeadsChart: React.FC<
             radius={[4, 4, 0, 0]}
             maxBarSize={48}
           >
+            <LabelList
+              dataKey="leads"
+              position="top"
+              fill="#a1a1aa"
+              fontSize={11}
+              formatter={(v: number) => (v > 0 ? v : "")}
+            />
             {monthlyData.map((entry) => (
               <Cell
                 key={entry.month}
@@ -167,7 +175,15 @@ export const ClientMonthlyLeadsChart: React.FC<
             maxBarSize={48}
             fill="#8b5cf6"
             fillOpacity={0.8}
-          />
+          >
+            <LabelList
+              dataKey="agendamentos"
+              position="top"
+              fill="#a78bfa"
+              fontSize={11}
+              formatter={(v: number) => (v > 0 ? v : "")}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
