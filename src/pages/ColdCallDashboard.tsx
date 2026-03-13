@@ -30,7 +30,6 @@ import { usePendingRetries } from "../hooks/usePendingRetries";
 import { useCostSummary } from "../hooks/useCostSummary";
 import {
   useColdCallPipeline,
-  PipelineCard,
   PipelineStage,
 } from "../hooks/useColdCallPipeline";
 
@@ -44,6 +43,7 @@ import { CostOverviewCards } from "../components/coldcall/CostOverviewCards";
 import { CostBreakdownChart } from "../components/coldcall/CostBreakdownChart";
 import { CostDailyTable } from "../components/coldcall/CostDailyTable";
 import { ColdCallKanban } from "../components/coldcall/ColdCallKanban";
+import { supabase } from "../lib/supabase";
 
 // ─── Constants ────────────────────────────────────────────────────────
 
@@ -614,9 +614,14 @@ export const ColdCallDashboard = () => {
             columns={pipelineColumns}
             loading={pipelineLoading}
             onMoveCard={(cardId, newStage) => updateStage(cardId, newStage)}
-            onCardClick={(card: PipelineCard) =>
-              setSelectedCall({ id: card.id } as unknown as ColdCallLog)
-            }
+            onCardClick={async (card) => {
+              const { data } = await supabase
+                .from("cold_call_logs")
+                .select("*")
+                .eq("id", card.id)
+                .single();
+              if (data) setSelectedCall(data as ColdCallLog);
+            }}
           />
         )}
 

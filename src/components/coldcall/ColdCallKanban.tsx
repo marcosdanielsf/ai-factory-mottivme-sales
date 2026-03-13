@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
@@ -43,6 +42,7 @@ function maskPhone(phone: string | null): string {
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
+  if (isNaN(diff)) return "—";
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
@@ -58,34 +58,26 @@ function qaScoreColor(score: number): string {
   return "bg-red-500/20 text-red-400 border-red-500/30";
 }
 
-// ─── KanbanCard (draggable) ───────────────────────────────────────────────────
+// ─── KanbanCardDisplay (pure visual, no DnD hooks) ──────────────────────────
 
-interface KanbanCardProps {
+interface KanbanCardDisplayProps {
   card: PipelineCard;
   onClick: (card: PipelineCard) => void;
   isDragOverlay?: boolean;
+  dragHandleProps?: {
+    listeners: Record<string, unknown>;
+    attributes: Record<string, unknown>;
+  };
 }
 
-function KanbanCard({ card, onClick, isDragOverlay = false }: KanbanCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: card.id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-  };
-
+function KanbanCardDisplay({
+  card,
+  onClick,
+  isDragOverlay = false,
+  dragHandleProps,
+}: KanbanCardDisplayProps) {
   return (
     <div
-      ref={setNodeRef}
-      style={isDragOverlay ? undefined : style}
       onClick={() => onClick(card)}
       className={`
         bg-bg-primary border border-border-default rounded-md p-3
@@ -97,8 +89,8 @@ function KanbanCard({ card, onClick, isDragOverlay = false }: KanbanCardProps) {
       <div className="flex items-start gap-2">
         {/* Drag handle */}
         <button
-          {...listeners}
-          {...attributes}
+          {...(dragHandleProps?.listeners ?? {})}
+          {...(dragHandleProps?.attributes ?? {})}
           onClick={(e) => e.stopPropagation()}
           className="mt-0.5 flex-shrink-0 text-text-muted hover:text-text-secondary cursor-grab active:cursor-grabbing transition-colors"
           aria-label="Arrastar card"
@@ -141,6 +133,43 @@ function KanbanCard({ card, onClick, isDragOverlay = false }: KanbanCardProps) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── KanbanCard (draggable wrapper) ──────────────────────────────────────────
+
+interface KanbanCardProps {
+  card: PipelineCard;
+  onClick: (card: PipelineCard) => void;
+}
+
+function KanbanCard({ card, onClick }: KanbanCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <KanbanCardDisplay
+        card={card}
+        onClick={onClick}
+        dragHandleProps={{
+          listeners: listeners as Record<string, unknown>,
+          attributes: attributes as Record<string, unknown>,
+        }}
+      />
     </div>
   );
 }
@@ -249,29 +278,30 @@ export function ColdCallKanban({
     }),
   );
 
-  // Build a lookup: card id -> current stage
-  const cardStageMap = new Map<string, PipelineStage>();
-  for (const col of columns) {
-    for (const card of col.cards) {
-      cardStageMap.set(card.id, col.stage);
+  // Memoized lookups to avoid O(n) per render
+  const cardStageMap = useMemo(() => {
+    const map = new Map<string, PipelineStage>();
+    for (const col of columns) {
+      for (const card of col.cards) {
+        map.set(card.id, col.stage);
+      }
     }
-  }
+    return map;
+  }, [columns]);
 
-  // Build a lookup: card id -> card
-  const cardMap = new Map<string, PipelineCard>();
-  for (const col of columns) {
-    for (const card of col.cards) {
-      cardMap.set(card.id, card);
+  const cardMap = useMemo(() => {
+    const map = new Map<string, PipelineCard>();
+    for (const col of columns) {
+      for (const card of col.cards) {
+        map.set(card.id, card);
+      }
     }
-  }
+    return map;
+  }, [columns]);
 
   function handleDragStart(event: DragStartEvent) {
     const card = cardMap.get(String(event.active.id));
     setActiveCard(card ?? null);
-  }
-
-  function handleDragOver(_event: DragOverEvent) {
-    // No intermediate state changes needed — DragOverlay handles visual feedback
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -304,7 +334,6 @@ export function ColdCallKanban({
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       {/* Horizontal scroll container */}
@@ -318,10 +347,10 @@ export function ColdCallKanban({
         ))}
       </div>
 
-      {/* Ghost card shown while dragging */}
+      {/* Ghost card shown while dragging (pure display, no DnD hooks) */}
       <DragOverlay>
         {activeCard ? (
-          <KanbanCard
+          <KanbanCardDisplay
             card={activeCard}
             onClick={() => undefined}
             isDragOverlay
