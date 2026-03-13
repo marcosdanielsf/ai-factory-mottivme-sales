@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   PhoneCall,
   RefreshCw,
@@ -10,25 +10,40 @@ import {
   X,
   Loader2,
   AlertTriangle,
-} from 'lucide-react';
-import { DateRangePicker, DateRange } from '../components/DateRangePicker';
-import { useIsMobile } from '../hooks/useMediaQuery';
+  List,
+  LayoutGrid,
+} from "lucide-react";
+import { DateRangePicker, DateRange } from "../components/DateRangePicker";
+import { useIsMobile } from "../hooks/useMediaQuery";
 
 // ─── Hooks (Created by cold-call-hooks agent) ─────────────────────────
-import { useColdCalls, ColdCallFilters, ColdCallLog } from '../hooks/useColdCalls';
-import { useColdCallMetrics, ColdCallMetricsFilters } from '../hooks/useColdCallMetrics';
-import { usePendingRetries } from '../hooks/usePendingRetries';
-import { useCostSummary } from '../hooks/useCostSummary';
+import {
+  useColdCalls,
+  ColdCallFilters,
+  ColdCallLog,
+} from "../hooks/useColdCalls";
+import {
+  useColdCallMetrics,
+  ColdCallMetricsFilters,
+} from "../hooks/useColdCallMetrics";
+import { usePendingRetries } from "../hooks/usePendingRetries";
+import { useCostSummary } from "../hooks/useCostSummary";
+import {
+  useColdCallPipeline,
+  PipelineCard,
+  PipelineStage,
+} from "../hooks/useColdCallPipeline";
 
 // ─── Components (Created by cold-call-components agent) ───────────────
-import { ColdCallStats } from '../components/coldcall/ColdCallStats';
-import { ColdCallChart } from '../components/coldcall/ColdCallChart';
-import { ColdCallTable } from '../components/coldcall/ColdCallTable';
-import { TranscriptModal } from '../components/coldcall/TranscriptModal';
-import { RetryQueuePanel } from '../components/coldcall/RetryQueuePanel';
-import { CostOverviewCards } from '../components/coldcall/CostOverviewCards';
-import { CostBreakdownChart } from '../components/coldcall/CostBreakdownChart';
-import { CostDailyTable } from '../components/coldcall/CostDailyTable';
+import { ColdCallStats } from "../components/coldcall/ColdCallStats";
+import { ColdCallChart } from "../components/coldcall/ColdCallChart";
+import { ColdCallTable } from "../components/coldcall/ColdCallTable";
+import { TranscriptModal } from "../components/coldcall/TranscriptModal";
+import { RetryQueuePanel } from "../components/coldcall/RetryQueuePanel";
+import { CostOverviewCards } from "../components/coldcall/CostOverviewCards";
+import { CostBreakdownChart } from "../components/coldcall/CostBreakdownChart";
+import { CostDailyTable } from "../components/coldcall/CostDailyTable";
+import { ColdCallKanban } from "../components/coldcall/ColdCallKanban";
 
 // ─── Constants ────────────────────────────────────────────────────────
 
@@ -36,23 +51,23 @@ const AUTO_REFRESH_MS = 30_000;
 const PAGE_SIZE = 20;
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Todos os Status' },
-  { value: 'completed', label: 'Completada' },
-  { value: 'answered', label: 'Atendida' },
-  { value: 'no_answer', label: 'Sem Resposta' },
-  { value: 'failed', label: 'Falhada' },
-  { value: 'ringing', label: 'Chamando' },
-  { value: 'initiated', label: 'Iniciada' },
+  { value: "", label: "Todos os Status" },
+  { value: "completed", label: "Completada" },
+  { value: "answered", label: "Atendida" },
+  { value: "no_answer", label: "Sem Resposta" },
+  { value: "failed", label: "Falhada" },
+  { value: "ringing", label: "Chamando" },
+  { value: "initiated", label: "Iniciada" },
 ];
 
 const OUTCOME_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Todos os Resultados' },
-  { value: 'agendou', label: 'Agendou' },
-  { value: 'interessado', label: 'Interessado' },
-  { value: 'nao_atendeu', label: 'Não Atendeu' },
-  { value: 'recusou', label: 'Recusou' },
-  { value: 'caixa_postal', label: 'Caixa Postal' },
-  { value: 'erro', label: 'Erro' },
+  { value: "", label: "Todos os Resultados" },
+  { value: "agendou", label: "Agendou" },
+  { value: "interessado", label: "Interessado" },
+  { value: "nao_atendeu", label: "Não Atendeu" },
+  { value: "recusou", label: "Recusou" },
+  { value: "caixa_postal", label: "Caixa Postal" },
+  { value: "erro", label: "Erro" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -73,11 +88,14 @@ export const ColdCallDashboard = () => {
   });
 
   // ─── Filter state ─────────────────────────────────────────────────
-  const [statusFilter, setStatusFilter] = useState('');
-  const [outcomeFilter, setOutcomeFilter] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState("");
+  const [outcomeFilter, setOutcomeFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+
+  // ─── View mode (table vs kanban) ──────────────────────────────────
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
 
   // ─── Selected call for transcript modal ───────────────────────────
   const [selectedCall, setSelectedCall] = useState<ColdCallLog | null>(null);
@@ -134,6 +152,20 @@ export const ColdCallDashboard = () => {
     refetch: refetchCosts,
   } = useCostSummary(30);
 
+  // ─── Pipeline hook (kanban view) ──────────────────────────────────
+  const pipelineDateRange = useMemo(() => {
+    if (dateRange.startDate && dateRange.endDate) {
+      return { from: dateRange.startDate, to: dateRange.endDate };
+    }
+    return undefined;
+  }, [dateRange.startDate, dateRange.endDate]);
+
+  const {
+    columns: pipelineColumns,
+    loading: pipelineLoading,
+    updateStage,
+  } = useColdCallPipeline(pipelineDateRange);
+
   // ─── Auto-refresh every 30s ───────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
@@ -154,18 +186,25 @@ export const ColdCallDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([refetchCalls(), refetchMetrics(), refetchRetries(), refetchCosts()]);
+    await Promise.all([
+      refetchCalls(),
+      refetchMetrics(),
+      refetchRetries(),
+      refetchCosts(),
+    ]);
     setTimeout(() => setIsRefreshing(false), 500);
   }, [refetchCalls, refetchMetrics, refetchRetries, refetchCosts]);
 
   // ─── Active filter count ──────────────────────────────────────────
-  const activeFilterCount = [statusFilter, outcomeFilter, searchTerm].filter(Boolean).length;
+  const activeFilterCount = [statusFilter, outcomeFilter, searchTerm].filter(
+    Boolean,
+  ).length;
 
   // ─── Clear all filters ────────────────────────────────────────────
   const clearFilters = () => {
-    setStatusFilter('');
-    setOutcomeFilter('');
-    setSearchTerm('');
+    setStatusFilter("");
+    setOutcomeFilter("");
+    setSearchTerm("");
   };
 
   // ─── Pagination ───────────────────────────────────────────────────
@@ -174,41 +213,51 @@ export const ColdCallDashboard = () => {
   // ─── Transform metrics for ColdCallStats component ────────────────
   // ColdCallStats expects: total_calls, answered_calls, connection_rate,
   // appointments, avg_duration_seconds, conversion_rate, pending_retries
-  const statsMetrics = useMemo(() => ({
-    total_calls: metrics.totalCalls,
-    answered_calls: metrics.answered,
-    connection_rate: metrics.totalCalls > 0
-      ? parseFloat(((metrics.answered / metrics.totalCalls) * 100).toFixed(1))
-      : 0,
-    appointments: metrics.scheduled,
-    avg_duration_seconds: metrics.avgDuration,
-    conversion_rate: metrics.conversionRate,
-    pending_retries: retries.length,
-  }), [metrics, retries.length]);
+  const statsMetrics = useMemo(
+    () => ({
+      total_calls: metrics.totalCalls,
+      answered_calls: metrics.answered,
+      connection_rate:
+        metrics.totalCalls > 0
+          ? parseFloat(
+              ((metrics.answered / metrics.totalCalls) * 100).toFixed(1),
+            )
+          : 0,
+      appointments: metrics.scheduled,
+      avg_duration_seconds: metrics.avgDuration,
+      conversion_rate: metrics.conversionRate,
+      pending_retries: retries.length,
+    }),
+    [metrics, retries.length],
+  );
 
   // ─── Transform dailyData for ColdCallChart ────────────────────────
   // ColdCallChart expects: { date, total, answered, appointments }[]
-  const chartData = useMemo(() =>
-    metrics.dailyData.map((d) => ({
-      date: d.date,
-      total: d.totalCalls,
-      answered: d.answered,
-      appointments: d.scheduled,
-    })),
-  [metrics.dailyData]);
+  const chartData = useMemo(
+    () =>
+      metrics.dailyData.map((d) => ({
+        date: d.date,
+        total: d.totalCalls,
+        answered: d.answered,
+        appointments: d.scheduled,
+      })),
+    [metrics.dailyData],
+  );
 
   // ─── Transform retries for RetryQueue component ───────────────────
   // RetryQueue expects: { id, lead_name, lead_phone, attempt_number, ... }
-  const retryQueueData = useMemo(() =>
-    retries.map((r) => ({
-      id: r.id,
-      lead_name: r.lead_name ?? undefined,
-      lead_phone: r.phone ?? undefined,
-      attempt_number: r.attempt_number ?? 1,
-      reason: r.outcome ?? undefined,
-      next_retry_at: r.last_attempt_at ?? undefined,
-    })),
-  [retries]);
+  const retryQueueData = useMemo(
+    () =>
+      retries.map((r) => ({
+        id: r.id,
+        lead_name: r.lead_name ?? undefined,
+        lead_phone: r.phone ?? undefined,
+        attempt_number: r.attempt_number ?? 1,
+        reason: r.outcome ?? undefined,
+        next_retry_at: r.last_attempt_at ?? undefined,
+      })),
+    [retries],
+  );
 
   // ─── Error state ──────────────────────────────────────────────────
   if (callsError) {
@@ -218,7 +267,9 @@ export const ColdCallDashboard = () => {
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-400 mb-4">
             <AlertTriangle size={32} />
           </div>
-          <h2 className="text-xl font-bold text-text-primary mb-2">Erro ao carregar dados</h2>
+          <h2 className="text-xl font-bold text-text-primary mb-2">
+            Erro ao carregar dados
+          </h2>
           <p className="text-text-muted max-w-md mb-6">{callsError}</p>
           <button
             onClick={handleRefresh}
@@ -235,12 +286,14 @@ export const ColdCallDashboard = () => {
   return (
     <div className="bg-bg-primary">
       <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 md:space-y-6">
-
         {/* ─── HEADER ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-semibold text-text-primary flex items-center gap-2">
-              <PhoneCall size={isMobile ? 22 : 26} className="text-accent-primary" />
+              <PhoneCall
+                size={isMobile ? 22 : 26}
+                className="text-accent-primary"
+              />
               Cold Call Dashboard
             </h1>
             <p className="text-text-muted text-xs md:text-sm mt-1">
@@ -250,13 +303,43 @@ export const ColdCallDashboard = () => {
 
           <div className="flex items-center gap-2 flex-wrap">
             <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+            {/* View mode toggle */}
+            <div className="flex items-center border border-border-default rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode("table")}
+                title="Visualização em tabela"
+                className={`p-2 transition-colors ${
+                  viewMode === "table"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-muted hover:text-text-primary hover:bg-bg-secondary"
+                }`}
+              >
+                <List size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode("kanban")}
+                title="Visualização em kanban"
+                className={`p-2 transition-colors ${
+                  viewMode === "kanban"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-muted hover:text-text-primary hover:bg-bg-secondary"
+                }`}
+              >
+                <LayoutGrid size={18} />
+              </button>
+            </div>
+
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-secondary border border-border-default rounded-lg transition-all active:scale-95 disabled:opacity-50"
               title="Atualizar dados"
             >
-              <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+              <RefreshCw
+                size={18}
+                className={isRefreshing ? "animate-spin" : ""}
+              />
             </button>
           </div>
         </div>
@@ -265,7 +348,10 @@ export const ColdCallDashboard = () => {
         {metricsLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-bg-secondary border border-border-default rounded-lg p-4 animate-pulse">
+              <div
+                key={i}
+                className="bg-bg-secondary border border-border-default rounded-lg p-4 animate-pulse"
+              >
                 <div className="h-3 bg-bg-hover rounded w-24 mb-3" />
                 <div className="h-7 bg-bg-hover rounded w-16 mb-1" />
                 <div className="h-2 bg-bg-hover rounded w-20" />
@@ -279,14 +365,13 @@ export const ColdCallDashboard = () => {
         {/* ─── CHART + RETRY QUEUE ─────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2">
-            <ColdCallChart
-              data={chartData}
-              loading={metricsLoading}
-            />
+            <ColdCallChart data={chartData} loading={metricsLoading} />
           </div>
           <div className="lg:col-span-1">
-            <RetryQueuePanel 
-              botApiUrl={import.meta.env.VITE_PIPECAT_API_URL || '/cold-call-api'}
+            <RetryQueuePanel
+              botApiUrl={
+                import.meta.env.VITE_PIPECAT_API_URL || "/cold-call-api"
+              }
               autoRefresh={true}
               refreshInterval={30000}
             />
@@ -300,8 +385,12 @@ export const ColdCallDashboard = () => {
               <span className="text-2xl">💰</span>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-text-primary">Custos</h2>
-              <p className="text-xs text-text-muted">Análise detalhada de gastos por componente</p>
+              <h2 className="text-xl font-semibold text-text-primary">
+                Custos
+              </h2>
+              <p className="text-xs text-text-muted">
+                Análise detalhada de gastos por componente
+              </p>
             </div>
           </div>
 
@@ -310,7 +399,10 @@ export const ColdCallDashboard = () => {
               {/* Skeleton Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
+                  <div
+                    key={i}
+                    className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse"
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-10 h-10 bg-purple-500/20 rounded-lg" />
                     </div>
@@ -324,7 +416,10 @@ export const ColdCallDashboard = () => {
               {/* Skeleton Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 {[...Array(2)].map((_, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-6 animate-pulse">
+                  <div
+                    key={i}
+                    className="bg-white/5 border border-white/10 rounded-xl p-6 animate-pulse"
+                  >
                     <div className="h-5 bg-bg-hover rounded w-40 mb-6" />
                     <div className="h-64 bg-bg-hover rounded" />
                   </div>
@@ -370,134 +465,159 @@ export const ColdCallDashboard = () => {
           ) : null}
         </div>
 
-        {/* ─── FILTERS ─────────────────────────────────────────────── */}
-        <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
-          {/* Mobile filter toggle */}
-          {isMobile && (
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center justify-between w-full mb-3 text-sm font-medium text-text-primary"
-            >
-              <span className="flex items-center gap-2">
-                <Filter size={16} />
-                Filtros
-                {activeFilterCount > 0 && (
-                  <span className="bg-accent-primary text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
-              />
-            </button>
-          )}
-
-          <div
-            className={`grid grid-cols-1 md:grid-cols-4 gap-3 ${
-              isMobile && !showFilters ? 'hidden' : ''
-            }`}
-          >
-            {/* Search */}
-            <div className="md:col-span-2 relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
-                <Search size={16} className="opacity-50" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar nome, telefone ou ID..."
-                className="w-full pl-10 pr-10 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary placeholder:text-text-muted"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
+        {/* ─── TABLE VIEW ──────────────────────────────────────────── */}
+        {viewMode === "table" && (
+          <>
+            {/* Filters */}
+            <div className="bg-bg-secondary border border-border-default rounded-lg p-3 md:p-4">
+              {/* Mobile filter toggle */}
+              {isMobile && (
                 <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-3 flex items-center text-text-muted hover:text-text-primary transition-colors"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center justify-between w-full mb-3 text-sm font-medium text-text-primary"
                 >
-                  <X size={16} />
+                  <span className="flex items-center gap-2">
+                    <Filter size={16} />
+                    Filtros
+                    {activeFilterCount > 0 && (
+                      <span className="bg-accent-primary text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform ${showFilters ? "rotate-180" : ""}`}
+                  />
                 </button>
+              )}
+
+              <div
+                className={`grid grid-cols-1 md:grid-cols-4 gap-3 ${
+                  isMobile && !showFilters ? "hidden" : ""
+                }`}
+              >
+                {/* Search */}
+                <div className="md:col-span-2 relative">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
+                    <Search size={16} className="opacity-50" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar nome, telefone ou ID..."
+                    className="w-full pl-10 pr-10 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary placeholder:text-text-muted"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute inset-y-0 right-3 flex items-center text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Status filter */}
+                <select
+                  className="px-3 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Outcome filter */}
+                <select
+                  className="px-3 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary"
+                  value={outcomeFilter}
+                  onChange={(e) => setOutcomeFilter(e.target.value)}
+                >
+                  {OUTCOME_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Active filters summary */}
+              {activeFilterCount > 0 && (
+                <div className="mt-3 flex items-center justify-between text-xs border-t border-border-default pt-3">
+                  <p className="text-text-muted">
+                    <span className="text-text-primary font-semibold">
+                      {total}
+                    </span>{" "}
+                    ligações encontradas
+                  </p>
+                  <button
+                    onClick={clearFilters}
+                    className="text-accent-primary hover:underline font-medium"
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* Status filter */}
-            <select
-              className="px-3 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            {/* Table */}
+            <ColdCallTable
+              calls={calls as any[]}
+              onViewTranscript={(call) =>
+                setSelectedCall(call as unknown as ColdCallLog)
+              }
+              loading={callsLoading}
+            />
 
-            {/* Outcome filter */}
-            <select
-              className="px-3 py-2 bg-bg-primary border border-border-default rounded-lg text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 transition-all text-text-primary"
-              value={outcomeFilter}
-              onChange={(e) => setOutcomeFilter(e.target.value)}
-            >
-              {OUTCOME_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Pagination */}
+            {totalPages > 1 && !callsLoading && (
+              <div className="flex items-center justify-between px-4 py-3 bg-bg-secondary border border-border-default rounded-lg">
+                <p className="text-xs text-text-muted">
+                  Mostrando {(page - 1) * PAGE_SIZE + 1}–
+                  {Math.min(page * PAGE_SIZE, total)} de{" "}
+                  <span className="font-medium text-text-secondary">
+                    {total}
+                  </span>
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="p-1.5 rounded-md hover:bg-bg-hover text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-xs text-text-secondary px-2">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="p-1.5 rounded-md hover:bg-bg-hover text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-          {/* Active filters summary */}
-          {activeFilterCount > 0 && (
-            <div className="mt-3 flex items-center justify-between text-xs border-t border-border-default pt-3">
-              <p className="text-text-muted">
-                <span className="text-text-primary font-semibold">{total}</span> ligações encontradas
-              </p>
-              <button
-                onClick={clearFilters}
-                className="text-accent-primary hover:underline font-medium"
-              >
-                Limpar filtros
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ─── TABLE ───────────────────────────────────────────────── */}
-        <ColdCallTable
-          calls={calls as any[]}
-          onViewTranscript={(call) => setSelectedCall(call as unknown as ColdCallLog)}
-          loading={callsLoading}
-        />
-
-        {/* ─── PAGINATION ──────────────────────────────────────────── */}
-        {totalPages > 1 && !callsLoading && (
-          <div className="flex items-center justify-between px-4 py-3 bg-bg-secondary border border-border-default rounded-lg">
-            <p className="text-xs text-text-muted">
-              Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de{' '}
-              <span className="font-medium text-text-secondary">{total}</span>
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="p-1.5 rounded-md hover:bg-bg-hover text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <span className="text-xs text-text-secondary px-2">
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="p-1.5 rounded-md hover:bg-bg-hover text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
+        {/* ─── KANBAN VIEW ─────────────────────────────────────────── */}
+        {viewMode === "kanban" && (
+          <ColdCallKanban
+            columns={pipelineColumns}
+            loading={pipelineLoading}
+            onMoveCard={(cardId, newStage) => updateStage(cardId, newStage)}
+            onCardClick={(card: PipelineCard) =>
+              setSelectedCall({ id: card.id } as unknown as ColdCallLog)
+            }
+          />
         )}
 
         {/* ─── TRANSCRIPT MODAL ────────────────────────────────────── */}
