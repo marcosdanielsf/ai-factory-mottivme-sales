@@ -1,8 +1,20 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 
-export type ColdCallStatus = 'initiated' | 'ringing' | 'answered' | 'completed' | 'failed' | 'no_answer';
-export type ColdCallOutcome = 'agendou' | 'interessado' | 'nao_atendeu' | 'recusou' | 'caixa_postal' | 'erro';
+export type ColdCallStatus =
+  | "initiated"
+  | "ringing"
+  | "answered"
+  | "completed"
+  | "failed"
+  | "no_answer";
+export type ColdCallOutcome =
+  | "agendou"
+  | "interessado"
+  | "nao_atendeu"
+  | "recusou"
+  | "caixa_postal"
+  | "erro";
 
 export interface ColdCallLog {
   id: string;
@@ -23,6 +35,8 @@ export interface ColdCallLog {
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
+  qa_analysis: Record<string, unknown> | string | null;
+  qa_score: number | null;
 }
 
 export interface ColdCallFilters {
@@ -58,34 +72,34 @@ export function useColdCalls(filters?: ColdCallFilters): UseColdCallsReturn {
       const offset = filters?.offset ?? 0;
 
       let query = supabase
-        .from('cold_call_logs')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .from("cold_call_logs")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false });
 
       // Filtros dinâmicos
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        query = query.eq("status", filters.status);
       }
 
       if (filters?.outcome) {
-        query = query.eq('outcome', filters.outcome);
+        query = query.eq("outcome", filters.outcome);
       }
 
       if (filters?.locationId) {
-        query = query.eq('location_id', filters.locationId);
+        query = query.eq("location_id", filters.locationId);
       }
 
       if (filters?.dateRange?.from) {
-        query = query.gte('created_at', filters.dateRange.from.toISOString());
+        query = query.gte("created_at", filters.dateRange.from.toISOString());
       }
 
       if (filters?.dateRange?.to) {
-        query = query.lte('created_at', filters.dateRange.to.toISOString());
+        query = query.lte("created_at", filters.dateRange.to.toISOString());
       }
 
       if (filters?.search) {
         query = query.or(
-          `lead_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,call_id.ilike.%${filters.search}%`
+          `lead_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,call_id.ilike.%${filters.search}%`,
         );
       }
 
@@ -95,15 +109,16 @@ export function useColdCalls(filters?: ColdCallFilters): UseColdCallsReturn {
       const { data, error: queryError, count } = await query;
 
       if (queryError) {
-        console.error('Error fetching cold calls:', queryError);
+        console.error("Error fetching cold calls:", queryError);
         throw queryError;
       }
 
       setCalls((data as ColdCallLog[]) || []);
       setTotal(count ?? 0);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar cold calls';
-      console.error('Error in useColdCalls:', err);
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar cold calls";
+      console.error("Error in useColdCalls:", err);
       setError(message);
     } finally {
       setLoading(false);

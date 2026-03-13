@@ -1,5 +1,18 @@
 import React, { useEffect, useCallback, useRef, useState } from "react";
-import { X, Copy, Check, Phone, Clock, Calendar, User } from "lucide-react";
+import {
+  X,
+  Copy,
+  Check,
+  Phone,
+  Clock,
+  Calendar,
+  User,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  Lightbulb,
+  AlertTriangle,
+} from "lucide-react";
 import { CallStatusBadge } from "./CallStatusBadge";
 import type { ColdCallLog as HookColdCallLog } from "../../hooks/useColdCalls";
 
@@ -9,6 +22,18 @@ interface TranscriptTurn {
   role: "agent" | "lead" | "system";
   text: string;
   timestamp?: string;
+}
+
+interface QAAnalysis {
+  score: number;
+  resumo: string;
+  pontos_fortes: string[];
+  pontos_fracos: string[];
+  sugestoes: string[];
+  converteu: boolean;
+  sentiment_lead: string;
+  objecoes_detectadas?: string[];
+  proxima_acao?: string;
 }
 
 interface TranscriptModalProps {
@@ -83,6 +108,38 @@ function parseTranscript(
   return turns.length > 0 ? turns : null;
 }
 
+function parseQA(raw?: string | QAAnalysis | null): QAAnalysis | null {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw as QAAnalysis;
+  try {
+    return JSON.parse(raw) as QAAnalysis;
+  } catch {
+    return null;
+  }
+}
+
+function scoreColor(score: number): string {
+  if (score >= 8) return "text-green-400";
+  if (score >= 5) return "text-yellow-400";
+  return "text-red-400";
+}
+
+function scoreBg(score: number): string {
+  if (score >= 8) return "bg-green-500/10 border-green-500/30";
+  if (score >= 5) return "bg-yellow-500/10 border-yellow-500/30";
+  return "bg-red-500/10 border-red-500/30";
+}
+
+function sentimentLabel(s: string): string {
+  const map: Record<string, string> = {
+    positivo: "Positivo",
+    negativo: "Negativo",
+    neutro: "Neutro",
+    hesitante: "Hesitante",
+  };
+  return map[s] || s;
+}
+
 function getPlainTranscript(raw?: string | TranscriptTurn[]): string {
   if (!raw) return "";
   if (typeof raw === "string") return raw;
@@ -153,6 +210,7 @@ export function TranscriptModal({
 
   const turns = parseTranscript(call.transcript);
   const plainText = typeof call.transcript === "string" && !turns;
+  const qa = parseQA(call.qa_analysis);
 
   return (
     <div
@@ -182,6 +240,14 @@ export function TranscriptModal({
                 {call.lead_name ?? "Ligação"}
               </h2>
               <CallStatusBadge status={call.status} outcome={call.outcome} />
+              {qa && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${scoreBg(qa.score)} ${scoreColor(qa.score)}`}
+                >
+                  <Star className="w-3 h-3" />
+                  {qa.score}/10
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-muted">
@@ -234,6 +300,115 @@ export function TranscriptModal({
             <div className="p-3 rounded-lg bg-accent-primary/5 border border-accent-primary/20 text-sm text-text-secondary mb-4">
               <span className="font-medium text-accent-primary">Resumo: </span>
               {call.summary}
+            </div>
+          )}
+
+          {/* QA Analysis */}
+          {qa && (
+            <div
+              className={`rounded-lg border p-4 space-y-3 mb-2 ${scoreBg(qa.score)}`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Star className={`w-5 h-5 ${scoreColor(qa.score)}`} />
+                  <span className="font-semibold text-text-primary text-sm">
+                    Avaliacao do Gerente IA
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-text-muted">
+                  <span>
+                    Sentiment:{" "}
+                    <span className="font-medium text-text-secondary">
+                      {sentimentLabel(qa.sentiment_lead)}
+                    </span>
+                  </span>
+                  {qa.converteu && (
+                    <span className="text-green-400 font-semibold">
+                      Converteu
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-sm text-text-secondary">{qa.resumo}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {qa.pontos_fortes.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-400">
+                      <TrendingUp className="w-3.5 h-3.5" /> Pontos Fortes
+                    </span>
+                    <ul className="space-y-0.5">
+                      {qa.pontos_fortes.map((p, i) => (
+                        <li
+                          key={i}
+                          className="text-xs text-text-secondary pl-3 relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-green-500/50"
+                        >
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {qa.pontos_fracos.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="flex items-center gap-1 text-xs font-semibold text-red-400">
+                      <TrendingDown className="w-3.5 h-3.5" /> Pontos Fracos
+                    </span>
+                    <ul className="space-y-0.5">
+                      {qa.pontos_fracos.map((p, i) => (
+                        <li
+                          key={i}
+                          className="text-xs text-text-secondary pl-3 relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-red-500/50"
+                        >
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {qa.sugestoes.length > 0 && (
+                <div className="space-y-1">
+                  <span className="flex items-center gap-1 text-xs font-semibold text-yellow-400">
+                    <Lightbulb className="w-3.5 h-3.5" /> Sugestoes
+                  </span>
+                  <ul className="space-y-0.5">
+                    {qa.sugestoes.map((s, i) => (
+                      <li
+                        key={i}
+                        className="text-xs text-text-secondary pl-3 relative before:content-[''] before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-yellow-500/50"
+                      >
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {qa.objecoes_detectadas && qa.objecoes_detectadas.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-400 mt-0.5" />
+                  {qa.objecoes_detectadas.map((o, i) => (
+                    <span
+                      key={i}
+                      className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300"
+                    >
+                      {o}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {qa.proxima_acao && (
+                <p className="text-xs text-text-muted pt-1 border-t border-white/5">
+                  <span className="font-medium text-text-secondary">
+                    Proxima acao:
+                  </span>{" "}
+                  {qa.proxima_acao}
+                </p>
+              )}
             </div>
           )}
 
