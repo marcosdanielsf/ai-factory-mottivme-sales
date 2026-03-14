@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { getErrorMessage } from "../lib/getErrorMessage";
+import { useUnifiedFunnel } from "./useUnifiedFunnel";
 
 // =============================================================================
 // TYPES — consolidated from useAgendamentosStats + useCriativoPerformance + useLeadSegmentation
+// v4.0 — Funnel totais via Semantic Layer (useUnifiedFunnel), breakdowns via lead-level
 // =============================================================================
 
 export interface CriativoLead {
@@ -112,51 +114,82 @@ export interface AgendaMetrics {
 // =============================================================================
 
 function mapGhlStatus(rawPayload: any): string {
-  const ghlStatus = (rawPayload?.calendar?.appointmentStatus || rawPayload?.calendar?.appoinmentStatus || '').toLowerCase();
-  if (ghlStatus === 'showed') return 'completed';
-  if (ghlStatus === 'noshow' || ghlStatus === 'no_show') return 'no_show';
-  if (ghlStatus === 'cancelled') return 'cancelled';
-  return 'booked';
+  const ghlStatus = (
+    rawPayload?.calendar?.appointmentStatus ||
+    rawPayload?.calendar?.appoinmentStatus ||
+    ""
+  ).toLowerCase();
+  if (ghlStatus === "showed") return "completed";
+  if (ghlStatus === "noshow" || ghlStatus === "no_show") return "no_show";
+  if (ghlStatus === "cancelled") return "cancelled";
+  return "booked";
 }
 
 function normalizeUtmContent(value: string | null): string | null {
-  if (!value || value === 'NULL' || value === 'null' || value.trim() === '') return null;
+  if (!value || value === "NULL" || value === "null" || value.trim() === "")
+    return null;
   return value;
 }
 
 function normalizeSessionSource(value: string | null): string {
-  if (!value || value === 'NULL' || value === 'null' || value.trim() === '') return 'Desconhecido';
+  if (!value || value === "NULL" || value === "null" || value.trim() === "")
+    return "Desconhecido";
   return value;
 }
 
 function normalizeState(rawState: string | null): string {
-  if (!rawState || rawState.trim() === '' || rawState.toLowerCase() === 'null') return 'Não informado';
+  if (!rawState || rawState.trim() === "" || rawState.toLowerCase() === "null")
+    return "Não informado";
   const state = rawState.trim().toUpperCase();
   const stateMap: Record<string, string> = {
-    'FL': 'Florida', 'FLORIDA': 'Florida', 'FLÓRIDA': 'Florida', 'FLA': 'Florida',
-    'MA': 'Massachusetts', 'MASSACHUSETTS': 'Massachusetts', 'MASS': 'Massachusetts',
-    'NJ': 'New Jersey', 'NEW JERSEY': 'New Jersey',
-    'NY': 'New York', 'NEW YORK': 'New York',
-    'CA': 'California', 'CALIFORNIA': 'California',
-    'TX': 'Texas', 'TEXAS': 'Texas',
-    'CT': 'Connecticut', 'CONNECTICUT': 'Connecticut',
-    'GA': 'Georgia', 'GEORGIA': 'Georgia',
-    'UT': 'Utah', 'UTAH': 'Utah',
-    'SC': 'South Carolina', 'SOUTH CAROLINA': 'South Carolina', 'CAROLINA DO SUL': 'South Carolina',
-    'NV': 'Nevada', 'NEVADA': 'Nevada',
-    'IL': 'Illinois', 'ILLINOIS': 'Illinois',
+    FL: "Florida",
+    FLORIDA: "Florida",
+    FLÓRIDA: "Florida",
+    FLA: "Florida",
+    MA: "Massachusetts",
+    MASSACHUSETTS: "Massachusetts",
+    MASS: "Massachusetts",
+    NJ: "New Jersey",
+    "NEW JERSEY": "New Jersey",
+    NY: "New York",
+    "NEW YORK": "New York",
+    CA: "California",
+    CALIFORNIA: "California",
+    TX: "Texas",
+    TEXAS: "Texas",
+    CT: "Connecticut",
+    CONNECTICUT: "Connecticut",
+    GA: "Georgia",
+    GEORGIA: "Georgia",
+    UT: "Utah",
+    UTAH: "Utah",
+    SC: "South Carolina",
+    "SOUTH CAROLINA": "South Carolina",
+    "CAROLINA DO SUL": "South Carolina",
+    NV: "Nevada",
+    NEVADA: "Nevada",
+    IL: "Illinois",
+    ILLINOIS: "Illinois",
   };
   return stateMap[state] || state.charAt(0) + state.slice(1).toLowerCase();
 }
 
 function normalizeWorkPermit(rawPermit: string | null): string {
-  if (!rawPermit || rawPermit.trim() === '' || rawPermit.toLowerCase() === 'null') return 'Não informado';
+  if (
+    !rawPermit ||
+    rawPermit.trim() === "" ||
+    rawPermit.toLowerCase() === "null"
+  )
+    return "Não informado";
   const permit = rawPermit.toLowerCase().trim();
-  if (permit.includes('possui') && !permit.includes('não')) return 'Com Work Permit';
-  if (permit.includes('não') || permit.includes('nao')) return 'Sem Work Permit';
-  if (['sim', 'yes', 'true', '1'].includes(permit)) return 'Com Work Permit';
-  if (['não', 'nao', 'no', 'false', '0'].includes(permit)) return 'Sem Work Permit';
-  return 'Não informado';
+  if (permit.includes("possui") && !permit.includes("não"))
+    return "Com Work Permit";
+  if (permit.includes("não") || permit.includes("nao"))
+    return "Sem Work Permit";
+  if (["sim", "yes", "true", "1"].includes(permit)) return "Com Work Permit";
+  if (["não", "nao", "no", "false", "0"].includes(permit))
+    return "Sem Work Permit";
+  return "Não informado";
 }
 
 function getDefaultStartDate(): Date {
@@ -199,17 +232,32 @@ interface UseAgendamentosDashboardReturn {
 }
 
 const EMPTY_FUNNEL: FunnelMetrics = {
-  totalLeads: 0, totalResponderam: 0, totalAgendaram: 0, totalCompareceram: 0, totalFecharam: 0,
+  totalLeads: 0,
+  totalResponderam: 0,
+  totalAgendaram: 0,
+  totalCompareceram: 0,
+  totalFecharam: 0,
 };
 
 const EMPTY_AGENDA: AgendaMetrics = {
-  hoje: 0, semana: 0, mes: 0,
-  totalCompleted: 0, totalNoShow: 0, totalBooked: 0, totalPendingFeedback: 0,
-  taxaComparecimento: 0, taxaNoShow: 0, porDia: [],
+  hoje: 0,
+  semana: 0,
+  mes: 0,
+  totalCompleted: 0,
+  totalNoShow: 0,
+  totalBooked: 0,
+  totalPendingFeedback: 0,
+  taxaComparecimento: 0,
+  taxaNoShow: 0,
+  porDia: [],
 };
 
 const EMPTY_SEGMENTATION: SegmentationTotals = {
-  totalLeads: 0, comEstado: 0, comWorkPermit: 0, convertidos: 0, perdidos: 0,
+  totalLeads: 0,
+  comEstado: 0,
+  comWorkPermit: 0,
+  convertidos: 0,
+  perdidos: 0,
 };
 
 export const useAgendamentosDashboard = (
@@ -217,6 +265,18 @@ export const useAgendamentosDashboard = (
   locationId?: string | null,
   responsavel?: string | null,
 ): UseAgendamentosDashboardReturn => {
+  // =========================================================================
+  // SEMANTIC LAYER: fonte unica de verdade para totais do funil
+  // Quando locationId disponivel, usa vw_unified_funnel via RPC
+  // Breakdowns (criativos, origens, estados, agenda) continuam lead-level
+  // =========================================================================
+  const unified = useUnifiedFunnel({
+    locationId: locationId || null,
+    dateFrom: dateRange?.startDate,
+    dateTo: dateRange?.endDate,
+    periodDays: 30,
+  });
+
   const [rawLeads, setRawLeads] = useState<any[]>([]);
   const [rawAppointments, setRawAppointments] = useState<any[]>([]);
   const [wonContactIds, setWonContactIds] = useState<Set<string>>(new Set());
@@ -227,7 +287,7 @@ export const useAgendamentosDashboard = (
 
   const fetchData = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setError('Supabase não configurado');
+      setError("Supabase não configurado");
       setLoading(false);
       return;
     }
@@ -241,15 +301,15 @@ export const useAgendamentosDashboard = (
 
       // Q1: All leads in the period (n8n_schedule_tracking)
       let leadsQuery = supabase
-        .from('n8n_schedule_tracking')
-        .select('*')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false })
+        .from("n8n_schedule_tracking")
+        .select("*")
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .order("created_at", { ascending: false })
         .limit(50000);
 
-      if (locationId) leadsQuery = leadsQuery.eq('location_id', locationId);
-      if (responsavel) leadsQuery = leadsQuery.eq('location_name', responsavel);
+      if (locationId) leadsQuery = leadsQuery.eq("location_id", locationId);
+      if (responsavel) leadsQuery = leadsQuery.eq("location_name", responsavel);
 
       // Q2: Appointments with expanded range (-30d / +60d) for cross-reference + agenda
       const apptStart = new Date(startDate);
@@ -258,41 +318,54 @@ export const useAgendamentosDashboard = (
       apptEnd.setDate(apptEnd.getDate() + 60);
 
       let apptsQuery = supabase
-        .from('appointments_log')
-        .select('appointment_date, location_name, location_id, raw_payload, created_at, manual_status, contact_name, contact_phone')
-        .gte('appointment_date', apptStart.toISOString())
-        .lte('appointment_date', apptEnd.toISOString())
+        .from("appointments_log")
+        .select(
+          "appointment_date, location_name, location_id, raw_payload, created_at, manual_status, contact_name, contact_phone",
+        )
+        .gte("appointment_date", apptStart.toISOString())
+        .lte("appointment_date", apptEnd.toISOString())
         .limit(50000);
 
-      if (locationId) apptsQuery = apptsQuery.eq('location_id', locationId);
-      if (responsavel) apptsQuery = apptsQuery.eq('location_name', responsavel);
+      if (locationId) apptsQuery = apptsQuery.eq("location_id", locationId);
+      if (responsavel) apptsQuery = apptsQuery.eq("location_name", responsavel);
 
       // Q3: Exact leads count (no limit)
       let countQuery = supabase
-        .from('n8n_schedule_tracking')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .from("n8n_schedule_tracking")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
 
-      if (locationId) countQuery = countQuery.eq('location_id', locationId);
-      if (responsavel) countQuery = countQuery.eq('location_name', responsavel);
+      if (locationId) countQuery = countQuery.eq("location_id", locationId);
+      if (responsavel) countQuery = countQuery.eq("location_name", responsavel);
 
       // Q4: Won opportunities from ghl_opportunities
       let wonQuery = supabase
-        .from('ghl_opportunities')
-        .select('contact_id')
-        .eq('status', 'won');
+        .from("ghl_opportunities")
+        .select("contact_id")
+        .eq("status", "won");
 
-      if (locationId) wonQuery = wonQuery.eq('location_id', locationId);
+      if (locationId) wonQuery = wonQuery.eq("location_id", locationId);
 
-      const [leadsResult, apptsResult, countResult, wonResult] = await Promise.all([
-        leadsQuery, apptsQuery, countQuery, wonQuery,
-      ]);
+      const [leadsResult, apptsResult, countResult, wonResult] =
+        await Promise.all([leadsQuery, apptsQuery, countQuery, wonQuery]);
 
       if (leadsResult.error) throw new Error(leadsResult.error.message);
-      if (apptsResult.error) console.warn('[AgendamentosDashboard] Appointments error:', apptsResult.error.message);
-      if (countResult.error) console.warn('[AgendamentosDashboard] Count error:', countResult.error.message);
-      if (wonResult.error) console.warn('[AgendamentosDashboard] Won opps error:', wonResult.error.message);
+      if (apptsResult.error)
+        console.warn(
+          "[AgendamentosDashboard] Appointments error:",
+          apptsResult.error.message,
+        );
+      if (countResult.error)
+        console.warn(
+          "[AgendamentosDashboard] Count error:",
+          countResult.error.message,
+        );
+      if (wonResult.error)
+        console.warn(
+          "[AgendamentosDashboard] Won opps error:",
+          wonResult.error.message,
+        );
 
       const wonData = wonResult.data || [];
       setRawLeads(leadsResult.data || []);
@@ -301,12 +374,17 @@ export const useAgendamentosDashboard = (
       setWonCount(wonData.length);
       setExactLeadsCount(countResult.count ?? leadsResult.data?.length ?? 0);
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Erro ao carregar dados');
-      console.error('[AgendamentosDashboard Error]', err);
+      setError(getErrorMessage(err) || "Erro ao carregar dados");
+      console.error("[AgendamentosDashboard Error]", err);
     } finally {
       setLoading(false);
     }
-  }, [dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime(), locationId, responsavel]);
+  }, [
+    dateRange?.startDate?.getTime(),
+    dateRange?.endDate?.getTime(),
+    locationId,
+    responsavel,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -326,15 +404,15 @@ export const useAgendamentosDashboard = (
     // When both exist for the same contact, keep ghl_sync for cross-reference
     // and inherit etapa_funil/responded from the n8n record.
     // -----------------------------------------------------------------------
-    const hasGhlSync = rawLeads.some(l => l.field === 'ghl_sync');
+    const hasGhlSync = rawLeads.some((l) => l.field === "ghl_sync");
     let leads: any[];
 
     if (hasGhlSync) {
       // Build a map of n8n records by normalized first_name for etapa enrichment
       const n8nEtapaByName = new Map<string, any>();
       for (const l of rawLeads) {
-        if (l.field === 'ghl_sync') continue;
-        const name = (l.first_name || '').toLowerCase().trim();
+        if (l.field === "ghl_sync") continue;
+        const name = (l.first_name || "").toLowerCase().trim();
         if (!name) continue;
         // Keep the most recent n8n record per name
         const existing = n8nEtapaByName.get(name);
@@ -345,9 +423,9 @@ export const useAgendamentosDashboard = (
 
       // Use only ghl_sync records as the lead base, enriched with n8n funnel data
       leads = rawLeads
-        .filter(l => l.field === 'ghl_sync')
-        .map(l => {
-          const name = (l.first_name || '').toLowerCase().trim();
+        .filter((l) => l.field === "ghl_sync")
+        .map((l) => {
+          const name = (l.first_name || "").toLowerCase().trim();
           const n8nRecord = n8nEtapaByName.get(name);
           if (n8nRecord) {
             // Inherit etapa_funil and responded from n8n if ghl_sync doesn't have them
@@ -373,24 +451,35 @@ export const useAgendamentosDashboard = (
       const appointmentId = appt.raw_payload?.calendar?.appointmentId;
       if (!appointmentId) continue;
       const existing = apptDedup.get(appointmentId);
-      if (!existing || (appt.created_at && (!existing.created_at || appt.created_at > existing.created_at))) {
+      if (
+        !existing ||
+        (appt.created_at &&
+          (!existing.created_at || appt.created_at > existing.created_at))
+      ) {
         apptDedup.set(appointmentId, appt);
       }
     }
-    const dedupedAppts = Array.from(apptDedup.values()).filter(appt => {
-      const status = (appt.raw_payload?.calendar?.appointmentStatus || appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
-      return status !== 'cancelled';
+    const dedupedAppts = Array.from(apptDedup.values()).filter((appt) => {
+      const status = (
+        appt.raw_payload?.calendar?.appointmentStatus ||
+        appt.raw_payload?.calendar?.appoinmentStatus ||
+        ""
+      ).toLowerCase();
+      return status !== "cancelled";
     });
 
     // -----------------------------------------------------------------------
     // STEP 2: Build contactApptMap + direct appointment counts (independent of lead cross-reference)
     // -----------------------------------------------------------------------
-    const contactApptMap = new Map<string, {
-      appointmentDate: string;
-      calendarStatus: string;
-      confirmedPresence: boolean;
-      converted: boolean;
-    }>();
+    const contactApptMap = new Map<
+      string,
+      {
+        appointmentDate: string;
+        calendarStatus: string;
+        confirmedPresence: boolean;
+        converted: boolean;
+      }
+    >();
 
     // Direct counts from appointments_log (not dependent on schedule_tracking cross-reference)
     const uniqueApptContacts = new Set<string>();
@@ -398,21 +487,33 @@ export const useAgendamentosDashboard = (
     let directConverted = 0;
 
     for (const appt of dedupedAppts) {
-      const contactId = appt.raw_payload?.contact_id || appt.raw_payload?.lead_id;
+      const contactId =
+        appt.raw_payload?.contact_id || appt.raw_payload?.lead_id;
       if (!contactId) continue;
-      const apptDate = appt.appointment_date || appt.raw_payload?.calendar?.startTime;
-      const statusAppt = (appt.raw_payload?.['Status Appointment'] || '').toLowerCase();
-      const manualStatus = (appt.manual_status || '').toLowerCase();
-      const calStatus = (appt.raw_payload?.calendar?.appointmentStatus || appt.raw_payload?.calendar?.appoinmentStatus || '').toLowerCase();
+      const apptDate =
+        appt.appointment_date || appt.raw_payload?.calendar?.startTime;
+      const statusAppt = (
+        appt.raw_payload?.["Status Appointment"] || ""
+      ).toLowerCase();
+      const manualStatus = (appt.manual_status || "").toLowerCase();
+      const calStatus = (
+        appt.raw_payload?.calendar?.appointmentStatus ||
+        appt.raw_payload?.calendar?.appoinmentStatus ||
+        ""
+      ).toLowerCase();
 
       // Track unique contacts with appointments (= agendaram)
       uniqueApptContacts.add(contactId);
 
       // Track showed/completed directly from appointment status
-      if (manualStatus === 'completed' || manualStatus === 'converted' || statusAppt === 'confirmation-presence') {
+      if (
+        manualStatus === "completed" ||
+        manualStatus === "converted" ||
+        statusAppt === "confirmation-presence"
+      ) {
         directCompleted++;
       }
-      if (manualStatus === 'converted') {
+      if (manualStatus === "converted") {
         directConverted++;
       }
 
@@ -421,8 +522,8 @@ export const useAgendamentosDashboard = (
         contactApptMap.set(contactId, {
           appointmentDate: apptDate,
           calendarStatus: calStatus,
-          confirmedPresence: statusAppt === 'confirmation-presence',
-          converted: manualStatus === 'converted',
+          confirmedPresence: statusAppt === "confirmation-presence",
+          converted: manualStatus === "converted",
         });
       }
     }
@@ -432,53 +533,102 @@ export const useAgendamentosDashboard = (
     // -----------------------------------------------------------------------
     // STEP 3: Process leads → funnel + criativos + origens + segmentation
     // -----------------------------------------------------------------------
-    const criativoMap: Record<string, { adId: string | null; leads: number; responderam: number; agendaram: number; compareceram: number; fecharam: number }> = {};
-    const origemMap: Record<string, { leads: number; responderam: number; agendaram: number; compareceram: number; fecharam: number }> = {};
-    const estadoMap: Record<string, { total: number; convertidos: number; perdidos: number }> = {};
-    const wpMap: Record<string, { total: number; convertidos: number; perdidos: number }> = {};
+    const criativoMap: Record<
+      string,
+      {
+        adId: string | null;
+        leads: number;
+        responderam: number;
+        agendaram: number;
+        compareceram: number;
+        fecharam: number;
+      }
+    > = {};
+    const origemMap: Record<
+      string,
+      {
+        leads: number;
+        responderam: number;
+        agendaram: number;
+        compareceram: number;
+        fecharam: number;
+      }
+    > = {};
+    const estadoMap: Record<
+      string,
+      { total: number; convertidos: number; perdidos: number }
+    > = {};
+    const wpMap: Record<
+      string,
+      { total: number; convertidos: number; perdidos: number }
+    > = {};
 
-    let fResponderam = 0, fAgendaram = 0, fCompareceram = 0, fFecharam = 0;
-    let sComEstado = 0, sComWorkPermit = 0, sConvertidos = 0, sPerdidos = 0;
+    let fResponderam = 0,
+      fAgendaram = 0,
+      fCompareceram = 0,
+      fFecharam = 0;
+    let sComEstado = 0,
+      sComWorkPermit = 0,
+      sConvertidos = 0,
+      sPerdidos = 0;
     const leadsPorDiaMap: Record<string, number> = {};
 
     for (const lead of leads) {
       const utmContent = normalizeUtmContent(lead.utm_content);
       const sessionSource = normalizeSessionSource(lead.session_source);
-      const adId = lead.ad_id && lead.ad_id !== 'NULL' ? lead.ad_id : null;
-      const etapaVal = (lead.etapa_funil || '').toLowerCase();
+      const adId = lead.ad_id && lead.ad_id !== "NULL" ? lead.ad_id : null;
+      const etapaVal = (lead.etapa_funil || "").toLowerCase();
 
       // Segmentation
       const estado = normalizeState(lead.state);
       const wp = normalizeWorkPermit(lead.work_permit);
-      const isConvertido = etapaVal === 'fechou' || etapaVal === 'won' || (lead.unique_id && wonContactIds.has(lead.unique_id));
-      const isPerdido = etapaVal === 'perdido' || etapaVal === 'lost';
+      const isConvertido =
+        etapaVal === "fechou" ||
+        etapaVal === "won" ||
+        (lead.unique_id && wonContactIds.has(lead.unique_id));
+      const isPerdido = etapaVal === "perdido" || etapaVal === "lost";
 
       if (isConvertido) sConvertidos++;
       if (isPerdido) sPerdidos++;
 
-      if (estado !== 'Não informado') sComEstado++;
-      if (!estadoMap[estado]) estadoMap[estado] = { total: 0, convertidos: 0, perdidos: 0 };
+      if (estado !== "Não informado") sComEstado++;
+      if (!estadoMap[estado])
+        estadoMap[estado] = { total: 0, convertidos: 0, perdidos: 0 };
       estadoMap[estado].total++;
       if (isConvertido) estadoMap[estado].convertidos++;
       if (isPerdido) estadoMap[estado].perdidos++;
 
-      if (wp !== 'Não informado') sComWorkPermit++;
+      if (wp !== "Não informado") sComWorkPermit++;
       if (!wpMap[wp]) wpMap[wp] = { total: 0, convertidos: 0, perdidos: 0 };
       wpMap[wp].total++;
       if (isConvertido) wpMap[wp].convertidos++;
       if (isPerdido) wpMap[wp].perdidos++;
 
       // Cross-reference with appointments
-      const apptData = lead.unique_id ? contactApptMap.get(lead.unique_id) : null;
+      const apptData = lead.unique_id
+        ? contactApptMap.get(lead.unique_id)
+        : null;
       const hasAppointment = apptData != null;
-      const appointmentPassed = apptData ? new Date(apptData.appointmentDate) < now : false;
-      const isNoShow = etapaVal.includes('no-show') || etapaVal.includes('no_show');
+      const appointmentPassed = apptData
+        ? new Date(apptData.appointmentDate) < now
+        : false;
+      const isNoShow =
+        etapaVal.includes("no-show") || etapaVal.includes("no_show");
 
       // Unified funnel definitions
-      const agendou = ['agendou', 'agendado', 'no-show', 'no_show'].some(s => etapaVal.includes(s)) || hasAppointment;
-      const compareceu = apptData?.confirmedPresence === true || (agendou && appointmentPassed && !isNoShow);
-      const fechou = ['fechou', 'won', 'fechado'].some(s => etapaVal.includes(s)) || apptData?.converted === true || (lead.unique_id && wonContactIds.has(lead.unique_id));
-      const responded = lead.responded === true || lead.responded === 'true' || agendou;
+      const agendou =
+        ["agendou", "agendado", "no-show", "no_show"].some((s) =>
+          etapaVal.includes(s),
+        ) || hasAppointment;
+      const compareceu =
+        apptData?.confirmedPresence === true ||
+        (agendou && appointmentPassed && !isNoShow);
+      const fechou =
+        ["fechou", "won", "fechado"].some((s) => etapaVal.includes(s)) ||
+        apptData?.converted === true ||
+        (lead.unique_id && wonContactIds.has(lead.unique_id));
+      const responded =
+        lead.responded === true || lead.responded === "true" || agendou;
 
       if (responded) fResponderam++;
       if (agendou) fAgendaram++;
@@ -486,17 +636,33 @@ export const useAgendamentosDashboard = (
       if (fechou) fFecharam++;
 
       // Criativo aggregation
-      const criativoKey = utmContent || 'Sem Criativo (UTM vazio)';
-      if (!criativoMap[criativoKey]) criativoMap[criativoKey] = { adId, leads: 0, responderam: 0, agendaram: 0, compareceram: 0, fecharam: 0 };
+      const criativoKey = utmContent || "Sem Criativo (UTM vazio)";
+      if (!criativoMap[criativoKey])
+        criativoMap[criativoKey] = {
+          adId,
+          leads: 0,
+          responderam: 0,
+          agendaram: 0,
+          compareceram: 0,
+          fecharam: 0,
+        };
       criativoMap[criativoKey].leads++;
       if (responded) criativoMap[criativoKey].responderam++;
       if (agendou) criativoMap[criativoKey].agendaram++;
       if (compareceu) criativoMap[criativoKey].compareceram++;
       if (fechou) criativoMap[criativoKey].fecharam++;
-      if (adId && !criativoMap[criativoKey].adId) criativoMap[criativoKey].adId = adId;
+      if (adId && !criativoMap[criativoKey].adId)
+        criativoMap[criativoKey].adId = adId;
 
       // Origem aggregation (session_source)
-      if (!origemMap[sessionSource]) origemMap[sessionSource] = { leads: 0, responderam: 0, agendaram: 0, compareceram: 0, fecharam: 0 };
+      if (!origemMap[sessionSource])
+        origemMap[sessionSource] = {
+          leads: 0,
+          responderam: 0,
+          agendaram: 0,
+          compareceram: 0,
+          fecharam: 0,
+        };
       origemMap[sessionSource].leads++;
       if (responded) origemMap[sessionSource].responderam++;
       if (agendou) origemMap[sessionSource].agendaram++;
@@ -505,30 +671,52 @@ export const useAgendamentosDashboard = (
 
       // Leads per day
       if (lead.created_at) {
-        const dateKey = new Date(lead.created_at).toISOString().split('T')[0];
+        const dateKey = new Date(lead.created_at).toISOString().split("T")[0];
         leadsPorDiaMap[dateKey] = (leadsPorDiaMap[dateKey] || 0) + 1;
       }
     }
 
-    // Use deduped leads count. When ghl_sync is present, exactLeadsCount includes
-    // duplicates from n8n records — use leads.length which is already deduped.
-    const totalLeads = hasGhlSync ? leads.length : (exactLeadsCount || rawLeads.length);
+    // -----------------------------------------------------------------------
+    // FUNNEL TOTALS: Semantic Layer (vw_unified_funnel) quando disponivel
+    // Fallback: logica local Math.max() para "all locations" ou erro
+    // -----------------------------------------------------------------------
+    let funnel: FunnelMetrics;
 
-    // Direct counts from appointments_log and ghl_opportunities as floors.
-    // n8n_schedule_tracking.unique_id ≠ GHL contact_id — cross-reference only matches ~8% of records.
-    // Use direct counts to ensure funnel reflects real appointment and won data.
-    const totalFecharam = Math.max(fFecharam, wonCount);
-    const totalCompareceram = Math.max(fCompareceram, directCompleted, totalFecharam);
-    const totalAgendaram = Math.max(fAgendaram, directAgendaram, totalCompareceram);
-    const totalResponderam = Math.max(fResponderam, totalAgendaram);
+    if (unified.summary && locationId) {
+      // Fonte unica de verdade: mesmos numeros em todos os dashboards
+      funnel = {
+        totalLeads: unified.summary.total_leads,
+        totalResponderam: unified.summary.responderam,
+        totalAgendaram: unified.summary.agendaram,
+        totalCompareceram: unified.summary.compareceram,
+        totalFecharam: unified.summary.fecharam,
+      };
+    } else {
+      // Fallback: all-locations ou unified indisponivel
+      const totalLeads = hasGhlSync
+        ? leads.length
+        : exactLeadsCount || rawLeads.length;
+      const totalFecharam = Math.max(fFecharam, wonCount);
+      const totalCompareceram = Math.max(
+        fCompareceram,
+        directCompleted,
+        totalFecharam,
+      );
+      const totalAgendaram = Math.max(
+        fAgendaram,
+        directAgendaram,
+        totalCompareceram,
+      );
+      const totalResponderam = Math.max(fResponderam, totalAgendaram);
 
-    const funnel: FunnelMetrics = {
-      totalLeads,
-      totalResponderam,
-      totalAgendaram,
-      totalCompareceram,
-      totalFecharam,
-    };
+      funnel = {
+        totalLeads,
+        totalResponderam,
+        totalAgendaram,
+        totalCompareceram,
+        totalFecharam,
+      };
+    }
 
     // -----------------------------------------------------------------------
     // STEP 4: Agenda metrics (appointment-centric, relative to date range)
@@ -542,18 +730,26 @@ export const useAgendamentosDashboard = (
     ref7dStart.setDate(endDate.getDate() - 7);
     ref7dStart.setHours(0, 0, 0, 0);
 
-    let aHoje = 0, aSemana = 0, aMes = 0;
-    let aTotalCompleted = 0, aTotalNoShow = 0, aTotalBooked = 0, aTotalPendingFeedback = 0;
+    let aHoje = 0,
+      aSemana = 0,
+      aMes = 0;
+    let aTotalCompleted = 0,
+      aTotalNoShow = 0,
+      aTotalBooked = 0,
+      aTotalPendingFeedback = 0;
 
     const porDiaMap: Record<string, number> = {};
     const porDiaCriacaoMap: Record<string, number> = {};
 
     // Initialize all days in the user's selected range
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysDiff =
+      Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      ) + 1;
     for (let i = 0; i < daysDiff; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
-      const dateKey = d.toISOString().split('T')[0];
+      const dateKey = d.toISOString().split("T")[0];
       porDiaMap[dateKey] = 0;
       porDiaCriacaoMap[dateKey] = 0;
     }
@@ -564,7 +760,7 @@ export const useAgendamentosDashboard = (
       const scheduledAt = new Date(apptDate);
       const status = mapGhlStatus(appt.raw_payload);
       const isPast = scheduledAt < now;
-      const apptDateKey = scheduledAt.toISOString().split('T')[0];
+      const apptDateKey = scheduledAt.toISOString().split("T")[0];
 
       // porDia: appointments scheduled FOR each day
       if (porDiaMap[apptDateKey] !== undefined) {
@@ -573,15 +769,16 @@ export const useAgendamentosDashboard = (
 
       // Agenda metrics: only appointments within [startDate, endDate]
       if (scheduledAt >= startDate && scheduledAt <= endDate) {
-        if (scheduledAt >= refEndDayStart && scheduledAt <= refEndDayEnd) aHoje++;
+        if (scheduledAt >= refEndDayStart && scheduledAt <= refEndDayEnd)
+          aHoje++;
         if (scheduledAt >= ref7dStart && scheduledAt <= refEndDayEnd) aSemana++;
         aMes++;
 
-        if (status === 'completed' || status === 'won') {
+        if (status === "completed" || status === "won") {
           aTotalCompleted++;
-        } else if (status === 'no_show' || status === 'lost') {
+        } else if (status === "no_show" || status === "lost") {
           aTotalNoShow++;
-        } else if (status === 'booked') {
+        } else if (status === "booked") {
           if (isPast) {
             aTotalPendingFeedback++;
           } else {
@@ -592,7 +789,9 @@ export const useAgendamentosDashboard = (
 
       // porDiaCriacao: appointments CREATED on each day (within the user's range)
       if (appt.created_at) {
-        const createdKey = new Date(appt.created_at).toISOString().split('T')[0];
+        const createdKey = new Date(appt.created_at)
+          .toISOString()
+          .split("T")[0];
         if (porDiaCriacaoMap[createdKey] !== undefined) {
           porDiaCriacaoMap[createdKey]++;
         }
@@ -608,8 +807,14 @@ export const useAgendamentosDashboard = (
       totalNoShow: aTotalNoShow,
       totalBooked: aTotalBooked,
       totalPendingFeedback: aTotalPendingFeedback,
-      taxaComparecimento: totalWithStatus > 0 ? Math.round((aTotalCompleted / totalWithStatus) * 100) : 0,
-      taxaNoShow: totalWithStatus > 0 ? Math.round((aTotalNoShow / totalWithStatus) * 100) : 0,
+      taxaComparecimento:
+        totalWithStatus > 0
+          ? Math.round((aTotalCompleted / totalWithStatus) * 100)
+          : 0,
+      taxaNoShow:
+        totalWithStatus > 0
+          ? Math.round((aTotalNoShow / totalWithStatus) * 100)
+          : 0,
       porDia: Object.entries(porDiaMap)
         .map(([data, quantidade]) => ({ data, quantidade }))
         .sort((a, b) => a.data.localeCompare(b.data)),
@@ -627,9 +832,12 @@ export const useAgendamentosDashboard = (
         agendaram: m.agendaram,
         compareceram: m.compareceram,
         fecharam: m.fecharam,
-        taxaResposta: m.leads > 0 ? Math.round((m.responderam / m.leads) * 100) : 0,
-        taxaAgendamento: m.leads > 0 ? Math.round((m.agendaram / m.leads) * 100) : 0,
-        taxaConversao: m.leads > 0 ? Math.round((m.fecharam / m.leads) * 100) : 0,
+        taxaResposta:
+          m.leads > 0 ? Math.round((m.responderam / m.leads) * 100) : 0,
+        taxaAgendamento:
+          m.leads > 0 ? Math.round((m.agendaram / m.leads) * 100) : 0,
+        taxaConversao:
+          m.leads > 0 ? Math.round((m.fecharam / m.leads) * 100) : 0,
       }))
       .sort((a, b) => b.leads - a.leads);
 
@@ -637,16 +845,20 @@ export const useAgendamentosDashboard = (
       .map(([origem, m]) => ({ origem, ...m }))
       .sort((a, b) => b.leads - a.leads);
 
-    const porOrigem = origens.map(o => ({ origem: o.origem, quantidade: o.leads }));
+    const porOrigem = origens.map((o) => ({
+      origem: o.origem,
+      quantidade: o.leads,
+    }));
 
     const estados: EstadoMetrics[] = Object.entries(estadoMap)
-      .filter(([estado]) => estado !== 'Não informado')
+      .filter(([estado]) => estado !== "Não informado")
       .map(([estado, m]) => ({
         estado,
         totalLeads: m.total,
         convertidos: m.convertidos,
         perdidos: m.perdidos,
-        taxaConversao: m.total > 0 ? Math.round((m.convertidos / m.total) * 100) : 0,
+        taxaConversao:
+          m.total > 0 ? Math.round((m.convertidos / m.total) * 100) : 0,
       }))
       .sort((a, b) => b.totalLeads - a.totalLeads)
       .slice(0, 10);
@@ -657,7 +869,8 @@ export const useAgendamentosDashboard = (
         totalLeads: m.total,
         convertidos: m.convertidos,
         perdidos: m.perdidos,
-        taxaConversao: m.total > 0 ? Math.round((m.convertidos / m.total) * 100) : 0,
+        taxaConversao:
+          m.total > 0 ? Math.round((m.convertidos / m.total) * 100) : 0,
       }))
       .sort((a, b) => b.totalLeads - a.totalLeads);
 
@@ -681,7 +894,7 @@ export const useAgendamentosDashboard = (
     const respCountMap: Record<string, number> = {};
     for (const appt of dedupedAppts) {
       const name = appt.location_name;
-      if (name && name !== 'unknown') {
+      if (name && name !== "unknown") {
         respCountMap[name] = (respCountMap[name] || 0) + 1;
       }
     }
@@ -690,18 +903,39 @@ export const useAgendamentosDashboard = (
       .sort((a, b) => b.count - a.count);
 
     return {
-      funnel, agenda, criativos, origens, estados,
-      workPermit: workPermitArr, segmentationTotals,
-      porDiaCriacao, porOrigem, responsaveis,
+      funnel,
+      agenda,
+      criativos,
+      origens,
+      estados,
+      workPermit: workPermitArr,
+      segmentationTotals,
+      porDiaCriacao,
+      porOrigem,
+      responsaveis,
       dedupedLeads: leads,
     };
-  }, [rawLeads, rawAppointments, wonContactIds, wonCount, exactLeadsCount, dateRange?.startDate?.getTime(), dateRange?.endDate?.getTime()]);
+  }, [
+    rawLeads,
+    rawAppointments,
+    wonContactIds,
+    wonCount,
+    exactLeadsCount,
+    dateRange?.startDate?.getTime(),
+    dateRange?.endDate?.getTime(),
+    unified.summary?.total_leads,
+    unified.summary?.responderam,
+    unified.summary?.agendaram,
+    unified.summary?.compareceram,
+    unified.summary?.fecharam,
+    locationId,
+  ]);
 
   return {
     ...computed,
     leads: computed.dedupedLeads as CriativoLead[],
-    loading,
-    error,
+    loading: loading || (locationId ? unified.loading : false),
+    error: error || unified.error,
     refetch: fetchData,
   };
 };

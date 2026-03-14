@@ -80,3 +80,5 @@ export type {
 
 export * from "./useSharedDashboards";
 export * from "./useClientFunnel";
+export { useUnifiedFunnel } from "./useUnifiedFunnel";
+export type { UnifiedDailyRow, UnifiedSummary } from "./useUnifiedFunnel";

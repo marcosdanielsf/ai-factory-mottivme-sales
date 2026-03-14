@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { useUnifiedFunnel } from "./useUnifiedFunnel";
 // Mock data removed — empty state when no ads data for selected period
 import type {
   LeadScoreRow,
@@ -12,6 +13,20 @@ import type {
   AnomalyRow,
   FunnelLead,
 } from "../pages/MetricsLab/types";
+
+// ============================================================================
+// HOOK: useMetricsLab v2.0 — Semantic Layer Integration
+// Per-ad attribution data from fb_ads_performance + n8n_schedule_tracking
+// + Unified funnel totals from vw_unified_funnel (when locationId provided)
+// ============================================================================
+
+export interface UnifiedFunnelTotals {
+  totalLeads: number;
+  responderam: number;
+  agendaram: number;
+  compareceram: number;
+  fecharam: number;
+}
 
 // ─── Raw DB shapes ──────────────────────────────────────────────────────────
 
@@ -530,13 +545,21 @@ interface UseMetricsLabReturn {
   periodDeltas: PeriodDeltas | null;
   conversionTimeMap: Map<string, ConversionTimeStats> | null;
   anomalies: AnomalyRow[];
+  unifiedTotals: UnifiedFunnelTotals | null;
   fetchFunnelLeads: (adId: string) => Promise<FunnelLead[]>;
 }
 
 export const useMetricsLab = (
   accountName?: string | null,
   dateRange?: { startDate: Date | null; endDate: Date | null },
+  locationId?: string | null,
 ): UseMetricsLabReturn => {
+  // ── Semantic Layer: unified funnel totals (when locationId provided) ──
+  const unified = useUnifiedFunnel({
+    locationId: locationId ?? null,
+    dateFrom: dateRange?.startDate ?? null,
+    dateTo: dateRange?.endDate ?? null,
+  });
   const [rawAds, setRawAds] = useState<RawAdRow[]>([]);
   const [rawAdsPrev, setRawAdsPrev] = useState<RawAdRow[]>([]);
   const [rawTracking, setRawTracking] = useState<RawFunnelTracking[]>([]);
@@ -1540,6 +1563,17 @@ export const useMetricsLab = (
     [],
   );
 
+  // ── Unified funnel totals (semantic layer cross-reference) ──
+  const unifiedTotals: UnifiedFunnelTotals | null = unified.summary
+    ? {
+        totalLeads: unified.summary.total_leads,
+        responderam: unified.summary.responderam,
+        agendaram: unified.summary.agendaram,
+        compareceram: unified.summary.compareceram,
+        fecharam: unified.summary.fecharam,
+      }
+    : null;
+
   return {
     leadScoreRows: computed.leadScoreRows,
     criativosARC: computed.criativosARC,
@@ -1549,8 +1583,9 @@ export const useMetricsLab = (
     periodDeltas: computed.periodDeltas,
     conversionTimeMap: computed.conversionTimeMap,
     anomalies: computed.anomalies,
-    loading,
-    error,
+    unifiedTotals,
+    loading: loading || (locationId ? unified.loading : false),
+    error: error || unified.error,
     refetch: fetchData,
     unattributedCount,
     fetchFunnelLeads,

@@ -1,14 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 
 // ============================================================================
-// HOOK: useFunnelMetrics v2.1
-// Usa dados REAIS de:
-// - app_dash_principal (histórico + atual - coluna status)
-// - n8n_schedule_tracking (etapa_funil - tempo real)
-// - appointments_log (agendamentos novos)
-// 
-// Suporta filtro por locationId (usuário/cliente)
+// HOOK: useFunnelMetrics v3.0 — Semantic Layer
+// Usa vw_unified_funnel via RPCs get_unified_summary / get_unified_daily
+// Fonte unica de verdade: mesmos numeros em todos os dashboards
+// Alertas ainda vem de n8n_schedule_tracking (dados de lead individual)
 // ============================================================================
 
 export interface FunnelStage {
@@ -51,233 +48,203 @@ interface FunnelMetricsState {
   error: string | null;
 }
 
-type Period = 'hoje' | '7d' | '30d' | '90d';
+type Period = "hoje" | "7d" | "30d" | "90d";
 
-// Mapeamento de status do app_dash_principal para etapas do funil
-const STATUS_MAP = {
-  novo: ['new_lead', 'new', 'available'],
-  emContato: ['qualifying', 'in_cadence', 'contacted'],
-  respondeu: ['replied', 'responded', 'warm', 'hot'],
-  agendou: ['booked', 'scheduled', 'appointment'],
-  compareceu: ['completed', 'showed', 'attended'],
-  noShow: ['no_show', 'noshow', 'missed'],
-  fechou: ['won', 'converted', 'closed', 'customer'],
-  perdido: ['lost', 'dead', 'unqualified']
+const PERIOD_DAYS: Record<Period, number> = {
+  hoje: 0,
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
 };
 
-// Mapeamento de etapa_funil do n8n_schedule_tracking
-const ETAPA_FUNIL_MAP: Record<string, string> = {
-  'Novo': 'novo',
-  'Em Contato': 'emContato',
-  'Respondeu': 'respondeu',
-  'Agendou': 'agendou',
-  'Compareceu': 'compareceu',
-  'No-show': 'noShow',
-  'Fechou': 'fechou',
-  'Perdido': 'perdido'
-};
-
-export const useFunnelMetrics = (period: Period = '30d', locationId?: string | null) => {
+export const useFunnelMetrics = (
+  period: Period = "30d",
+  locationId?: string | null,
+) => {
   const [state, setState] = useState<FunnelMetricsState>({
     funnel: [],
     alerts: {
       leadsSemResposta24h: 0,
       followupsFalhados: 0,
       leadsEsfriando: 0,
-      noShows: 0
+      noShows: 0,
     },
     followupPerformance: [],
     engagement: {
       followupsPerLead: 0,
-      tentativaQueConverte: '-',
+      tentativaQueConverte: "-",
       taxaResposta: 0,
-      tempoAteResposta: '-'
+      tempoAteResposta: "-",
     },
     loading: true,
-    error: null
+    error: null,
   });
 
   const fetchMetrics = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Calcular data de início baseado no período
       const now = new Date();
       let startDate: Date;
       switch (period) {
-        case 'hoje':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        case "hoje":
+          startDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+          );
           break;
-        case '7d':
+        case "7d":
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
-        case '90d':
+        case "90d":
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
-        default: // 30d
+        default:
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
 
-      // Inicializar contadores do funil
-      const funnelCounts = {
-        novo: 0,
-        emContato: 0,
-        respondeu: 0,
-        agendou: 0,
-        compareceu: 0,
-        noShow: 0,
-        fechou: 0,
-        perdido: 0
-      };
+      const dateFrom = startDate.toISOString().split("T")[0];
+      const dateTo = now.toISOString().split("T")[0];
 
       // ========================================
-      // FONTE 1: app_dash_principal (histórico)
+      // FONTE UNICA: vw_unified_funnel via RPC
       // ========================================
-      let dashQuery = supabase
-        .from('app_dash_principal')
-        .select('status, data_criada, data_da_atualizacao, location_id')
-        .gte('data_criada', startDate.toISOString());
-      
-      // Filtrar por location_id se fornecido
+      let totalLeads = 0;
+      let responderam = 0;
+      let agendaram = 0;
+      let compareceram = 0;
+      let fecharam = 0;
+
       if (locationId) {
-        dashQuery = dashQuery.eq('location_id', locationId);
-      }
-
-      const { data: dashData, error: dashError } = await dashQuery;
-
-      if (dashError) {
-        console.warn('Erro ao buscar app_dash_principal:', dashError);
-      } else if (dashData) {
-        dashData.forEach((lead: any) => {
-          const status = (lead.status || '').toLowerCase().trim();
-          
-          for (const [etapa, statusList] of Object.entries(STATUS_MAP)) {
-            if (statusList.includes(status)) {
-              funnelCounts[etapa as keyof typeof funnelCounts]++;
-              break;
-            }
+        // Single location: use RPC
+        const { data, error: rpcError } = await supabase.rpc(
+          "get_unified_summary",
+          {
+            p_location_id: locationId,
+            p_date_from: dateFrom,
+            p_date_to: dateTo,
+          },
+        );
+        if (rpcError) throw rpcError;
+        const row = data?.[0];
+        if (row) {
+          totalLeads = Number(row.total_leads) || 0;
+          responderam = Number(row.responderam) || 0;
+          agendaram = Number(row.agendaram) || 0;
+          compareceram = Number(row.compareceram) || 0;
+          fecharam = Number(row.fecharam) || 0;
+        }
+      } else {
+        // All locations: query view directly with date filter
+        const { data, error: viewError } = await supabase
+          .from("vw_unified_funnel")
+          .select("total_leads, responderam, agendaram, compareceram, fecharam")
+          .gte("dia", dateFrom)
+          .lte("dia", dateTo);
+        if (viewError) throw viewError;
+        if (data) {
+          for (const row of data) {
+            totalLeads += Number(row.total_leads) || 0;
+            responderam += Number(row.responderam) || 0;
+            agendaram += Number(row.agendaram) || 0;
+            compareceram += Number(row.compareceram) || 0;
+            fecharam += Number(row.fecharam) || 0;
           }
-        });
-        console.log('app_dash_principal:', dashData.length, 'leads', locationId ? `(location: ${locationId})` : '(todos)');
-      }
-
-      // ========================================
-      // FONTE 2: n8n_schedule_tracking (tempo real)
-      // ========================================
-      let trackingQuery = supabase
-        .from('n8n_schedule_tracking')
-        .select('etapa_funil, created_at, location_id')
-        .not('etapa_funil', 'is', null)
-        .gte('created_at', startDate.toISOString());
-      
-      if (locationId) {
-        trackingQuery = trackingQuery.eq('location_id', locationId);
-      }
-
-      const { data: trackingData, error: trackingError } = await trackingQuery;
-
-      if (trackingError) {
-        console.warn('Erro ao buscar n8n_schedule_tracking:', trackingError);
-      } else if (trackingData) {
-        trackingData.forEach((lead: any) => {
-          const etapa = lead.etapa_funil;
-          const mappedEtapa = ETAPA_FUNIL_MAP[etapa];
-          if (mappedEtapa && funnelCounts[mappedEtapa as keyof typeof funnelCounts] !== undefined) {
-            funnelCounts[mappedEtapa as keyof typeof funnelCounts]++;
-          }
-        });
-        console.log('n8n_schedule_tracking:', trackingData.length, 'com etapa_funil');
-      }
-
-      // ========================================
-      // FONTE 3: appointments_log (agendamentos reais)
-      // ========================================
-      let appointmentsQuery = supabase
-        .from('appointments_log')
-        .select('id, appointment_date, created_at, location_id')
-        .gte('created_at', startDate.toISOString());
-      
-      if (locationId) {
-        appointmentsQuery = appointmentsQuery.eq('location_id', locationId);
-      }
-
-      const { data: appointmentsData, error: appointmentsError } = await appointmentsQuery;
-
-      if (appointmentsError) {
-        console.warn('Erro ao buscar appointments_log:', appointmentsError);
-      } else if (appointmentsData && appointmentsData.length > 0) {
-        const appointmentsCount = appointmentsData.length;
-        console.log('appointments_log:', appointmentsCount, 'agendamentos');
-        
-        if (appointmentsCount > funnelCounts.agendou) {
-          funnelCounts.agendou = appointmentsCount;
         }
       }
 
-      // ========================================
-      // Calcular totais e métricas
-      // ========================================
-      const totalLeads = funnelCounts.novo + funnelCounts.emContato + funnelCounts.respondeu + 
-                         funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + 
-                         funnelCounts.fechou + funnelCounts.perdido;
-
-      const responderam = funnelCounts.respondeu + funnelCounts.agendou + funnelCounts.compareceu + 
-                          funnelCounts.noShow + funnelCounts.fechou;
-      const agendaram = funnelCounts.agendou + funnelCounts.compareceu + funnelCounts.noShow + funnelCounts.fechou;
-      const compareceram = funnelCounts.compareceu + funnelCounts.fechou;
-      const fecharam = funnelCounts.fechou;
-
       const funnelData: FunnelStage[] = [
-        { stage: 'Leads Novos', count: totalLeads, color: '#3b82f6' },
-        { stage: 'Responderam', count: responderam, color: '#6366f1' },
-        { stage: 'Agendaram', count: agendaram, color: '#8b5cf6' },
-        { stage: 'Compareceram', count: compareceram, color: '#a855f7' },
-        { stage: 'Fecharam', count: fecharam, color: '#22c55e' }
+        { stage: "Leads Novos", count: totalLeads, color: "#3b82f6" },
+        { stage: "Responderam", count: responderam, color: "#6366f1" },
+        { stage: "Agendaram", count: agendaram, color: "#8b5cf6" },
+        { stage: "Compareceram", count: compareceram, color: "#a855f7" },
+        { stage: "Fecharam", count: fecharam, color: "#22c55e" },
       ];
 
+      // ========================================
+      // ALERTAS: dados de lead individual
+      // ========================================
+      const oneDayAgo = new Date(
+        now.getTime() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const twoDaysAgo = new Date(
+        now.getTime() - 48 * 60 * 60 * 1000,
+      ).toISOString();
+
+      let alertQuery = supabase
+        .from("n8n_schedule_tracking")
+        .select("etapa_funil, responded, created_at, ativo")
+        .gte("created_at", startDate.toISOString());
+
+      if (locationId) {
+        alertQuery = alertQuery.eq("location_id", locationId);
+      }
+
+      const { data: alertData } = await alertQuery;
+
+      let semResposta24h = 0;
+      let perdidos = 0;
+      let esfriando = 0;
+      let noShows = 0;
+
+      if (alertData) {
+        for (const lead of alertData) {
+          const etapa = (lead.etapa_funil || "").toLowerCase();
+          if (etapa === "novo" && lead.created_at < oneDayAgo) semResposta24h++;
+          if (etapa === "perdido") perdidos++;
+          if (
+            etapa === "novo" &&
+            lead.ativo === true &&
+            lead.created_at < twoDaysAgo
+          )
+            esfriando++;
+          if (etapa === "no-show") noShows++;
+        }
+      }
+
       const alertsData: UrgentAlerts = {
-        leadsSemResposta24h: funnelCounts.novo,
-        followupsFalhados: funnelCounts.perdido,
-        leadsEsfriando: funnelCounts.emContato,
-        noShows: funnelCounts.noShow
+        leadsSemResposta24h: semResposta24h,
+        followupsFalhados: perdidos,
+        leadsEsfriando: esfriando,
+        noShows: noShows,
       };
 
-      const taxaResposta = totalLeads > 0 ? Math.round((responderam / totalLeads) * 100) : 0;
+      // ========================================
+      // Engagement metrics (derived from funnel)
+      // ========================================
+      const taxaResposta =
+        totalLeads > 0 ? Math.round((responderam / totalLeads) * 100) : 0;
 
-      let tentativaQueConverte = '-';
-      if (taxaResposta > 50) tentativaQueConverte = '1ª';
-      else if (taxaResposta > 30) tentativaQueConverte = '2ª';
-      else if (taxaResposta > 15) tentativaQueConverte = '3ª';
-      else if (taxaResposta > 5) tentativaQueConverte = '4ª+';
+      let tentativaQueConverte = "-";
+      if (taxaResposta > 50) tentativaQueConverte = "1a";
+      else if (taxaResposta > 30) tentativaQueConverte = "2a";
+      else if (taxaResposta > 15) tentativaQueConverte = "3a";
+      else if (taxaResposta > 5) tentativaQueConverte = "4a+";
 
-      const performance: FollowupPerformance[] = [{
-        locationId: locationId || 'all',
-        followUpType: 'multi-channel',
-        totalFollowups: totalLeads,
-        pendentes: funnelCounts.novo + funnelCounts.emContato,
-        responderam: responderam,
-        taxaResposta: taxaResposta,
-        mediaTentativasResposta: taxaResposta > 0 ? parseFloat((100 / taxaResposta).toFixed(1)) : 0,
-        mediaHorasResposta: 24
-      }];
+      const performance: FollowupPerformance[] = [
+        {
+          locationId: locationId || "all",
+          followUpType: "multi-channel",
+          totalFollowups: totalLeads,
+          pendentes: Math.max(0, totalLeads - responderam),
+          responderam,
+          taxaResposta,
+          mediaTentativasResposta:
+            taxaResposta > 0 ? parseFloat((100 / taxaResposta).toFixed(1)) : 0,
+          mediaHorasResposta: 24,
+        },
+      ];
 
       const engagement: EngagementMetrics = {
-        followupsPerLead: totalLeads > 0 ? parseFloat(((funnelCounts.emContato + responderam) / totalLeads).toFixed(1)) : 0,
+        followupsPerLead:
+          totalLeads > 0
+            ? parseFloat((responderam / totalLeads).toFixed(1))
+            : 0,
         tentativaQueConverte,
         taxaResposta,
-        tempoAteResposta: '24h'
+        tempoAteResposta: "24h",
       };
-
-      console.log('Funil Final:', {
-        total: totalLeads,
-        responderam,
-        agendaram,
-        compareceram,
-        fecharam,
-        noShows: funnelCounts.noShow,
-        perdidos: funnelCounts.perdido,
-        locationId: locationId || 'todos'
-      });
 
       setState({
         funnel: funnelData,
@@ -285,15 +252,15 @@ export const useFunnelMetrics = (period: Period = '30d', locationId?: string | n
         followupPerformance: performance,
         engagement,
         loading: false,
-        error: null
+        error: null,
       });
-
-    } catch (error: any) {
-      console.error('Erro ao buscar métricas do funil:', error);
-      setState(prev => ({
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Erro ao buscar metricas do funil:", error);
+      setState((prev) => ({
         ...prev,
         loading: false,
-        error: error.message || 'Erro ao carregar métricas'
+        error: message,
       }));
     }
   }, [period, locationId]);
@@ -304,7 +271,7 @@ export const useFunnelMetrics = (period: Period = '30d', locationId?: string | n
 
   return {
     ...state,
-    refetch: fetchMetrics
+    refetch: fetchMetrics,
   };
 };
 
