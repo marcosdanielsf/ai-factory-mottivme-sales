@@ -105,6 +105,12 @@ CREATE POLICY "ff_forms_owner_all"
       SELECT id FROM public.ff_workspaces
       WHERE owner_id = auth.uid()
     )
+  )
+  WITH CHECK (
+    workspace_id IN (
+      SELECT id FROM public.ff_workspaces
+      WHERE owner_id = auth.uid()
+    )
   );
 
 -- ============================================================================
@@ -148,6 +154,13 @@ ALTER TABLE public.ff_fields ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "ff_fields_owner_all"
   ON public.ff_fields FOR ALL
   USING (
+    form_id IN (
+      SELECT f.id FROM public.ff_forms f
+      JOIN public.ff_workspaces w ON w.id = f.workspace_id
+      WHERE w.owner_id = auth.uid()
+    )
+  )
+  WITH CHECK (
     form_id IN (
       SELECT f.id FROM public.ff_forms f
       JOIN public.ff_workspaces w ON w.id = f.workspace_id

@@ -166,8 +166,12 @@ export function useFormFlow(): UseFormFlowReturn {
 
       setForms(formsWithStats);
     } catch (err: unknown) {
-      console.error("Error listing forms:", err);
-      setError(getErrorMessage(err));
+      console.error("Error listing forms:", err, JSON.stringify(err));
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : getErrorMessage(err);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -236,7 +240,7 @@ export function useFormFlow(): UseFormFlowReturn {
             slug,
             status: "draft",
             settings: {},
-            ghl_mapping: null,
+            ghl_mapping: {},
           })
           .select()
           .single();
