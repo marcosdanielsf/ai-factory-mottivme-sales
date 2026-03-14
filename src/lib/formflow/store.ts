@@ -17,6 +17,7 @@ import type {
   SkipLogicRule,
 } from "./types";
 import { getNextField } from "./skip-logic";
+import { supabase } from "../supabase";
 
 // ---------------------------------------------------------------------------
 // 1. useFormBuilderStore — estado do editor de formulários
@@ -407,16 +408,56 @@ export const useFormPlayerStore = create<FormPlayerState>()((set, get) => ({
   },
 
   submitForm: async () => {
+    const { form, answers, startedAt } = get();
+    if (!form) return;
+
     set({ isSubmitting: true });
 
     try {
-      // TODO: chamar Supabase — inserir em ff_submissions + answers
-      const submissionId = crypto.randomUUID();
+      const completedAt = new Date();
+      const durationSeconds = startedAt
+        ? Math.round((completedAt.getTime() - startedAt.getTime()) / 1000)
+        : null;
+
+      // Coleta UTMs e metadados do browser
+      const urlParams = new URLSearchParams(window.location.search);
+      const metadata = {
+        user_agent: navigator.userAgent,
+        referrer: document.referrer || null,
+        utm_source: urlParams.get("utm_source") || null,
+        utm_medium: urlParams.get("utm_medium") || null,
+        utm_campaign: urlParams.get("utm_campaign") || null,
+        duration_seconds: durationSeconds,
+      };
+
+      const { data, error } = await supabase
+        .from("ff_submissions")
+        .insert({
+          form_id: form.id,
+          answers,
+          metadata,
+          started_at: startedAt?.toISOString() ?? null,
+          completed_at: completedAt.toISOString(),
+          is_complete: true,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      // Registra evento de conclusão
+      await supabase.from("ff_analytics_events").insert({
+        form_id: form.id,
+        submission_id: data.id,
+        event_type: "completion",
+        field_id: null,
+        metadata: { duration_seconds: durationSeconds },
+      });
 
       set({
         isSubmitting: false,
         isComplete: true,
-        submissionId,
+        submissionId: data.id,
       });
     } catch (err: unknown) {
       set({ isSubmitting: false });
