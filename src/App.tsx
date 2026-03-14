@@ -222,6 +222,11 @@ const AgentTools = lazy(() =>
   import("./pages/AgentTools").then((m) => ({ default: m.AgentTools })),
 );
 
+// Agent Preview (V2 Skills)
+const AgentPreview = lazy(() =>
+  import("./pages/AgentPreview").then((m) => ({ default: m.AgentPreview })),
+);
+
 // Catálogo de Produtos
 const Products = lazy(() => import("./pages/Products"));
 
@@ -1397,6 +1402,20 @@ const App = () => {
                           <Layout>
                             <Suspense fallback={<LoadingFallback />}>
                               <AgentTools />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Agent Preview V2 */}
+                    <Route
+                      path="/agent-preview"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <AgentPreview />
                             </Suspense>
                           </Layout>
                         </ProtectedRoute>

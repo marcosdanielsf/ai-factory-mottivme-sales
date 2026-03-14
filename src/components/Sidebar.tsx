@@ -437,6 +437,12 @@ const navSections: NavSection[] = [
         permission: "canAccessPromptEditor",
       },
       {
+        icon: Eye,
+        label: "Agent Preview",
+        to: "/agent-preview",
+        permission: "canAccessPromptEditor",
+      },
+      {
         icon: Palette,
         label: "Brand Assets",
         to: "/brand",

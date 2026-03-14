@@ -82,3 +82,5 @@ export * from "./useSharedDashboards";
 export * from "./useClientFunnel";
 export { useUnifiedFunnel } from "./useUnifiedFunnel";
 export type { UnifiedDailyRow, UnifiedSummary } from "./useUnifiedFunnel";
+export { useAgentPreview } from "./useAgentPreview";
+export type { AgentV2, AgentSkill, ResolvedAgent } from "./useAgentPreview";
