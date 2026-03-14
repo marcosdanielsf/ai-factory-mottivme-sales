@@ -18,6 +18,8 @@ import type {
 } from "./types";
 import { getNextField } from "./skip-logic";
 import { supabase } from "../supabase";
+import { fireWebhook } from "./webhook";
+import { buildGHLPayload } from "./ghl-sync";
 
 // ---------------------------------------------------------------------------
 // 1. useFormBuilderStore — estado do editor de formulários
@@ -408,7 +410,7 @@ export const useFormPlayerStore = create<FormPlayerState>()((set, get) => ({
   },
 
   submitForm: async () => {
-    const { form, answers, startedAt } = get();
+    const { form, fields, answers, startedAt } = get();
     if (!form) return;
 
     set({ isSubmitting: true });
@@ -421,6 +423,10 @@ export const useFormPlayerStore = create<FormPlayerState>()((set, get) => ({
 
       // Coleta UTMs e metadados do browser
       const urlParams = new URLSearchParams(window.location.search);
+
+      // Prepara GHL payload (salvo em metadata para uso futuro via Edge Function)
+      const ghlPayload = buildGHLPayload(form, fields, answers);
+
       const metadata = {
         user_agent: navigator.userAgent,
         referrer: document.referrer || null,
@@ -428,6 +434,7 @@ export const useFormPlayerStore = create<FormPlayerState>()((set, get) => ({
         utm_medium: urlParams.get("utm_medium") || null,
         utm_campaign: urlParams.get("utm_campaign") || null,
         duration_seconds: durationSeconds,
+        ...(ghlPayload !== null ? { ghl_payload: ghlPayload } : {}),
       };
 
       const { data, error } = await supabase
@@ -459,6 +466,13 @@ export const useFormPlayerStore = create<FormPlayerState>()((set, get) => ({
         isComplete: true,
         submissionId: data.id,
       });
+
+      // Dispara webhook de forma fire-and-forget (não bloqueia o player)
+      if (form.webhook_url) {
+        fireWebhook(form, data.id, answers, metadata).catch(() => {
+          // Erro já logado dentro de fireWebhook — silencia aqui
+        });
+      }
     } catch (err: unknown) {
       set({ isSubmitting: false });
       throw err;

@@ -1,12 +1,22 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Save, Eye, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Save,
+  Eye,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Webhook,
+  Zap,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useFormBuilderStore } from "@/lib/formflow/store";
 import { FieldTypePicker } from "@/components/formflow/builder/FieldTypePicker";
 import { FieldList } from "@/components/formflow/builder/FieldList";
 import { FieldConfigPanel } from "@/components/formflow/builder/FieldConfigPanel";
-import type { Form, Field, FormStatus } from "@/lib/formflow/types";
+import { WebhookConfig } from "@/components/formflow/builder/WebhookConfig";
+import { GHLMappingConfig } from "@/components/formflow/builder/GHLMappingConfig";
+import type { Form, Field, FormStatus, GHLMapping } from "@/lib/formflow/types";
 
 // ---------------------------------------------------------------------------
 // Status badge
@@ -90,6 +100,8 @@ function SaveIndicator({ isDirty, saveState }: SaveIndicatorProps) {
 // Main Builder
 // ---------------------------------------------------------------------------
 
+type RightPanelTab = "config" | "webhook" | "ghl";
+
 export function FormFlowBuilder() {
   const { formId } = useParams<{ formId: string }>();
 
@@ -101,6 +113,7 @@ export function FormFlowBuilder() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [rightTab, setRightTab] = useState<RightPanelTab>("config");
 
   // -------------------------------------------------------------------------
   // Load form + fields from Supabase
@@ -216,6 +229,45 @@ export function FormFlowBuilder() {
       setTimeout(() => setSaveState("idle"), 4000);
     }
   }, [form, formId, fields, markSaved]);
+
+  // -------------------------------------------------------------------------
+  // Integration saves (webhook + GHL mapping)
+  // -------------------------------------------------------------------------
+
+  const handleSaveWebhook = useCallback(
+    async (webhookUrl: string | undefined) => {
+      if (!formId) return;
+      const { error } = await supabase
+        .from("ff_forms")
+        .update({
+          webhook_url: webhookUrl ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", formId);
+      if (error) {
+        console.error("[FormFlowBuilder] webhook save error:", error);
+        return;
+      }
+      updateForm({ webhook_url: webhookUrl });
+    },
+    [formId, updateForm],
+  );
+
+  const handleSaveGHLMapping = useCallback(
+    async (mapping: GHLMapping | null) => {
+      if (!formId) return;
+      const { error } = await supabase
+        .from("ff_forms")
+        .update({ ghl_mapping: mapping, updated_at: new Date().toISOString() })
+        .eq("id", formId);
+      if (error) {
+        console.error("[FormFlowBuilder] GHL mapping save error:", error);
+        return;
+      }
+      updateForm({ ghl_mapping: mapping });
+    },
+    [formId, updateForm],
+  );
 
   // -------------------------------------------------------------------------
   // Title editing
@@ -372,13 +424,66 @@ export function FormFlowBuilder() {
           </div>
         </main>
 
-        {/* Right sidebar — FieldConfigPanel */}
-        <aside className="w-72 shrink-0 border-l border-border-primary bg-surface-secondary overflow-y-auto">
-          <div className="p-4">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-              Configurações
-            </p>
-            <FieldConfigPanel />
+        {/* Right sidebar — tabs: Configurações | Webhook | GHL */}
+        <aside className="w-72 shrink-0 border-l border-border-primary bg-surface-secondary flex flex-col">
+          {/* Tab bar */}
+          <div className="flex border-b border-border-primary shrink-0">
+            <button
+              onClick={() => setRightTab("config")}
+              className={[
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                rightTab === "config"
+                  ? "text-text-primary border-b-2 border-brand-primary -mb-px"
+                  : "text-text-muted hover:text-text-secondary",
+              ].join(" ")}
+            >
+              Campo
+            </button>
+            <button
+              onClick={() => setRightTab("webhook")}
+              className={[
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                rightTab === "webhook"
+                  ? "text-text-primary border-b-2 border-brand-primary -mb-px"
+                  : "text-text-muted hover:text-text-secondary",
+              ].join(" ")}
+            >
+              <Webhook className="h-3 w-3" />
+              Webhook
+              {form.webhook_url && (
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400 shrink-0" />
+              )}
+            </button>
+            <button
+              onClick={() => setRightTab("ghl")}
+              className={[
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                rightTab === "ghl"
+                  ? "text-text-primary border-b-2 border-brand-primary -mb-px"
+                  : "text-text-muted hover:text-text-secondary",
+              ].join(" ")}
+            >
+              <Zap className="h-3 w-3" />
+              GHL
+              {form.ghl_mapping && (
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
+              )}
+            </button>
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {rightTab === "config" && <FieldConfigPanel />}
+            {rightTab === "webhook" && (
+              <WebhookConfig form={form} onSave={handleSaveWebhook} />
+            )}
+            {rightTab === "ghl" && (
+              <GHLMappingConfig
+                form={form}
+                fields={fields}
+                onSave={handleSaveGHLMapping}
+              />
+            )}
           </div>
         </aside>
       </div>
