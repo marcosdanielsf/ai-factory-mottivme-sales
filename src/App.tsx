@@ -412,6 +412,26 @@ const BoardView = lazy(() =>
   import("./pages/BoardView").then((m) => ({ default: m.BoardView })),
 );
 
+// FormFlow (formulários conversacionais)
+const FormFlowDashboard = lazy(() =>
+  import("./pages/FormFlow").then((m) => ({ default: m.FormFlowDashboard })),
+);
+const FormFlowBuilder = lazy(() =>
+  import("./pages/FormFlow/Builder").then((m) => ({
+    default: m.FormFlowBuilder,
+  })),
+);
+const FormFlowPlayer = lazy(() =>
+  import("./pages/FormFlow/Player").then((m) => ({
+    default: m.FormFlowPlayer,
+  })),
+);
+const FormFlowAnalytics = lazy(() =>
+  import("./pages/FormFlow/Analytics").then((m) => ({
+    default: m.FormFlowAnalytics,
+  })),
+);
+
 const App = () => {
   return (
     <JarvisProvider>
@@ -477,6 +497,14 @@ const App = () => {
                       element={
                         <Suspense fallback={<LoadingFallback />}>
                           <ShareDashboard />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/formflow/f/:formSlug"
+                      element={
+                        <Suspense fallback={<LoadingFallback />}>
+                          <FormFlowPlayer />
                         </Suspense>
                       }
                     />
@@ -1991,6 +2019,42 @@ const App = () => {
                           <Layout>
                             <Suspense fallback={<LoadingFallback />}>
                               <BoardView />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* FormFlow — Formulários Conversacionais */}
+                    <Route
+                      path="/formflow"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <FormFlowDashboard />
+                            </Suspense>
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/formflow/builder/:formId"
+                      element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<LoadingFallback />}>
+                            <FormFlowBuilder />
+                          </Suspense>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/formflow/analytics/:formId"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <FormFlowAnalytics />
                             </Suspense>
                           </Layout>
                         </ProtectedRoute>

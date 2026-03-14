@@ -471,6 +471,12 @@ const navSections: NavSection[] = [
         to: "/mindflow",
         permission: "canAccessPromptEditor",
       },
+      {
+        icon: FileText,
+        label: "FormFlow",
+        to: "/formflow",
+        permission: "canAccessPromptEditor",
+      },
       // --- Criação de conteúdo ---
       {
         icon: Palette,
