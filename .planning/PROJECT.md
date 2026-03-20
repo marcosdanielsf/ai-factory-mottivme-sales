@@ -8,7 +8,20 @@ AI Factory (factorai.mottivme.com.br) e a plataforma interna da MOTTIVME para ge
 
 Visibilidade total da jornada do cliente — da prospecao ate renovacao/churn — com tracking de cada touchpoint, owners claros, SLAs definidos e dashboard visual que mostra onde cada cliente esta e onde estao os gargalos.
 
-## Current Milestone: v2.0 Customer Journey Map
+## Current Milestone: v3.0 AI Engineer
+
+**Goal:** Conectar as 6 camadas do AI Factory V3 (Ingestao → Provisionamento → Execucao → QA → Self-Improving → CS) em um loop fechado e autonomo, eliminando intervencao manual do Marcos na operacao de agentes.
+
+**Context:** O AI Factory V3 ja tem 20 workflows n8n ativos cobrindo as 6 camadas. O loop Self-Improving (Reflection Loop 3AM → Prompt Updater → upgrade_agent_version()) ja roda em producao. O que falta sao 5 conexoes entre camadas existentes.
+
+**Target features:**
+- AI as Judge conectado ao Reflection Loop (QA → Self-Improving)
+- Tasks automaticas em mottivme_tasks quando escalate (visibilidade no dashboard)
+- CS Bot nos grupos WhatsApp dos clientes (deteccao automatica de problemas)
+- Agent Skills integrado ao Prompt Updater (editar skills isoladas, nao SP monolitico)
+- Dashboard frontend para visualizar todo o sistema Self-Improving
+
+## Previous Milestone: v2.0 Customer Journey Map
 
 **Goal:** Mapear, trackear e visualizar a jornada completa do cliente MOTTIVME no AI Factory, integrando dados de GHL, Supabase e n8n em um sistema visual e acionavel.
 
@@ -132,4 +145,4 @@ Codebase map: `.planning/codebase/`
 
 ---
 
-_Last updated: 2026-03-11 after milestone v2.0 Customer Journey Map started_
+_Last updated: 2026-03-20 — milestone v3.0 AI Engineer iniciado_
