@@ -1,93 +1,75 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Customer Journey Map
-status: executing
-last_updated: "2026-03-11"
+milestone: v3.0
+milestone_name: AI Engineer
+status: planning
+last_updated: "2026-03-20"
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 10
-  completed_plans: 3
+  total_plans: 0
+  completed_plans: 0
+previous_milestone: v2.0
+previous_milestone_name: Customer Journey Map
+previous_milestone_status: in_progress
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11)
+See: .planning/PROJECT.md (updated 2026-03-20)
 
-**Core value:** Visibilidade total da jornada do cliente — da prospecao ate renovacao/churn — com tracking de cada touchpoint, owners claros, SLAs definidos e dashboard visual.
-**Current focus:** Phase 10 — Visual Journey Map (data layer + page shell)
+**Core value:** Conectar as 6 camadas do AI Factory V3 em um loop fechado e autonomo, eliminando intervencao manual do Marcos na operacao de agentes.
+**Current focus:** Phase 14 — QA → Self-Improving Bridge (planejamento inicial)
 
 ## Current Position
 
-Phase: 10 (Visual Journey Map) — In Progress
-Plan: 10-01 (data layer + page shell) DONE, 10-02 (visual components) PENDING
-Status: Plan 10-01 complete. 4 hooks, page shell, route, sidebar entry created.
-Last activity: 2026-03-11 — Plan 10-01 executed (4 hooks, CustomerJourney page, RLS SQL)
+Phase: 14 (QA → Self-Improving Bridge) — Pending
+Plan: Nenhum plano iniciado ainda
+Status: Milestone v3.0 definido. Prerequisito: Agent Skills sync v2→v1 corrigido.
+Last activity: 2026-03-20 — Roadmap v3.0 criado, fases 14-18 definidas
 
-Progress: [███░░░░░░░] 30%
+Progress: [░░░░░░░░░░] 0%
 
-Phase 9 complete. Phase 10 plan 01 done. 3/10 plans done.
+0/5 fases completas. 0/5 planos executados.
 
 ## Performance Metrics
 
 | Metric       | Value |
 | ------------ | ----- |
-| Plans done   | 3/10  |
+| Plans done   | 0/0   |
 | Phases done  | 0/5   |
-| Requirements | 19    |
-| Coverage     | 100%  |
+| Requirements | 20    |
+| Coverage     | 0%    |
 
 ## Accumulated Context
 
 ### Decisions
 
-- [v2.0]: Customer Journey Map como novo milestone, pausando MindFlow v1.0
-- [v2.0]: 5 fases (9-13), numeracao continuando apos MindFlow phases 1-8
-- [v2.0]: n8n e o UNICO write path — React e read-only (sem chamadas diretas ao GHL)
-- [v2.0]: Supabase Realtime via Broadcast channel, NAO postgres_changes (performance)
-- [v2.0]: Max 4 tabelas (cjm_stage_config, cjm_events, cjm_journey_state, cjm_touchpoints) — evitar over-normalization
-- [v2.0]: ANAL-01 (Sankey) gated em minimo 30 eventos — placeholder ate threshold
-- [v2.0]: EDIT-03 (health score) condicional — quality_score incluido quando nao-NULL, badge "limited data" quando NULL
-- [v2.0]: timestamptz everywhere — nunca timestamp sem timezone
-- [v2.0]: business_hours_diff() com named timezone 'America/Sao_Paulo' (nao offset '-03:00')
-- [v2.0]: Idempotencia UNIQUE constraint em (contact_id, stage_key, source_event_id) — nao negociavel
-- [v2.0]: recharts upgrade 3.6→3.8 necessario (Sankey stability + React 19 compat)
-- [10-01]: Contact names via cjm_events metadata (nao tabela separada)
-- [10-01]: Polling fallback 30s no useCjmRealtime (n8n Broadcast node pendente)
-- [10-01]: Sidebar "Jornada Cliente" na secao Sales OS apos Agendamentos
+- [v3.0]: AI Engineer como novo milestone — conectar 6 camadas existentes sem construir do zero
+- [v3.0]: Fases numeradas 14-18 (continuando sequencia pos-v2.0 phases 9-13)
+- [v3.0]: Phase 14 depende apenas de workflows ja existentes (11 e 12)
+- [v3.0]: Phase 17 BLOQUEADA ate correcao do incidente prompts_by_mode (2026-03-20)
+- [v3.0]: CS Bot (Phase 16) usa OpenClaw — ja integrado no stack
+- [v3.0]: Dashboard (Phase 18) como paginas novas no AI Factory (HashRouter, mesma SPA)
 
-### Pending Todos
+### Known Blockers
 
-- ~~Verificar 4 pipeline IDs do GHL contra conta live antes de executar backfill~~ DONE (apenas MOTTIVME Dev tem opps; outros clientes = 0)
-- Confirmar se date-fns ja foi instalado no MindFlow Phase 1 (evitar reinstalar)
-- Configurar credenciais Postgres/Gemini no n8n workflow YlCtmyzCtGu2SmEx (reflection loop) — prerequesito para EDIT-03 health score com quality_score
-- Auditoria de cobertura agent_conversation_reflections.quality_score antes de Phase 13
+- Agent Skills sync v2→v1 sobrescreve prompts_by_mode com dados incompletos — incidente 2026-03-20, rollback aplicado
+- AI as Judge NAO dispara nenhuma acao em scores baixos (apenas flag needs_attention)
+- Workflows 03, 04, 07 usam INSERT direto em vez de upgrade_agent_version() RPC
+- Reflection Loop duplicado: PPCUBxwmb83neDet vs VAXa5XhCtKzBWl75 — canonico indefinido
+- 3 versoes do Agent-Creator workflow — canonico indefinido
 
-### Blockers/Concerns
+### Previous Milestone Context (v2.0 Customer Journey Map)
 
-- MindFlow v1.0 pausado na Fase 1/8 — retomar apos v2.0 completo
-- agent_conversation_reflections.quality_score = NULL na maioria dos registros (credenciais n8n nao configuradas)
-- GHL webhooks sem retry logic em 5xx — idempotencia critica; testar replay antes de ativar
-- GOTCHA n8n: verificar \! em Code nodes apos qualquer PUT via API (reincidencia 4x)
+- v2.0 pausado em Phase 10 Plan 02 (visual components pendentes)
+- Phase 9 artifacts preservados: SQL migration, types cjm.ts, n8n workflows qFtjOPffsnkktF3f e TQBwvXUsyKySyRyG
+- Retomar v2.0 apos conclusao de v3.0 ou como milestone paralelo
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Completed 10-01-PLAN.md (data layer + page shell). 4 hooks, CustomerJourney page, lazy route, sidebar entry.
-Next action: `/gsd:execute-phase 10` plan 10-02 (visual components: JourneyCanvas, PipelineLane, StageColumn, ClientBadge)
-
-### Phase 9 Artifacts
-
-- SQL migration: `.planning/phases/09-foundation/sql/09-migration.sql` (aplicada)
-- TypeScript types: `apps/docs/src/types/cjm.ts` (8 exports)
-- n8n Event Ingester: `qFtjOPffsnkktF3f` (ATIVO, webhook: `/webhook/cjm-event-ingester`)
-- n8n Backfill: `TQBwvXUsyKySyRyG` (inativo, manual trigger)
-
-### Phase 9 Gotchas Discovered
-
-- Webhook `responseMode` deve ser `responseNode` (nao `lastNode`) quando usa Respond to Webhook node
-- Postgres node quebra cadeia de dados — UPSERT precisa referenciar `$('Node anterior').first().json` em vez de `$json`
-- n8n API POST rejeita campo `tags` (read-only) — remover antes de importar
+Last session: 2026-03-20
+Stopped at: Roadmap v3.0 criado. Prereqs identificados. Nenhuma fase iniciada.
+Next action: Corrigir incidente sync v2→v1 (prompts_by_mode) antes de iniciar Phase 14
