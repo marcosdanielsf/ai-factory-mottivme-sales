@@ -236,13 +236,17 @@ function useAutoLayout(
 ) {
   const { fitView } = useReactFlow();
   const prevLayout = useRef(layout);
+  const prevNodeCount = useRef(0);
   const isFirstRun = useRef(true);
 
   useEffect(() => {
     const layoutChanged = prevLayout.current !== layout;
-    if (!isFirstRun.current && !layoutChanged) return;
+    const nodeCountChanged = prevNodeCount.current !== nodes.length;
+
+    if (!isFirstRun.current && !layoutChanged && !nodeCountChanged) return;
 
     prevLayout.current = layout;
+    prevNodeCount.current = nodes.length;
     isFirstRun.current = false;
 
     if (!nodes.length) return;
@@ -345,6 +349,9 @@ function MindFlowInner() {
         );
         setNodes(rfNodes);
         setEdges(rfEdges);
+
+        // Clear stale localStorage to prevent old frames/stickies from persisting
+        localStorage.removeItem(`mindflow-${mapId}`);
 
         // Sync canvasStore
         const canvasEls = v4Nodes.map((n) => ({
