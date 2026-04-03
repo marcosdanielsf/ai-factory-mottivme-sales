@@ -199,6 +199,7 @@ const navSections: NavSection[] = [
           { icon: CheckCircle, label: "Central de Status", to: "/status" },
           { icon: Megaphone, label: "Social Selling", to: "/social-selling" },
           { icon: BarChart3, label: "Ads Performance", to: "/ads-performance" },
+          { icon: Eye, label: "IRIS Monitor", to: "/iris" },
           { icon: FlaskConical, label: "Metrics Lab", to: "/metrics-lab" },
           { icon: Flame, label: "CRM Insights", to: "/crm-insights" },
           { icon: Calculator, label: "Planejamento", to: "/planejamento" },

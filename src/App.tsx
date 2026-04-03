@@ -146,6 +146,11 @@ const AdsPerformance = lazy(() =>
   import("./pages/AdsPerformance").then((m) => ({ default: m.AdsPerformance })),
 );
 
+// IRIS Meta Ads Monitor
+const IrisDashboard = lazy(() =>
+  import("./pages/IrisDashboard").then((m) => ({ default: m.IrisDashboard })),
+);
+
 // GHL Operations Dashboard
 const GHLOps = lazy(() => import("./pages/GHLOps"));
 
@@ -621,6 +626,18 @@ const App = () => {
                           <ConditionalLayout>
                             <Suspense fallback={<LoadingFallback />}>
                               <AdsPerformance />
+                            </Suspense>
+                          </ConditionalLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/iris"
+                      element={
+                        <ProtectedRoute>
+                          <ConditionalLayout>
+                            <Suspense fallback={<LoadingFallback />}>
+                              <IrisDashboard />
                             </Suspense>
                           </ConditionalLayout>
                         </ProtectedRoute>
